@@ -67,7 +67,7 @@ class Phd {
         };
 
         app.get('/phd/status', this.getStatus.bind(this));
-
+        app.get('/phd/guide', this.guide.bind(this));
         this.startClient();
     }
 
@@ -146,6 +146,28 @@ class Phd {
         res.jsonResult = this.currentStatus;
         next();
     }
+
+    guide(req, res, next) {
+        var self = this;
+        if (this.client == undefined) {
+            res.jsonResult = { status: 'error'};
+            next();
+        } else {
+            var order = {
+                method: "guide",
+                params:[
+                    {"pixels": 1.5, "time": 10, "timeout": 60},
+                    false
+                ],
+                id: 9334
+            };
+            this.client.write( JSON.stringify(order) + "\r\n");
+            res.jsonResult = { status: 'ok'};
+            next();
+        }
+    }
+
+
 }
 
 
