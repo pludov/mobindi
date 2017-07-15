@@ -12,7 +12,7 @@ const sha1 = require('sha1')
 const bodyParser = require('body-parser');
 const url = require('url');
 const WebSocket = require('ws');
-
+const net = require('net');
 const Client = require('./Client.js');
 
 // var index = require('./routes/index');
@@ -20,8 +20,6 @@ const Client = require('./Client.js');
 
 const app = express();
 
-
-var auth = new NEDB({filename: 'data/users.db', autoload: true});
 
 var session = require('express-session');
 var FileStore = require('session-file-store')(session);
@@ -51,227 +49,107 @@ app.use(cors({
     credentials: true
 }));
 
-app.post('/auth', (req, res, next) => {
-    // Creer une session
-    auth.findOne({
-        login: req.body.login,
-        password: sha1(req.body.login + "#" + req.body.password)
-    },
-    function(err, doc) {
-        if (doc != null) {
-            console.log('Authenticated: ' + req.body.login);
-            req.session.user = req.body.login;
-        }
-        res.status(200);
-        res.contentType('application/json');
-        res.header('Cache-Control', 'no-cache');
-
-        var rslt = {
-            success: doc != null
-        };
-
-        console.log('Auth returning: ' + JSON.stringify(rslt));
-        res.send(JSON.stringify(rslt));
-    });
-});
-
-// FIXME: a partir de là, sauf sur auth, il faut une session valide
-app.use((req, res, next) => {
-    var sess = req.session;
-    if (!sess.user) {
-        res.status(403);
-        res.header('Cache-Control', 'no-cache');
-        res.send("Unauthorized");
-        return;
-    }
-    next();
-});
+class Phd {
 
 
-class Store{
-    constructor(id, db)
+    constructor(app)
     {
-        this.id = id;
-        this.db = db;
-    }
+        this.running = true;
+        this.currentStatus = {
+            // Connecting
+            phd_started: false,
 
-    list(req, res, next) {
-        var self = this;
+            connected: false,
 
-        if (!('pattern' in req.query)) {
-            next();
-            return;
-        }
-
-        var pattern = req.query.pattern;
-        if (pattern == undefined ) {
-            pattern = "";
-        }
-
-        pattern = pattern.trim();
-
-        // https://developer.mozilla.org/en/docs/Web/JavaScript/Guide/Regular_Expressions#Using_Special_Characters
-        function escapeRegexCharacters(str) {
-            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        const filter = pattern.trim();
-        const escapedValue = escapeRegexCharacters(filter);
-
-        const regex = new RegExp('\\b' + escapedValue, 'i');
-
-        this.db.find({title: regex}).sort({title: 1}).exec(function(err, docs) {
-            if (err != null) {console.log('Find error: ' + err)};
-            res.jsonResult = docs;
-            next();
-        });
-    }
-
-    add(req, res, next) {
-        var self = this;
-
-        console.log('Adding: ' + JSON.stringify(req.body));
-        var newObject = Object.assign({}, req.body, {rev: 0});
-        delete newObject["_id"];
-
-        this.db.insert(newObject, function (err, newDoc) {
-            // FIXME: faire suivre les erreurs !
-            if (err) {
-                next("error:" + err);
-                return;
-            }else if (newDoc != null) {
-                Client.notifyAll({
-                    store: self.id,
-                    action: 'add',
-                    _id: newDoc._id,
-                    data: newDoc
-                });
-                res.jsonResult = newDoc;
+            AppState: {
+                State: "Stopped"
             }
-            next();
-        });
-    }
-
-    update(req, res, next) {
-        var self = this;
-
-        console.log('Updating: ' + JSON.stringify(req.body));
-        var update = {
-            $inc: {rev: 1},
-            $set: {},
-            $unset: {}
         };
 
-        for(var key in req.body) {
-            var val = req.body[key];
-            if (val == null) {
-                update.$unset[key] = true;
-            } else {
-                update.$set[key] = val;
+        app.get('/phd/status', this.getStatus.bind(this));
+
+        this.startClient();
+    }
+
+    startClient() {
+        var self = this;
+
+
+        this.clientData = "";
+        this.client = new net.Socket();
+
+        this.client.on('data', function(data) {
+            console.log('Received: ' + data);
+            self.clientData += data;
+            self.flushClientData();
+        });
+
+        this.client.on('close', function() {
+            self.client = undefined;
+            self.flushClientData();
+
+            if (self.running) {
+                console.log('Restarting connection to phd');
+                self.startClient();
+            }
+        });
+
+        this.client.connect(4400, '127.0.0.1', function() {
+            console.log('Connected to phd');
+        });
+    }
+
+    flushClientData()
+    {
+        var self = this;
+        // FIXME: consume datas.
+        var cutAt;
+        while((cutAt = this.clientData.indexOf("\r\n")) != -1)
+        {
+            var data = this.clientData.substr(0, cutAt);
+            this.clientData = this.clientData.substr(cutAt + 2);
+            console.log('received json : ' + data);
+            try {
+                var event = JSON.parse(data);
+
+                if ("Event" in event) {
+                    var eventToStatus = {
+                        "GuideStep":                "Guiding",
+                        "Paused":                   "Paused",
+                        "StartCalibration":         "Calibrating",
+                        "LoopingExposures":         "Looping",
+                        "LoopingExposuresStopped":  "Stopped",
+                        "StarLost":                 "LostLock"
+                    };
+                    switch (event.Event) {
+                        case "AppState":
+                            self.currentStatus.connected = true;
+                            self.currentStatus.AppState = event.State;
+                            console.log('Initial status:' + self.currentStatus.AppState);
+                            break;
+                        default:
+                            if (event.Event in eventToStatus) {
+                                self.currentStatus.AppState = eventToStatus[event.Event];
+                                console.log('New status:' + self.currentStatus.AppState);
+                            }
+                    };
+
+                }
+            }catch(e) {
+                console.log('Error: ' + e);
             }
         }
-        console.log('updating with: ' + JSON.stringify(update));
-        this.db.update({ _id: req.params.uid}, update, {
-                returnUpdatedDocs:true,
-                multi:false
-            },
-            function(err, nbAffected, doc) {
-                if (err) {
-                    next("error:" + err);
-                } else if (nbAffected == 0) {
-                    next("not found");
-                } else {
-                    console.log('update result: ' + JSON.stringify(doc));
-                    Client.notifyAll({
-                        store: self.id,
-                        action: 'update',
-                        _id: req.params.uid,
-                        data: doc
-                    });
-                    res.jsonResult = doc;
-                    next();
-                }
-            });
     }
 
-    delete(req, res, next) {
-        var self = this;
-
-        console.log('Dropping: ' + JSON.stringify(req.param.uid));
-        this.db.remove({ _id: req.params.uid}, {
-                returnUpdatedDocs:true,
-                multi:false
-            },
-            function(err, nbAffected) {
-                if (err) {
-                    next("error:" + err);
-                } else if (nbAffected == 0) {
-                    next("not found");
-                } else {
-                    console.log('delete ok');
-
-                    Client.notifyAll({
-                        store: self.id,
-                        action: 'delete',
-                        _id: req.params.uid
-                    });
-
-                    res.jsonResult = {};
-                    next();
-                }
-            });
-    }
-
-    get(req, res, next) {
-        var self = this;
-
-        this.db.findOne({ _id: req.params.uid }, function(err, doc) {
-            res.jsonResult = doc;
-            next();
-        });
+    getStatus(req, res, next)
+    {
+        res.jsonResult = this.currentStatus;
+        next();
     }
 }
 
-class Multistore {
 
-    constructor(app) {
-        this.stores = {};
-
-        app.get('/store/:storeId', this.forward('list'));
-
-        app.post('/store/:storeId', this.forward('add'));
-
-        app.post('/store/:storeId/:uid', this.forward('update'));
-
-        app.delete('/store/:storeId/:uid', this.forward('delete'));
-
-        app.get('/store/:storeId/:uid', this.forward('get'));
-    }
-
-    forward(method) {
-        return (req, res, next) => {
-            console.log('handling: ' + JSON.stringify(req.params));
-            var storeId = req.params.storeId;
-
-            // FIXME: secu ici ? (appel à une méthode sur un objet ?)
-            var store = this.stores[storeId];
-            if (store == undefined) {
-                console.log('Store not found: ' + storeId);
-                res.status(404);
-                res.send('store not found');
-                return;
-            }
-            return store[method](req, res, next);
-        }
-    }
-
-    addStore(store) {
-        this.stores[store.id] = store;
-    }
-};
-
-const multiStore = new Multistore(app);
-multiStore.addStore(new Store('items', new NEDB({filename: 'data/db.db', autoload: true })));
+const phd = new Phd(app);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
@@ -290,7 +168,7 @@ app.use(function(req, res, next) {
 
 const server = http.createServer(app);
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server: server });
 
 //wss.use(sharedsession(session));
 
