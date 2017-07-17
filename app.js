@@ -50,6 +50,22 @@ app.use(cors({
     credentials: true
 }));
 
+
+var phd;
+var statusId = 0;
+function updateStatus()
+{
+    statusId++;
+    if (phd == undefined) {
+        return;
+    }
+    Client.notifyAll({
+        action: 'update',
+        statusId: statusId,
+        phd: phd.currentStatus
+    });
+}
+
 class Phd {
 
 
@@ -69,6 +85,7 @@ class Phd {
 
         app.get('/phd/status', this.getStatus.bind(this));
         app.get('/phd/guide', this.guide.bind(this));
+        updateStatus();
         this.startClient();
     }
 
@@ -127,11 +144,13 @@ class Phd {
                             self.currentStatus.connected = true;
                             self.currentStatus.AppState = event.State;
                             console.log('Initial status:' + self.currentStatus.AppState);
+                            updateStatus();
                             break;
                         default:
                             if (event.Event in eventToStatus) {
                                 self.currentStatus.AppState = eventToStatus[event.Event];
                                 console.log('New status:' + self.currentStatus.AppState);
+                                updateStatus();
                             }
                     };
 
@@ -172,7 +191,7 @@ class Phd {
 }
 
 
-const phd = new Phd(app);
+phd = new Phd(app);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
@@ -196,24 +215,11 @@ const wss = new WebSocket.Server({ server: server });
 //wss.use(sharedsession(session));
 
 wss.on('connection', function connection(ws) {
-    console.log('Websocket connection at ' + ws.upgradeReq.url);
-
     var client;
 
-    sessionParser(ws.upgradeReq, {}, function(req) {
-        if (!ws.upgradeReq.session.user) {
-            console.log('Websocket rejected unauthorized access.');
-            ws.send(JSON.stringify({status:"unauthentified"}), function() {
-                ws.close();
-            });
-        } else {
-            var session = ws.upgradeReq.session;
-            console.log('Websocket authenticated for ' + session.user);
-            client = new Client(ws, session, multiStore);
-            ws.send(JSON.stringify({action: 'welcome', status:"ok"}));
-        }
-    });
+    client = new Client(ws);
 
+    ws.send(JSON.stringify({action: 'welcome', status:"ok", phd: phd.currentStatus}));
 
     ws.on('message', function incoming(message) {
         if (!client) {
@@ -225,7 +231,7 @@ wss.on('connection', function connection(ws) {
 
     ws.on('close', function (code, reason) {
         if (client) {
-            console.log('Websocket closed for ' + client.session.user + ' : ' + code);
+            console.log('Websocket closed : ' + code);
             client.dispose();
         } else {
             console.log('Websocket closed (anonymous) : ' + code);

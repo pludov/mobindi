@@ -7,15 +7,13 @@ var clientId = 0;
 
 class Client {
 
-    constructor(socket, session, multiStore)
+    constructor(socket)
     {
         this.uid = "#" + (clientId++);
         clients[this.uid] = this;
 
-        this.log('Connected');
+        this.log('Client ' + this.uid + ' connected');
         this.socket = socket;
-        this.session = session;
-        this.multiStore = multiStore;
     }
 
     log(message) {
@@ -37,6 +35,7 @@ class Client {
 
     notify(changeEvent) {
         // Pour l'instant c'est crado
+        console.log('Sending notification to '+ this.uid);
         try {
             this.socket.send(JSON.stringify(changeEvent));
         } catch(e) {
