@@ -3,11 +3,39 @@ import logo from './logo.svg';
 import { connect } from 'react-redux';
 import './App.css';
 
-import BackendStatus from './Store';
+import { BackendStatus } from './Store';
+
+/** Affiche un état pendant la connection */
 
 class App extends Component {
-  render() {
-    return (
+    render() {
+        var bs = this.props.backendStatus;
+        switch (bs) {
+            case BackendStatus.Idle:
+            case BackendStatus.Connecting:
+                return (
+                    <div className="App">
+                        <div className="App-header">
+                            <img src={logo} className="App-logo" alt="logo"/>
+                            <h2>Initialisation...</h2>
+                        </div>
+                    </div>);
+            case BackendStatus.Failed:
+                return (
+                    <div className="App">
+                        <div className="App-header">
+                            <img src={logo} className="App-logo" alt="logo"/>
+                            <h2>Backend HS {(this.props.backendStatusError ? " : " + this.props.backendStatusError : null)}</h2>
+                        </div>
+                    </div>);
+            case BackendStatus.Connected:
+                // C'est l'application par défaut.
+                return (this.props.children || null);
+        }
+    }
+
+
+/*    return (
       <div className="App">
         <div className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
@@ -18,13 +46,13 @@ class App extends Component {
         </p>
       </div>
     );
-  }
+  }*/
 }
 
 const mapStateToProps = function(store) {
     var result = {
         backendStatus: store.backendStatus,
-        phd: store.backend.phd
+        backendStatusError: store.backendStatusError
     };
     return result;
 }

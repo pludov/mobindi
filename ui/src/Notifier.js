@@ -1,4 +1,5 @@
 // Detecter l'état de visibilité de la page
+import { BackendStatus } from './Store';
 
 class Notifier {
 
@@ -28,6 +29,35 @@ class Notifier {
     attachToStore(store) {
         console.log('Websocket: attached to store');
         this.store = store;
+        this.dispatchBackendStatus();
+    }
+
+
+    dispatchBackendStatus(error)
+    {
+        if (this.store == undefined) return;
+
+        if (error != undefined) {
+            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Failed, error: error});
+            return;
+        }
+        if (this.handshakeOk) {
+            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Connected, error: null});
+            return;
+        }
+        if (this.socket == null) {
+            // On est caché: on est en pause
+            if (document[this.hidden]) {
+                this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Paused, error: null});
+                return;
+            }
+            // On devrait etre connecté
+            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Failed});
+            return;
+        } else {
+            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Connecting, error: null});
+        }
+
     }
 
     resetHandshakeStatus(status)
@@ -53,6 +83,7 @@ class Notifier {
         } catch(e) {
             console.log('Websocket: write failed: ' + e);
             this._close();
+            this.dispatchBackendStatus();
         }
     }
 
@@ -77,6 +108,7 @@ class Notifier {
             } catch(e) {
                 console.log('Websocket: send failed: ' + e);
                 this._close();
+                this.dispatchBackendStatus();
             }
         }
         if (document[this.hidden]) {
@@ -116,6 +148,7 @@ class Notifier {
             if (this.socket) {
                 console.log('Websocket: close required');
                 this._close();
+                this.dispatchBackendStatus();
             }
         }
     }
@@ -126,9 +159,11 @@ class Notifier {
         this.resetHandshakeStatus(false);
         try {
             this.socket = new WebSocket(this.url);
+            this.dispatchBackendStatus();
         } catch(e) {
             console.log('Websocket: failed to open: ' + e);
             this.socket = undefined;
+            this.dispatchBackendStatus('' + e);
         }
         if (this.socket) {
             this.socket.onopen = function(data) {
@@ -141,6 +176,7 @@ class Notifier {
 
                     console.log('Websocket: welcomed');
                     self.resetHandshakeStatus(true);
+                    self.dispatchBackendStatus();
                 }
 
                 if (self.store != undefined) {
@@ -152,13 +188,15 @@ class Notifier {
                 console.log('Websocket: closed');
                 self.socket = undefined;
                 self.resetHandshakeStatus(false);
+                self.dispatchBackendStatus();
                 window.setTimeout(function() {
                     self.updateState();
                 }, 2000);
             };
-            this.socket.onerror = function(data) {
-                console.log('Websocket: error');
+            this.socket.onerror = function(error) {
+                console.log('Websocket: error: ' + JSON.stringify(error));
                 self._close();
+                self.dispatchBackendStatus('Connection aborted');
                 window.setTimeout(function() {
                     self.updateState();
                 }, 2000);

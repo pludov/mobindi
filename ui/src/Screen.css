@@ -1,0 +1,11 @@
+body {
+    margin: 0px;
+    width: 800px;
+    height: 480px;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+.Screen {
+    border: 1px solid #808080;
+}

@@ -11,7 +11,9 @@ const BackendStatus = {
     Idle: 0,
     Connecting: 1,
     Connected: 2,
-    Failed: 3
+    Paused: 3,
+    Reconnecting: 4,        // Après la pause
+    Failed: 5
 }
 
 const initialState =  {
@@ -26,7 +28,14 @@ var reducer = function(state = initialState, action)
 {
     var type = action.type;
 
-    if (type == "notification") {
+    if (type == "backendStatus") {
+        state = Object.assign({}, state);
+        state.backendStatus = action.backendStatus;
+        if ('backendError' in action) {
+            state.backendError = action.backendError;
+        }
+
+    } else if (type == "notification") {
         // Mettre le status du backend
         state = Object.assign({}, state);
         state.backendStatus = BackendStatus.Connected;
