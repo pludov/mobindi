@@ -13,22 +13,20 @@ class App extends Component {
         switch (bs) {
             case BackendStatus.Idle:
             case BackendStatus.Connecting:
+
                 return (
-                    <div className="App">
-                        <div className="App-header">
+                    <div className="Loading">
                             <img src={logo} className="App-logo" alt="logo"/>
                             <h2>Initialisation...</h2>
-                        </div>
                     </div>);
             case BackendStatus.Failed:
                 return (
-                    <div className="App">
-                        <div className="App-header">
+                    <div className="Loading">
                             <img src={logo} className="App-logo" alt="logo"/>
                             <h2>Backend HS {(this.props.backendStatusError ? " : " + this.props.backendStatusError : null)}</h2>
-                        </div>
                     </div>);
             case BackendStatus.Connected:
+            case BackendStatus.Paused:
                 // C'est l'application par défaut.
                 return (this.props.children || null);
         }

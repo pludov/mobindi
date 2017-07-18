@@ -1,11 +1,26 @@
 body {
     margin: 0px;
-    width: 800px;
-    height: 480px;
-    background-color: #ffffff;
+    padding: 0px;
+    overflow: hidden;
+    background-color: #505050;
+}
+
+div {
     overflow: hidden;
 }
 
+div#root {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color:#000000;
+    color: #ffffff;
+}
+
 .Screen {
+
+    width: calc(100vw - 2px);
+    height: calc(100vh - 2px);
     border: 1px solid #808080;
+    display: flex;
 }
