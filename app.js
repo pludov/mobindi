@@ -127,6 +127,7 @@ class Phd {
             var data = this.clientData.substr(0, cutAt);
             this.clientData = this.clientData.substr(cutAt + 2);
             console.log('received json : ' + data);
+            var statusUpdated = false;
             try {
                 var event = JSON.parse(data);
 
@@ -143,20 +144,32 @@ class Phd {
                         case "AppState":
                             self.currentStatus.connected = true;
                             self.currentStatus.AppState = event.State;
+                            self.currentStatus.star = null;
                             console.log('Initial status:' + self.currentStatus.AppState);
-                            updateStatus();
+                            statusUpdated = true;
                             break;
                         default:
                             if (event.Event in eventToStatus) {
+                                self.currentStatus.star = null;
                                 self.currentStatus.AppState = eventToStatus[event.Event];
                                 console.log('New status:' + self.currentStatus.AppState);
-                                updateStatus();
+                                statusUpdated = true;
+
                             }
                     };
-
+                    if (event.Event == "GuideStep") {
+                        self.currentStatus.star = {
+                            SNR: event.SNR,
+                            StarMass: event.StarMass
+                        };
+                        statusUpdated = true;
+                    }
                 }
             }catch(e) {
                 console.log('Error: ' + e);
+            }
+            if (statusUpdated) {
+                updateStatus();
             }
         }
     }

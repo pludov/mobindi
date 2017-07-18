@@ -36,6 +36,7 @@ class Phd extends Component {
                 </div>
                 <div>{this.props.phd.AppState}
                 </div>
+                <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
                 <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}/>
                 <input type="button" value="Arreter" onClick={this.phdRequest('stopGuide')}/>
             </div>);
