@@ -23,3 +23,17 @@ table.RADECTable tr td:first-child{
     padding-left: 1vw;
     padding-right: 1vw;
 }
+
+.PHDAppState {
+    font-weight: bold;
+    font-size: 7vw;
+    text-align: center;
+}
+
+.PHDAppState_Guiding {
+    color: lightgreen;
+}
+
+.PHDAppState_Stopped {
+    color: red;
+}

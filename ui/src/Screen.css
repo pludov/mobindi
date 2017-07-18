@@ -3,11 +3,13 @@ body {
     padding: 0px;
     overflow: hidden;
     background-color: #505050;
-    font-size: 4vw;
+    font-size: 5vw;
 }
 
 div {
     overflow: hidden;
+    padding: 0px;
+    margin: 0px;
 }
 
 div#root {
@@ -26,6 +28,33 @@ div#root {
     display: flex;
 }
 
-.TextTitle {
-    font-size: 10vh;
+.AppLogo {
+    width: 10.5vw;
 }
+
+.Page {
+    width: calc(100vw - 2px);
+    height: calc(100vh - 2px);
+    display : flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ButtonBar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-self: flex-start;
+}
+
+.TextTitle {
+    font-size: 9.5vh;
+}
+
+input, button, select, option, textarea {
+    font-size: 100%;
+    margin: 0.5vw;
+    collapse: true;
+    padding: 1vw 5vw 1vw 5vw;
+}
+

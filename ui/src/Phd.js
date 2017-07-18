@@ -43,11 +43,11 @@ class Phd extends Component {
         }
 
         return (
-            <div>
-                <div className="TextTitle">
-                    <img src="guide.png"></img>PHD Guiding
+            <div className="Page">
+                <div className="PageTitle TextTitle">
+                    <img src="guide.png" className="AppLogo"></img>PHD Guiding
                 </div>
-                <div>{this.props.phd.AppState}
+                <div className={'PHDAppState PHDAppState_' + this.props.phd.AppState}>{this.props.phd.AppState}
                 </div>
                 <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
                 <table className="RADECTable">
@@ -72,12 +72,14 @@ class Phd extends Component {
                         <td>{formatNumber(this.props.phd.RADECDistancePeak)}</td>
                     </tr>
                 </table>
+                <div className="ButtonBar">
                 <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}
                     disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
                     />
-                <input type="button" value="Arreter" onClick={this.phdRequest('stopGuide')}
+                <input type="button" value="Stop" onClick={this.phdRequest('stopGuide')}
                     disabled={bs.AppState == "Stopped"}
                     />
+                </div>
             </div>);
     }
 }
