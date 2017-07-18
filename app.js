@@ -89,6 +89,11 @@ class Phd {
                 State: "Stopped"
             }
         };
+        // Cet objet contient les dernier guide step
+        this.steps = {};
+        this.stepId = 0;
+
+        this.updateStepsStats();
 
         app.get('/phd/status', this.getStatus.bind(this));
         app.get('/phd/guide', this.guide.bind(this));
@@ -99,7 +104,7 @@ class Phd {
     startClient() {
         var self = this;
 
-
+        this.stepUid = 0;
         this.clientData = "";
         this.client = new net.Socket();
 
@@ -124,6 +129,76 @@ class Phd {
         });
     }
 
+    stepIdToUid(stepId)
+    {
+        var uid = ("000000000000000" + stepId.toString(16)).substr(-16);
+        return uid;
+    }
+
+    updateStepsStats()
+    {
+        // calcul RMS et RMS ad/dec
+        var rms = [0, 0];
+        var count = 0;
+        var keys = ['RADistanceRaw', 'DECDistanceRaw']
+        var log = [];
+        var vals = [0, 0];
+        var maxs = [0, 0, 0];
+        Outer: for(var uid in this.steps)
+        {
+            var step = this.steps[uid];
+
+            for(var i = 0; i < keys.length; ++i)
+            {
+                var key = keys[i];
+                if (key in step && step[key] != null) {
+                    vals[i] = step[key];
+                } else {
+                    continue Outer;
+                }
+            }
+
+            var dst2 = 0;
+            for(var i = 0; i < keys.length; ++i) {
+                var v = vals[i];
+                if (Math.abs(v) > maxs[i]) {
+                    maxs[i] = Math.abs(v);
+                }
+                var v2 = v * v;
+                dst2 += v2;
+                rms[i] += v2;
+            }
+            if (dst2 > maxs[2]) {
+                maxs[2] = dst2;
+            }
+            count++;
+        }
+
+        maxs[2] = Math.sqrt(maxs[2]);
+
+        function calcRms(sqr, div)
+        {
+            if (div == 0) {
+                return null;
+            }
+            return Math.sqrt(sqr / div);
+        }
+
+        this.currentStatus.RADistanceRMS = calcRms(rms[0], count);
+        this.currentStatus.DECDistanceRMS = calcRms(rms[1], count);
+        this.currentStatus.RADECDistanceRMS = calcRms(rms[0] + rms[1], count);
+
+        function calcPeak(val, div)
+        {
+            if (div == 0) {
+                return null;
+            }
+            return val;
+        }
+        this.currentStatus.RADistancePeak = calcPeak(maxs[0], count);
+        this.currentStatus.DECDistancePeak = calcPeak(maxs[1], count);
+        this.currentStatus.RADECDistancePeak = calcPeak(maxs[2], count);
+    }
     flushClientData()
     {
         var self = this;
@@ -157,10 +232,16 @@ class Phd {
                             break;
                         default:
                             if (event.Event in eventToStatus) {
-                                self.currentStatus.star = null;
-                                self.currentStatus.AppState = eventToStatus[event.Event];
-                                console.log('New status:' + self.currentStatus.AppState);
-                                statusUpdated = true;
+                                var newStatus = eventToStatus[event.Event];
+                                if (self.currentStatus.AppState != newStatus) {
+                                    self.currentStatus.star = null;
+                                    self.currentStatus.AppState = newStatus;
+                                    self.steps = {};
+                                    self.stepId = 0;
+                                    self.updateStepsStats();
+                                    console.log('New status:' + self.currentStatus.AppState);
+                                    statusUpdated = true;
+                                }
 
                             }
                     };
@@ -169,6 +250,21 @@ class Phd {
                             SNR: event.SNR,
                             StarMass: event.StarMass
                         };
+
+
+                        var simpleEvent = Object.assign({}, event);
+                        delete simpleEvent.Event;
+                        delete simpleEvent.Host;
+                        delete simpleEvent.Inst;
+                        delete simpleEvent.Mount;
+
+                        self.stepId++;
+                        if (self.stepId > 100) {
+                            delete self.steps[self.stepIdToUid(self.stepId - 100)];
+                        }
+                        self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
+                        self.updateStepsStats();
+
                         statusUpdated = true;
                     }
                 }

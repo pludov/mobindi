@@ -1,0 +1,25 @@
+table.RADECTable {
+    border: 1px solid green;
+    border-collapse: collapse;
+    width:100%;
+}
+
+
+table.RADECTable td {
+    border: 1px solid green;
+    white-space:nowrap
+}
+
+table.RADECTable tr td {
+    width: 50%;
+    overflow: hidden;
+    text-align: center;
+}
+
+table.RADECTable tr td:first-child{
+    width: auto;
+    overflow: visible;
+    text-align: right;
+    padding-left: 1vw;
+    padding-right: 1vw;
+}

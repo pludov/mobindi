@@ -6,6 +6,8 @@ import { connect } from 'react-redux';
 
 import { notifier, BackendStatus } from './Store';
 
+import './Phd.css';
+
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 
 
@@ -30,6 +32,16 @@ class Phd extends Component {
         if (bs == undefined) {
             return null;
         }
+
+        function formatNumber(n)
+        {
+            if (n == undefined || n == null) return n;
+            if (typeof(n) == 'number') {
+                return n.toFixed(2);
+            }
+            return "?" + n;
+        }
+
         return (
             <div>
                 <div className="TextTitle">
@@ -38,6 +50,28 @@ class Phd extends Component {
                 <div>{this.props.phd.AppState}
                 </div>
                 <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
+                <table className="RADECTable">
+                    <tr>
+                        <td></td>
+                        <td>RMS</td>
+                        <td>Peak</td>
+                    </tr>
+                    <tr>
+                        <td>RA</td>
+                        <td>{formatNumber(this.props.phd.RADistanceRMS)}</td>
+                        <td>{formatNumber(this.props.phd.RADistancePeak)}</td>
+                    </tr>
+                    <tr>
+                        <td>DEC</td>
+                        <td>{formatNumber(this.props.phd.DECDistanceRMS)}</td>
+                        <td>{formatNumber(this.props.phd.DECDistancePeak)}</td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td>{formatNumber(this.props.phd.RADECDistanceRMS)}</td>
+                        <td>{formatNumber(this.props.phd.RADECDistancePeak)}</td>
+                    </tr>
+                </table>
                 <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}
                     disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
                     />
