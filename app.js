@@ -59,11 +59,18 @@ function updateStatus()
     if (phd == undefined) {
         return;
     }
-    Client.notifyAll({
-        action: 'update',
-        statusId: statusId,
-        phd: phd.currentStatus
-    });
+    Client.notifyAll(completeStatus({
+        action: 'update'
+    }));
+}
+
+function completeStatus(obj)
+{
+    obj.statusId = statusId;
+    if (phd != undefined) {
+        obj.phd = phd.currentStatus;
+    }
+    return obj;
 }
 
 class Phd {
@@ -294,7 +301,7 @@ wss.on('connection', function connection(ws) {
 
     client = new Client(ws);
 
-    ws.send(JSON.stringify({action: 'welcome', status:"ok", phd: phd.currentStatus}));
+    ws.send(JSON.stringify(completeStatus({action: 'welcome', status:"ok"})));
 
     ws.on('message', function incoming(message) {
         if (!client) {
