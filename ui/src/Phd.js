@@ -6,6 +6,8 @@ import { connect } from 'react-redux';
 
 import { notifier, BackendStatus } from './Store';
 
+const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
+
 
 // Afficher l'état de phd et permet de le controller
 class Phd extends Component {
@@ -28,7 +30,6 @@ class Phd extends Component {
         if (bs == undefined) {
             return null;
         }
-
         return (
             <div>
                 <div className="TextTitle">
@@ -37,8 +38,12 @@ class Phd extends Component {
                 <div>{this.props.phd.AppState}
                 </div>
                 <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
-                <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}/>
-                <input type="button" value="Arreter" onClick={this.phdRequest('stopGuide')}/>
+                <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}
+                    disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
+                    />
+                <input type="button" value="Arreter" onClick={this.phdRequest('stopGuide')}
+                    disabled={bs.AppState == "Stopped"}
+                    />
             </div>);
     }
 }
