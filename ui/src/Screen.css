@@ -3,6 +3,7 @@ body {
     padding: 0px;
     overflow: hidden;
     background-color: #505050;
+    font-size: 4vw;
 }
 
 div {
@@ -23,4 +24,8 @@ div#root {
     height: calc(100vh - 2px);
     border: 1px solid #808080;
     display: flex;
+}
+
+.TextTitle {
+    font-size: 10vh;
 }

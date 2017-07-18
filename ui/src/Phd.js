@@ -4,12 +4,21 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 
-
-import { BackendStatus } from './Store';
+import { notifier, BackendStatus } from './Store';
 
 
 // Afficher l'état de phd et permet de le controller
 class Phd extends Component {
+    constructor(props) {
+        super(props);
+        this.guide = this.guide.bind(this);
+
+    }
+    guide() {
+        notifier.sendMessage({
+           action: "guide"
+        });
+    }
     render() {
         var bs = this.props.phd;
         if (bs == undefined) {
@@ -17,8 +26,14 @@ class Phd extends Component {
         }
 
         return (
-            <div>{this.props.phd.AppState}
-
+            <div>
+                <div className="TextTitle">
+                    <img src="guide.png"></img>PHD Guiding
+                </div>
+                <div>{this.props.phd.AppState}
+                </div>
+                <input type="button" value="Guide" onClick={this.guide}/>
+                <input type="button" value="Arreter" onClick={this.guide}/>
             </div>);
     }
 }

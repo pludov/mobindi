@@ -72,4 +72,4 @@ const store = createStore(reducer);
 notifier.attachToStore(store);
 notifier.connect(apiRoot);
 
-export { store, actions, BackendStatus }
+export { store, actions, notifier, BackendStatus }
