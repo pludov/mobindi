@@ -179,7 +179,7 @@ class Notifier {
                     self.dispatchBackendStatus();
                 }
 
-                if (self.store != undefined) {
+                if ((self.store != undefined) && (data.action=="update")) {
                     self.store.dispatch({type: "notification", data: data});
                 }
 

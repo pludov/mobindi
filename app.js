@@ -167,6 +167,68 @@ class Phd {
         next();
     }
 
+    reqGuide(order, next) {
+        if (this.client == undefined) {
+
+        }
+    }
+
+    whenConnected(data, reply, func) {
+        if (this.client == undefined) {
+            reply({result: 'ko', detail: 'not ready'});
+        } else {
+            return this.sendOrder(function() {
+                return ({
+                    method: "set_connected",
+                    params: [ true ]
+                });
+            })(data, function(result) {
+                if (result.result == 'ok') {
+                    func(data, reply);
+                } else {
+                    reply(result);
+                }
+            });
+        }
+    }
+
+    sendOrder(func) {
+        var self = this;
+        return function(data, reply) {
+            var order = func(data, reply);
+
+            try {
+                self.client.write(JSON.stringify(order) + "\r\n");
+                reply({result: 'ok'});
+            } catch(e) {
+                console.log('Error ' + e);
+                reply({result: 'failed', detail: 'error: ' + e});
+            }
+        };
+    }
+
+    startGuide(data, reply) {
+        this.whenConnected(data, reply, this.sendOrder(function() {
+            return ({
+                method: "guide",
+                params: [
+                    {"pixels": 1.5, "time": 10, "timeout": 60},
+                    false
+                ],
+                id: 9334
+            });
+        }));
+    }
+
+    stopGuide(data, reply) {
+        this.whenConnected(data, reply, this.sendOrder(function() {
+            return ({
+                method: 'stop_capture',
+                id: 9333
+            });
+        }));
+    }
+
     guide(req, res, next) {
         var self = this;
         if (this.client == undefined) {
@@ -226,7 +288,42 @@ wss.on('connection', function connection(ws) {
             ws.terminate();
             return;
         }
+
         console.log('received: %s', message);
+
+        try {
+            message = JSON.parse(message);
+        } catch(e) {
+            console.log('Invalid message', e);
+            ws.terminate();
+            return;
+        }
+
+        if ('method' in message) {
+            console.log('Got action message');
+            var target = message.target;
+            var targetObj = undefined;
+
+            var reply = function(r) {
+                console.log('replying with ' + JSON.stringify(r));
+                client.reply(r);
+            };
+
+            switch(target) {
+                case 'phd':
+                    targetObj= phd;
+                    break;
+                default:
+                    reply({status: 'ko', details: 'invalid target'});
+                    return;
+            }
+
+            try {
+                targetObj[message.method](message, reply);
+            } catch(e) {
+                reply({status: 'ko', details: 'error: ' + e});
+            }
+        }
     });
 
     ws.on('close', function (code, reason) {

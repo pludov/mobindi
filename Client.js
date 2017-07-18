@@ -43,6 +43,16 @@ class Client {
             this.dispose();
         }
     }
+    reply(data) {
+        if (this.socket != undefined) {
+            try {
+                this.socket.send(JSON.stringify(data));
+            } catch(e) {
+                this.log('Failed to send: ' + e);
+                this.dispose();
+            }
+        }
+    }
 
     static notifyAll(changeEvent) {
         console.log('update notification: ' + JSON.stringify(changeEvent));

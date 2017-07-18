@@ -11,14 +11,18 @@ import { notifier, BackendStatus } from './Store';
 class Phd extends Component {
     constructor(props) {
         super(props);
-        this.guide = this.guide.bind(this);
+        this.phdRequest = this.phdRequest.bind(this);
 
     }
-    guide() {
-        notifier.sendMessage({
-           action: "guide"
-        });
+    phdRequest(method) {
+        return function() {
+            notifier.sendMessage({
+                target: 'phd',
+                method: method
+            });
+        }
     }
+
     render() {
         var bs = this.props.phd;
         if (bs == undefined) {
@@ -32,8 +36,8 @@ class Phd extends Component {
                 </div>
                 <div>{this.props.phd.AppState}
                 </div>
-                <input type="button" value="Guide" onClick={this.guide}/>
-                <input type="button" value="Arreter" onClick={this.guide}/>
+                <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}/>
+                <input type="button" value="Arreter" onClick={this.phdRequest('stopGuide')}/>
             </div>);
     }
 }
