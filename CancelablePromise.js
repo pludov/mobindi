@@ -3,6 +3,30 @@
  */
 'use strict';
 
+
+/**
+ * CancelablePromise exports
+ *
+ *      start() start the promise (may call callback directly).
+ *              once started, exactly either onError, onCanceled callbacks will be called called
+ *
+ *      cancel(func) ask for cancelation. Cancelation may not occur at all
+ *
+ *      then(func(f)) make func called when promise realises
+ *      onError(func(e)) make func called when promise fails
+ *      onCancel(func()) make func called when promise is aborted using
+ *
+ * Constructor expects two functions:
+ *      doStart(next)
+ *      doCancel(next)
+ *
+ *      next allow to report progress:
+ *          next.done(result)   must be called once (error, cancel and done are exclusive)
+ *          next.error(e)       must be called once (error, cancel and done are exclusive)
+ *          next.cancel()       must be called once, only if next.cancelationPending() is true (error, cancel and done are exclusive)
+ *          next.isActive()     either done, error or cancel has already been called ?
+ *          next.cancelationPending() time to call next.cancel() ?
+ */
 class CancelablePromise {
     constructor(doStart, doCancel) {
         var self = this;
@@ -22,7 +46,6 @@ class CancelablePromise {
             return arr.length > 0;
         }
 
-
         this.then = function(f) {
             onDoneList.push(f);
             return this;
@@ -30,6 +53,10 @@ class CancelablePromise {
 
         this.onError = function(f) {
             onErrorList.push(f);
+        }
+
+        this.onCancel = function(f) {
+            onCanceledList.push(f);
         }
 
         var whenDone = function(result)
@@ -43,14 +70,32 @@ class CancelablePromise {
 
         // throw error if no error handler installed
         var whenError = function(e) {
+            if (done) {
+                throw "Multiple call to ondone";
+            }
             if (!on(onErrorList, e)) throw e;
+        }
+
+        var whenCancel = function() {
+            if (done) {
+                throw "Multiple call to ondone";
+            }
+            if (!cancelRequested) {
+                throw "cancel called will no cancel was requested";
+            }
+            done = true;
+            on(onCanceledList);
         }
 
         var next = {
             done: whenDone,
             error: whenError,
+            cancel: whenCancel,
             isActive: function() {
                 return (!cancelRequested) && (!done);
+            },
+            cancelationPending: function() {
+                return cancelRequested && !done;
             }
         }
 
@@ -73,16 +118,16 @@ class CancelablePromise {
             if (onCancel) {
                 onCanceledList.push(onCancel);
             }
+
             if (done || cancelRequested) {
                 return this;
             }
 
-            this.cancelRequested = true;
-            doCancel();
+            cancelRequested = true;
+            doCancel(next);
             return this;
         }
     }
-
 }
 
 module.exports = CancelablePromise;
