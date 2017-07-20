@@ -130,4 +130,58 @@ class Cancelable {
     }
 }
 
-module.exports = {Cancelable};
+/**
+ * Timeout can wrap an existing promise and add a timeout
+ * When the timeout elapse, the wrapped promise will get canceled; an error (onError) will be thrown by the Timeout promises
+ *
+ * Exemple:
+ *        var infinite = new Promises.Cancelable(function(next) {}, function(next){ next.cancel(); });
+ *        infinite.onCancel(function() {console.log('infinite got canceled'); }
+ *        var finite = new Promises.Timeout(2000.0, infinite);
+ *        finite.onError(console.warn); // => will print timedout
+ *        finite.start();
+ */
+class Timeout extends Cancelable {
+    constructor(delay, promise) {
+        var timedout = false;
+        var timeout = undefined;
+
+        function cancelTimer() {
+            if (timeout != undefined) {
+                clearTimeout(timeout);
+                timeout = undefined;
+            }
+        }
+
+        super(function (next) {
+            promise.then(function(rslt) {
+                cancelTimer();
+                next.done(rslt);
+            });
+            promise.onError(function(e) {
+                cancelTimer();
+                next.error(e);
+            });
+            promise.onCancel(function () {
+                // Annulé suite à l'atteinte du timer ?
+                if (timedout) {
+                    next.error("timeout");
+                } else {
+                    next.cancel();
+                }
+            });
+            timeout = setTimeout(function() {
+                console.log('Timeout occured');
+                timedout = true;
+                promise.cancel();
+            }, delay);
+            promise.start();
+        }, function(next) {
+            cancelTimer();
+            promise.cancel();
+        });
+    }
+
+}
+
+module.exports = {Cancelable, Timeout};
