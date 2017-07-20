@@ -1,10 +1,10 @@
 'use strict';
 
-const CancelablePromise = require('./CancelablePromise');
+const Promises = require('./Promises');
 
 
-var net = require('net');
-var sax = require('sax');
+const net = require('net');
+const sax = require('sax');
 
 
 const schema = {
@@ -83,7 +83,6 @@ class IndiConnection {
         this.queue = [];
         this.properties = {};
         this.listeners = [];
-        new CancelablePromise(this);
     }
 
     connect(host, port) {
@@ -126,10 +125,14 @@ class IndiConnection {
         }
     }
 
+    // Ensure that all current listeners get called once, except if it gets removed in between
     checkListeners() {
-        var self = this;        
+        var self = this;
+
         self.checkingListener = self.listeners.slice();
-        
+
+        if (self.listeners.length == 0) return;
+
         process.nextTick(function() {
             while((self.checkingListener != undefined) && (self.checkingListener.length))
             {
@@ -152,7 +155,7 @@ class IndiConnection {
             }
         }
 
-        return new CancelablePromise(
+        return new Promises.Cancelable(
             function(next) {
                 if (!predicate()) {
                     console.log('predicate false');
@@ -179,12 +182,12 @@ class IndiConnection {
                     next.done(result);
                 }
             },
-            function() {
+            function(next) {
                 dettach();
+                next.cancel();
             }
         );
     }
-    
     
     addListener(f)
     {
@@ -402,14 +405,14 @@ connection.wait(function() {
     var status = connection.getPropertyValue("CCD Simulator", 'CONNECTION', 'CONNECT');
     console.log('Status is : ' + status);
     if (status != 'On') return false;
-    
+
     return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
 }).then(function() {
     console.log('Connection established');
     connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
     connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
     console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
-    
+
     connection.wait(function() {
         var vector = connection.getVector("CCD Simulator", "CCD_EXPOSURE");
         if (vector == null) {
@@ -424,24 +427,31 @@ connection.wait(function() {
         if (value == null) {
             throw "CCD_EXPOSURE_VALUE disappered";
         }
-        
+
         return (value.$_ == 0);
     }).then(function() {
         console.log('shoot done');
     }).start();
-    
+
 /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
 
     if (status == 'Off') {
     }
-    
+
     connection.wait(function() {
         return connection.properties['CONNECTION'].$$ == 'On';
     }).then(function() {
         console.log('connected !\n');
     });*/
-    
+
 }).start();
+
+var infinite = connection.wait(function() {console.log('checking dummy cond'); return false});
+infinite.onCancel(function() { console.log('canceled !') });
+infinite.start();
+infinite.cancel();
+
+
 
 
 /*  console.log('testing');

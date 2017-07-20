@@ -27,7 +27,7 @@
  *          next.isActive()     either done, error or cancel has already been called ?
  *          next.cancelationPending() time to call next.cancel() ?
  */
-class CancelablePromise {
+class Cancelable {
     constructor(doStart, doCancel) {
         var self = this;
         var onDoneList = [];
@@ -130,4 +130,4 @@ class CancelablePromise {
     }
 }
 
-module.exports = CancelablePromise;
+module.exports = {Cancelable};
