@@ -401,19 +401,25 @@ connection.connect('127.0.0.1');
 console.log('Waiting connection');
 connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
 
-connection.wait(function() {
-    var status = connection.getPropertyValue("CCD Simulator", 'CONNECTION', 'CONNECT');
-    console.log('Status is : ' + status);
-    if (status != 'On') return false;
+var shoot = new Promises.Chain(
+    connection.wait(function() {
+        var status = connection.getPropertyValue("CCD Simulator", 'CONNECTION', 'CONNECT');
+        console.log('Status is : ' + status);
+        if (status != 'On') return false;
 
-    return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
-}).then(function() {
-    console.log('Connection established');
-    connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
-    connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
-    console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
+        return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
+    }),
+
+    new Promises.Cancelable(function(next) {
+        console.log('Connection established');
+        connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
+        connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
+        console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
+        next.done();
+    }),
 
     connection.wait(function() {
+        console.log('Waiting for exposure end');
         var vector = connection.getVector("CCD Simulator", "CCD_EXPOSURE");
         if (vector == null) {
             throw "CCD_EXPOSURE disappeared";
@@ -429,9 +435,13 @@ connection.wait(function() {
         }
 
         return (value.$_ == 0);
-    }).then(function() {
-        console.log('shoot done');
-    }).start();
+    })
+);
+
+shoot.then(function() { console.log('SHOOT: done'); });
+shoot.onError(function(e) { console.log('SHOOT: error ' + e)});
+shoot.onCancel(function() { console.log('SHOOT: canceled')});
+shoot.start();
 
 /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
 
@@ -444,12 +454,14 @@ connection.wait(function() {
         console.log('connected !\n');
     });*/
 
-}).start();
 
 var infinite = connection.wait(function() {console.log('checking dummy cond'); return false});
 infinite.onCancel(function() { console.log('canceled !') });
+
+infinite = new Promises.Timeout(5000.0, infinite);
+infinite.onError(console.warn);
 infinite.start();
-infinite.cancel();
+
 
 
 

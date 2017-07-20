@@ -3,6 +3,7 @@
  */
 'use strict';
 
+const TraceError = require('trace-error');
 
 /**
  * CancelablePromise exports
@@ -29,6 +30,9 @@
  */
 class Cancelable {
     constructor(doStart, doCancel) {
+        // Allow for no cancel function (does nothing)
+        if (doCancel == undefined) doCancel = function() {};
+
         var self = this;
         var onDoneList = [];
         var onErrorList = [];
@@ -62,7 +66,7 @@ class Cancelable {
         var whenDone = function(result)
         {
             if (done) {
-                throw "Multiple call to ondone";
+                throw new Error("Multiple call to ondone");
             }
             done = true;
             on(onDoneList, result);
@@ -71,17 +75,17 @@ class Cancelable {
         // throw error if no error handler installed
         var whenError = function(e) {
             if (done) {
-                throw "Multiple call to ondone";
+                throw new Error("Multiple call to ondone");
             }
             if (!on(onErrorList, e)) throw e;
         }
 
         var whenCancel = function() {
             if (done) {
-                throw "Multiple call to ondone";
+                throw new Error("Multiple call to ondone");
             }
             if (!cancelRequested) {
-                throw "cancel called will no cancel was requested";
+                throw new Error("cancel called will no cancel was requested");
             }
             done = true;
             on(onCanceledList);
@@ -181,7 +185,52 @@ class Timeout extends Cancelable {
             promise.cancel();
         });
     }
-
 }
 
-module.exports = {Cancelable, Timeout};
+class Chain extends Cancelable {
+    constructor() {
+        var current;
+        var childs = Array.from(arguments);
+
+        function startChild(next)
+        {
+            console.log('Chain starting: ' + current);
+            var child = childs[current];
+            child.then(function(rslt) {
+                current++;
+                if (current >= childs.length) {
+                    next.done(rslt);
+                } else {
+                    startChild(next);
+                }
+            });
+
+            child.onError(function(e) {
+                next.error(new TraceError("Step " + current + " failed", e));
+            });
+
+            child.onCancel(function(f) {
+                if (next.cancelationPending()) {
+                    next.cancel();
+                } else {
+                    next.error(new Error("Step " + current + " canceled by itself ?"));
+                }
+            });
+
+            child.start();
+        }
+
+        super(function(next) {
+            current = 0;
+            if (childs.length == 0) {
+                next.done(null);
+                return;
+            }
+            startChild(next);
+        }, function(next) {
+            childs[current].cancel();
+        })
+    }
+}
+
+module.exports = {Cancelable, Timeout, Chain};
