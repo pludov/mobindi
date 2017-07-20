@@ -1,3 +1,8 @@
+'use strict';
+
+const CancelablePromise = require('./CancelablePromise');
+
+
 var net = require('net');
 var sax = require('sax');
 
@@ -78,6 +83,7 @@ class IndiConnection {
         this.queue = [];
         this.properties = {};
         this.listeners = [];
+        new CancelablePromise(this);
     }
 
     connect(host, port) {
@@ -120,7 +126,6 @@ class IndiConnection {
         }
     }
 
-    
     checkListeners() {
         var self = this;        
         self.checkingListener = self.listeners.slice();
@@ -135,24 +140,10 @@ class IndiConnection {
         });
     }
     
-    // FIXME: au prochain tour...
     wait(predicate) {
         var self = this;
         var listener;
-        var onDoneList = [];
-        var onErrorList = [];
-        var onCanceledList = [];
-        var canceled = false;
-        
-        function on(arr, result)
-        {
-            for(var i = 0; i < arr.length; ++i)
-            {
-                arr[i](result);
-            }
-            return arr.length > 0;
-        }
-        
+
         function dettach()
         {
             if (listener != undefined) {
@@ -160,53 +151,38 @@ class IndiConnection {
                 listener = undefined;
             }
         }
-        
-        return  {
-            then: function(f) {
-                onDoneList.push(f);
-                return this;
-            },
-            start:function() {
-                var result;
-                try {
-                    result = predicate();
-                } catch(e) {
-                    if (!on(onErrorList, e)) throw e;
-                    return this;
-                }
-                if (!result) {
+
+        return new CancelablePromise(
+            function(next) {
+                if (!predicate()) {
                     console.log('predicate false');
                     listener = function() {
-                            if (canceled) return;
-                            var result;
-                            try {
-                                result = predicate();
-                            } catch(e) {
-                                on(onErrorList, e);
+                        if (!next.isActive()) return;
+                        var result;
+                        try {
+                            result = predicate();
+                            if (!result) {
+                                console.log('predicate still false');
                                 return;
                             }
-                            if (result == false || result == undefined) {
-                                return;
-                            }
-                            dettach();
-                            on(onDoneList, result);
+                        } catch(e) {
+                            next.error(e);
+                            return;
+                        }
+                        dettach();
+                        next.done(result);
                     };
                     // Add a listener...
                     self.addListener(listener);
                 } else {
                     console.log('predicate true');
-                    on(onDoneList, result);
+                    next.done(result);
                 }
-                return this;
             },
-            
-            cancel: function() {
-                this.canceled = true;
+            function() {
                 dettach();
-                on(onCancelList);
-                return this;
             }
-        };
+        );
     }
     
     
