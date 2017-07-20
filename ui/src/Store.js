@@ -19,10 +19,65 @@ const BackendStatus = {
 const initialState =  {
     backendStatus: BackendStatus.Idle,
     backendError: null,
-    backend: {}
+    backend: {
+        apps: {}
+    },
+    currentApp: null
 };
 
 const actions = {};
+
+// Fork un état et des sous-objet (forcement des objets)
+function fork(state, path)
+{
+    state = Object.assign({}, state);
+    if (path != undefined) {
+        var current = state;
+        for(var i = 0; i < path.length; ++i)
+        {
+            var key = path[i];
+
+            if (current[key] == null || current[key] == undefined)
+            {
+                current[key] = {};
+            } else {
+                current[key] = Object.assign({}, current[key]);
+            }
+        }
+    }
+    return state;
+}
+
+function cleanupState(state)
+{
+    // Assurer que l'app en cours est toujours autorisée
+    if (state.currentApp != null && (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled)) {
+        state = fork(state);
+        state.currentApp = null;
+    }
+
+    // Assurer qu'on ait une app en cours si possible
+    if (state.currentApp == null && state.backend.apps.length != 0) {
+        state = fork(state);
+        // On prend la premiere... (FIXME: historique & co...)
+        var bestApp = null;
+        var bestKey = null;
+        for(var key in state.backend.apps)
+        {
+            var app = state.backend.apps[key];
+            if (bestApp == null
+                || (bestApp.position > app.position)
+                || (bestApp.position == app.position && bestKey < key))
+            {
+                bestApp = app;
+                bestKey = key;
+            }
+        }
+        state.currentApp = bestKey;
+    }
+
+    return state;
+}
 
 var reducer = function(state = initialState, action)
 {
@@ -40,14 +95,19 @@ var reducer = function(state = initialState, action)
         state = Object.assign({}, state);
         state.backendStatus = BackendStatus.Connected;
         state.backendError = null;
+        // FIXME: remove that
         state.backend = {
-            phd: action.data.phd
+            phd: action.data.phd,
+            apps: action.data.apps
         };
     } else if (type in actions) {
         state = actions[type](state, action);
     } else {
         console.log('invalid action: ' + type);
     }
+
+    state = cleanupState(state);
+
     return state;
 }
 

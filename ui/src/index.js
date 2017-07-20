@@ -13,9 +13,7 @@ import { store } from './Store';
 ReactDOM.render(
         <Provider store={store}>
             <Screen>
-                <App>
-                    <Phd/>
-                </App>
+                <App/>
             </Screen>
         </Provider>, document.getElementById('root'));
 registerServiceWorker();

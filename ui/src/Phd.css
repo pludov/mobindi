@@ -1,7 +1,9 @@
 table.RADECTable {
-    border: 1px solid green;
-    border-collapse: collapse;
-    width:100%;
+    border: 0.5vw solid green;
+    border-spacing: 0px;
+    width:calc(100% - 1vw);
+    margin-left: 0.5vw;
+    margin-right: 0.5vw;
 }
 
 

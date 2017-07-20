@@ -70,6 +70,12 @@ function completeStatus(obj)
     if (phd != undefined) {
         obj.phd = phd.currentStatus;
     }
+    obj.apps = {
+        phd: {
+            enabled: true,
+            position: 1
+        }
+    };
     return obj;
 }
 
@@ -397,7 +403,6 @@ wss.on('connection', function connection(ws) {
 
     client = new Client(ws);
 
-    ws.send(JSON.stringify(completeStatus({action: 'welcome', status:"ok"})));
 
     ws.on('message', function incoming(message) {
         if (!client) {
@@ -450,6 +455,8 @@ wss.on('connection', function connection(ws) {
             console.log('Websocket closed (anonymous) : ' + code);
         }
     });
+
+    client.notify(completeStatus({action: 'welcome', status:"ok"}));
 });
 
 var port = parseInt(process.env.PORT || '8080');

@@ -1,3 +1,7 @@
+:root {
+  --app-icon-size: 10vw;
+
+}
 .Loading{
   text-align: center;
   width: 100%;
@@ -16,4 +20,46 @@
 @keyframes App-logo-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.App {
+  flex-grow: 1;
+  flex-direction: column;
+  display: flex;
+  align-items: stretch;
+}
+
+.AppStatusBar {
+  flex-grow: 0;
+  flex-shrink: 0;
+  height: calc(var(--app-icon-size) + 0.8vw);
+  flex-direction: row;
+  display: flex;
+  background: linear-gradient(0deg, #0000ff 0.5vw, transparent 2vw );
+  padding-left: 2vw;
+}
+.AppStatusBar .Application {
+  width: var(--app-icon-size);
+  height: calc(var(--app-icon-size) + 0.8vw);
+  object-fit: cover;
+  border: 0vw transparent;
+  border-bottom: 0px;
+}
+
+.AppStatusBar .Application.Active {
+  border: 0.8vw solid blue;
+  border-top-left-radius: 2.5vw;
+  border-top-right-radius: 2.5vw;
+  background: black;
+  border-bottom: 0px;
+}
+
+.AppStatusBar .Application img {
+  width: 100%;
+}
+
+.AppMainContent {
+  display: flex;
+  align-items: stretch;
+  flex-grow: 1;
 }

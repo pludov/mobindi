@@ -22,9 +22,9 @@ div#root {
 
 .Screen {
 
-    width: calc(100vw - 2px);
-    height: calc(100vh - 2px);
-    border: 1px solid #808080;
+    width: calc(100vw);
+    height: calc(100vh);
+    border: 0px solid #808080;
     display: flex;
 }
 
@@ -33,11 +33,16 @@ div#root {
 }
 
 .Page {
-    width: calc(100vw - 2px);
-    height: calc(100vh - 2px);
+    flew-grow: 1;
+    width: calc(100% - 3.2vw);
+
     display : flex;
     flex-direction: column;
     justify-content: space-between;
+
+    box-shadow: 0px 0px 0px 0.8vw blue;
+    margin: 0 0.8vw 0.8vw 0.8vw;
+    padding: 0.8vw;
 }
 
 .ButtonBar {

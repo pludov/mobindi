@@ -44,34 +44,35 @@ class Phd extends Component {
 
         return (
             <div className="Page">
-                <div className="PageTitle TextTitle">
-                    <img src="guide.png" className="AppLogo"></img>PHD Guiding
-                </div>
                 <div className={'PHDAppState PHDAppState_' + this.props.phd.AppState}>{this.props.phd.AppState}
                 </div>
                 <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
-                <table className="RADECTable">
-                    <tr>
-                        <td></td>
-                        <td>RMS</td>
-                        <td>Peak</td>
-                    </tr>
-                    <tr>
-                        <td>RA</td>
-                        <td>{formatNumber(this.props.phd.RADistanceRMS)}</td>
-                        <td>{formatNumber(this.props.phd.RADistancePeak)}</td>
-                    </tr>
-                    <tr>
-                        <td>DEC</td>
-                        <td>{formatNumber(this.props.phd.DECDistanceRMS)}</td>
-                        <td>{formatNumber(this.props.phd.DECDistancePeak)}</td>
-                    </tr>
-                    <tr>
-                        <td>Total</td>
-                        <td>{formatNumber(this.props.phd.RADECDistanceRMS)}</td>
-                        <td>{formatNumber(this.props.phd.RADECDistancePeak)}</td>
-                    </tr>
-                </table>
+                <div>
+                    <table className="RADECTable">
+                        <tbody>
+                            <tr>
+                                <td></td>
+                                <td>RMS</td>
+                                <td>Peak</td>
+                            </tr>
+                            <tr>
+                                <td>RA</td>
+                                <td>{formatNumber(this.props.phd.RADistanceRMS)}</td>
+                                <td>{formatNumber(this.props.phd.RADistancePeak)}</td>
+                            </tr>
+                            <tr>
+                                <td>DEC</td>
+                                <td>{formatNumber(this.props.phd.DECDistanceRMS)}</td>
+                                <td>{formatNumber(this.props.phd.DECDistancePeak)}</td>
+                            </tr>
+                            <tr>
+                                <td>Total</td>
+                                <td>{formatNumber(this.props.phd.RADECDistanceRMS)}</td>
+                                <td>{formatNumber(this.props.phd.RADECDistancePeak)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <div className="ButtonBar">
                 <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}
                     disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
