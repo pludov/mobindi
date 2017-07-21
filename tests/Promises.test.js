@@ -36,3 +36,25 @@ test("Indirect result propagation", function (assert) {
        done();
     }, 1000);
 });
+
+test("Dynamic promise", function(assert) {
+    var providerCalled = false;
+    var done = false;
+    new Chain(
+        new Cancelable((next, t) => {
+            providerCalled = true;
+            var result = new Cancelable((next, arg) => {
+                assert.strictEqual(arg, undefined, "Input argument received");
+                next.done("success");
+            });
+            next.done(result);
+        }),
+        new ExecutePromise()
+    ).then((rslt) =>{
+        done = true;
+        assert.equal(rslt, "success", "Produced value not returned");
+    }).start(122);
+
+    assert.ok(providerCalled, "Provider execution");
+    assert.ok(done, "Direct execution");
+});

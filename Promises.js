@@ -302,4 +302,28 @@ class Loop extends Cancelable {
     }
 }
 
-module.exports = {Cancelable, Timeout, Chain, Sleep, Loop};
+class ExecutePromise extends Cancelable {
+    constructor()
+    {
+        var child;
+        super(function(next, arg) {
+            child = arg;
+            console.log('Received child: arg');
+            if (arg == undefined) {
+                next.done();
+                return;
+            }
+            arg.then((rslt) => { next.done(rslt); });
+            arg.onError((e) => { next.error(e); });
+            arg.onCancel(() => { next.cancel(); });
+            console.log('Starting child');
+            arg.start();
+        }, function(next) {
+            var c = child;
+            child = undefined;
+            c.cancel();
+        });
+    }
+}
+
+module.exports = {Cancelable, Timeout, Chain, Sleep, ExecutePromise, Loop};
