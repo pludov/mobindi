@@ -83,7 +83,7 @@ function cleanupState(state)
 actions.SwitchToApp = function(state, action)
 {
     var appid = action.value;
-    if (state.currentApp == appid) return;
+    if (state.currentApp == appid) return state;
     state = fork(state);
     state.currentApp = appid;
     return state;
