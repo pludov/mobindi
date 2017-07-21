@@ -14,9 +14,7 @@ class Phd {
 
             connected: false,
 
-            AppState: {
-                State: "Stopped"
-            }
+            AppState: "NotConnected"
         };
         // Cet objet contient les dernier guide step
         this.steps = {};
@@ -48,6 +46,13 @@ class Phd {
             self.client = undefined;
             self.flushClientData();
 
+            self.currentStatus.star = null;
+            self.currentStatus.AppState = "NotConnected";
+            self.steps = {};
+            self.stepId = 0;
+
+            self.updateStatus();
+
             if (self.running) {
                 console.log('Restarting connection to phd');
                 self.startClient();
@@ -57,6 +62,8 @@ class Phd {
         this.client.connect(4400, '127.0.0.1', function() {
             console.log('Connected to phd');
         });
+
+        self.updateStatus();
     }
 
     stepIdToUid(stepId)
@@ -294,8 +301,6 @@ class Phd {
             next();
         }
     }
-
-
 }
 
 module.exports = {Phd};
