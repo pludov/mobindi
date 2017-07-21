@@ -15,6 +15,7 @@ class IndiManager {
             status: "connecting",
             indiState: {}
         };
+        this.updateStatus = updateStatus;
         this.lifeCycle = this.buildLifeCycle();
         this.lifeCycle.start();
     }
