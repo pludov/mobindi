@@ -3,11 +3,15 @@ import logo from './logo.svg';
 import { connect } from 'react-redux';
 import './App.css';
 
+import AppIcon from './AppIcon';
+
 import Phd from './Phd';
+import IndiManager from './IndiManager';
 
 import { BackendStatus } from './Store';
 
 /** Affiche un état pendant la connection */
+
 
 class App extends Component {
 
@@ -35,11 +39,13 @@ class App extends Component {
                 return (
                     <div className="App">
                         <div className="AppStatusBar">
-                            {("phd" in this.props.apps) && this.props.apps.phd.enabled ? (<div id="phd" className={'Application' + (this.props.currentApp == "phd" ? ' Active' : '')}><img  src="guide.png"></img></div>): null}
+                            <AppIcon appid="phd"/>
+                            <AppIcon appid="indiManager"/>
                         </div>
 
                         <div className="AppMainContent">
                             {this.props.currentApp == "phd" && <Phd></Phd>}
+                            {this.props.currentApp == "indiManager" && <IndiManager></IndiManager>}
                         </div>
                     </div>);
 

@@ -1,0 +1,35 @@
+.AppStatusBar .Application {
+    width: var(--app-icon-size);
+    height: calc(var(--app-icon-size) + var(--app-icon-transition) + 0.8vw);
+    object-fit: cover;
+    border: 0.8vw solid transparent;
+    border-top-left-radius: 2.5vw;
+    border-top-right-radius: 2.5vw;
+    border-bottom: 0px;
+    cursor: pointer;
+    filter: grayscale(100%);
+}
+
+.AppStatusBar .Application.Active {
+    border: 0.8vw solid blue;
+    border-top-left-radius: 2.5vw;
+    border-top-right-radius: 2.5vw;
+    background: black;
+    border-bottom: 0px;
+    cursor: inherit;
+    filter: inherit;
+}
+
+.AppStatusBar .Application.Active:hover {
+    background: black;
+    border-color: blue;
+}
+
+.AppStatusBar .Application:hover {
+    border-color: #50507080;
+    background-color: #50507080;
+}
+
+.AppStatusBar .Application img {
+    width: 100%;
+}

@@ -15,6 +15,8 @@ const WebSocket = require('ws');
 const Client = require('./Client.js');
 
 const {Phd} = require('./Phd');
+const {IndiManager} = require('./IndiManager');
+
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
@@ -52,11 +54,14 @@ app.use(cors({
 
 
 var phd;
+var indiManager;
+
 var statusId = 0;
 function updateStatus()
 {
     statusId++;
-    if (phd == undefined) {
+    // Not before the application is fully started
+    if (phd == undefined || indiManager == undefined) {
         return;
     }
     Client.notifyAll(completeStatus({
@@ -70,10 +75,17 @@ function completeStatus(obj)
     if (phd != undefined) {
         obj.phd = phd.currentStatus;
     }
+    if (indiManager != undefined) {
+        obj.indiManager = indiManager.currentStatus;
+    }
     obj.apps = {
         phd: {
             enabled: true,
             position: 1
+        },
+        indiManager: {
+            enabled: true,
+            position: 2
         }
     };
     return obj;
@@ -81,6 +93,8 @@ function completeStatus(obj)
 
 
 phd = new Phd(app, updateStatus);
+
+indiManager = new IndiManager(app, updateStatus);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {

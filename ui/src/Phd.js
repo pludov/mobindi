@@ -29,7 +29,7 @@ class Phd extends Component {
 
     render() {
         var bs = this.props.phd;
-        if (bs == undefined) {
+        if (bs == undefined || bs == null) {
             return null;
         }
 

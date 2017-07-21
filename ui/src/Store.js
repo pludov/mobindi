@@ -27,6 +27,7 @@ const initialState =  {
 
 const actions = {};
 
+
 // Fork un état et des sous-objet (forcement des objets)
 function fork(state, path)
 {
@@ -79,6 +80,16 @@ function cleanupState(state)
     return state;
 }
 
+actions.SwitchToApp = function(state, action)
+{
+    var appid = action.value;
+    if (state.currentApp == appid) return;
+    state = fork(state);
+    state.currentApp = appid;
+    return state;
+}
+
+
 var reducer = function(state = initialState, action)
 {
     var type = action.type;
@@ -98,6 +109,7 @@ var reducer = function(state = initialState, action)
         // FIXME: remove that
         state.backend = {
             phd: action.data.phd,
+            indiManager: action.data.indiManager,
             apps: action.data.apps
         };
     } else if (type in actions) {
