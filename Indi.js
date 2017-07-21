@@ -144,7 +144,7 @@ class IndiConnection {
     }
     
     wait(predicate) {
-        var self = this;
+        const self = this;
         var listener;
 
         function dettach()
@@ -157,6 +157,7 @@ class IndiConnection {
 
         return new Promises.Cancelable(
             function(next) {
+                listener = undefined;
                 if (!predicate()) {
                     console.log('predicate false');
                     listener = function() {

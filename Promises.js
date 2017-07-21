@@ -10,6 +10,7 @@ const TraceError = require('trace-error');
  *
  *      start() start the promise (may call callback directly).
  *              once started, exactly either onError, onCanceled callbacks will be called called
+ *              start may be re-called later-on (promise reuse)
  *
  *      cancel(func) ask for cancelation. Cancelation may not occur at all
  *
@@ -104,6 +105,8 @@ class Cancelable {
         }
 
         this.start = function() {
+            done = false;
+            cancelRequested = false;
             try {
                 doStart(next);
             } catch(e) {
@@ -147,8 +150,9 @@ class Cancelable {
  */
 class Timeout extends Cancelable {
     constructor(delay, promise) {
-        var timedout = false;
-        var timeout = undefined;
+        var timedout;
+        var timeout;
+        var next;
 
         function cancelTimer() {
             if (timeout != undefined) {
@@ -157,30 +161,35 @@ class Timeout extends Cancelable {
             }
         }
 
-        super(function (next) {
-            promise.then(function(rslt) {
-                cancelTimer();
-                next.done(rslt);
-            });
-            promise.onError(function(e) {
-                cancelTimer();
-                next.error(e);
-            });
-            promise.onCancel(function () {
-                // Annulé suite à l'atteinte du timer ?
-                if (timedout) {
-                    next.error("timeout");
-                } else {
-                    next.cancel();
-                }
-            });
+        promise.then(function(rslt) {
+            cancelTimer();
+            next.done(rslt);
+        });
+        promise.onError(function(e) {
+            cancelTimer();
+            next.error(e);
+        });
+        promise.onCancel(function () {
+            // Annulé suite à l'atteinte du timer ?
+            if (timedout) {
+                next.error("timeout");
+            } else {
+                next.cancel();
+            }
+        });
+
+        super(function (n) {
+            next = n;
+            timedout = false;
+            timeout = undefined;
+
             timeout = setTimeout(function() {
                 console.log('Timeout occured');
                 timedout = true;
                 promise.cancel();
             }, delay);
             promise.start();
-        }, function(next) {
+        }, function(n) {
             cancelTimer();
             promise.cancel();
         });
@@ -191,10 +200,17 @@ class Chain extends Cancelable {
     constructor() {
         var current;
         var childs = Array.from(arguments);
+        var next;
 
-        function startChild(next)
+        function startChild()
         {
-            var child = childs[current];
+            childs[current].start();
+        }
+
+        // Install listener once
+        for(var i = 0; i < childs.length; ++i)
+        {
+            var child = childs[i];
             child.then(function(rslt) {
                 current++;
                 if (current >= childs.length) {
@@ -215,21 +231,73 @@ class Chain extends Cancelable {
                     next.error(new Error("Step " + current + " canceled by itself ?"));
                 }
             });
-
-            child.start();
         }
 
-        super(function(next) {
+
+        super(function(n) {
+            next = n;
             current = 0;
             if (childs.length == 0) {
                 next.done(null);
                 return;
             }
             startChild(next);
-        }, function(next) {
+        }, function(n) {
             childs[current].cancel();
         })
     }
 }
 
-module.exports = {Cancelable, Timeout, Chain};
+class Sleep extends Cancelable {
+    constructor(delay) {
+        var timeout = undefined;
+
+        function cancelTimer() {
+            if (timeout != undefined) {
+                clearTimeout(timeout);
+                timeout = undefined;
+            }
+        }
+
+        super(function (next) {
+            timeout = setTimeout(function() {
+                timeout = undefined;
+                next.done();
+            }, delay);
+        }, function(next) {
+            cancelTimer();
+            next.cancel();
+        });
+    }
+}
+
+class Loop extends Cancelable {
+    constructor(repeat, until)
+    {
+        var next;
+        repeat.then(function(rslt) {
+
+            if ((!until) || !until(rslt)) {
+                if (next.cancelationPending()) {
+                    next.cancel();
+                } else {
+                    // restart repeat FIXME: loop get transformed in deep recursion ???
+                    repeat.start();
+                    return;
+                }
+            }
+            next.done(rslt);
+        });
+        repeat.onError((e)=> { next.error(e); });
+        repeat.onCancel(() => { next.cancel(); });
+
+        super(function(n) {
+            next = n;
+            repeat.start();
+        }, function(c) {
+            repeat.cancel();
+        });
+    }
+}
+
+module.exports = {Cancelable, Timeout, Chain, Sleep, Loop};

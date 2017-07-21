@@ -1,6 +1,7 @@
 'use strict';
 
 const net = require('net');
+const Promises = require('./Promises');
 
 class Phd {
     constructor(app, updateStatus)
@@ -23,47 +24,65 @@ class Phd {
         this.updateStepsStats();
 
         this.updateStatus();
-        this.startClient();
+        this.lifeCycle().start();
     }
 
-    startClient() {
+
+    lifeCycle() {
         var self = this;
+        return (
+            new Promises.Loop(
+                new Promises.Chain(
+                    new Promises.Cancelable(function(next) {
+                        self.stepUid = 0;
+                        self.clientData = "";
+                        self.client = new net.Socket();
 
-        this.stepUid = 0;
-        this.clientData = "";
-        this.client = new net.Socket();
+                        self.client.on('data', function(data) {
+                            console.log('Received: ' + data);
+                            self.clientData += data;
+                            self.flushClientData();
+                        });
+                        self.client.on('error', function(e) {
+                            console.log('Phd socket error', e);
+                        });
 
-        this.client.on('data', function(data) {
-            console.log('Received: ' + data);
-            self.clientData += data;
-            self.flushClientData();
-        });
-        this.client.on('error', function(e) {
-            console.log('Phd socket error', e);
-        });
+                        self.client.on('close', function() {
+                            console.log('Phd connection closed');
+                            self.client = undefined;
 
-        this.client.on('close', function() {
-            self.client = undefined;
-            self.flushClientData();
+                            // FIXME: flushing these messages can lead to change (including reconnection ?)
+                            self.flushClientData();
 
-            self.currentStatus.star = null;
-            self.currentStatus.AppState = "NotConnected";
-            self.steps = {};
-            self.stepId = 0;
+                            self.currentStatus.star = null;
+                            self.currentStatus.AppState = "NotConnected";
+                            self.steps = {};
+                            self.stepId = 0;
 
-            self.updateStatus();
+                            self.updateStatus();
 
-            if (self.running) {
-                console.log('Restarting connection to phd');
-                self.startClient();
-            }
-        });
+                            if (next.isActive()) {
+                                next.done();
+                            }
+                        });
 
-        this.client.connect(4400, '127.0.0.1', function() {
-            console.log('Connected to phd');
-        });
+                        self.client.connect(4400, '127.0.0.1', function() {
+                            console.log('Connected to phd');
+                        });
 
-        self.updateStatus();
+                        self.updateStatus();
+                    }, function(next) {
+                        if (self.client != undefined) {
+                            try {
+                                self.client.close();
+                            } catch(e) {
+                                console.log('Failed to close', e);
+                            }
+                        }
+                    }),
+                    new Promises.Sleep(1000)
+                )
+            )).then(() => { throw new Error("Lifecycle must not stop!")});
     }
 
     stepIdToUid(stepId)
