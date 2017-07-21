@@ -91,6 +91,7 @@ class IndiConnection {
         if (port == undefined) {
             port = 7624;
         }
+        console.log('Opening indi connection to ' + host + ':' + port);
         var socket = new net.Socket(host, port);
         var parser = this.newParser();
         
@@ -102,7 +103,7 @@ class IndiConnection {
             self.connected = true;
             socket.write('<getProperties version="1.7"/>');
             self.flushQueue();
-                    });
+        });
         socket.on('data', function(data) {
             parser.write(data);
             parser.flush();
@@ -110,6 +111,19 @@ class IndiConnection {
         socket.on('error', function(err) {
             console.log('socket error: ' + err);
         });
+        socket.on('close', function() {
+            console.log('socket closed');
+            try {
+                self.socket.destroy();
+            } catch(e) {
+                console.log('closing error', e);
+            }
+            self.connected = false;
+            self.queue = [];
+            self.socket = undefined;
+            self.parser = undefined;
+            self.checkListeners();
+        })
         this.connected = false;
         socket.connect(7624, '127.0.0.1'); 
     }
@@ -142,7 +156,9 @@ class IndiConnection {
             }
         });
     }
-    
+
+    // Return a Promises.Cancelable that wait until the predicate is true
+    // will be checked after every indi event
     wait(predicate) {
         const self = this;
         var listener;

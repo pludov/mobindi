@@ -50,15 +50,17 @@ class IndiManager {
                         indiConnection.connect('127.0.0.1');
                         indiConnection.addListener(listener);
 
-                        return indiConnection.wait(()=>{
-                            indiConnection.socket == undefined;
+                        next.done(indiConnection.wait(()=>{
+                            console.log('socket is ' + indiConnection.socket);
+                            return indiConnection.socket == undefined;
                         }).then(() => {
+                            console.log('Indi connection disconnected');
                             indiConnection.removeListener(listener);
                             if (self.connection == indiConnection) {
                                 self.connection = undefined;
                                 self.refreshStatus();
                             }
-                        });
+                        }));
                     }),
                     new Promises.ExecutePromise(),
                     new Promises.Sleep(2000)
