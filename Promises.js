@@ -8,13 +8,13 @@ const TraceError = require('trace-error');
 /**
  * CancelablePromise exports
  *
- *      start() start the promise (may call callback directly).
+ *      start(arg) start the promise (may call callback directly).
  *              once started, exactly either onError, onCanceled callbacks will be called called
  *              start may be re-called later-on (promise reuse)
  *
  *      cancel(func) ask for cancelation. Cancelation may not occur at all
  *
- *      then(func(f)) make func called when promise realises
+ *      then(func(rslt)) make func called when promise realises
  *      onError(func(e)) make func called when promise fails
  *      onCancel(func()) make func called when promise is aborted using
  *
@@ -108,7 +108,7 @@ class Cancelable {
             done = false;
             cancelRequested = false;
             try {
-                doStart(next);
+                doStart(next, arguments[0]);
             } catch(e) {
                 // post-mortem error ?
                 if (done) throw e;
@@ -202,9 +202,9 @@ class Chain extends Cancelable {
         var childs = Array.from(arguments);
         var next;
 
-        function startChild()
+        function startChild(arg)
         {
-            childs[current].start();
+            childs[current].start(arg);
         }
 
         // Install listener once
@@ -216,7 +216,7 @@ class Chain extends Cancelable {
                 if (current >= childs.length) {
                     next.done(rslt);
                 } else {
-                    startChild(next);
+                    startChild(rslt);
                 }
             });
 
@@ -234,14 +234,14 @@ class Chain extends Cancelable {
         }
 
 
-        super(function(n) {
+        super(function(n, arg) {
             next = n;
             current = 0;
             if (childs.length == 0) {
-                next.done(null);
+                next.done(arg);
                 return;
             }
-            startChild(next);
+            startChild(arg);
         }, function(n) {
             childs[current].cancel();
         })
@@ -259,10 +259,10 @@ class Sleep extends Cancelable {
             }
         }
 
-        super(function (next) {
+        super(function (next, arg) {
             timeout = setTimeout(function() {
                 timeout = undefined;
-                next.done();
+                next.done(arg);
             }, delay);
         }, function(next) {
             cancelTimer();
@@ -275,6 +275,7 @@ class Loop extends Cancelable {
     constructor(repeat, until)
     {
         var next;
+        var startArg;
         repeat.then(function(rslt) {
 
             if ((!until) || !until(rslt)) {
@@ -282,7 +283,7 @@ class Loop extends Cancelable {
                     next.cancel();
                 } else {
                     // restart repeat FIXME: loop get transformed in deep recursion ???
-                    repeat.start();
+                    repeat.start(startArg);
                     return;
                 }
             }
@@ -291,9 +292,10 @@ class Loop extends Cancelable {
         repeat.onError((e)=> { next.error(e); });
         repeat.onCancel(() => { next.cancel(); });
 
-        super(function(n) {
+        super(function(n, arg) {
             next = n;
-            repeat.start();
+            startArg = arg;
+            repeat.start(startArg);
         }, function(c) {
             repeat.cancel();
         });
