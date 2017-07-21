@@ -194,7 +194,6 @@ class Chain extends Cancelable {
 
         function startChild(next)
         {
-            console.log('Chain starting: ' + current);
             var child = childs[current];
             child.then(function(rslt) {
                 current++;
