@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Created by ludovic on 21/07/17.
  */
@@ -26,72 +28,187 @@ const missingProperty = "_$_missing_$_";
 
 
 /**
- * Represent an object
+ * Represent a versioned JSON like object tree
  *
- * Every object for which a property is changed is marked as changed.
- * Changes for object and arrays are note
+ * store for each property:
+ *   * serial number
+ *     * For final type (string, number, null) node the last "time" of assignment
+ *     * For object/array, the time of creation of the object
+ *   * childSerial (on object/array)
+ *     * The max(serial) of all childs
  *
- * Every time a property change (add/remove/value changed), the serial of the object is incremented on it node and all its parent
- *
- * Suppose
- *      {
- *              .status { serial:CHANGED}
- *              child1: {
- *                  .status { serial: CHANGED}
- *                  a:
- *                  b:
- *                  c:
- *              },
- *              child2: {
- *              },
- *              array4: {
- *                  .status { serial: NOT_CHANGED }
- *              }
- *              text: "coucou"
- *
- *      }
- * The patch generated will be:
- *      {
- *          $missings: [child2, array4],
- *          child1: {
- *              $missings: []
- *              a:
- *              b:
- *              c:
+ * The actual storage for
+ *   {  a: "x", b: {}, c: [] }
+ * Will be
+ *   {
+ *      serial: 0
+ *      childSerial: 3,
+ *      value: {
+ *          a:  {
+ *              serial: 1
+ *              value: "x";
  *          },
- *          text: "coucou"
+ *          b: {
+ *              serial: 2
+ *              value: {
+ *                  childSerial: 2,
+ *                  serial: 2,
+ *                  value: {}
+*               }
+ *          },
+ *          c: {
+ *              serial: 3
+ *              value: {
+ *                  childSerial: 3
+ *                  serial: 3,
+ *                  value: []
+ *         }
  *      }
+ *    }
+ * When a node is created, it is created with the next serial
+ * When a node is droped, the childSerial of the parent is updated
  */
+function valueHasChild(v)
+{
+    return v != null && (typeof v == "object");
+}
+
+function emptyObjectFor(v) {
+    return Array.isArray(v) ? [] : {};
+}
+
+function compatibleStorage(a, b) {
+    return Array.isArray(a) == Array.isArray(b);
+}
+
 class JsonProxy {
-    newProxiedObject(parent, empty)
-    {
+
+    newNode(parent, emptyValue) {
         var details = {
-            parent: parent,
-            storage: empty,
-            serial: 0,
-            // Limit the increse (and propagation) to one between each "takeSerialSnapshot()"
-            dirtySerial: false,
-            // keep parent's serial at creation time (parent is always dirty here)
-            parentSerial: this.root != undefined ? this.root.serial + 1 : 0
+            parent : parent,
+            value: emptyValue,
+            serial: this.currentSerial
         };
-
-        details.proxy = new Proxy(details.storage, this.handler);
-
-        this.proxyToOriginal.set(details.proxy, details);
+        this.currentSerialUsed = true;
+        this.markDirty(details);
         return details;
     }
 
-    dettach(proxy)
-    {
-        if (typeof proxy == 'object') {
+    // Create a node with emptyValue as storage
+    newObjectNode(parent, emptyValue) {
+        if ((typeof emptyValue) != 'object') throw new Error("Object node must have object");
+        var details = this.newNode(parent, emptyValue);
+        this.toObjectNode(details);
+        return details;
+    }
 
-            var desc = this.proxyToOriginal.get(object);
-            this.proxyToOriginal.get(object);
-            for (var k in desc) {
-                this.dettach(desc[k]);
+    toSimpleNode(details) {
+        delete details.proxy;
+        delete details.childSerial;
+    }
+
+    toObjectNode(details)
+    {
+        var self = this;
+        // Create the proxy
+        var handler = {
+            get: function(target, nom) {
+                if (Object.prototype.hasOwnProperty.call(details.value, nom)) {
+                    var desc = details.value[nom];
+
+                    if (Array.isArray(target) && nom == "length") {
+                        return desc;
+                    }
+
+                    if ("proxy" in desc) {
+                        return desc.proxy;
+                    }
+                    return desc.value;
+                }
+                return details.value[nom];
+            },
+            delete: function(target, nom) {
+                if (Object.prototype.hasOwnProperty.call(details.value, nom)) {
+                    var currentDesc = details.value[nom];
+                    self.markDirty(currentDesc);
+                }
+                delete details.value[nom];
+                return true;
+            },
+            set: function(target, nom, newValue, receiver) {
+                if (Array.isArray(target) && nom == "length") {
+                    target[nom] = newValue;
+                    return true;
+                }
+
+                // Value is set
+                if (newValue == undefined) {
+                    throw new Error("undefined not supported in JSON");
+                }
+
+                var currentDesc = Object.prototype.hasOwnProperty.call(details.value, nom) ? details.value[nom] : undefined;
+
+                // Just create the node
+                if (currentDesc == undefined) {
+                    if (valueHasChild(newValue)) {
+                        currentDesc = self.newObjectNode(details, emptyObjectFor(newValue));
+                        // Then merge
+                        self.mergeValues(newValue, currentDesc.proxy);
+                    } else {
+                        currentDesc = self.newNode(details, newValue);
+                    }
+                    details.value[nom] = currentDesc;
+                } else {
+                    if (currentDesc.value === newValue) {
+                        return true;
+                    }
+
+                    // Update existing value.
+                    if (!valueHasChild(newValue)) {
+                        if (currentDesc.proxy != undefined) {
+                            self.toSimpleNode(currentDesc);
+                            currentDesc.value = null;
+                            self.markDirty(currentDesc);
+                        }
+                        if (currentDesc.value != newValue) {
+                            currentDesc.value = newValue;
+                            self.markDirty(currentDesc);
+                        }
+                    } else {
+                        // Ensure storage is compatible
+                        if ((!valueHasChild(currentDesc.value)) || !compatibleStorage(currentDesc.value, newValue)) {
+                            // Just drop the existing node
+                            currentDesc.value = emptyObjectFor(newValue);
+                            self.toObjectNode(currentDesc);
+                            self.markDirty(currentDesc);
+                        }
+                        // Then merge
+                        self.mergeValues(newValue, currentDesc.proxy);
+                    }
+                }
+
+                return true;
             }
+        };
+
+        details.proxy = new Proxy(details.value, handler);
+        details.childSerial = this.currentSerial;
+        this.currentSerialUsed = true;
+
+        return details;
+    }
+
+    // Mark the value of a node "dirty"
+    markDirty(details) {
+        this.currentSerialUsed = true;
+        details.serial = this.currentSerial;
+        while(details.parent != null) {
+            details = details.parent;
+            if (details.childSerial == this.currentSerial) return;
+            details.childSerial = this.currentSerial;
         }
     }
+
 
 
     mergeValues(from, intoProxy)
@@ -115,112 +232,43 @@ class JsonProxy {
         }
     }
 
-    markDirty(at)
-    {
-        do {
-            if (at.dirtySerial) {
-                return;
-            }
-            at.dirtySerial = true;
-            at = at.parent;
-        } while(at != null);
-    }
-
     constructor() {
         var self = this;
-
-        this.proxyToOriginal = new WeakMap();
-
-
-        this.handler = {
-            // FIXME: delete
-
-            set: function(target, nom, newValue, receiver) {
-                console.log('set called with target=' + objectId(target) + ' receiver=' + objectId(receiver));
-                // Value is set
-                if (newValue == undefined) {
-                    throw new Error("undefined not supported in JSON");
-                }
-
-                var currentValue = target[nom];
-                if (currentValue === newValue) {
-                    return true;
-                }
-
-                var parentDesc = self.proxyToOriginal.get(receiver);
-
-                // Si c'est un proxy (déplacement), on le déttache
-                if (typeof newValue == "object") {
-                    if (self.proxyToOriginal.has(newValue)) {
-                        newValue = self.proxyToOriginal.get(newValue).storage;
-                    }
-
-                    // Forget incompatible values
-                    if (currentValue != undefined && (typeof currentValue) != (typeof newValue)) {
-                        self.dettach(currentValue);
-                        currentValue = undefined;
-                    }
-
-                    // Create a new value if required
-                    if (currentValue == undefined) {
-                        var childDesc = self.newProxiedObject(parentDesc, Array.isArray(newValue) ? [] : {});
-                        var newProxy = childDesc.proxy;
-                        target[nom] = newProxy;
-                        currentValue = newProxy;
-                        self.markDirty(childDesc);
-                    }
-
-                    self.mergeValues(newValue, currentValue);
-                } else {
-                    // On positionne juste une propriété finale
-                    if (typeof currentValue == 'object') {
-                        self.dettach(currentValue);
-                    } else if (currentValue == newValue) {
-                        // Cas trivial
-                        return true;
-                    }
-                    target[nom] = newValue;
-                    self.markDirty(parentDesc);
-                }
-
-                return true;
-            }
-        };
-
-        this.root = this.newProxiedObject(null, {});
-    }
-
-    getTarget() {
-        return this.root.proxy;
+        this.currentSerial = 0;
+        this.currentSerialUsed = false;
+        this.root = this.newObjectNode(null, {})
     }
 
     takeSerialSnapshot()
     {
         var self = this;
-
-        function forObject(o)
-        {
-            var result = {};
-            var desc = self.proxyToOriginal.get(o);
-
-            if (desc.dirtySerial) {
-                desc.serial++;
-                desc.dirtySerial = false;
-            }
-
-            result[serialProperty] = desc.serial;
-            result[createdProperty] = desc.parentSerial;
-            for(var k in o) {
-                var value = o[k];
-                if (typeof value == 'object') {
-                    result[k] = forObject(value);
-                }
-            }
-            return result;
+        if (this.currentSerialUsed) {
+            this.currentSerial++;
+            this.currentSerialUsed = false;
         }
-        return forObject(this.root.proxy);
+
+        function forObject(desc)
+        {
+            if (valueHasChild(desc.value)) {
+                var result = {
+                    serial: desc.serial,
+                    childSerial: desc.childSerial,
+                    props: {}
+                };
+                for(var k in desc.value) {
+                    result.props[k] = forObject(desc.value[k]);
+                }
+                return result;
+            } else {
+                return desc.serial;
+            }
+        }
+        return forObject(this.root);
     }
 
+    getTarget() {
+        return this.root.proxy;
+    }
 }
 
 
