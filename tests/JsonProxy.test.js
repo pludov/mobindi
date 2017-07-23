@@ -2,7 +2,10 @@
  * Created by ludovic on 21/07/17.
  */
 
+test("Util function", function(assert) {
+    assert.ok(has({e: null}, 'e'), "has function with null value");
 
+});
 test("Serial updates", function(assert) {
 
     var changeTracker = new JsonProxy();
@@ -11,9 +14,6 @@ test("Serial updates", function(assert) {
 
 
     assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial start at 0");
-    for(k in root) {
-        console.log('has property: ' + k);
-    }
     assert.deepEqual(root, {}, "Structure deepEquals to empty objecct");
     assert.equal(JSON.stringify(root), "{}", "stringify returns empty");
 
@@ -106,7 +106,7 @@ test("Serial updates with array childs", function(assert) {
 
     assert.deepEqual(root, {a: "toto", child: [{value: "1"}]}, "Structure reflects changes");
     assert.deepEqual(JSON.parse(JSON.stringify(root)), root, "stringify works with child");
-    console.log(JSON.stringify(changeTracker.takeSerialSnapshot()));
+
     assert.deepEqual(changeTracker.takeSerialSnapshot(),
         {
             serial: 0,
@@ -233,4 +233,104 @@ test("Serial updates with array childs", function(assert) {
         }, "Serial updated on child slice");
 
     // Delete then create a node (serial will be wrong)
+});
+
+
+function checkConst(obj) {
+    var json = JSON.stringify(obj);
+    return {
+        value: json,
+        unchanged: function(assert) {
+            console.log('compare:\n  ' + JSON.stringify(obj) + '\n  ' + json);
+            return JSON.stringify(obj) == json;
+        }
+    };
+}
+
+test("Streaming replication", function(assert) {
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+
+    var fork = changeTracker.fork();
+
+    var data = fork.data;
+    var serial = fork.serial;
+
+    var previousData = checkConst(data);
+    var patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, undefined, "No change => no patch");
+
+
+
+    root.a="toto";
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {a: "toto"}}, "Patch for prop creation of final value");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for prop creation of final value");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#1)");
+    previousData = checkConst(data);
+
+
+
+    root.b = {};
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {b: {newObject: {}}}}, "Patch for prop creation of object value");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for prop creation of object value");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#2)");
+    previousData = checkConst(data);
+
+
+
+    root.b.coucou = "coucou";
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {b: {update: {coucou: "coucou"}}}}, "Patch for prop update in child");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for prop update in child");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#3)");
+    previousData = checkConst(data);
+
+
+
+    root.c = null;
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {c: null}}, "Patch for prop creation of null value");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for prop creation of null value");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#4)");
+    previousData = checkConst(data);
+
+
+
+    root.d = ["a","b"];
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {d: {newArray: {0:"a", 1:"b"}}}}, "Patch for array creation");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for array creation");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#5)");
+    previousData = checkConst(data);
+
+
+
+    delete root.a;
+
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {}, delete: ['a']}, "Patch for prop delete");
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for prop delete");
+
+    assert.ok(previousData.unchanged(), "Patch return new instance (#6)");
+    previousData = checkConst(data);
+
 });
