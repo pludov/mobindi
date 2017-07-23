@@ -102,9 +102,30 @@ class JsonProxy {
             value: emptyValue,
             serial: this.currentSerial
         };
-        this.currentSerialUsed = true;
+        this.useCurrentSerial();
         this.markDirty(details);
         return details;
+    }
+
+    useCurrentSerial() {
+        if (!this.currentSerialUsed) {
+            this.currentSerialUsed = true;
+            if (!this.notifyPending) {
+                this.notifyPending = true;
+                process.nextTick(this.notifyAll);
+            }
+        }
+    }
+
+    notifyAll() {
+        this.notifyPending = false;
+
+        var toCall = Object.assign(this.listeners);
+        for (var k in toCall) {
+            if (has(toCall, k) && has(this.listeners, k)) {
+                toCall[k]();
+            }
+        }
     }
 
     // Create a node with emptyValue as storage
@@ -113,6 +134,16 @@ class JsonProxy {
         var details = this.newNode(parent, emptyValue);
         this.toObjectNode(details);
         return details;
+    }
+
+    addListener(listener) {
+        var key = "" + this.listenersId++;
+        this.listeners[key] = listener;
+        return key;
+    }
+
+    removeListener(listenerId) {
+        delete this.listeners[listenerId];
     }
 
     toSimpleNode(details) {
@@ -206,14 +237,14 @@ class JsonProxy {
 
         details.proxy = new Proxy(details.value, handler);
         details.childSerial = this.currentSerial;
-        this.currentSerialUsed = true;
+        this.useCurrentSerial();
 
         return details;
     }
 
     // Mark the value of a node "dirty"
     markDirty(details) {
-        this.currentSerialUsed = true;
+        this.useCurrentSerial();
         details.serial = this.currentSerial;
         while(details.parent != null) {
             details = details.parent;
@@ -249,7 +280,13 @@ class JsonProxy {
         var self = this;
         this.currentSerial = 0;
         this.currentSerialUsed = false;
+        this.notifyPending = false;
+
+        this.notifyAll = this.notifyAll.bind(this);
+
         this.root = this.newObjectNode(null, {})
+        this.listeners = {};
+        this.listenerId = 1;
     }
 
     takeSerialSnapshot()
@@ -343,20 +380,27 @@ class JsonProxy {
                     // Verifier la prop
                     var propObjDesc = objDesc.value[key];
 
-                    var propObjVersion;
-                    if (has(objVersion.props, key)) {
-                        propObjVersion = objVersion.props[key];
-                    } else {
-                        propObjVersion = {serial: undefined, value: null}
-                        objVersion.props[key] = propObjVersion;
-                    }
 
                     var propUpdate;
-                        // On a affaire a un objet
+                    // On a affaire a un objet
                     if ('proxy' in propObjDesc) {
+                        var propObjVersion = undefined;
+                        if (has(objVersion.props, key)) {
+                            propObjVersion = objVersion.props[key];
+                            if (typeof propObjVersion != "object") {
+                                propObjVersion = undefined;
+                            }
+                        }
+
+                        if (propObjVersion == undefined) {
+                            propObjVersion = {serial: null, childSerial: null, props: {}}
+                            objVersion.props[key] = propObjVersion;
+                        }
+
                         propUpdate = objectProps(propObjDesc, propObjVersion);
                     } else {
-                        propUpdate = finalProp(propObjDesc, propObjVersion);
+
+                        propUpdate = finalProp(propObjDesc, objVersion, key);
                     }
                     if (propUpdate !== undefined) {
                         whereToStoreProps[key] = propUpdate;
@@ -367,14 +411,22 @@ class JsonProxy {
             return result;
         }
 
-        function finalProp(objDesc, objVersion) {
-            if (objDesc.serial == objVersion.serial) {
+        function finalProp(objDesc, objVersion, key) {
+            var versionSerial;
+            if (has(objVersion.props, key)) {
+                versionSerial = objVersion.props[key];
+                if (typeof versionSerial == "object") {
+                    versionSerial = undefined;
+                }
+            } else {
+                versionSerial = undefined;
+            }
+
+            if (objDesc.serial == versionSerial) {
                 return undefined;
             }
 
-            objVersion.serial = objDesc.serial;
-            delete objVersion.proxy;
-            delete objVersion.childSerial;
+            objVersion.props[key] = objDesc.serial;
             return objDesc.value;
         }
 

@@ -255,6 +255,7 @@ test("Streaming replication", function(assert) {
 
     var data = fork.data;
     var serial = fork.serial;
+    console.log('starting serial =' + JSON.stringify(serial));
 
     var previousData = checkConst(data);
     var patches = changeTracker.diff(serial);
@@ -262,75 +263,138 @@ test("Streaming replication", function(assert) {
 
 
 
+    STEP = "prop creation of final value";
+
     root.a="toto";
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {a: "toto"}}, "Patch for prop creation of final value");
+    assert.deepEqual(patches, {update: {a: "toto"}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for prop creation of final value");
-
-    assert.ok(previousData.unchanged(), "Patch return new instance (#1)");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
 
+
+    STEP = "prop change of final value";
+
+    root.a="toto2";
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {a: "toto2"}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+
+
+    STEP = "prop creation of object value";
 
 
     root.b = {};
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {b: {newObject: {}}}}, "Patch for prop creation of object value");
+    assert.deepEqual(patches, {update: {b: {newObject: {}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for prop creation of object value");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
 
-    assert.ok(previousData.unchanged(), "Patch return new instance (#2)");
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
 
+
+    STEP = "prop update in child";
 
 
     root.b.coucou = "coucou";
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {b: {update: {coucou: "coucou"}}}}, "Patch for prop update in child");
+    assert.deepEqual(patches, {update: {b: {update: {coucou: "coucou"}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for prop update in child");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
 
-    assert.ok(previousData.unchanged(), "Patch return new instance (#3)");
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
 
+
+
+    STEP = "prop creation of null value";
 
 
     root.c = null;
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {c: null}}, "Patch for prop creation of null value");
+    assert.deepEqual(patches, {update: {c: null}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for prop creation of null value");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
 
-    assert.ok(previousData.unchanged(), "Patch return new instance (#4)");
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
 
 
+
+    STEP = "array creation";
 
     root.d = ["a","b"];
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {d: {newArray: {0:"a", 1:"b"}}}}, "Patch for array creation");
+    assert.deepEqual(patches, {update: {d: {newArray: {0:"a", 1:"b"}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for array creation");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
 
-    assert.ok(previousData.unchanged(), "Patch return new instance (#5)");
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
 
 
+
+    STEP = "prop delete";
 
     delete root.a;
-
     patches = changeTracker.diff(serial);
-    assert.deepEqual(patches, {update: {}, delete: ['a']}, "Patch for prop delete");
+    assert.deepEqual(patches, {update: {}, delete: ['a']}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
     data = applyDiff(data, patches);
-    assert.deepEqual(data, root, "Patch apply for prop delete");
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
 
-    assert.ok(previousData.unchanged(), "Patch return new instance (#6)");
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
     previousData = checkConst(data);
+
+
+
+    STEP = "prop mutate to object";
+
+    root.b.coucou = {truc: "bidule"};
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {b: { update: { coucou : { newObject: { truc: "bidule"}}}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+
+    STEP = "prop mutate to final";
+
+
+    root.b.coucou = 3;
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {b: { update: { coucou : 3}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
 
 });
