@@ -9,13 +9,15 @@ const Promises = require('./Promises');
 
 class IndiManager {
 
-    constructor(app, updateStatus) {
-        this.currentStatus = {
+    constructor(app, appStateManager) {
+        this.appStateManager = appStateManager;
+        this.appStateManager.getTarget().indiManager = {
             // connecting, connected, error
             status: "connecting",
-            indiState: {}
-        };
-        this.updateStatus = updateStatus;
+        }
+
+        this.currentStatus = this.appStateManager.getTarget().indiManager;
+
         this.lifeCycle = this.buildLifeCycle();
         this.lifeCycle.start();
     }

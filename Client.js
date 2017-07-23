@@ -14,6 +14,23 @@ class Client {
 
         this.log('Client ' + this.uid + ' connected');
         this.socket = socket;
+
+        this.jsonListener = this.jsonListener.bind(this);
+    }
+
+    attach(jsonProxy) {
+        this.jsonProxy = jsonProxy;
+        var initialState = this.jsonProxy.fork();
+        this.jsonSerial = initialState.serial;
+
+        this.notify({action: 'welcome', status: "ok", data: initialState.data});
+        this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
+    }
+
+    jsonListener() {
+        // FIXME: Si la socket est pleine, abandonne (mais met un timer pour rééssai...)
+        var patch = this.jsonProxy.diff(this.jsonSerial);
+        this.notify({action: 'update', status: "ok", diff: patch});
     }
 
     log(message) {
@@ -31,6 +48,7 @@ class Client {
             this.socket = undefined;
         }
         delete clients[this.uid];
+        this.jsonProxy.removeListener(this.jsonListenerId);
     }
 
     notify(changeEvent) {
@@ -55,10 +73,10 @@ class Client {
     }
 
     static notifyAll(changeEvent) {
-        console.log('update notification: ' + JSON.stringify(changeEvent));
+/*        console.log('update notification: ' + JSON.stringify(changeEvent));
         for(var i in clients) {
             clients[i].notify(changeEvent);
-        }
+        }*/
     }
 }
 

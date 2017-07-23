@@ -4,26 +4,28 @@ const net = require('net');
 const Promises = require('./Promises');
 
 class Phd {
-    constructor(app, updateStatus)
+    constructor(app, appStateManager)
     {
-        this.updateStatus = updateStatus;
+        this.appStateManager = appStateManager;
 
         this.running = true;
-        this.currentStatus = {
+
+        this.appStateManager.getTarget().phd = {
             // Connecting
             phd_started: false,
 
             connected: false,
 
             AppState: "NotConnected"
-        };
+        }
+        this.currentStatus = this.appStateManager.getTarget().phd;
+
         // Cet objet contient les dernier guide step
         this.steps = {};
         this.stepId = 0;
 
         this.updateStepsStats();
 
-        this.updateStatus();
         this.lifeCycle().start();
     }
 
@@ -59,8 +61,6 @@ class Phd {
                             self.steps = {};
                             self.stepId = 0;
 
-                            self.updateStatus();
-
                             if (next.isActive()) {
                                 next.done();
                             }
@@ -70,7 +70,6 @@ class Phd {
                             console.log('Connected to phd');
                         });
 
-                        self.updateStatus();
                     }, function(next) {
                         if (self.client != undefined) {
                             try {
@@ -184,7 +183,6 @@ class Phd {
                             self.currentStatus.AppState = event.State;
                             self.currentStatus.star = null;
                             console.log('Initial status:' + self.currentStatus.AppState);
-                            statusUpdated = true;
                             break;
                         default:
                             if (event.Event in eventToStatus) {
@@ -196,7 +194,6 @@ class Phd {
                                     self.stepId = 0;
                                     self.updateStepsStats();
                                     console.log('New status:' + self.currentStatus.AppState);
-                                    statusUpdated = true;
                                 }
 
                             }
@@ -220,15 +217,10 @@ class Phd {
                         }
                         self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
                         self.updateStepsStats();
-
-                        statusUpdated = true;
                     }
                 }
             }catch(e) {
                 console.log('Error: ' + e);
-            }
-            if (statusUpdated) {
-                self.updateStatus();
             }
         }
     }

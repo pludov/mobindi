@@ -16,6 +16,7 @@ const Client = require('./Client.js');
 
 const {Phd} = require('./Phd');
 const {IndiManager} = require('./IndiManager');
+const JsonProxy = require('./JsonProxy');
 
 // var index = require('./routes/index');
 // var users = require('./routes/users');
@@ -53,21 +54,23 @@ app.use(cors({
 }));
 
 
+var appStateManager = new JsonProxy.JsonProxy();
+var appState = appStateManager.getTarget();
+
+appState.apps= {
+    phd: {
+        enabled: true,
+        position: 1
+    },
+    indiManager: {
+        enabled: true,
+        position: 2
+    }
+};
+
+
 var phd;
 var indiManager;
-
-var statusId = 0;
-function updateStatus()
-{
-    statusId++;
-    // Not before the application is fully started
-    if (phd == undefined || indiManager == undefined) {
-        return;
-    }
-    Client.notifyAll(completeStatus({
-        action: 'update'
-    }));
-}
 
 function completeStatus(obj)
 {
@@ -92,9 +95,9 @@ function completeStatus(obj)
 }
 
 
-phd = new Phd(app, updateStatus);
+phd = new Phd(app, appStateManager);
 
-indiManager = new IndiManager(app, updateStatus);
+indiManager = new IndiManager(app, appStateManager);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
@@ -121,7 +124,6 @@ wss.on('connection', function connection(ws) {
     var client;
 
     client = new Client(ws);
-
 
     ws.on('message', function incoming(message) {
         if (!client) {
@@ -175,7 +177,8 @@ wss.on('connection', function connection(ws) {
         }
     });
 
-    client.notify(completeStatus({action: 'welcome', status:"ok"}));
+    client.attach(appStateManager);
+
 });
 
 var port = parseInt(process.env.PORT || '8080');

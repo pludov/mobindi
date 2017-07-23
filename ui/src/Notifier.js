@@ -176,11 +176,12 @@ class Notifier {
 
                     console.log('Websocket: welcomed');
                     self.resetHandshakeStatus(true);
-                    self.dispatchBackendStatus();
+
+                    self.store.dispatch({type: 'notification', data: data.data});
                 }
 
-                if ((self.store != undefined) && (data.action=="update" || data.action == "welcome")) {
-                    self.store.dispatch({type: "notification", data: data});
+                if (data.action=="update") {
+                    self.store.dispatch({type: "notification", diff: data.diff});
                 }
 
             };
