@@ -71,13 +71,6 @@ class Client {
             }
         }
     }
-
-    static notifyAll(changeEvent) {
-/*        console.log('update notification: ' + JSON.stringify(changeEvent));
-        for(var i in clients) {
-            clients[i].notify(changeEvent);
-        }*/
-    }
 }
 
 module.exports = Client;

@@ -23,6 +23,7 @@ const initialState =  {
     backend: {
         apps: {}
     },
+    indiManager: {},
     currentApp: null
 };
 
@@ -53,13 +54,12 @@ function fork(state, path)
 function cleanupState(state)
 {
     // Assurer que l'app en cours est toujours autorisée
-    console.log('start of cleanupstate:' + JSON.stringify(state, null, 2));
     if (state.currentApp != null &&
         ((!state.backend.apps) || (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled))) {
         state = fork(state);
         state.currentApp = null;
     }
-    console.log('before pb:' + JSON.stringify(state, null, 2));
+
     // Assurer qu'on ait une app en cours si possible
     if (state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
         state = fork(state);
@@ -96,7 +96,8 @@ actions.SwitchToApp = function(state, action)
 var reducer = function(state = initialState, action)
 {
     var type = action.type;
-console.log("Reducer called with state: " + JSON.stringify(state, null, 2));
+    console.log("Reducer called with action: " + JSON.stringify(action, null, 2));
+
     if (type == "backendStatus") {
         state = Object.assign({}, state);
         state.backendStatus = action.backendStatus;
@@ -124,7 +125,6 @@ console.log("Reducer called with state: " + JSON.stringify(state, null, 2));
         if ('data' in action) {
             state.backend = action.data;
         } else {
-            console.log('Apply diff : ' + JSON.stringify(action.diff));
             state.backend = JsonProxy.applyDiff(state.backend, action.diff);
         }
     } else if (type in actions) {
@@ -132,7 +132,7 @@ console.log("Reducer called with state: " + JSON.stringify(state, null, 2));
     } else {
         console.log('invalid action: ' + type);
     }
-    console.log("Before cleanup state: " + JSON.stringify(state, null, 2));
+
     state = cleanupState(state);
 
     return state;

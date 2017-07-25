@@ -7,6 +7,18 @@
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 
+function has(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function clear(obj) {
+    for(var k in obj) {
+        if (has(obj, k)) {
+            delete(obj[k]);
+        }
+    }
+}
+
 class IndiManager {
 
     constructor(app, appStateManager) {
@@ -14,6 +26,7 @@ class IndiManager {
         this.appStateManager.getTarget().indiManager = {
             // connecting, connected, error
             status: "connecting",
+            deviceTree: {}
         }
 
         this.currentStatus = this.appStateManager.getTarget().indiManager;
@@ -26,13 +39,13 @@ class IndiManager {
     {
         if (this.connection == undefined) {
             this.currentStatus.status = "error";
-            this.currentStatus.indiState = {};
+            clear(this.currentStatus.deviceTree);
+
         } else if (!this.connection.connected) {
             this.currentStatus.status = "connecting";
-            this.currentStatus.indiState = {};
+            clear(this.currentStatus.deviceTree);
         } else {
             this.currentStatus.status = "connected";
-            this.currentStatus.indiState = this.connection.properties;
         }
     }
 
@@ -44,6 +57,7 @@ class IndiManager {
                     new Promises.Cancelable((next) => {
                         var indiConnection = new IndiConnection();
                         self.connection = indiConnection;
+                        self.connection.deviceTree = this.currentStatus.deviceTree;
 
                         // start
                         var listener = function() {

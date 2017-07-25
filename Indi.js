@@ -74,6 +74,51 @@ const schema = {
       }
 };
 
+function has(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+class Device {
+
+    constructor(connection, device) {
+        this.connection = connection;
+        this.device = device;
+    }
+
+    getVector(property)
+    {
+        var devProps = this.connection.getDeviceInTree(this.device);
+        if (!has(devProps, property)) {
+            return null;
+        }
+        return devProps[property];
+    }
+
+
+    getProperty(property, name)
+    {
+        var devProps = this.connection.getDeviceInTree(this.device);
+
+        if (!has(devProps, name)) {
+            return null;
+        }
+        var prop = devProps[property];
+        if (!has(prop.childs, name)) {
+            return null;
+        }
+
+        return prop.childs[name];
+    }
+
+    getPropertyValue(device, property, name)
+    {
+        var property = this.getProperty(device, property, name);
+        if (property == null) return null;
+        return property.$_;
+    }
+
+}
+
 class IndiConnection {
     
     constructor() {
@@ -81,7 +126,7 @@ class IndiConnection {
         this.socket = undefined;
         this.connected = false;
         this.queue = [];
-        this.properties = {};
+        this.deviceTree = {};
         this.listeners = [];
     }
 
@@ -324,6 +369,18 @@ class IndiConnection {
         return parser;
     }
 
+    getDeviceInTree(dev) {
+        if (!has(this.deviceTree, dev)) {
+            this.deviceTree[dev] = {};
+        }
+
+        return this.deviceTree[dev];
+    }
+
+    getDevice(dev) {
+        return new Device(this, dev);
+    }
+
     onMessage(message) {
         if (message.$$.match(/^def.*Vector$/)) {
             var childsProps = message.$$.replace(/Vector$/, '');
@@ -339,21 +396,26 @@ class IndiConnection {
                 message.childNames[i] = child.$name;
             }
             delete message[childsProps];
-                        
-            this.properties[message.$name] = message;
-//            console.log('Properties: ' + JSON.stringify(this.properties, null, 2));
+
+            this.getDeviceInTree(message.$device)[message.$name] = message;
+
         }
         
         if (message.$$.match(/^set.*Vector$/)) {
             var kind = message.$$.replace(/Vector$/, '').replace(/^set/, '');
             var childsProp = 'def' + kind;
-            
-            var prop = this.properties[message.$name];
-            if (prop == undefined) {
+
+            if (!has(this.deviceTree, message.$device)) {
+                console.warn('Received set for unknown device: '.JSON.stringify(message, null, 2));
+                return;
+            }
+            var dev = this.deviceTree[message.$device];
+            if (!has(dev, message.$name)) {
                 console.warn('Received set for unknown property: ' . JSON.stringify(message, null, 2));
                 return;
             }
 
+            var prop = dev[message.$name];
             prop.$state = message.$state;
             prop.$timeout = message.$timeout;
             prop.$timestamp = message.$timestam;
@@ -367,47 +429,17 @@ class IndiConnection {
             
             for(var i = 0; i < updates.length; ++i) {
                 var update = updates[i];
-                var current = prop.childs[update.$name];
-                if (current == undefined) {
-                    console.warn('Unknown one' + kind + ' in: ' . JSON.stringify(message, null, 2));
-                    return;
+                if (!has(prop.childs, update.$name)) {
+                    console.warn('Unknown one' + kind + ' in: '.JSON.stringify(message, null, 2));
+                    continue;
                 }
-                console.log('Should update:\n' + JSON.stringify(current) + '\n=>' + JSON.stringify(update));
+                var current = prop.childs[update.$name];
                 current.$_ = update.$_;
             }
-            
         }
         this.checkListeners();
     }
 
-    getVector(device, property)
-    {
-        if (!(property in this.properties)) {
-            return null;
-        }
-        return this.properties[property];
-    }
-
-
-    getProperty(device, property, name)
-    {
-        if (!(property in this.properties)) {
-            return null;
-        }
-        var prop = this.properties[property];
-        if (!(name in prop.childs)) {
-            return null;
-        }
-
-        return prop.childs[name];
-    }
-    
-    getPropertyValue(device, property, name)
-    {
-        var property = this.getProperty(device, property, name);
-        if (property == null) return null;
-        return property.$_;
-    }
 }
 
 
@@ -416,9 +448,10 @@ function demo() {
     var connection = new IndiConnection();
     connection.connect('127.0.0.1');
 
+    var indiDevice = connection.getDevice("CCD Simulator");
 
     console.log('Waiting connection');
-    connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
+    // connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
 
     var shoot = new Promises.Chain(
         connection.wait(function() {
