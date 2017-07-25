@@ -5,15 +5,15 @@ import { Provider } from 'react-redux'
 import './index.css';
 import Screen from './Screen';
 import App from './App';
-import Phd from './Phd';
+import Phd from './PhdView';
 import registerServiceWorker from './registerServiceWorker';
-import { store } from './Store';
+import { store, storeManager } from './Store';
 
 
 ReactDOM.render(
         <Provider store={store}>
             <Screen>
-                <App/>
+                <App storeManager={storeManager}/>
             </Screen>
         </Provider>, document.getElementById('root'));
 registerServiceWorker();

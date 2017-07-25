@@ -6,6 +6,7 @@
 import { createStore } from 'redux';
 import Notifier from './Notifier';
 import JsonProxy from './shared/JsonProxy';
+import { update } from './shared/Obj'
 
 
 const BackendStatus = {
@@ -51,38 +52,6 @@ function fork(state, path)
     return state;
 }
 
-function cleanupState(state)
-{
-    // Assurer que l'app en cours est toujours autorisée
-    if (state.currentApp != null &&
-        ((!state.backend.apps) || (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled))) {
-        state = fork(state);
-        state.currentApp = null;
-    }
-
-    // Assurer qu'on ait une app en cours si possible
-    if (state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
-        state = fork(state);
-        // On prend la premiere... (FIXME: historique & co...)
-        var bestApp = null;
-        var bestKey = null;
-        for(var key in state.backend.apps)
-        {
-            var app = state.backend.apps[key];
-            if (bestApp == null
-                || (bestApp.position > app.position)
-                || (bestApp.position == app.position && bestKey < key))
-            {
-                bestApp = app;
-                bestKey = key;
-            }
-        }
-        state.currentApp = bestKey;
-    }
-
-    return state;
-}
-
 actions.SwitchToApp = function(state, action)
 {
     var appid = action.value;
@@ -93,52 +62,90 @@ actions.SwitchToApp = function(state, action)
 }
 
 
-var reducer = function(state = initialState, action)
-{
-    var type = action.type;
-    console.log("Reducer called with action: " + JSON.stringify(action, null, 2));
+var {reducer, storeManager } = function() {
+    var adjusters = [];
 
-    if (type == "backendStatus") {
-        state = Object.assign({}, state);
-        state.backendStatus = action.backendStatus;
-        if ('backendError' in action) {
-            state.backendError = action.backendError;
-        }
-        switch(state.backendStatus) {
-            case BackendStatus.Connected:
-                state.backend = action.data;
-                break;
-            case BackendStatus.Paused:
-            case BackendStatus.Reconnecting:
-                break;
-            default:
+    var actionsByApp = {};
+
+    var reducer = function (state = initialState, action) {
+        var prevJson = JSON.stringify(state);
+        var prevState = state;
+
+        var type = action.type;
+        if (type == "update") {
+            state = update(state, action.op);
+        } else if (type == "backendStatus") {
+            state = Object.assign({}, state);
+            state.backendStatus = action.backendStatus;
+            if ('backendError' in action) {
+                state.backendError = action.backendError;
+            }
+            switch (state.backendStatus) {
+                case BackendStatus.Connected:
+                    state.backend = action.data;
+                    break;
+                case BackendStatus.Paused:
+                case BackendStatus.Reconnecting:
+                    break;
+                default:
+                    state.backend = {};
+            }
+        } else if (type == "notification") {
+            // Mettre le status du backend
+            state = Object.assign({}, state);
+            if (state.backendStatus != BackendStatus.Connected || state.backendError != null) {
+                state.backendStatus = BackendStatus.Connected;
+                state.backendError = null;
                 state.backend = {};
-        }
-    } else if (type == "notification") {
-        // Mettre le status du backend
-        state = Object.assign({}, state);
-        if (state.backendStatus != BackendStatus.Connected || state.backendError != null) {
-            state.backendStatus = BackendStatus.Connected;
-            state.backendError = null;
-            state.backend = {};
-        }
-        if ('data' in action) {
-            state.backend = action.data;
+            }
+            if ('data' in action) {
+                state.backend = action.data;
+            } else {
+                state.backend = JsonProxy.applyDiff(state.backend, action.diff);
+            }
+        } else if (type == "appAction") {
+            var nvArgs = action.args.slice();
+            nvArgs.unshift(state);
+            state = actionsByApp[action.app][action.method].apply(null, nvArgs);
+        } else if (type in actions) {
+            state = actions[type](state, action);
         } else {
-            state.backend = JsonProxy.applyDiff(state.backend, action.diff);
+            console.log('invalid action: ' + type);
         }
-    } else if (type in actions) {
-        state = actions[type](state, action);
-    } else {
-        console.log('invalid action: ' + type);
+        state = adjusters.reduce((state, func) => (func(state)), state);
+
+        return state;
     }
 
-    state = cleanupState(state);
+    return {reducer, storeManager: {
+        addAdjuster: (func) => {adjusters.push(func);},
 
-    return state;
+        addActions: (id, obj) => {
+            if (!Object.prototype.hasOwnProperty.call(actionsByApp, id)) {
+                actionsByApp[id] = {};
+            }
+            Object.assign(actionsByApp[id], obj);
+        }
+    }};
+}();
+
+const store = createStore(reducer);
+
+storeManager.dispatch = function(e) {
+    store.dispatch(e);
 }
 
+storeManager.dispatchUpdate = function(e) {
+    store.dispatch({
+        type: 'update',
+        op: e});
+}
 
+const notifier = new Notifier();
+
+notifier.attachToStore(store);
+
+// Connect notifier to websocket
 function stripLastPart(url)
 {
     var str = "" + url;
@@ -149,14 +156,10 @@ function stripLastPart(url)
 
 const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
     (window.location.protocol + '//' + window.location.hostname  + ':' + window.location.port + '/');
-    //:*/ (stripLastPart(window.location) + 'api/');
+//:*/ (stripLastPart(window.location) + 'api/');
 console.log('api root is at: ' + apiRoot);
 
-const notifier = new Notifier();
-
-const store = createStore(reducer);
-
-notifier.attachToStore(store);
 notifier.connect(apiRoot);
 
-export { store, actions, notifier, BackendStatus }
+
+export { store, notifier, BackendStatus, storeManager, fork }

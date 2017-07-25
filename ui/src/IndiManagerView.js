@@ -3,11 +3,22 @@
  */
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
+import Collapsible from 'react-collapsible';
+import "./Collapsible.css";
 
-import { notifier, BackendStatus } from './Store';
+// Return a function that will call the given function with the given args
+function closure() {
+    var func = arguments[0];
+    var args = Array.from(arguments).slice(1);
+    var self = this;
+
+    return ()=> {
+        return func.apply(self, args);
+    };
+}
 
 
-class IndiManager extends Component {
+class IndiManagerView extends Component {
     constructor(props) {
         super(props);
 
@@ -24,7 +35,7 @@ class IndiManager extends Component {
 
         var deviceSelectorOptions;
         if (Object.prototype.hasOwnProperty.call(this.props.indiManager, 'deviceTree')) {
-            deviceSelectorOptions = Object.keys(this.props.indiManager.deviceTree).sort().map((item) => <option value={item}>{item}</option>);
+            deviceSelectorOptions = Object.keys(this.props.indiManager.deviceTree).sort().map((item) => <option key={item} value={item}>{item}</option>);
         } else {
             deviceSelectorOptions = null;
         }
@@ -33,16 +44,52 @@ class IndiManager extends Component {
         var currentDevice = this.props.uiState.selectedDevice;
         if (currentDevice == undefined) currentDevice = "";
         if (currentDevice == "") {
-            deviceSelectorOptions.push(<option value=""></option>);
+            deviceSelectorOptions.push(<option value="" key=""></option>);
         } else {
             if (Object.prototype.hasOwnProperty.call(this.props.indiManager.deviceTree, currentDevice)) {
                 var deviceProps = this.props.indiManager.deviceTree[currentDevice];
-                // Parcourir les groupes
-                for (var key in deviceProps) {
-                    vectors.push(<div>{JSON.stringify(deviceProps[key])}</div>);
+
+                // Les groupes ouverts
+                var opens = this.props.uiState.expandedGroups[currentDevice];
+
+                var groups = {};
+                for(var key in deviceProps) {
+                    var grpId = deviceProps[key].$group;
+                    groups[grpId] = {
+                        opened: Object.prototype.hasOwnProperty.call(opens, grpId) && opens[grpId],
+                        vectors: []
+                    };
+                }
+                var groupIds = Object.keys(groups).sort();
+                for(let group of groupIds) {
+                    var groupDesc = groups[group];
+                    let childs = [];
+                    for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group || true}).sort()) {
+                        childs.push(<div key={key}>{key}</div>);
+                    }
+
+                    vectors.push(<Collapsible
+                        key={group}
+                        open={groupDesc.opened}
+                        onOpen={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, true)}
+                        onClose={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, false)}
+                        transitionTime="200"
+                        trigger={group}
+                        lazyRender={true}>{childs}</Collapsible>);
+                    /**
+                     *                 // Parcourir les groupes
+                     for (var key in deviceProps) {
+                    vectors.push(<div key={key}>{JSON.stringify(deviceProps[key])}</div>);
+                }
+
+                     */
                 }
             }
+
+
         }
+
+
 
 
 
@@ -51,8 +98,10 @@ class IndiManager extends Component {
                 <div className={'IndiAppState IndiAppState_' + bs.status}>{bs.status}
                 </div>
 
+
+
                 <div>
-                    <select value={currentDevice} onChange={this.switchTo} placeholder="Select device...">
+                    <select value={currentDevice} onChange={(e)=>{this.props.app.dispatchAction("switchToDevice", e.target.value)}} placeholder="Select device...">
                         {deviceSelectorOptions}
                     </select><br/>
                     {vectors}
@@ -78,4 +127,4 @@ const mapStateToProps = function(store) {
     return result;
 }
 
-export default connect(mapStateToProps)(IndiManager);
+export default connect(mapStateToProps)(IndiManagerView);

@@ -2,18 +2,21 @@
  * Created by ludovic on 25/07/17.
  */
 import React, { Component } from 'react';
+import { update } from './shared/Obj'
+import BaseApp from './BaseApp';
 import IndiManagerView from './IndiManagerView';
 
-class IndiManagerApp {
+
+
+class IndiManagerApp extends BaseApp {
 
     constructor(storeManager) {
-        this.storeManager = storeManager;
+        super(storeManager, "indiManager");
 
-        this.switchToDevice = this.switchToDevice.bind(this);
-    }
-
-    getAppId() {
-        return "indiManager";
+        this.declareActions({
+            switchToDevice : this.switchToDevice.bind(this),
+            setGroupState: this.setGroupState.bind(this)
+        });
     }
 
     getUi() {
@@ -22,15 +25,38 @@ class IndiManagerApp {
         return <IndiManagerView app={self}></IndiManagerView>;
     }
 
-    switchToDevice(dev) {
-        this.storeManager.dispatchUpdate(
-            {
+    setGroupState(state, dev, group, onoff) {
+        var result = update(state, {
+            $mergedeep: {
                 indiManager: {
-                    $merge: {
-                        selectedDevice: dev
+                    expandedGroups: {
+                        [dev]: {
+                            [group]: onoff
+                        }
                     }
                 }
-            });
+            }
+        });
+        console.log('WTF indiManager status is now '+ JSON.stringify(result.indiManager, null, 2));
+        return result;
+    }
+
+
+    switchToDevice(state, dev) {
+        var emptyDev = {};
+        emptyDev[dev] = {};
+        var u = {
+            $mergedeep: {
+                indiManager: {
+                    selectedDevice: dev,
+                    expandedGroups: {
+                        [dev]: {}
+                    }
+                }
+            }
+        };
+
+        return update(state, u);
     }
 }
 

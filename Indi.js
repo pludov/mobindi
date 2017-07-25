@@ -418,8 +418,10 @@ class IndiConnection {
             var prop = dev[message.$name];
             prop.$state = message.$state;
             prop.$timeout = message.$timeout;
-            prop.$timestamp = message.$timestam;
-            prop.$message = message.$message;
+            prop.$timestamp = message.$timestamp;
+            if (message.$message != undefined) {
+                prop.$message = message.$message;
+            }
                         
             var updates = message['one' + kind];
             if (updates == undefined) {

@@ -5,19 +5,63 @@ import './App.css';
 
 import AppIcon from './AppIcon';
 
-import Phd from './Phd';
-import IndiManager from './IndiManager';
+import PhdApp from './PhdApp';
+import IndiManagerApp from './IndiManagerApp';
 
 import { BackendStatus } from './Store';
+
+import { update } from './shared/Obj'
 
 /** Affiche un état pendant la connection */
 
 
 class App extends Component {
 
+    constructor(props) {
+        super(props);
+
+        // FIXME: get a store manager ?
+        this.storeManager = this.props.storeManager;
+
+        this.storeManager.addAdjuster((state) => {
+            // Assurer que l'app en cours est toujours autorisée
+            if (state.currentApp != null &&
+                ((!state.backend.apps) || (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled))) {
+                state = update(state, {$mergedeep: {currentApp: null}});
+            }
+            return state;
+        });
+
+        this.storeManager.addAdjuster((state)=> {
+            // Assurer qu'on ait une app en cours si possible
+            if (state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
+
+                // On prend la premiere... (FIXME: historique & co...)
+                var bestApp = null;
+                var bestKey = null;
+                for (var key in state.backend.apps) {
+                    var app = state.backend.apps[key];
+                    if (bestApp == null
+                        || (bestApp.position > app.position)
+                        || (bestApp.position == app.position && bestKey < key)) {
+                        bestApp = app;
+                        bestKey = key;
+                    }
+                }
+                state = update(state,{$mergedeep:{currentApp: bestKey}});
+            }
+            return state;
+        });
+
+        this.apps = [
+            new PhdApp(this.storeManager),
+            new IndiManagerApp(this.storeManager)
+        ];
+
+
+    }
+
     render() {
-        console.log('apps are : ' + JSON.stringify(this.props.apps));
-        console.log('this.props.currentApp=' + this.props.currentApp);
         var bs = this.props.backendStatus;
         switch (bs) {
             case BackendStatus.Idle:
@@ -39,16 +83,18 @@ class App extends Component {
                 return (
                     <div className="App">
                         <div className="AppStatusBar">
-                            <AppIcon appid="phd"/>
-                            <AppIcon appid="indiManager"/>
+                            {
+                                this.apps.map((app) => <AppIcon key={app.getAppId()} appid={app.getAppId()}></AppIcon>)
+                            }
                         </div>
 
                         <div className="AppMainContent">
-                            {this.props.currentApp == "phd" && <Phd></Phd>}
-                            {this.props.currentApp == "indiManager" && <IndiManager></IndiManager>}
+                            {
+                                this.apps.map((app) => (app.getAppId() == this.props.currentApp ? app.getUi() : null))
+                            }
                         </div>
                     </div>);
-
+            default:
                 // C'est l'application par défaut.
                 return (this.props.children || null);
         }
@@ -73,7 +119,7 @@ const mapStateToProps = function(store) {
     var result = {
         backendStatus: store.backendStatus,
         backendStatusError: store.backendStatusError,
-        apps: store.backend.apps,
+        apps: ('backend' in store) ? store.backend.apps : null,
         currentApp: store.currentApp
     };
     return result;

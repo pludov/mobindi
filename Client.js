@@ -53,7 +53,7 @@ class Client {
 
     notify(changeEvent) {
         // Pour l'instant c'est crado
-        console.log('Sending notification to '+ this.uid + ': ' + JSON.stringify(changeEvent));
+        console.log('Sending notification to '+ this.uid + ': ' + JSON.stringify(changeEvent, null, 2));
         try {
             this.socket.send(JSON.stringify(changeEvent));
         } catch(e) {

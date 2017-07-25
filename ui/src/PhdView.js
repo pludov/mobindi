@@ -6,13 +6,13 @@ import { connect } from 'react-redux';
 
 import { notifier, BackendStatus } from './Store';
 
-import './Phd.css';
+import './PhdView.css';
 
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 
 
 // Afficher l'état de phd et permet de le controller
-class Phd extends Component {
+class PhdView extends Component {
     constructor(props) {
         super(props);
         this.phdRequest = this.phdRequest.bind(this);
@@ -102,4 +102,4 @@ const mapDispatchToProps = (dispatch) => {
     };
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(Phd);
+export default connect(mapStateToProps, mapDispatchToProps)(PhdView);

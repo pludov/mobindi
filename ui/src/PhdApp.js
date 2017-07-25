@@ -1,19 +1,17 @@
 import React, { Component } from 'react';
+import BaseApp from './BaseApp';
 import PhdView from './PhdView';
 
 
-class PhdApp {
+class PhdApp extends BaseApp {
 
     constructor(storeManager) {
-        this.storeManager = storeManager;
-    }
-
-    getAppId() {
-        return "phd";
+        super(storeManager, "phd");
     }
 
     getUi() {
-        return <PhdView storeManager={this.storeManager}></PhdView>;
+        var self = this;
+        return <PhdView app={self}></PhdView>;
     }
 }
 
