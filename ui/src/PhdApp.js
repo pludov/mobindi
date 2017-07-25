@@ -11,7 +11,7 @@ class PhdApp extends BaseApp {
 
     getUi() {
         var self = this;
-        return <PhdView app={self}></PhdView>;
+        return <PhdView app={self} key={self.appId}></PhdView>;
     }
 }
 

@@ -22,7 +22,7 @@ class IndiManagerApp extends BaseApp {
     getUi() {
         var self = this;
 
-        return <IndiManagerView app={self}></IndiManagerView>;
+        return <IndiManagerView app={self} key={self.appId}></IndiManagerView>;
     }
 
     setGroupState(state, dev, group, onoff) {

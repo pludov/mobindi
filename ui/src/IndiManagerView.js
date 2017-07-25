@@ -106,7 +106,7 @@ class IndiManagerView extends Component {
                     }
 
                     vectors.push(<Collapsible
-                        key={group}
+                        key={currentDevice + ":" + group}
                         open={groupDesc.opened}
                         onOpen={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, true)}
                         onClose={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, false)}
