@@ -3,6 +3,7 @@
  */
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
+import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
 
@@ -17,6 +18,53 @@ function closure() {
     };
 }
 
+class IndiDriverSelector extends Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        var deviceSelectorOptions = this.props.options.map((item) => <option key={item} value={item}>{item}</option>);
+        return (<select value={this.props.current} onChange={(e) => {
+            this.props.app.dispatchAction("switchToDevice", e.target.value)
+        }} placeholder="Select device...">
+            {deviceSelectorOptions}
+        </select>);
+
+    }
+
+    // Limit the refresh for the selector (would reset selection)
+    shouldComponentUpdate(nextProps, nextState) {
+        return !shallowequal(nextProps, this.props,(a, b, k)=>(k == "options" ? shallowequal(a, b) : undefined));
+    }
+}
+
+const mapStateToSelectorProps = function(store) {
+    var deviceSelectorOptions = [];
+
+    var backend = store.backend.indiManager;
+
+    var currentDevice = store.indiManager.selectedDevice;
+    if (currentDevice == undefined) currentDevice = "";
+    if (currentDevice == "") {
+        deviceSelectorOptions.push("");
+    }
+
+    if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
+
+        for(var o of Object.keys(backend.deviceTree).sort()) {
+            deviceSelectorOptions.push(o);
+        }
+    }
+
+    var result = {
+        options: deviceSelectorOptions,
+        current:currentDevice
+    };
+    return result;
+}
+
+IndiDriverSelector = connect(mapStateToSelectorProps)(IndiDriverSelector);
 
 class IndiManagerView extends Component {
     constructor(props) {
@@ -25,27 +73,16 @@ class IndiManagerView extends Component {
         this.state = { value: ''};
     }
 
-
-
     render() {
         var bs = this.props.indiManager;
         if (bs == undefined || bs == null) {
             return null;
         }
 
-        var deviceSelectorOptions;
-        if (Object.prototype.hasOwnProperty.call(this.props.indiManager, 'deviceTree')) {
-            deviceSelectorOptions = Object.keys(this.props.indiManager.deviceTree).sort().map((item) => <option key={item} value={item}>{item}</option>);
-        } else {
-            deviceSelectorOptions = null;
-        }
-
         var vectors = [];
         var currentDevice = this.props.uiState.selectedDevice;
         if (currentDevice == undefined) currentDevice = "";
-        if (currentDevice == "") {
-            deviceSelectorOptions.push(<option value="" key=""></option>);
-        } else {
+        if (currentDevice != "") {
             if (Object.prototype.hasOwnProperty.call(this.props.indiManager.deviceTree, currentDevice)) {
                 var deviceProps = this.props.indiManager.deviceTree[currentDevice];
 
@@ -64,7 +101,7 @@ class IndiManagerView extends Component {
                 for(let group of groupIds) {
                     var groupDesc = groups[group];
                     let childs = [];
-                    for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group || true}).sort()) {
+                    for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
                         childs.push(<div key={key}>{key}</div>);
                     }
 
@@ -99,11 +136,8 @@ class IndiManagerView extends Component {
                 </div>
 
 
-
                 <div>
-                    <select value={currentDevice} onChange={(e)=>{this.props.app.dispatchAction("switchToDevice", e.target.value)}} placeholder="Select device...">
-                        {deviceSelectorOptions}
-                    </select><br/>
+                    <IndiDriverSelector app={this.props.app}/><br/>
                     {vectors}
                 </div>
 

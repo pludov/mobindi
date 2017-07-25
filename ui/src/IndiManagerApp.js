@@ -37,7 +37,6 @@ class IndiManagerApp extends BaseApp {
                 }
             }
         });
-        console.log('WTF indiManager status is now '+ JSON.stringify(result.indiManager, null, 2));
         return result;
     }
 
