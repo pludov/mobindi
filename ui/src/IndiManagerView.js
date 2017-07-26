@@ -77,6 +77,7 @@ const VectorStateToColor = {
 class IndiSelectorPropertyView extends PureComponent {
     // props: app, dev, vec
     render() {
+        var self = this;
         var options = [];
         var currentOption = undefined;
 
@@ -89,7 +90,14 @@ class IndiSelectorPropertyView extends PureComponent {
             }
         }
 
-        return <select value={currentOption}>{options}</select>;
+        return <select value={currentOption} onChange={(e) => {
+            this.props.app.rqtSwitchProperty({
+                dev: self.props.dev,
+                vec: self.props.vec,
+                children: [
+                    {name: e.target.value, value: 'On'}
+                ]})
+        }}>{options}</select>;
     }
 
     static mapStateToProps(store, ownProps) {

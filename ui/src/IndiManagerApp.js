@@ -57,6 +57,14 @@ class IndiManagerApp extends BaseApp {
 
         return update(state, u);
     }
+
+    rqtSwitchProperty(desc) {
+        this.storeManager.sendMessage({
+            target: 'indiManager',
+            method: 'setProperty',
+            data: desc
+        });
+    }
 }
 
 export default IndiManagerApp;

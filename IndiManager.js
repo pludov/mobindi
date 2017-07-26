@@ -85,6 +85,17 @@ class IndiManager {
             )
         );
     }
+
+    setProperty(message, reply)
+    {
+        // Un truc plus serieux svp...
+        var msg = '<newSwitchVector device="' + message.data.dev + '" name="' + message.data.vec+'">';
+        for(var o of message.data.children) {
+            msg += '<oneSwitch name="' + o.name + '">' + o.value + '</oneSwitch>';
+        }
+        msg += '</newSwitchVector>';
+        this.connection.queueMessage(msg);
+    }
 }
 
 module.exports = {IndiManager};

@@ -155,6 +155,9 @@ wss.on('connection', function connection(ws) {
                 case 'phd':
                     targetObj= phd;
                     break;
+                case 'indiManager':
+                    targetObj = indiManager;
+                    break;
                 default:
                     reply({status: 'ko', details: 'invalid target'});
                     return;

@@ -278,6 +278,7 @@ class IndiConnection {
             
     }
 
+    //msg: string
     queueMessage(msg) {
         this.queue.push(msg);
         this.flushQueue();
