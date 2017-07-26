@@ -3,7 +3,8 @@
  */
 
 
-import { createStore } from 'redux';
+import { compose, createStore } from 'redux';
+import persistState from 'redux-localstorage'
 import Notifier from './Notifier';
 import JsonProxy from './shared/JsonProxy';
 import { update } from './shared/Obj'
@@ -129,7 +130,21 @@ var {reducer, storeManager } = function() {
     }};
 }();
 
-const store = createStore(reducer);
+const enhancer = compose(
+    persistState(undefined, {
+            slicer: (paths)=> (state) => {
+                console.log('WTF slicing');
+                var rslt = Object.assign({}, state);
+                delete rslt.backend;
+                delete rslt.backendStatus;
+                delete rslt.backendError;
+                console.log("WTF slicing result is " + JSON.stringify(rslt));
+                return rslt;
+            }
+        })
+);
+
+const store = createStore(reducer, initialState, enhancer);
 
 storeManager.dispatch = function(e) {
     store.dispatch(e);

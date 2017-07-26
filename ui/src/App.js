@@ -25,7 +25,8 @@ class App extends Component {
 
         this.storeManager.addAdjuster((state) => {
             // Assurer que l'app en cours est toujours autorisée
-            if (state.currentApp != null &&
+            if (state.backendStatus == BackendStatus.Connected &&
+                state.currentApp != null &&
                 ((!state.backend.apps) || (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled))) {
                 state = update(state, {$mergedeep: {currentApp: null}});
             }
@@ -34,7 +35,8 @@ class App extends Component {
 
         this.storeManager.addAdjuster((state)=> {
             // Assurer qu'on ait une app en cours si possible
-            if (state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
+            if (state.backendStatus == BackendStatus.Connected &&
+                state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
 
                 // On prend la premiere... (FIXME: historique & co...)
                 var bestApp = null;
