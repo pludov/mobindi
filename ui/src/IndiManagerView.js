@@ -7,6 +7,7 @@ import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
 import Led from "./Led";
+import "./IndiManagerView.css";
 
 // Return a function that will call the given function with the given args
 function closure() {
@@ -73,7 +74,60 @@ const VectorStateToColor = {
     Alert: 'red'
 }
 
+class IndiSelectorPropertyView extends PureComponent {
+    // props: app, dev, vec
+    render() {
+        var options = [];
+        var currentOption = undefined;
+
+        for(var childId of this.props.childNames) {
+            var child = this.props.childs[childId];
+
+            options.push(<option key={child.$name} value={child.$name}>{child.$label}</option>);
+            if (child.$_ == 'On') {
+                currentOption = childId;
+            }
+        }
+
+        return <select value={currentOption}>{options}</select>;
+    }
+
+    static mapStateToProps(store, ownProps) {
+        var rslt = {};
+        var vec;
+        try {
+            vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
+        } catch (e) {
+            console.log('WTF: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
+        }
+
+        if (vec != undefined) {
+            rslt = {
+                label: vec.$label,
+                childs: vec.childs,
+                childNames: vec.childNames
+            }
+        } else {
+            rslt = {
+                label: "N/A",
+                state: 'Error',
+                childNames : []
+            }
+        }
+        return rslt;
+    }
+}
+IndiSelectorPropertyView = connect(IndiSelectorPropertyView.mapStateToProps)(IndiSelectorPropertyView);
+
+class IndiPropertyContener extends PureComponent {
+    // props: title
+    render() {
+        return <div className="IndiProperty">{this.props.title}{this.props.children}</div>;
+    }
+}
+
 class IndiVectorView extends PureComponent {
+    // props: app
     // props: dev
     // props: vec
     render() {
@@ -82,7 +136,18 @@ class IndiVectorView extends PureComponent {
             ledColor = VectorStateToColor['Alert'];
         }
 
-        return <div><Led color={ledColor}></Led>{this.props.state} {this.props.label}</div>
+        var content;
+        console.log('WTF: ' + this.props.label + ' => ' + this.props.type +',' + this.props.rule);
+        if (this.props.type == 'defSwitchVector' && this.props.rule == 'OneOfMany') {
+            content = <IndiPropertyContener title={this.props.label}>
+                        <IndiSelectorPropertyView app={this.props.app} dev={this.props.dev} vec={this.props.vec}>
+                        </IndiSelectorPropertyView>
+                    </IndiPropertyContener>;
+        } else {
+            content = this.props.label;
+        }
+
+        return <div className="IndiVector"><Led color={ledColor}></Led>{content}</div>
     }
 
     static mapStateToProps(store, ownProps) {
@@ -95,12 +160,17 @@ class IndiVectorView extends PureComponent {
         if (vec != undefined) {
             rslt = {
                 label: vec.$label,
-                state: vec.$state
+                state: vec.$state,
+                type: vec.$$,
+                rule: vec.$rule,
+                perm: vec.$perm,
+                childs: vec.childNames
             }
         } else {
             rslt = {
                 label: "N/A",
-                state: 'Error'
+                state: 'Error',
+                childs: []
             }
         }
         return rslt;
@@ -145,7 +215,7 @@ class IndiManagerView extends Component {
                     var groupDesc = groups[group];
                     let childs = [];
                     for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
-                        childs.push(<IndiVectorView key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
+                        childs.push(<IndiVectorView app={this.props.app} key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
                     }
 
                     vectors.push(<Collapsible
