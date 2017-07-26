@@ -1,11 +1,12 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component } from 'react';
+import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
 import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
+import Led from "./Led";
 
 // Return a function that will call the given function with the given args
 function closure() {
@@ -63,8 +64,50 @@ const mapStateToSelectorProps = function(store) {
     };
     return result;
 }
-
 IndiDriverSelector = connect(mapStateToSelectorProps)(IndiDriverSelector);
+
+const VectorStateToColor = {
+    Idle: 'grey',
+    Ok: 'green',
+    Busy: 'yellow',
+    Alert: 'red'
+}
+
+class IndiVectorView extends PureComponent {
+    // props: dev
+    // props: vec
+    render() {
+        var ledColor = VectorStateToColor[this.props.state];
+        if (ledColor == undefined) {
+            ledColor = VectorStateToColor['Alert'];
+        }
+
+        return <div><Led color={ledColor}></Led>{this.props.state} {this.props.label}</div>
+    }
+
+    static mapStateToProps(store, ownProps) {
+        var rslt = {};
+        var vec;
+        try {
+            vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
+        } catch(e) {}
+
+        if (vec != undefined) {
+            rslt = {
+                label: vec.$label,
+                state: vec.$state
+            }
+        } else {
+            rslt = {
+                label: "N/A",
+                state: 'Error'
+            }
+        }
+        return rslt;
+    }
+}
+
+IndiVectorView = connect(IndiVectorView.mapStateToProps)(IndiVectorView);
 
 class IndiManagerView extends Component {
     constructor(props) {
@@ -102,7 +145,7 @@ class IndiManagerView extends Component {
                     var groupDesc = groups[group];
                     let childs = [];
                     for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
-                        childs.push(<div key={key}>{key}</div>);
+                        childs.push(<IndiVectorView key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
                     }
 
                     vectors.push(<Collapsible
