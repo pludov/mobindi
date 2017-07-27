@@ -186,7 +186,7 @@ class IndiVectorView extends PureComponent {
         }
 
         var content;
-        if (this.props.type == 'defSwitchVector' && this.props.rule == 'OneOfMany') {
+        if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany') {
             content = <IndiPropertyContener title={this.props.label}>
                         <IndiSelectorPropertyView app={this.props.app} dev={this.props.dev} vec={this.props.vec}>
                         </IndiSelectorPropertyView>
@@ -216,7 +216,7 @@ class IndiVectorView extends PureComponent {
             rslt = {
                 label: vec.$label,
                 state: vec.$state,
-                type: vec.$$,
+                type: vec.$type,
                 rule: vec.$rule,
                 perm: vec.$perm,
                 childs: vec.childNames

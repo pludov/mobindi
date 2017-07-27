@@ -11,3 +11,9 @@ testrunner.run({
     tests: "tests/JsonProxy.test.js"
 
 });
+
+testrunner.run({
+    code: "Indi.js",
+    tests: "tests/Indi.test.js"
+
+});

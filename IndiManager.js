@@ -88,13 +88,18 @@ class IndiManager {
 
     setProperty(message, reply)
     {
-        // Un truc plus serieux svp...
-        var msg = '<newSwitchVector device="' + message.data.dev + '" name="' + message.data.vec+'">';
-        for(var o of message.data.children) {
-            msg += '<oneSwitch name="' + o.name + '">' + o.value + '</oneSwitch>';
+        if (this.connection == undefined) {
+            reply({result: 'error', message: "not connected"});
+        } else {
+            var dev = this.connection.getDevice(message.data.dev);
+            try {
+                dev.setVectorValues(message.data.vec, message.data.children);
+            } catch(e) {
+                reply({result: 'error', message: '' + e});
+                return;
+            }
+            reply({result: 'ok'});
         }
-        msg += '</newSwitchVector>';
-        this.connection.queueMessage(msg);
     }
 }
 

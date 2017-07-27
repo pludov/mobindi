@@ -1,10 +1,11 @@
 'use strict';
 
-const Promises = require('./Promises');
-
-
+const xmlbuilder = require('xmlbuilder');
 const net = require('net');
 const sax = require('sax');
+
+const Promises = require('./Promises');
+
 
 
 const schema = {
@@ -99,7 +100,7 @@ class Device {
     {
         var devProps = this.connection.getDeviceInTree(this.device);
 
-        if (!has(devProps, name)) {
+        if (!has(devProps, property)) {
             return null;
         }
         var prop = devProps[property];
@@ -115,6 +116,37 @@ class Device {
         var property = this.getProperty(device, property, name);
         if (property == null) return null;
         return property.$_;
+    }
+
+    // affectation is an array of {name:key, value:value}
+    // Vector is switched to busy
+    setVectorValues(vec, affectations) {
+        var devProps = this.connection.getDeviceInTree(this.device);
+        if (devProps == null) {
+            throw new Error("Device " + this.device + " not found");
+        }
+
+        if (!has(devProps, vec)) {
+            throw new Error("Vector " + vec + " not found");
+        }
+
+        var vecDef = devProps[vec];
+
+        var msg = {
+            $$: 'new' + vecDef.$type + 'Vector',
+            $device: this.device,
+            $name: vec,
+            ['one' + vecDef.$type]: affectations.map(item => {
+                return {
+                    $name: item.name,
+                    $_: item.value
+                }
+            })
+        };
+        vecDef.$state = "Busy";
+
+        var xml = this.connection.toXml(msg)
+        this.connection.queueMessage(xml);
     }
 
 }
@@ -138,7 +170,7 @@ class IndiConnection {
         }
         console.log('Opening indi connection to ' + host + ':' + port);
         var socket = new net.Socket(host, port);
-        var parser = this.newParser();
+        var parser = this.newParser((msg)=>self.onMessage(msg));
         
         this.socket = socket;
         this.parser = parser;
@@ -284,7 +316,48 @@ class IndiConnection {
         this.flushQueue();
     }
 
-    newParser() {
+    toXml(obj) {
+
+        var xml = xmlbuilder.create(obj.$$, undefined, undefined, {headless: true});
+
+        function render(obj, node) {
+            if (typeof obj == "string" || typeof obj == "number") {
+                node.txt("" + obj);
+                return;
+            }
+            if (obj == null) {
+                return;
+            }
+
+            for(var key in obj) {
+                if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+                    continue;
+                }
+                if (key == '$$') {
+                    continue;
+                } else if (key == "$_") {
+                    node.txt(obj[key]);
+                } else if (key.substr(0,1) == '$') {
+                    node.att(key.substr(1), obj[key]);
+                } else {
+                    var childObj =  obj[key];
+
+                    if (!Array.isArray(childObj)) {
+                        childObj = [childObj];
+                    }
+                    for (var child of childObj) {
+                        var childNode = node.e(key);
+                        render(child, childNode);
+                    }
+                }
+            }
+        }
+        render(obj, xml);
+
+        return xml.end({pretty: true});
+    }
+
+    newParser(onMessage) {
         var self = this;
         var parser = sax.parser(true)
         var level = 2;
@@ -352,7 +425,7 @@ class IndiConnection {
             if (currentLevel ==  level - 1) {
                 // End of current message
                 console.log('finished message parsing: ' + JSON.stringify(currentNodes[0]));
-                self.onMessage(currentNodes[0]);
+                onMessage(currentNodes[0]);
             }
             if (currentLevel >= level - 1) {
                 delete currentNodes[currentLevel - (level - 1)];
@@ -385,6 +458,8 @@ class IndiConnection {
     onMessage(message) {
         if (message.$$.match(/^def.*Vector$/)) {
             var childsProps = message.$$.replace(/Vector$/, '');
+
+            message.$type = childsProps.replace(/^def/, '');
 
             message.childs = {};
             message.childNames = [];
