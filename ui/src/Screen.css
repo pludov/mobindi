@@ -56,10 +56,16 @@ div#root {
     font-size: 9.5vh;
 }
 
+input[type="checkbox"] {
+    padding: 0;
+    width: 5vw;
+    height: 5vw;
+}
+
 input, button, select, option, textarea {
     font-size: 100%;
     margin: 0.5vw;
     collapse: true;
-    padding: 1vw 5vw 1vw 5vw;
+    padding: 1vw 2vw 1vw 2vw;
 }
 
