@@ -474,7 +474,19 @@ class IndiConnection {
             delete message[childsProps];
 
             this.getDeviceInTree(message.$device)[message.$name] = message;
+        }
 
+        if (message.$$=="delProperty") {
+            if (!has(this.deviceTree, message.$device)) {
+                console.log('Message about unknown device: ' + JSON.stringify(message));
+                return;
+            }
+            var dev = this.deviceTree[message.$device];
+            if (!has(dev, message.$name)) {
+                console.log('Message about unknown vector: ' + JSON.stringify(message));
+                return;
+            }
+            delete dev[message.$name];
         }
         
         if (message.$$.match(/^set.*Vector$/)) {
