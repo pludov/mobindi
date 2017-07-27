@@ -494,12 +494,12 @@ class IndiConnection {
             var childsProp = 'def' + kind;
 
             if (!has(this.deviceTree, message.$device)) {
-                console.warn('Received set for unknown device: '.JSON.stringify(message, null, 2));
+                console.warn('Received set for unknown device: ' + JSON.stringify(message, null, 2));
                 return;
             }
             var dev = this.deviceTree[message.$device];
             if (!has(dev, message.$name)) {
-                console.warn('Received set for unknown property: ' . JSON.stringify(message, null, 2));
+                console.warn('Received set for unknown property: ' + JSON.stringify(message, null, 2));
                 return;
             }
 
@@ -513,14 +513,14 @@ class IndiConnection {
                         
             var updates = message['one' + kind];
             if (updates == undefined) {
-                console.warn('Wrong one' + kind + ' in: ' . JSON.stringify(message, null, 2));
+                console.warn('Wrong one' + kind + ' in: ' + JSON.stringify(message, null, 2));
                 return;
             }
             
             for(var i = 0; i < updates.length; ++i) {
                 var update = updates[i];
                 if (!has(prop.childs, update.$name)) {
-                    console.warn('Unknown one' + kind + ' in: '.JSON.stringify(message, null, 2));
+                    console.warn('Unknown one' + kind + ' in: ' + JSON.stringify(message, null, 2));
                     continue;
                 }
                 var current = prop.childs[update.$name];
