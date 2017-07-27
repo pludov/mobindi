@@ -7,6 +7,7 @@ import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
 import Led from "./Led";
+import TextEdit from "./TextEdit.js";
 import "./IndiManagerView.css";
 
 // Return a function that will call the given function with the given args
@@ -155,6 +156,8 @@ class IndiPropertyView extends PureComponent {
                     ></input>
                     {label}</div>
             }
+        } else if (this.props.vecPerm != 'ro') {
+            return <div className="IndiProperty">{label}: <TextEdit value={this.props.value} onChange={(e)=> {self.props.onChange(e)}}/></div>;
         } else {
             return <div className="IndiProperty">{label}: {this.props.value}</div>
         }

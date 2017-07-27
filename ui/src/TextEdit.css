@@ -1,0 +1,24 @@
+.TextEdit {
+    background-color: #404040;
+    display: inline-block;
+    padding: 0.7vw;
+    min-width: 9vw;
+    width: auto !important;
+    margin: 0.5vw;
+    white-space: pre;
+}
+
+
+.Dialog {
+    z-index: 1000;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: 0;
+    background-color: #000000;
+}
+
+.WithVirtualKeyboard {
+    padding-bottom: 50%;
+}
