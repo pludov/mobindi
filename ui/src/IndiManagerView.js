@@ -39,33 +39,34 @@ class IndiDriverSelector extends Component {
     shouldComponentUpdate(nextProps, nextState) {
         return !shallowequal(nextProps, this.props,(a, b, k)=>(k == "options" ? shallowequal(a, b) : undefined));
     }
-}
 
-const mapStateToSelectorProps = function(store) {
-    var deviceSelectorOptions = [];
+    static mapStateToProps(store) {
+        var deviceSelectorOptions = [];
 
-    var backend = store.backend.indiManager;
+        var backend = store.backend.indiManager;
 
-    var currentDevice = store.indiManager.selectedDevice;
-    if (currentDevice == undefined) currentDevice = "";
-    if (currentDevice == "") {
-        deviceSelectorOptions.push("");
-    }
-
-    if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
-
-        for(var o of Object.keys(backend.deviceTree).sort()) {
-            deviceSelectorOptions.push(o);
+        var currentDevice = store.indiManager.selectedDevice;
+        if (currentDevice == undefined) currentDevice = "";
+        if (currentDevice == "") {
+            deviceSelectorOptions.push("");
         }
-    }
 
-    var result = {
-        options: deviceSelectorOptions,
-        current:currentDevice
-    };
-    return result;
+        if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
+
+            for(var o of Object.keys(backend.deviceTree).sort()) {
+                deviceSelectorOptions.push(o);
+            }
+        }
+
+        var result = {
+            options: deviceSelectorOptions,
+            current:currentDevice
+        };
+        return result;
+    }
 }
-IndiDriverSelector = connect(mapStateToSelectorProps)(IndiDriverSelector);
+
+IndiDriverSelector = connect(IndiDriverSelector.mapStateToProps)(IndiDriverSelector);
 
 const VectorStateToColor = {
     Idle: 'grey',
