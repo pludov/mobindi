@@ -75,6 +75,7 @@ const VectorStateToColor = {
     Alert: 'red'
 }
 
+// Render as a drop down selector
 class IndiSelectorPropertyView extends PureComponent {
     // props: app, dev, vec
     render() {
@@ -102,55 +103,64 @@ class IndiSelectorPropertyView extends PureComponent {
     }
 
     static mapStateToProps(store, ownProps) {
-        var rslt = {};
         var vec;
         try {
             vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
+            if (vec == undefined) throw "vector not found";
         } catch (e) {
-            console.log('One of many not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
+            throw new Error('One of many not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
         }
 
-        if (vec != undefined) {
-            rslt = {
-                label: vec.$label,
-                childs: vec.childs,
-                childNames: vec.childNames
-            }
-        } else {
-            rslt = {
-                label: "N/A",
-                state: 'Error',
-                childNames : []
-            }
-        }
-        return rslt;
+        return ({
+            childs: vec.childs,
+            childNames: vec.childNames
+        })
     }
 }
+
 IndiSelectorPropertyView = connect(IndiSelectorPropertyView.mapStateToProps)(IndiSelectorPropertyView);
 
-class IndiPropertyContener extends PureComponent {
-    // props: title
-    render() {
-        return <div className="IndiProperty">{this.props.title}: {this.props.children}</div>;
-    }
-}
 
 /** Render a property as key: value (readonly) */
 class IndiPropertyView extends PureComponent {
-    // props: app, dev, vec, prop, showVecTitle
+    // props: app, dev, vec, prop, showVecLabel,
+    // props: forcedValue
+    // onChange(newValue)
     render() {
-        if (this.props.prop == undefined) return null;
-        var label = this.props.prop.$label;
-        if (this.props.vecTitle != undefined) {
-            label = this.props.vecTitle + ": " + label;
+        var self = this;
+        var label = this.props.propLabel;
+        if (this.props.vecLabel != undefined) {
+            label = this.props.vecLabel + ": " + label;
         }
 
-        return (
-            <IndiPropertyContener title={label}>
-                {this.props.prop.$_}
-            </IndiPropertyContener>
-        );
+        if (this.props.vecType == 'Switch' && this.props.vecPerm != 'ro') {
+            if (this.props.vecRule == 'AtMostOne') {
+                return <input
+                    type="button"
+                    className={"IndiSwitchButton IndiSwitchButton" + this.props.value}
+                    value={label}
+                    onClick={(e) => {
+                        self.props.onChange(self.props.value == 'On' ? 'Off' : 'On')
+                    }}
+                />
+
+            } else {
+                return <div className="IndiProperty">
+                    <input
+                        type="checkbox"
+                        checked={this.props.value == 'On'}
+                        onChange={(e) => {
+                            self.props.onChange(e.target.checked ? 'On' : 'Off')
+                        }}
+                    ></input>
+                    {label}</div>
+            }
+        } else {
+            return <div className="IndiProperty">{label}: {this.props.value}</div>
+        }
+
     }
+
 
     static mapStateToProps(store, ownProps) {
         var prop, vec;
@@ -158,15 +168,16 @@ class IndiPropertyView extends PureComponent {
             vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
             prop = vec.childs[ownProps.prop];
         } catch(e) {
-            console.log('Propertyu not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' , ' + ownProps.prop + ' => ' + e);
-            if (vec == undefined) {
-                vec = {};
-            }
+            throw new Error('Property not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' , ' + ownProps.prop + ' => ' + e);
         }
 
         return ({
-            vecTitle: ownProps.showVecTitle ? vec.$label: undefined,
-            prop: prop
+            vecLabel: ownProps.showVecLabel ? vec.$label: undefined,
+            vecType: vec.$type,
+            vecRule: vec.$rule,
+            vecPerm: vec.$perm,
+            propLabel : prop.$label,
+            value: ownProps.forcedValue != undefined ? ownProps.forcedValue: prop.$_
         });
     }
 }
@@ -186,20 +197,39 @@ class IndiVectorView extends PureComponent {
         }
 
         var content;
-        if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany') {
-            content = <IndiPropertyContener title={this.props.label}>
-                        <IndiSelectorPropertyView app={this.props.app} dev={this.props.dev} vec={this.props.vec}>
-                        </IndiSelectorPropertyView>
-                    </IndiPropertyContener>;
+        if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany' && this.props.perm != "ro") {
+            content = <div className="IndiProperty">{this.props.label}:
+                <IndiSelectorPropertyView app={this.props.app} dev={this.props.dev} vec={this.props.vec}>
+                </IndiSelectorPropertyView>
+            </div>;
         } else if (this.props.childs.length > 0) {
+
+            function changeCallbackForId(id) {
+                if (self.props.childs.length > 1 && false) {
+
+                } else {
+                    return (value) => {
+                        // Direct push of the value
+                        self.props.app.rqtSwitchProperty({
+                            dev: self.props.dev,
+                            vec: self.props.vec,
+                            children: [
+                                {name: id, value: value}
+                            ]
+                        })
+                    }
+                }
+            }
+
             content = this.props.childs.map((id) => <IndiPropertyView app={self.props.app} dev={self.props.dev}
-                                                                      showVecTitle={this.props.childs.length == 1}
+                                                                      showVecLabel={this.props.childs.length == 1}
+                                                                      onChange={changeCallbackForId(id)}
                                                                       vec={self.props.vec} prop={id} key={id}/>);
             if (this.props.childs.length > 1) {
                 content.splice(0, 0, <div className="IndiVectorTitle">{this.props.label}</div>);
             }
         } else {
-            content = <IndiPropertyContener title={this.props.label}></IndiPropertyContener>;
+            content = <div className="IndiProperty">{this.props.label}></div>;
         }
 
         return <div className="IndiVector"><Led color={ledColor}></Led><div className="IndiVectorProps">{content}</div></div>
