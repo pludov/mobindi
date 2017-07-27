@@ -524,7 +524,9 @@ class IndiConnection {
                     continue;
                 }
                 var current = prop.childs[update.$name];
-                current.$_ = update.$_;
+                var value = update.$_;
+                if (value == undefined) value = "";
+                current.$_ = value;
             }
         }
         this.checkListeners();
