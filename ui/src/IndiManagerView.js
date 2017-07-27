@@ -107,7 +107,7 @@ class IndiSelectorPropertyView extends PureComponent {
         try {
             vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
         } catch (e) {
-            console.log('WTF: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
+            console.log('One of many not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
         }
 
         if (vec != undefined) {
@@ -131,32 +131,78 @@ IndiSelectorPropertyView = connect(IndiSelectorPropertyView.mapStateToProps)(Ind
 class IndiPropertyContener extends PureComponent {
     // props: title
     render() {
-        return <div className="IndiProperty">{this.props.title}{this.props.children}</div>;
+        return <div className="IndiProperty">{this.props.title}: {this.props.children}</div>;
     }
 }
 
+/** Render a property as key: value (readonly) */
+class IndiPropertyView extends PureComponent {
+    // props: app, dev, vec, prop, showVecTitle
+    render() {
+        if (this.props.prop == undefined) return null;
+        var label = this.props.prop.$label;
+        if (this.props.vecTitle != undefined) {
+            label = this.props.vecTitle + ": " + label;
+        }
+
+        return (
+            <IndiPropertyContener title={label}>
+                {this.props.prop.$_}
+            </IndiPropertyContener>
+        );
+    }
+
+    static mapStateToProps(store, ownProps) {
+        var prop, vec;
+        try {
+            vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
+            prop = vec.childs[ownProps.prop];
+        } catch(e) {
+            console.log('Propertyu not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' , ' + ownProps.prop + ' => ' + e);
+            if (vec == undefined) {
+                vec = {};
+            }
+        }
+
+        return ({
+            vecTitle: ownProps.showVecTitle ? vec.$label: undefined,
+            prop: prop
+        });
+    }
+}
+
+IndiPropertyView = connect(IndiPropertyView.mapStateToProps)(IndiPropertyView);
+
+/** Render a vector, depending on its type and access rules */
 class IndiVectorView extends PureComponent {
     // props: app
     // props: dev
     // props: vec
     render() {
+        var self = this;
         var ledColor = VectorStateToColor[this.props.state];
         if (ledColor == undefined) {
             ledColor = VectorStateToColor['Alert'];
         }
 
         var content;
-        console.log('WTF: ' + this.props.label + ' => ' + this.props.type +',' + this.props.rule);
         if (this.props.type == 'defSwitchVector' && this.props.rule == 'OneOfMany') {
             content = <IndiPropertyContener title={this.props.label}>
                         <IndiSelectorPropertyView app={this.props.app} dev={this.props.dev} vec={this.props.vec}>
                         </IndiSelectorPropertyView>
                     </IndiPropertyContener>;
+        } else if (this.props.childs.length > 0) {
+            content = this.props.childs.map((id) => <IndiPropertyView app={self.props.app} dev={self.props.dev}
+                                                                      showVecTitle={this.props.childs.length == 1}
+                                                                      vec={self.props.vec} prop={id} key={id}/>);
+            if (this.props.childs.length > 1) {
+                content.splice(0, 0, <div className="IndiVectorTitle">{this.props.label}</div>);
+            }
         } else {
-            content = this.props.label;
+            content = <IndiPropertyContener title={this.props.label}></IndiPropertyContener>;
         }
 
-        return <div className="IndiVector"><Led color={ledColor}></Led>{content}</div>
+        return <div className="IndiVector"><Led color={ledColor}></Led><div className="IndiVectorProps">{content}</div></div>
     }
 
     static mapStateToProps(store, ownProps) {
@@ -254,12 +300,14 @@ class IndiManagerView extends Component {
 
         return (
             <div className="Page">
-                <div className={'IndiAppState IndiAppState_' + bs.status}>{bs.status}
+                <div className={'IndiAppState IndiAppState_' + bs.status}>Server: {bs.status}
                 </div>
 
+                <div className="IndiDriverSelector">
+                    Driver: <IndiDriverSelector app={this.props.app}/>
+                </div>
 
-                <div>
-                    <IndiDriverSelector app={this.props.app}/><br/>
+                <div className="IndiPropertyView">
                     {vectors}
                 </div>
 

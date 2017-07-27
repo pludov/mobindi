@@ -1,4 +1,25 @@
 .IndiProperty {
-    display: inline-block;
+    display: block;
 }
 
+.IndiPropertyView {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow-y: scroll;
+}
+
+.IndiVector {
+    display: flex;
+    align-items: center;
+    border: 0.4vw solid #404040;
+}
+.IndiVectorProps {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.IndiVectorTitle {
+    text-align: center;
+    font-style: italic;
+    
+}
