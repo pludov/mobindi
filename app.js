@@ -131,7 +131,7 @@ wss.on('connection', function connection(ws) {
             return;
         }
 
-        console.log('received: %s', message);
+        console.log('received from ' + client.uid + ': %s', message);
 
         try {
             message = JSON.parse(message);

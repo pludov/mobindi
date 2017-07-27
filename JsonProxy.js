@@ -137,7 +137,7 @@ class JsonProxy {
     }
 
     addListener(listener) {
-        var key = "" + this.listenersId++;
+        var key = "" + this.listenerId++;
         this.listeners[key] = listener;
         return key;
     }
