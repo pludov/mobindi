@@ -2,6 +2,8 @@
 
 Monitor and control an astrophotography session from a fully responsive UI !
 
+![alt text](docs/screenshot.png "Screenshots of the UI")
+
 This software is intended to be used for nomade astronomy, where size and power consumption matters.
 It will typically run on a Raspberry PI or equivalent.
 
