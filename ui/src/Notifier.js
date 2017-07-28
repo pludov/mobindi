@@ -102,15 +102,6 @@ class Notifier {
     }
 
     handleVisibilityChange() {
-        if (this.socket != undefined) {
-            try {
-                this.socket.send('Websocket: Hidden changed to ' + document[this.hidden]);
-            } catch(e) {
-                console.log('Websocket: send failed: ' + e);
-                this._close();
-                this.dispatchBackendStatus();
-            }
-        }
         if (document[this.hidden]) {
             console.log('Websocket: Became hidden');
             this.cancelHidingTimeout();
