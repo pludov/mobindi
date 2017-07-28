@@ -19,10 +19,11 @@ class Phd {
             AppState: "NotConnected"
         }
         this.currentStatus = this.appStateManager.getTarget().phd;
-
+        this.currentStatus.guideSteps = {};
         // Cet objet contient les dernier guide step
-        this.steps = {};
+        this.steps = this.currentStatus.guideSteps;
         this.stepId = 0;
+        this.currentStatus.firstStepOfRun = this.stepIdToUid(this.stepId);
 
         this.updateStepsStats();
 
@@ -58,8 +59,6 @@ class Phd {
 
                             self.currentStatus.star = null;
                             self.currentStatus.AppState = "NotConnected";
-                            self.steps = {};
-                            self.stepId = 0;
 
                             if (next.isActive()) {
                                 next.done();
@@ -99,8 +98,11 @@ class Phd {
         var log = [];
         var vals = [0, 0];
         var maxs = [0, 0, 0];
+        var minUid = this.currentStatus.firstStepOfRun;
         Outer: for(var uid in this.steps)
         {
+            if (uid < minUid) continue;
+
             var step = this.steps[uid];
 
             for(var i = 0; i < keys.length; ++i)
@@ -187,12 +189,14 @@ class Phd {
                         default:
                             if (event.Event in eventToStatus) {
                                 var newStatus = eventToStatus[event.Event];
-                                if (self.currentStatus.AppState != newStatus) {
+                                var oldStatus = self.currentStatus.AppState;
+                                if (oldStatus != newStatus) {
                                     self.currentStatus.star = null;
                                     self.currentStatus.AppState = newStatus;
-                                    self.steps = {};
-                                    self.stepId = 0;
-                                    self.updateStepsStats();
+                                    if (newStatus == 'Guiding' && oldStatus != 'Paused' && oldStatus != 'LostLock') {
+                                        self.currentStatus.firstStepOfRun = self.stepIdToUid(this.stepId + 1);
+                                        self.updateStepsStats();
+                                    }
                                     console.log('New status:' + self.currentStatus.AppState);
                                 }
 
@@ -212,8 +216,8 @@ class Phd {
                         delete simpleEvent.Mount;
 
                         self.stepId++;
-                        if (self.stepId > 100) {
-                            delete self.steps[self.stepIdToUid(self.stepId - 100)];
+                        if (self.stepId > 400) {
+                            delete self.steps[self.stepIdToUid(self.stepId - 400)];
                         }
                         self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
                         self.updateStepsStats();
@@ -262,6 +266,7 @@ class Phd {
             var order = func(data, reply);
 
             try {
+                console.log('Pushing request: ' + JSON.stringify(order));
                 self.client.write(JSON.stringify(order) + "\r\n");
                 reply({result: 'ok'});
             } catch(e) {

@@ -6,6 +6,9 @@ import { connect } from 'react-redux';
 
 import { notifier, BackendStatus } from './Store';
 
+import { Line } from 'react-chartjs-2';
+import moment from 'moment';
+
 import './PhdView.css';
 
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
@@ -42,11 +45,94 @@ class PhdView extends Component {
             return "?" + n;
         }
 
+        var chartData= {
+            datasets: []
+        };
+        const props = [{prop: 'RADistanceRaw', color:'#ff0000'}, {prop:'DECDistanceRaw', color:'#0000ff'}];
+
+        var minMoment, maxMoment;
+
+        for(var propDef of props) {
+            var prop = propDef.prop;
+
+            var data = {
+                label: prop,
+                borderWidth: 1.5,
+                borderColor: propDef.color,
+                lineTension: 0,
+                pointRadius: 1.0,
+                cubicInterpolationMode: undefined,
+                showLines: false,
+                data: []
+            }
+            var rawDatas = this.props.phd.guideSteps;
+
+            if (rawDatas) {
+                var keys = Array.from(Object.keys(rawDatas)).sort();
+                for (var i =0; i < keys.length; ++i) {
+                    var uid = keys[i];
+                    var entry = rawDatas[uid];
+
+                    var ts = entry.Timestamp;
+                    if (minMoment == undefined) {
+                        minMoment = ts;
+                        maxMoment = ts;
+                    } else {
+                        maxMoment = ts;
+                    }
+
+                    if (prop in entry) {
+                        data.data.push({x:ts, y:entry[prop]});
+                    } else {
+                        data.data.push({x:ts, y:null});
+                    }
+                }
+            }
+            chartData.datasets.push(data);
+        }
+
+        var chartOptions= {
+
+            scales: {
+                yAxes: [{
+                    type: 'linear',
+                    ticks: {
+                        beginAtZero: true,
+                        min: -1.0,
+                        max: 1.0
+                    }
+                }],
+                xAxes: [{
+                    id: 'time',
+                    type: 'time',
+                    ticks: {
+                        maxRotation: 0
+                    },
+                    time: {
+                        parser: moment.unix,
+                        round: false,
+                        min: minMoment,
+                        max: maxMoment
+                    }
+                }]
+            },
+            animation: {
+                duration: 0 // general animation time
+            },
+
+            maintainAspectRatio: false
+        };
+
         return (
             <div className="Page">
                 <div className={'PHDAppState PHDAppState_' + this.props.phd.AppState}>{this.props.phd.AppState}
                 </div>
                 <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
+                <div className="PhdGraph_Item">
+                    <div className="PhdGraph_Container">
+                        <Line data={chartData} options={chartOptions} />
+                    </div>
+                </div>
                 <div>
                     <table className="RADECTable">
                         <tbody>
