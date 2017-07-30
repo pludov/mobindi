@@ -304,6 +304,16 @@ class Loop extends Cancelable {
     }
 }
 
+/** A promise that always runs immediately */
+class Immediate extends Cancelable {
+    constructor(f) {
+        super(function(next, arg) {
+            next.done(f.call(null, arg));
+        });
+    }
+}
+
+/** Execute the promise provided by the previous step */
 class ExecutePromise extends Cancelable {
     constructor()
     {
@@ -328,4 +338,29 @@ class ExecutePromise extends Cancelable {
     }
 }
 
-module.exports = {Cancelable, Timeout, Chain, Sleep, ExecutePromise, Loop};
+/** Build the actual promise at last moment, using provider */
+class Builder extends Cancelable {
+    constructor(provider)
+    {
+        var child;
+        super(function(next, arg) {
+            child = provider(arg);
+            if (child == undefined) {
+                next.done();
+                return;
+            }
+            child.then((rslt) => { next.done(rslt); });
+            child.onError((e) => { next.error(e); });
+            child.onCancel(() => { next.cancel(); });
+            console.log('Starting child');
+            child.start();
+        }, function(next) {
+            var c = child;
+            child = undefined;
+            c.cancel();
+        });
+    }
+}
+
+
+module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop};

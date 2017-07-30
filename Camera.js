@@ -15,21 +15,25 @@ class Camera {
 
     }
 
-    shoot(message, reply) {
+    $api_shoot(message, progress) {
         var self = this;
-        if (this.indiManager.connection == undefined) {
-            reply({result: 'error', message: 'indi server not connected'});
-        } else {
-            var connection = this.indiManager.connection;
-            var dev = self.indiManager.connection.getDevice(message.data.dev);
+        var connection;
+        var dev;
 
-            var process = new Promises.Chain(
-                new Promises.Cancelable(function(next) {
-                    dev.setVectorValues('CCD_EXPOSURE', [{name: 'CCD_EXPOSURE_VALUE', value: 5 }]);
+        return new Promises.Chain(
 
-                    next.done();
-                }),
+            new Promises.Immediate(function() {
+                connection = self.indiManager.connection;
+                if (connection == undefined) {
+                    throw "Indi server not connected";
+                }
+                dev = connection.getDevice(message.data.dev);
 
+                dev.setVectorValues('CCD_EXPOSURE', [{name: 'CCD_EXPOSURE_VALUE', value: 5 }]);
+            }),
+
+            // Use a builder to ensure that connection is initialised when used
+            new Promises.Builder(() => (
                 connection.wait(function() {
                     console.log('Waiting for exposure end');
                     var vector = dev.getVector("CCD_EXPOSURE");
@@ -47,19 +51,12 @@ class Camera {
                     }
 
                     return (value.$_ == 0);
-                }),
-                new Promises.Cancelable(function(next) {
-                    next.done(dev.getPropertyValue("CCD_FILE_PATH", "FILE_PATH"));
-                }));
+                }))),
 
-            process.then((rslt) => {
-                reply({status: 'ok', path: rslt});
+            new Promises.Immediate(function() {
+                return ({path: dev.getPropertyValue("CCD_FILE_PATH", "FILE_PATH")});
             })
-                .onError((a) => { reply({status: 'error', error: '' + a})})
-                .onCancel((a)=> { reply({status: 'canceled'})});
-
-            process.start();
-        }
+        );
     }
 }
 

@@ -18,12 +18,17 @@ class Phd {
 
             AppState: "NotConnected"
         }
+
+        this.pendingRequests = {};
+
         this.currentStatus = this.appStateManager.getTarget().phd;
         this.currentStatus.guideSteps = {};
         // Cet objet contient les dernier guide step
         this.steps = this.currentStatus.guideSteps;
         this.stepId = 0;
         this.currentStatus.firstStepOfRun = this.stepIdToUid(this.stepId);
+
+        this.reqId = 0;
 
         this.updateStepsStats();
 
@@ -56,6 +61,12 @@ class Phd {
 
                             // FIXME: flushing these messages can lead to change (including reconnection ?)
                             self.flushClientData();
+
+                            var oldPendingRequests = self.pendingRequests;
+                            self.pendingRequests = {};
+                            for(var k in oldPendingRequests) {
+                                oldPendingRequests[k].error('PHD disconnected');
+                            }
 
                             self.currentStatus.star = null;
                             self.currentStatus.AppState = "NotConnected";
@@ -156,6 +167,7 @@ class Phd {
         this.currentStatus.DECDistancePeak = calcPeak(maxs[1], count);
         this.currentStatus.RADECDistancePeak = calcPeak(maxs[2], count);
     }
+
     flushClientData()
     {
         var self = this;
@@ -222,9 +234,25 @@ class Phd {
                         self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
                         self.updateStepsStats();
                     }
+                } else if ("jsonrpc" in event) {
+                    var id = event.id;
+                    if (Object.prototype.hasOwnProperty.call(self.pendingRequests, id)) {
+                        console.log('got result for request ' + id);
+                        var doneRequest = self.pendingRequests[id];
+                        delete self.pendingRequests[id];
+                        try {
+                            if (Object.prototype.hasOwnProperty.call(event, 'error')) {
+                                doneRequest.error(event.error);
+                            } else {
+                                doneRequest.then(event.result);
+                            }
+                        }catch(e) {
+                            console.error('Phd request callback error:', e.stack || e);
+                        }
+                    }
                 }
             }catch(e) {
-                console.log('Error: ' + e);
+                console.error('Phd error:', e.stack || e);
             }
         }
     }
@@ -235,87 +263,62 @@ class Phd {
         next();
     }
 
-    reqGuide(order, next) {
-        if (this.client == undefined) {
 
-        }
-    }
-
-    whenConnected(data, reply, func) {
-        if (this.client == undefined) {
-            reply({result: 'ko', detail: 'not ready'});
-        } else {
-            return this.sendOrder(function() {
-                return ({
-                    method: "set_connected",
-                    params: [ true ]
-                });
-            })(data, function(result) {
-                if (result.result == 'ok') {
-                    func(data, reply);
-                } else {
-                    reply(result);
-                }
-            });
-        }
-    }
-
-    sendOrder(func) {
+    // Return a promise that send the order (generator) and waits for a result
+    sendOrder(dataProvider) {
         var self = this;
-        return function(data, reply) {
-            var order = func(data, reply);
 
-            try {
-                console.log('Pushing request: ' + JSON.stringify(order));
-                self.client.write(JSON.stringify(order) + "\r\n");
-                reply({result: 'ok'});
-            } catch(e) {
-                console.log('Error ' + e);
-                reply({result: 'failed', detail: 'error: ' + e});
+        return new Promises.Cancelable((next, arg) => {
+            if (self.client == undefined) {
+                throw "PHD not connected";
             }
-        };
+
+            var uid = this.reqId++;
+
+            var order = Object.assign({}, dataProvider(arg));
+            order.id = uid;
+
+            console.log('Pushing request: ' + JSON.stringify(order));
+            self.client.write(JSON.stringify(order) + "\r\n");
+
+            self.pendingRequests[uid] = {
+                then: function(rslt) {
+                    next.done(rslt);
+                },
+                error: function(err) {
+                    next.error(err);
+                }
+            }
+        });
     }
 
-    startGuide(data, reply) {
-        this.whenConnected(data, reply, this.sendOrder(function() {
-            return ({
+    $api_connect(data, progress) {
+        return this.sendOrder(() => ({
+            method: "set_connected",
+            params: [ true ]
+        }));
+    }
+
+    $api_startGuide(data, progress) {
+        return new Promises.Chain(
+            this.$api_connect(undefined, progress),
+            this.sendOrder(() => ({
                 method: "guide",
                 params: [
                     {"pixels": 1.5, "time": 10, "timeout": 60},
                     false
-                ],
-                id: 9334
-            });
-        }));
+                ]
+            }))
+        );
     }
 
-    stopGuide(data, reply) {
-        this.whenConnected(data, reply, this.sendOrder(function() {
-            return ({
+    $api_stopGuide(data, progress) {
+        return new Promises.Chain(
+            this.$api_connect(undefined, progress),
+            this.sendOrder(() => ({
                 method: 'stop_capture',
-                id: 9333
-            });
-        }));
-    }
-
-    guide(req, res, next) {
-        var self = this;
-        if (this.client == undefined) {
-            res.jsonResult = { status: 'error'};
-            next();
-        } else {
-            var order = {
-                method: "guide",
-                params:[
-                    {"pixels": 1.5, "time": 10, "timeout": 60},
-                    false
-                ],
-                id: 9334
-            };
-            this.client.write( JSON.stringify(order) + "\r\n");
-            res.jsonResult = { status: 'ok'};
-            next();
-        }
+            }))
+        );
     }
 }
 

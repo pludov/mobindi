@@ -70,7 +70,7 @@ class IndiManager {
                         next.done(indiConnection.wait(()=>{
                             console.log('socket is ' + indiConnection.socket);
                             return indiConnection.socket == undefined;
-                        }).then(() => {
+                        }, true).then(() => {
                             console.log('Indi connection disconnected');
                             indiConnection.removeListener(listener);
                             if (self.connection == indiConnection) {
@@ -86,20 +86,16 @@ class IndiManager {
         );
     }
 
-    setProperty(message, reply)
+    $api_setProperty(message, progress)
     {
-        if (this.connection == undefined) {
-            reply({result: 'error', message: "not connected"});
-        } else {
-            var dev = this.connection.getDevice(message.data.dev);
-            try {
+        return new Promises.Immediate(() => {
+            if (this.connection == undefined) {
+                throw "not connected";
+            } else {
+                var dev = this.connection.getDevice(message.data.dev);
                 dev.setVectorValues(message.data.vec, message.data.children);
-            } catch(e) {
-                reply({result: 'error', message: '' + e});
-                return;
             }
-            reply({result: 'ok'});
-        }
+        });
     }
 }
 

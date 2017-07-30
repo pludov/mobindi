@@ -131,10 +131,54 @@ wss.on('connection', function connection(ws) {
             console.log('Got action message');
             var target = message.target;
             var targetObj = undefined;
+            var uid = message.uid;
+            if (uid == undefined) uid = null;
 
-            var reply = function(r) {
-                console.log('replying with ' + JSON.stringify(r));
-                client.reply(r);
+            var globalUid = client.uid + '#' + uid;
+
+            var progress = function(r) {
+                if (r == undefined) r = null;
+                console.log('Request ' + globalUid + ' progress notification: ' + JSON.stringify(r));
+                client.reply({
+                    type: 'progress',
+                    uid: uid,
+                    details: r
+                });
+            }
+
+            var onError = (err) => {
+                if (err == undefined) {
+                    err = null;
+                } else {
+                    err = '' + err;
+                }
+                console.log('Request ' + globalUid + ' failure notification: ' + err);
+                client.reply({
+                    type: 'endRequest',
+                    uid: uid,
+                    status: 'error',
+                    message: err
+                });
+            };
+
+            var success = (rslt) => {
+                if (rslt == undefined) rslt = null;
+                console.log('Request ' + globalUid + ' succeeded: ' + JSON.stringify(rslt));
+                client.reply({
+                    type: 'endRequest',
+                    uid: uid,
+                    status: 'done',
+                    result: rslt
+                });
+            };
+
+            var onCancel = () => {
+                console.log('Request ' + globalUid + ' canceled');
+                client.reply({
+                    type: 'endRequest',
+                    uid: uid,
+                    status: 'cancel'
+                });
             };
 
             // FIXME: remove that hard coded duplicate code
@@ -153,11 +197,18 @@ wss.on('connection', function connection(ws) {
                     return;
             }
 
+            var promise;
             try {
-                targetObj[message.method](message, reply);
+                promise = targetObj['$api_' + message.method](message);
+                promise.then(success);
+                promise.onCancel(onCancel);
+                promise.onError(onError);
+
             } catch(e) {
-                reply({status: 'ko', details: 'error: ' + e});
+                onError(e);
+                return;
             }
+            promise.start();
         }
     });
 
