@@ -160,6 +160,7 @@ class IndiConnection {
         this.queue = [];
         this.deviceTree = {};
         this.listeners = [];
+        this.dead = false;
     }
 
     connect(host, port) {
@@ -199,6 +200,7 @@ class IndiConnection {
             self.queue = [];
             self.socket = undefined;
             self.parser = undefined;
+            self.dead = true;
             self.checkListeners();
         })
         this.connected = false;
@@ -236,7 +238,8 @@ class IndiConnection {
 
     // Return a Promises.Cancelable that wait until the predicate is true
     // will be checked after every indi event
-    wait(predicate) {
+    // allowDisconnectionState: if true, predicate will be checked event after disconnection
+    wait(predicate, allowDisconnectionState) {
         const self = this;
         var listener;
 
@@ -251,6 +254,10 @@ class IndiConnection {
         return new Promises.Cancelable(
             function(next) {
                 listener = undefined;
+                if (self.dead && !allowDisconnectionState) {
+                    next.error('Indi server disconnected');
+                    return;
+                }
                 if (!predicate()) {
                     console.log('predicate false');
                     listener = function() {
