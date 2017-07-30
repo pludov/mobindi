@@ -7,6 +7,7 @@ import AppIcon from './AppIcon';
 
 import PhdApp from './PhdApp';
 import IndiManagerApp from './IndiManagerApp';
+import CameraApp from './CameraApp';
 
 import { BackendStatus } from './Store';
 
@@ -57,7 +58,8 @@ class App extends Component {
 
         this.apps = [
             new PhdApp(this.storeManager),
-            new IndiManagerApp(this.storeManager)
+            new IndiManagerApp(this.storeManager),
+            new CameraApp(this.storeManager)
         ];
 
 

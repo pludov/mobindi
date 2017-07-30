@@ -65,6 +65,10 @@ appState.apps= {
     indiManager: {
         enabled: true,
         position: 2
+    },
+    camera: {
+        enabled: true,
+        position: 3
     }
 };
 

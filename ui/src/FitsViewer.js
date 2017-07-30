@@ -62,7 +62,7 @@ class JQImageDisplay {
         if ((this.currentImg != undefined) && (this.currentImg.src == src)) {
             return;
         }
-        if ((this.loadingImg != undefined) && (this.loadinImg.src == src)) {
+        if ((this.loadingImg != undefined) && (this.loadingImg.src == src)) {
             return;
         }
 
@@ -397,10 +397,10 @@ class JQImageDisplay {
         if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
             this.bestFit();
         } else {
-            $(this.currentImg).css('top', $(previousImg.css('top')));
-            $(this.currentImg).css('left', $(previousImg.css('left')));
-            $(this.currentImg).css('width', $(previousImg.css('width')));
-            $(this.currentImg).css('height', $(previousImg.css('height')));
+            $(this.currentImg).css('top', $(previousImg).css('top'));
+            $(this.currentImg).css('left', $(previousImg).css('left'));
+            $(this.currentImg).css('width', $(previousImg).css('width'));
+            $(this.currentImg).css('height', $(previousImg).css('height'));
         }
     }
 
