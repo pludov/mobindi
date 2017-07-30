@@ -58,10 +58,12 @@ class Cancelable {
 
         this.onError = function(f) {
             onErrorList.push(f);
+            return this;
         }
 
         this.onCancel = function(f) {
             onCanceledList.push(f);
+            return this;
         }
 
         var whenDone = function(result)
@@ -221,7 +223,7 @@ class Chain extends Cancelable {
             });
 
             child.onError(function(e) {
-                next.error(new TraceError("Step " + current + " failed", e));
+                next.error(new TraceError("Step " + current + " failed - " + e, e));
             });
 
             child.onCancel(function(f) {

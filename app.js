@@ -16,6 +16,8 @@ const Client = require('./Client.js');
 
 const {Phd} = require('./Phd');
 const {IndiManager} = require('./IndiManager');
+const {Camera} = require('./Camera');
+
 const JsonProxy = require('./JsonProxy');
 
 // var index = require('./routes/index');
@@ -75,33 +77,13 @@ appState.apps= {
 
 var phd;
 var indiManager;
-
-function completeStatus(obj)
-{
-    obj.statusId = statusId;
-    if (phd != undefined) {
-        obj.phd = phd.currentStatus;
-    }
-    if (indiManager != undefined) {
-        obj.indiManager = indiManager.currentStatus;
-    }
-    obj.apps = {
-        phd: {
-            enabled: true,
-            position: 1
-        },
-        indiManager: {
-            enabled: true,
-            position: 2
-        }
-    };
-    return obj;
-}
-
+var camera;
 
 phd = new Phd(app, appStateManager);
 
 indiManager = new IndiManager(app, appStateManager);
+
+camera = new Camera(app, appStateManager, indiManager);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
@@ -155,12 +137,16 @@ wss.on('connection', function connection(ws) {
                 client.reply(r);
             };
 
+            // FIXME: remove that hard coded duplicate code
             switch(target) {
                 case 'phd':
                     targetObj= phd;
                     break;
                 case 'indiManager':
                     targetObj = indiManager;
+                    break;
+                case 'camera':
+                    targetObj = camera;
                     break;
                 default:
                     reply({status: 'ko', details: 'invalid target'});

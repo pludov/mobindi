@@ -1,4 +1,5 @@
 import React, { Component, PureComponent} from 'react';
+import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import FitsViewer from './FitsViewer';
 import './CameraView.css'
@@ -9,6 +10,7 @@ class CameraView extends PureComponent {
         super(props);
         this.state = {url: 'test.jpg'};
         this.next = this.next.bind(this);
+        this.shoot = this.shoot.bind(this);
     }
 
     render() {
@@ -16,8 +18,19 @@ class CameraView extends PureComponent {
             <div className="FitsViewer">
                 <FitsViewer src={this.state.url}/>
             </div>
+            <input type="button" onClick={this.shoot} value="Shoot"/>
             <input type="button" onClick={this.next} value="next"/>
         </div>);
+    }
+
+    shoot() {
+        notifier.sendMessage({
+            target: 'camera',
+            method: 'shoot',
+            data: {
+                dev: "CCD Simulator"
+            }
+        });
     }
 
     next() {
