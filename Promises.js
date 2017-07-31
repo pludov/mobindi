@@ -19,7 +19,7 @@ const TraceError = require('trace-error');
  *      onCancel(func()) make func called when promise is aborted using
  *
  * Constructor expects two functions:
- *      doStart(next)
+ *      doStart(next, arg)
  *      doCancel(next)
  *
  *      next allow to report progress:
@@ -30,6 +30,7 @@ const TraceError = require('trace-error');
  *          next.cancelationPending() time to call next.cancel() ?
  */
 class Cancelable {
+    // FIXME: do cancel should be set by doStart.
     constructor(doStart, doCancel) {
         // Allow for no cancel function (does nothing)
         if (doCancel == undefined) doCancel = function() {};
@@ -284,7 +285,7 @@ class Loop extends Cancelable {
                 if (next.cancelationPending()) {
                     next.cancel();
                 } else {
-                    // restart repeat FIXME: loop get transformed in deep recursion ???
+                    // restart repeat FIXME: loop can be transformed in deep recursion ???
                     repeat.start(startArg);
                     return;
                 }

@@ -24,17 +24,20 @@ class CameraView extends PureComponent {
     }
 
     shoot() {
-        notifier.sendMessage({
-            target: 'camera',
+        var self = this;
+        this.props.app.serverRequest({
             method: 'shoot',
             data: {
                 dev: "CCD Simulator"
             }
-        });
+        }).then((rslt)=>
+        {
+            console.log('got rslt:' + JSON.stringify(rslt));
+            self.setState({url : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(rslt.path)});
+        }).start();
     }
 
     next() {
-        console.log('WTF : new state from ' + JSON.stringify(this.state));
         this.setState({url: this.state.url != 'test.jpg' ? 'test.jpg' : 'http://127.0.0.1:18080/plop.png'});
     }
 }

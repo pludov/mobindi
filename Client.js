@@ -18,19 +18,19 @@ class Client {
         this.jsonListener = this.jsonListener.bind(this);
     }
 
-    attach(jsonProxy) {
+    attach(jsonProxy, serverId) {
         this.jsonProxy = jsonProxy;
         var initialState = this.jsonProxy.fork();
         this.jsonSerial = initialState.serial;
 
-        this.notify({action: 'welcome', status: "ok", data: initialState.data});
+        this.notify({type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data});
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
     }
 
     jsonListener() {
         // FIXME: Si la socket est pleine, abandonne (mais met un timer pour rééssai...)
         var patch = this.jsonProxy.diff(this.jsonSerial);
-        this.notify({action: 'update', status: "ok", diff: patch});
+        this.notify({type: 'update', status: "ok", diff: patch});
     }
 
     log(message) {
@@ -63,6 +63,7 @@ class Client {
     }
     reply(data) {
         if (this.socket != undefined) {
+            console.log('Message to ' + this.uid + ':' + JSON.stringify(data));
             try {
                 this.socket.send(JSON.stringify(data));
             } catch(e) {

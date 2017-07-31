@@ -4,8 +4,6 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 
-import { notifier, BackendStatus } from './Store';
-
 import { Line } from 'react-chartjs-2';
 import moment from 'moment';
 
@@ -21,12 +19,13 @@ class PhdView extends Component {
         this.phdRequest = this.phdRequest.bind(this);
 
     }
+
     phdRequest(method) {
+        var self = this;
         return function() {
-            notifier.sendMessage({
-                target: 'phd',
+            self.props.app.serverRequest({
                 method: method
-            });
+            }).start();
         }
     }
 

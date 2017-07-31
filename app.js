@@ -12,6 +12,8 @@ const sha1 = require('sha1')
 const bodyParser = require('body-parser');
 const url = require('url');
 const WebSocket = require('ws');
+const uuid = require('node-uuid');
+
 const Client = require('./Client.js');
 
 const {Phd} = require('./Phd');
@@ -106,6 +108,90 @@ const wss = new WebSocket.Server({ server: server });
 
 //wss.use(sharedsession(session));
 
+var serverId = uuid.v4();
+
+
+class Request {
+    constructor(uid, fromClient) {
+        this.promise = undefined;
+        this.cancelRequested = false;
+        this.uid = uid;
+
+        // What was sent when promise terminated
+        this.finalStatus = {
+            type: 'requestEnd',
+            uid: uid,
+            status: 'error',
+            message: 'internal error'
+        };
+
+        // FIXME: remove client on disconnection...
+        this.clients = [fromClient];
+
+    }
+
+    progress(r) {
+        if (r == undefined) r = null;
+        console.log('Request ' + this.uid + ' progress notification: ' + JSON.stringify(r));
+        this.dispatchToClients({
+            type: 'requestProgress',
+            uid: globalUid,
+            details: r
+        });
+    }
+
+    dispatch(content) {
+        var toDispatch = this.clients.slice();
+        for(var i = 0; i < toDispatch.length; ++i) {
+            toDispatch[i].reply(content);
+        }
+    }
+
+    onError(err) {
+        if (err == undefined) {
+            err = null;
+        } else {
+            err = err.stack || '' + err;
+        }
+        console.log('Request ' + this.uid + ' failure notification: ' + err);
+        this.promise = undefined;
+        this.finalStatus = {
+            type: 'requestEnd',
+            uid: this.uid,
+            status: 'error',
+            message: err
+        };
+        this.dispatch(this.finalStatus);
+    }
+
+    success (rslt) {
+        if (rslt == undefined) rslt = null;
+        console.log('Request ' + this.uid + ' succeeded: ' + JSON.stringify(rslt));
+        this.promise = undefined;
+        this.finalStatus = {
+            type: 'requestEnd',
+            uid: this.uid,
+            status: 'done',
+            result: rslt
+        };
+        this.dispatch(this.finalStatus);
+    }
+
+    onCancel() {
+        console.log('Request ' + this.uid + ' canceled');
+        this.promise = undefined;
+        this.finalStatus = {
+            type: 'requestEnd',
+            uid: this.uid,
+            status: 'canceled'
+        };
+        client.dispatch(status.finalStatus);
+    }
+
+
+}
+
+
 wss.on('connection', function connection(ws) {
     var client;
 
@@ -127,88 +213,47 @@ wss.on('connection', function connection(ws) {
             return;
         }
 
-        if ('method' in message) {
+        if (message.type == "startRequest") {
             console.log('Got action message');
-            var target = message.target;
-            var targetObj = undefined;
-            var uid = message.uid;
-            if (uid == undefined) uid = null;
+            var id = message.id;
+            if (id == undefined) id = null;
 
-            var globalUid = client.uid + '#' + uid;
+            var globalUid = client.uid + ':' + id;
 
-            var progress = function(r) {
-                if (r == undefined) r = null;
-                console.log('Request ' + globalUid + ' progress notification: ' + JSON.stringify(r));
-                client.reply({
-                    type: 'progress',
-                    uid: uid,
-                    details: r
-                });
-            }
+            var request = new Request(globalUid, client);
+            // FIXME: put request in global store (to resend result if required)
 
-            var onError = (err) => {
-                if (err == undefined) {
-                    err = null;
-                } else {
-                    err = '' + err;
-                }
-                console.log('Request ' + globalUid + ' failure notification: ' + err);
-                client.reply({
-                    type: 'endRequest',
-                    uid: uid,
-                    status: 'error',
-                    message: err
-                });
-            };
-
-            var success = (rslt) => {
-                if (rslt == undefined) rslt = null;
-                console.log('Request ' + globalUid + ' succeeded: ' + JSON.stringify(rslt));
-                client.reply({
-                    type: 'endRequest',
-                    uid: uid,
-                    status: 'done',
-                    result: rslt
-                });
-            };
-
-            var onCancel = () => {
-                console.log('Request ' + globalUid + ' canceled');
-                client.reply({
-                    type: 'endRequest',
-                    uid: uid,
-                    status: 'cancel'
-                });
-            };
-
-            // FIXME: remove that hard coded duplicate code
-            switch(target) {
-                case 'phd':
-                    targetObj= phd;
-                    break;
-                case 'indiManager':
-                    targetObj = indiManager;
-                    break;
-                case 'camera':
-                    targetObj = camera;
-                    break;
-                default:
-                    reply({status: 'ko', details: 'invalid target'});
-                    return;
-            }
-
-            var promise;
             try {
-                promise = targetObj['$api_' + message.method](message);
-                promise.then(success);
-                promise.onCancel(onCancel);
-                promise.onError(onError);
+                // FIXME: remove that hard coded duplicate code
+                if (!message.details) throw "missing details property";
+                var target = message.details.target;
+                var targetObj = undefined;
+                switch(target) {
+                    case 'phd':
+                        targetObj= phd;
+                        break;
+                    case 'indiManager':
+                        targetObj = indiManager;
+                        break;
+                    case 'camera':
+                        targetObj = camera;
+                        break;
+                    default:
+                        request.onError('invalid target');
+                        return;
+                }
+
+                request.promise = targetObj['$api_' + message.details.method](message.details);
+                request.promise.then(request.success.bind(request));
+                request.promise.onCancel(request.onCancel.bind(request));
+                request.promise.onError(request.onError.bind(request));
 
             } catch(e) {
-                onError(e);
+                request.onError(e);
                 return;
             }
-            promise.start();
+
+            request.promise.start();
         }
     });
 
@@ -221,7 +266,7 @@ wss.on('connection', function connection(ws) {
         }
     });
 
-    client.attach(appStateManager);
+    client.attach(appStateManager, serverId);
 
 });
 

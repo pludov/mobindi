@@ -59,11 +59,10 @@ class IndiManagerApp extends BaseApp {
     }
 
     rqtSwitchProperty(desc) {
-        this.storeManager.sendMessage({
-            target: 'indiManager',
+        this.serverRequest({
             method: 'setProperty',
             data: desc
-        });
+        }).start();
     }
 }
 

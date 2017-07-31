@@ -1,3 +1,5 @@
+import { notifier } from './Store';
+
 /**
  * Created by ludovic on 25/07/17.
  */
@@ -24,6 +26,13 @@ class BaseApp {
             method: method,
             args: Array.from(arguments).slice(1)
         });
+    }
+
+    // Returns a promise that will execute the request
+    // Except an object with at least method property
+    // will call a $api_ method on server side
+    serverRequest(content) {
+        return notifier.sendRequest(Object.assign({'target': this.appId}, content));
     }
 }
 

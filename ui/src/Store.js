@@ -160,7 +160,7 @@ const notifier = new Notifier();
 
 notifier.attachToStore(store);
 
-storeManager.sendMessage = (e) => notifier.sendMessage(e);
+storeManager.sendRequest = notifier.sendRequest.bind(notifier);
 
 // Connect notifier to websocket
 function stripLastPart(url)
