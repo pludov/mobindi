@@ -117,6 +117,8 @@ class Request {
         this.cancelRequested = false;
         this.uid = uid;
 
+        this.client = fromClient;
+        fromClient.requests.push(this);
         // What was sent when promise terminated
         this.finalStatus = {
             type: 'requestEnd',
@@ -124,27 +126,22 @@ class Request {
             status: 'error',
             message: 'internal error'
         };
-
-        // FIXME: remove client on disconnection...
-        this.clients = [fromClient];
-
     }
 
-    progress(r) {
-        if (r == undefined) r = null;
-        console.log('Request ' + this.uid + ' progress notification: ' + JSON.stringify(r));
-        this.dispatchToClients({
-            type: 'requestProgress',
-            uid: globalUid,
-            details: r
-        });
+    // Dettach request from client
+    dettach() {
+        if (this.client != undefined) {
+            var id = this.client.requests.indexOf(this);
+            if (id != -1) this.client.requests.splice(id, 1);
+            this.client = undefined;
+        }
     }
 
     dispatch(content) {
-        var toDispatch = this.clients.slice();
-        for(var i = 0; i < toDispatch.length; ++i) {
-            toDispatch[i].reply(content);
+        if (this.client == undefined) {
+            return;
         }
+        this.client.reply(content);
     }
 
     onError(err) {
@@ -162,6 +159,7 @@ class Request {
             message: err
         };
         this.dispatch(this.finalStatus);
+        this.dettach();
     }
 
     success (rslt) {
@@ -175,6 +173,7 @@ class Request {
             result: rslt
         };
         this.dispatch(this.finalStatus);
+        this.dettach();
     }
 
     onCancel() {
@@ -185,10 +184,9 @@ class Request {
             uid: this.uid,
             status: 'canceled'
         };
-        client.dispatch(status.finalStatus);
+        this.dispatch(status.finalStatus);
+        this.dettach();
     }
-
-
 }
 
 
@@ -198,11 +196,6 @@ wss.on('connection', function connection(ws) {
     client = new Client(ws);
 
     ws.on('message', function incoming(message) {
-        if (!client) {
-            ws.terminate();
-            return;
-        }
-
         console.log('received from ' + client.uid + ': %s', message);
 
         try {
@@ -221,7 +214,7 @@ wss.on('connection', function connection(ws) {
             var globalUid = client.uid + ':' + id;
 
             var request = new Request(globalUid, client);
-            // FIXME: put request in global store (to resend result if required)
+
 
             try {
                 // FIXME: remove that hard coded duplicate code
@@ -258,16 +251,11 @@ wss.on('connection', function connection(ws) {
     });
 
     ws.on('close', function (code, reason) {
-        if (client) {
-            console.log('Websocket closed : ' + code);
-            client.dispose();
-        } else {
-            console.log('Websocket closed (anonymous) : ' + code);
-        }
+        console.log('Websocket closed : ' + code);
+        client.dispose();
     });
 
     client.attach(appStateManager, serverId);
-
 });
 
 var port = parseInt(process.env.PORT || '8080');

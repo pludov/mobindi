@@ -167,9 +167,10 @@ class Notifier {
     // will call a $api_ method on server side
     sendRequest(content) {
         var self = this;
-        // FIXME: make cancelable
-        // FIXME: accept progress report
         return new Promises.Cancelable((next, arg) => {
+            if (!self.handshakeOk) {
+                throw "Backend not connected";
+            }
             var effectiveContent = Object.assign({}, content);
             var request = new Request(self, effectiveContent, self.uniqRequestId++, next);
             self.toSendRequests.push(request);
@@ -201,12 +202,6 @@ class Notifier {
                 console.error('onCancel error', e.stack || e);
             }
         }
-    }
-
-    // When connection restarts, query the status of the running requests.
-    askRequestStatus() {
-        // FIXME: send a message with all known request and expect a result from server
-        // server must also add this client to list of clients listening for the requests
     }
 
     write(obj)
@@ -303,17 +298,8 @@ class Notifier {
                     self.serverId = data.serverId;
 
                     self.store.dispatch({type: 'notification', data: data.data});
-                    if (self.serverId != previousServerId && previousServerId != undefined) {
-                        self.failStartedRequests("Backend was restarted");
-                    } else {
-                        // Demander l'état de toutes les requetes connues
-                        // Celles qui sont inconnues sont soient oubliées, soit pas reçue
-                        // On ne veut pas les relancer !
-                        self.askRequestStatus();
-                    }
                 }
 
-                // FIXME: handle requestProgress (cf app.js)
 
                 if (data.type == 'requestEnd') {
                     var uid = data.uid;
@@ -349,6 +335,7 @@ class Notifier {
                 self.socket = undefined;
                 self.resetHandshakeStatus(false);
                 self.dispatchBackendStatus();
+                self.failStartedRequests("Backend disconnected");
                 window.setTimeout(function() {
                     self.updateState();
                 }, 2000);

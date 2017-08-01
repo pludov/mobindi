@@ -14,7 +14,8 @@ class Client {
 
         this.log('Client ' + this.uid + ' connected');
         this.socket = socket;
-
+        this.disposed = false;
+        this.requests = [];
         this.jsonListener = this.jsonListener.bind(this);
     }
 
@@ -39,6 +40,7 @@ class Client {
 
     dispose() {
         this.log('Disposed');
+        this.disposed = true;
         if (this.socket != undefined) {
             try {
                 this.socket.close();
@@ -49,6 +51,9 @@ class Client {
         }
         delete clients[this.uid];
         this.jsonProxy.removeListener(this.jsonListenerId);
+        while(this.requests.length) {
+            this.requests[0].dettach();
+        }
     }
 
     notify(changeEvent) {
