@@ -13,7 +13,8 @@ const bodyParser = require('body-parser');
 const url = require('url');
 const WebSocket = require('ws');
 const uuid = require('node-uuid');
-
+// Only for debug !
+const cgi = require('cgi');
 const Client = require('./Client.js');
 
 const {Phd} = require('./Phd');
@@ -257,6 +258,9 @@ wss.on('connection', function connection(ws) {
 
     client.attach(appStateManager, serverId);
 });
+
+
+app.use(cgi('fitsviewer/fitsviewer.cgi'));
 
 var port = parseInt(process.env.PORT || '8080');
 app.set('port', port);
