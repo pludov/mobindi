@@ -522,5 +522,73 @@ test("Wildcard synchronizer", function(assert) {
 
 // A synchronizer should not be called when multiple change occurs
 test("Collapse multiple change ", function(assert) {
-    assert.ok(false, "Not implemented");
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+
+    var numberOfCall = {plop: 0, secondPlop:0};
+    changeTracker.addSynchronizer(['plop',['a', 'b']], function () {
+        numberOfCall.plop++;
+    });
+
+    assert.ok(numberOfCall.plop == 0, "No initial call");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No call on flush");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No change => no call");
+
+    root.zoubida = 'alpha';
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "Unrelated change => no call");
+
+    root.plop = 'tralala';
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to string => no call");
+
+    root.plop = null;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to null => no call");
+
+    root.plop = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to object => no call");
+
+    root.plop.a = "coucou";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 1, "Property set => call");
+
+    root.plop.a = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 2, "Property changed to object => call");
+
+
+    root.plop.a.bouzouf = "1";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 3, "Property added to object => call");
+
+    root.plop.a.constructor = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 4, "Object Property added to object => call");
+
+
+    root.plop.b = "bwasset";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 5, "Second property change => call");
+
+    root.plop.a = "machin";
+    root.plop.b = "truc";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop >= 6, "Two change => call");
+    assert.ok(numberOfCall.plop == 6, "Two change => only one call");
+
+
+    delete root.plop;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop >= 7, "Delete parent => call");
+    assert.ok(numberOfCall.plop == 7, "Delete parent => only one call");
+
 });

@@ -225,61 +225,68 @@ class SynchronizerTrigger {
         return childContent;
     }
 
-        // Returns the function to call if sth to be done
+    // Put every newly ready callback into result.
     // Update the minSerial/minChildSerial according
-    triggerOne(content) {
+    // return true when something was done
+    findReadyCallbacks(content, result) {
         var contentSerial = content === undefined ? undefined : content.serial;
         var contentChildSerial = content === undefined ? undefined : content.childSerial;
 
         if ((contentSerial === this.minSerial)
             && (contentChildSerial === this.minChildSerial))
         {
-            return undefined;
+            return false;
         }
+
+        var ret = false;
 
         if (this.callback !== undefined) {
             this.minSerial = contentSerial;
             this.minChildSerial = contentChildSerial;
-            return this.callback;
-        }
-
-        // Direct calls to listeners
-        for(var o of this.listeners) {
-            var beforeSerial = o.serial;
-            var beforeChildSerial = o.childSerial;
-
-            var rslt = o.triggerOne(content);
-            if (rslt !== undefined) {
-                this.updateMins();
-                return rslt;
+            if (!this.callback.pending) {
+                this.callback.pending = true;
+                result.push(this.callback);
             }
-        }
+            ret = true;
+        } else {
+            // Direct calls to listeners
+            for (var o of this.listeners) {
+                var beforeSerial = o.serial;
+                var beforeChildSerial = o.childSerial;
 
-        // TODO : Instanciate (drop) wildcards.
-
-        // Calls to childs
-        for(var childId in this.childsByProp) {
-            var childContent = this.getChildContent(content, childId);
-
-            var childSynchronizerTrigger = this.childsByProp[childId];
-            var rslt = childSynchronizerTrigger.triggerOne(childContent);
-            if (rslt !== undefined) {
-                this.updateMins();
-
-                return rslt;
-            }
-
-            // FIXME: do this also if processed (was last !)
-            if (childContent === undefined && childSynchronizerTrigger.hasChildFromWildcard) {
-                var replacement = childSynchronizerTrigger.purgeWildcards();
-                if (replacement === undefined) {
-                    delete this.childByProp[childId];
+                if (o.findReadyCallbacks(content, result)) {
+                    ret = true;
                 }
             }
+
+            // TODO : Instanciate (drop) wildcards for new items.
+
+            // Calls to childs
+            for (var childId in this.childsByProp) {
+                var childContent = this.getChildContent(content, childId);
+
+                var childSynchronizerTrigger = this.childsByProp[childId];
+                if (childSynchronizerTrigger.findReadyCallbacks(childContent, result)) {
+                    ret = true;
+                }
+
+                // Desinstnciate useless wildcards
+                // FIXME: do this also if processed (was last !)
+                if (childContent === undefined && childSynchronizerTrigger.hasChildFromWildcard) {
+                    var replacement = childSynchronizerTrigger.purgeWildcards();
+                    if (replacement === undefined) {
+                        delete this.childByProp[childId];
+                    }
+                }
+            }
+
+
+            if (ret) {
+                this.updateMins();
+            }
         }
 
-        // Nothing found
-        return undefined;
+        return ret;
     }
 }
 
@@ -329,15 +336,23 @@ class JsonProxy {
     // Example: to be called on every change of the connected property in indiManager
     // addSynchronizer({'indiManager':{deviceTree':{$@: {'CONNECTION':{'childs':{'CONNECT':{'$_': true}}}} )
     // forceInitialTriggering
-    addSynchronizer(path, listener, forceInitialTrigger) {
+    addSynchronizer(path, callback, forceInitialTrigger) {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
         }
+        var listener = {
+            func: callback,
+            pending: false,
+            dead: false
+        };
+
         this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger);
-        // FIXME: return something to remove listneer...
-        return ;
+
+        return listener;
     }
+
+
 
     // Call untils no more synchronizer is available
     flushSynchronizers() {
@@ -346,14 +361,24 @@ class JsonProxy {
                 this.currentSerial++;
                 this.currentSerialUsed = false;
             }
-            var cb = this.synchronizerRoot.triggerOne(this.root);
-            if (cb === undefined) return;
-            cb();
+            var todoList = [];
+            var cb = this.synchronizerRoot.findReadyCallbacks(this.root, todoList);
+            if (!todoList.length) {
+                return;
+            }
+            for(var cb of todoList) {
+                // FIXME :check callback is not dead
+                if (cb.dead) {
+                    continue;
+                }
+                cb.pending = false;
+                cb.func();
+            }
         } while(true);
     }
 
     removeSynchronizer(listener) {
-
+        throw new Error("not implemented");
     }
 
     addListener(listener) {
