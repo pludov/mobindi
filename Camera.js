@@ -7,7 +7,38 @@ class Camera {
     constructor(app, appStateManager, indiManager) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
-            status: "idle"
+            status: "idle",
+            selectedDevice: null,
+            preferedDevice: null,
+            availableDevices: [],
+
+            // The settings, some may not be available
+            currentSettings: {
+                bin: 1,
+                exp: 1.0,
+                iso: null
+            },
+
+            // Describe each setting of the camera.
+            currentSettingDesc: {
+                $order: ['bin', 'exp', 'iso' ],
+                bin: {
+                    title: 'bin',
+                    values: [1, 2, 4]
+                },
+
+                exp: {
+                    title: 'exposure',
+                    min: 0.01,
+                    max: 600,
+                    values: [0.01, 0.5, 1, 1.5, 2, 3, 5, 10, 20, 30, 60],
+                },
+
+                iso: {
+                    title: 'iso',
+                    values: [100, 200, 400, 800, 1600, "auto"]
+                }
+            }
         }
 
         this.currentStatus = this.appStateManager.getTarget().camera;

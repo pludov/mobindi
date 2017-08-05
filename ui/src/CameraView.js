@@ -2,6 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import FitsViewer from './FitsViewer';
+import CameraSettingsView from './CameraSettingsView';
 import './CameraView.css'
 
 class CameraView extends PureComponent {
@@ -15,6 +16,9 @@ class CameraView extends PureComponent {
 
     render() {
         return(<div className="CameraView">
+            <CameraSettingsView
+                settingsPath={'backend/camera/currentSettings'.split('/')}
+                descPath={'backend/camera/currentSettingDesc'.split('/')}/>
             <div className="FitsViewer">
                 <FitsViewer src={this.state.url}/>
             </div>
