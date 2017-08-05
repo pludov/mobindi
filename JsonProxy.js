@@ -38,7 +38,7 @@ function has(obj, key) {
  * store for each property:
  *   * serial number
  *     * For final type (string, number, null) node the last "time" of assignment
- *     * For object/array, the time of creation of the object
+ *     * For object/array, the time of creation of the object. The serial of childs is always>= to the serial of parents
  *   * childSerial (on object/array)
  *     * The max(serial) of all childs
  *
@@ -94,6 +94,195 @@ function compatibleStorage(a, b) {
 }
 
 
+// Records all synchronizer listening for a node path
+class SynchronizerTrigger {
+
+    constructor(cb) {
+        // The min of all childs (listeners, childsByProp, wildcardChilds)
+        this.minSerial = undefined;
+        this.minChildSerial = undefined;
+
+        // Pour les listeners qui sont en fait des callback
+        this.callback = cb;
+        // Set to true in clone from wildcards.
+        this.fromWildcard = false;
+        // If any of the child is fromWildcard
+        this.hasChildFromWildcard = false;
+
+        if (cb === undefined) {
+            // Tous les fils sont des SynchronizerTrigger aussi
+
+            // Les listeners qui sont accrochés
+            this.listeners = [];
+            this.childsByProp = {};
+            this.wildcardChilds = undefined;
+        }
+    }
+
+    getChild(propName) {
+        if (this.callback !== undefined) throw "getChild not available on final node";
+
+        if (!Object.prototype.hasOwnProperty.call(this.childsByProp, propName)) {
+            this.childsByProp[propName] = new SynchronizerTrigger();
+
+            this.childsByProp[propName].minSerial = this.minSerial;
+            this.childsByProp[propName].minChildSerial = this.minSerialValue;
+        }
+        return this.childsByProp[propName];
+    }
+
+    getAllChilds() {
+        if (this.callback !== undefined) throw "getChild not available on final node";
+
+        if (this.wildcardChilds === undefined) {
+            this.wildcardChilds = new SynchronizerTrigger();
+
+            this.childsByProp[propName].minSerial = this.minSerial;
+            this.childsByProp[propName].minChildSerial = this.minSerialValue;
+        }
+        return this.wildcardChilds;
+    }
+
+    addToPath(parentContent, cb, path, startAt, forceInitialTrigger) {
+        if (forceInitialTrigger) {
+            this.minChildSerial = -1;
+            this.minSerial = -1;
+        }
+
+        if (startAt == path.length) {
+            // Add a listener
+            var nv = new SynchronizerTrigger(cb);
+            this.listeners.push(nv);
+            if (forceInitialTrigger) {
+                nv.minChildSerial = -1;
+                nv.minSerial = -1;
+            } else if (parentContent != undefined) {
+                nv.minChildSerial = parentContent.childSerial;
+                nv.minSerial = parentContent.serial;
+            }
+
+            return nv;
+        }
+        var step = path[startAt];
+        if (Array.isArray(step)) {
+            for(var o of step) {
+                this.addToPath(parentContent, cb, o, 0, forceInitialTrigger);
+            }
+            return;
+        }
+        // Wildcard
+        if (step === null || step === undefined) {
+            this.getAllChilds().addToPath(cb, path, startAt + 1, forceInitialTrigger);
+            // FIXME : et sur tous les fils existant dans le contenu
+            throw "Not implemented"
+            return;
+        }
+        // named child
+        var childContent = this.getChildContent(parentContent, step);
+        this.getChild(step).addToPath(childContent, cb, path, startAt + 1, forceInitialTrigger);
+    }
+
+    updateMin(prop) {
+        var realMin = undefined;
+        for(var listener of this.listeners) {
+            var lval = listener[prop];
+            if (lval === undefined) continue;
+            if ((realMin === undefined || ((lval !== undefined) && (lval < realMin)))) {
+                realMin = lval;
+            }
+        }
+        for(var lid in this.childsByProp) {
+            var listener = this.childsByProp[lid];
+            var lval = listener[prop];
+            if (lval === undefined) continue;
+            if ((realMin === undefined || ((lval !== undefined) && (lval < realMin)))) {
+                realMin = lval;
+            }
+        }
+        this[prop] = realMin;
+
+    }
+
+    updateMins() {
+        this.updateMin('minSerial');
+        this.updateMin('minChildSerial');
+    }
+
+    getChildContent(content, childId) {
+        var childContent;
+        if (content === undefined) {
+            childContent = undefined;
+        } else {
+            var contentObj = content.value;
+            if (contentObj === null || (typeof(contentObj) != 'object')) {
+                childContent = undefined;
+            } else if (!Object.prototype.hasOwnProperty.call(contentObj, childId)) {
+                childContent = undefined;
+            } else {
+                childContent = contentObj[childId];
+            }
+        }
+        return childContent;
+    }
+
+        // Returns the function to call if sth to be done
+    // Update the minSerial/minChildSerial according
+    triggerOne(content) {
+        var contentSerial = content === undefined ? undefined : content.serial;
+        var contentChildSerial = content === undefined ? undefined : content.childSerial;
+
+        if ((contentSerial === this.minSerial)
+            && (contentChildSerial === this.minChildSerial))
+        {
+            return undefined;
+        }
+
+        if (this.callback !== undefined) {
+            this.minSerial = contentSerial;
+            this.minChildSerial = contentChildSerial;
+            return this.callback;
+        }
+
+        // Direct calls to listeners
+        for(var o of this.listeners) {
+            var beforeSerial = o.serial;
+            var beforeChildSerial = o.childSerial;
+
+            var rslt = o.triggerOne(content);
+            if (rslt !== undefined) {
+                this.updateMins();
+                return rslt;
+            }
+        }
+
+        // TODO : Instanciate (drop) wildcards.
+
+        // Calls to childs
+        for(var childId in this.childsByProp) {
+            var childContent = this.getChildContent(content, childId);
+
+            var childSynchronizerTrigger = this.childsByProp[childId];
+            var rslt = childSynchronizerTrigger.triggerOne(childContent);
+            if (rslt !== undefined) {
+                this.updateMins();
+
+                return rslt;
+            }
+
+            // FIXME: do this also if processed (was last !)
+            if (childContent === undefined && childSynchronizerTrigger.hasChildFromWildcard) {
+                var replacement = childSynchronizerTrigger.purgeWildcards();
+                if (replacement === undefined) {
+                    delete this.childByProp[childId];
+                }
+            }
+        }
+
+        // Nothing found
+        return undefined;
+    }
+}
+
 class JsonProxy {
 
     newNode(parent, emptyValue) {
@@ -134,6 +323,37 @@ class JsonProxy {
         var details = this.newNode(parent, emptyValue);
         this.toObjectNode(details);
         return details;
+    }
+
+
+    // Example: to be called on every change of the connected property in indiManager
+    // addSynchronizer({'indiManager':{deviceTree':{$@: {'CONNECTION':{'childs':{'CONNECT':{'$_': true}}}} )
+    // forceInitialTriggering
+    addSynchronizer(path, listener, forceInitialTrigger) {
+        if (this.currentSerialUsed) {
+            this.currentSerial++;
+            this.currentSerialUsed = false;
+        }
+        this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger);
+        // FIXME: return something to remove listneer...
+        return ;
+    }
+
+    // Call untils no more synchronizer is available
+    flushSynchronizers() {
+        do {
+            if (this.currentSerialUsed) {
+                this.currentSerial++;
+                this.currentSerialUsed = false;
+            }
+            var cb = this.synchronizerRoot.triggerOne(this.root);
+            if (cb === undefined) return;
+            cb();
+        } while(true);
+    }
+
+    removeSynchronizer(listener) {
+
     }
 
     addListener(listener) {
@@ -287,6 +507,19 @@ class JsonProxy {
         this.root = this.newObjectNode(null, {})
         this.listeners = {};
         this.listenerId = 1;
+
+        this.synchronizerRoot = new SynchronizerTrigger();
+    }
+
+    // Store for each node in the path, the serial and the childSerial
+    takePathSnapshot(path) {
+        var result = [];
+        var at = this.root;
+        for(var i = 0; i <= path.length; ++i) {
+            path.push(at.serial);
+            path.push(at.childSerial);
+
+        }
     }
 
     takeSerialSnapshot()

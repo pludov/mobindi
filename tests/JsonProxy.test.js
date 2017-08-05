@@ -398,3 +398,129 @@ test("Streaming replication", function(assert) {
 
 
 });
+
+test("Synchronizer application for root property", function(assert) {
+
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+
+    var numberOfCall = {plop: 0};
+    changeTracker.addSynchronizer(['plop'], function () {
+        numberOfCall.plop++;
+    });
+
+    assert.ok(numberOfCall.plop == 0, "No initial call");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No call on flush");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No change => no call");
+
+    root.zoubida = 'alpha';
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "Unrelated change => no call");
+
+    root.plop = 'tralala';
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 1, "Related change => call");
+
+    root.plop = null;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 2, "Set to null => call");
+
+    delete root.plop;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 3, "Delete => call");
+
+
+
+});
+
+test("Synchronizer application for child property", function(assert) {
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+
+    var numberOfCall = {plop: 0, secondPlop:0};
+    changeTracker.addSynchronizer(['plop','a'], function () {
+        numberOfCall.plop++;
+    });
+
+    assert.ok(numberOfCall.plop == 0, "No initial call");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No call on flush");
+
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "No change => no call");
+
+    root.zoubida = 'alpha';
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "Unrelated change => no call");
+
+    root.plop = 'tralala';
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to string => no call");
+
+    root.plop = null;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to null => no call");
+
+    root.plop = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Parent changed to object => no call");
+
+    root.plop.a = "coucou";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 1, "Property set => call");
+
+    root.plop.a = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 2, "Property changed to object => call");
+
+
+    root.plop.a.bouzouf = "1";
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 3, "Property added to object => call");
+
+    root.plop.a.constructor = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 4, "Object Property added to object => call");
+
+    // Attach to existing node
+    changeTracker.addSynchronizer(['plop','a'], function () {
+        numberOfCall.secondPlop++;
+    });
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.secondPlop == 0, "new synchronizer added => no initial call");
+
+
+    root.plop.a.constructor.truc= true;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.secondPlop == 1, "new synchronizer triggers on modification");
+    assert.ok(numberOfCall.plop == 5, "first synchronizer still triggers on modification");
+
+
+    delete root.plop;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 6, "Delete parent => call");
+
+
+});
+
+
+test("Wildcard synchronizer", function(assert) {
+    assert.ok(false, "Not implemented");
+});
+
+
+// A synchronizer should not be called when multiple change occurs
+test("Collapse multiple change ", function(assert) {
+    assert.ok(false, "Not implemented");
+});
