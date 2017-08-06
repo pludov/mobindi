@@ -512,11 +512,67 @@ test("Synchronizer application for child property", function(assert) {
     assert.ok(numberOfCall.plop == 6, "Delete parent => call");
 
 
+    root.truc = '';
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 6, "Property does not exist => no call");
+
+    root.plop= {a: 5};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 7, "Property reappear =>  call");
+
 });
 
 
 test("Wildcard synchronizer", function(assert) {
-    assert.ok(false, "Not implemented");
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+
+    root.plop = { child1: {c:10, d:11} };
+
+    var numberOfCall = {plop: 0, troubleMaker:0};
+
+    var troubleMakerListener = changeTracker.addSynchronizer(['plop', 'child2', 'a'], function() {
+        numberOfCall.troubleMaker++;
+    });
+
+    var listener = changeTracker.addSynchronizer(['plop', null, [['a'], ['b']]], function () {
+        numberOfCall.plop++;
+    });
+
+    assert.ok(numberOfCall.plop == 0, "No initial call");
+    assert.ok(changeTracker.synchronizerRoot.getInstalledCallbackCount(listener) == 2, "Wildcard instancied on installation");
+
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "No call on flush");
+
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "No change => no call");
+
+    root.zoubida = 'alpha';
+    changeTracker.flushSynchronizers();
+
+    assert.ok(numberOfCall.plop == 0, "Unrelated change => no call");
+
+    root.plop.child1.gzou = null;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 0, "Unrelated change in wildcarded branch (initial) => no call");
+
+    root.plop.child1.a = 'bidule';
+    root.plop.child1.b = 'truc';
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop >= 1, "Change to wildcarded branch (initial) => call");
+    assert.ok(numberOfCall.plop == 1, "Change to wildcarded branch (initial) => onecall");
+
+
+    root.plop.child2 = {};
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 1, "Wildcard got new child without prop => no call");
+    assert.ok(changeTracker.synchronizerRoot.getInstalledCallbackCount(listener) == 4, "New node => Two more callback installed");
+
+    root.plop.child2.a = 5;
+    changeTracker.flushSynchronizers();
+    assert.ok(numberOfCall.plop == 2, "Second node got value => call");
+
 });
 
 
@@ -526,7 +582,7 @@ test("Collapse multiple change ", function(assert) {
     var root = changeTracker.getTarget();
 
     var numberOfCall = {plop: 0, secondPlop:0};
-    changeTracker.addSynchronizer(['plop',['a', 'b']], function () {
+    changeTracker.addSynchronizer(['plop',[['a'], ['b']]], function () {
         numberOfCall.plop++;
     });
 
