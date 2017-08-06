@@ -33,11 +33,13 @@ class CameraView extends PureComponent {
                 descPath={'backend/camera/currentSettingDesc'.split('/')}
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
-            <div className="FitsViewer">
+            <div className="FitsViewer FitsViewContainer">
                 <FitsViewer src={this.state.url}/>
             </div>
-            <input type="button" onClick={this.shoot} value="Shoot"/>
-            <input type="button" onClick={this.next} value="next"/>
+            <div className="ButtonBar">
+                <input type="button" onClick={this.shoot} value="Shoot"/>
+                <input type="button" onClick={this.next} value="next"/>
+            </div>
         </div>);
     }
 
