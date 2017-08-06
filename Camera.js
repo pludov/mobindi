@@ -44,6 +44,43 @@ class Camera {
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.indiManager = indiManager;
 
+        // Update available camera
+        this.appStateManager.addSynchronizer(
+            [
+                'indiManager',
+                    [
+                        // Bind to driver_exec of each device
+                        ['deviceTree', null, 'DRIVER_INFO', 'childs', 'DRIVER_EXEC', '$_'],
+                        // Bind to driverToGroup mapping (any change)
+                        ['driverToGroup',null]
+                    ]
+            ], this.updateAvailableCamera.bind(this), true);
+
+    }
+
+    updateAvailableCamera()
+    {
+        // List all cameras
+        var indiManager = this.appStateManager.getTarget().indiManager;
+
+        var availableDevices = [];
+        for(var deviceId of Object.keys(indiManager.deviceTree).sort()) {
+            var device = indiManager.deviceTree[deviceId];
+            var driver;
+            try {
+                driver = device.DRIVER_INFO.childs.DRIVER_EXEC.$_;
+            } catch(e) {
+                continue;
+            }
+
+            if (indiManager.driverToGroup[driver] == 'CCDs') {
+                console.log('got a ccd: ' + deviceId)
+                availableDevices.push(deviceId);
+            }
+        }
+
+        this.currentStatus.availableDevices = availableDevices;
+
     }
 
     $api_shoot(message, progress) {
@@ -54,7 +91,7 @@ class Camera {
         return new Promises.Chain(
 
             new Promises.Immediate(function() {
-                connection = self.indiManager.connection;
+                connection = self.indiManager.CONNECTION;
                 if (connection == undefined) {
                     throw "Indi server not connected";
                 }
