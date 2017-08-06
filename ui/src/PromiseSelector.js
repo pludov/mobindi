@@ -3,7 +3,8 @@ import PropTypes from 'prop-types';
 
 /**
  * A selector that start a promise on update
- * Does not support empty value
+ * 
+ * Supported values: numbers, strings, booleans, null
  */
 class PromiseSelector extends PureComponent {
     constructor(props) {
@@ -12,29 +13,48 @@ class PromiseSelector extends PureComponent {
     }
     render() {
         var active = this.props.active;
+        if (active == undefined) active = null;
+
         var availables = this.props.availables;
         var options = [];
 
         if (this.state.forcedValue !== undefined) {
             active = this.state.forcedValue;
         }
+        console.log('WTF with keys');
 
-        if (active == null || active == undefined) active = '';
-        if (active == '') {
-            options.push(<option value='' key=''>{this.props.placeholder}</option>)
+        if (active == null) {
+            console.log("WTF key = null");
+            options.push(<option value='null' key='null'>{this.props.placeholder}</option>)
         }
 
-        if (active != '' && availables.indexOf(active) == -1) {
-            options.push(<option value={active} key={active}>{v} - <i>NOT AVAILABLE</i></option>);
+        if (active != null) {
+            var present = false;
+            for(var o of availables) {
+                if (this.props.getId(o) === active) {
+                    present = true;
+                }
+            }
+            if (!present) {
+                console.log("missing WTF key = " + JSON.stringify(active));
+                options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{active}</option>);
+            }
         }
 
         for(var v of availables) {
-            options.push(<option value={v} key={v}>{v}</option>);
+            var id = JSON.stringify(this.props.getId(v));
+            console.log("WTF key = " + id);
+            options.push(<option value={id} key={id}>{this.props.getTitle(v)}</option>);
         }
-        return <select disabled={this.state.runningPromise !== undefined} value={active} onChange={(e)=>this.selectDevice(e.target.value)}>{options}</select>;
+
+        return <select
+                    disabled={this.state.runningPromise !== undefined}
+                    value={JSON.stringify(active)}
+                    onChange={(e)=>this.selectEntry(JSON.parse(e.target.value))}>{options}
+            </select>;
     }
 
-    selectDevice(d) {
+    selectEntry(d) {
         var self = this;
         if (this.state.runningPromise) {
             this.state.runningPromise.cancel();
@@ -56,13 +76,16 @@ class PromiseSelector extends PureComponent {
 }
 
 PromiseSelector.defaultProps = {
-    getTitle: (e)=>e,
+    getTitle: (e)=>'' + e,
     getId: (e)=>e,
     placeholder: 'Choose...'
 }
 
 PromiseSelector.propTypes = {
-    active: PropTypes.string.isRequired,
+    active: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.number
+    ]),
     availables: PropTypes.array.isRequired,
     placeholder: PropTypes.string,
     // entry from availables
