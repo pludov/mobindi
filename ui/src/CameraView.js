@@ -1,9 +1,17 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import FitsViewer from './FitsViewer';
+import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import './CameraView.css'
+
+
+const CameraSelector = connect((store)=> ({
+            active: store.backend.camera.selectedDevice || '',
+            availables: store.backend.camera.availableDevices
+}))(PromiseSelector);
 
 class CameraView extends PureComponent {
 
@@ -16,6 +24,7 @@ class CameraView extends PureComponent {
 
     render() {
         return(<div className="CameraView">
+            <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
             <CameraSettingsView
                 settingsPath={'backend/camera/currentSettings'.split('/')}
                 descPath={'backend/camera/currentSettingDesc'.split('/')}/>

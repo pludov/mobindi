@@ -83,6 +83,18 @@ class Camera {
 
     }
 
+    $api_setCamera(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to set device: ', JSON.stringify(message.data));
+            if (self.currentStatus.availableDevices.indexOf(message.data.device) == -1) {
+                throw "device not available";
+            }
+            self.currentStatus.selectedDevice = message.data.device;
+        });
+
+    }
+
     $api_shoot(message, progress) {
         var self = this;
         var connection;
