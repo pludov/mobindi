@@ -117,7 +117,7 @@ class Camera {
         return new Promises.Chain(
 
             new Promises.Immediate(function() {
-                connection = self.indiManager.CONNECTION;
+                connection = self.indiManager.connection;
                 if (connection == undefined) {
                     throw "Indi server not connected";
                 }
