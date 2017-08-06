@@ -9,7 +9,7 @@ import './CameraView.css'
 
 
 const CameraSelector = connect((store)=> ({
-            active: store.backend.camera.selectedDevice || '',
+            active: store.backend.camera.selectedDevice,
             availables: store.backend.camera.availableDevices
 }))(PromiseSelector);
 
@@ -25,7 +25,9 @@ class CameraView extends PureComponent {
     render() {
         //var self = this;
         return(<div className="CameraView">
-            <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
+            <div>
+                <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
+            </div>
             <CameraSettingsView
                 settingsPath={'backend/camera/currentSettings'.split('/')}
                 descPath={'backend/camera/currentSettingDesc'.split('/')}

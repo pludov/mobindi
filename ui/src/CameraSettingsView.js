@@ -53,7 +53,7 @@ class CameraSettingView extends PureComponent {
 
 CameraSettingView = connect(CameraSettingView.mapStateToProps)(CameraSettingView);
 
-const BinSelector = connect((store, ownProps)=> ({
+const SettingSelector = connect((store, ownProps)=> ({
     active: atPath(store, ownProps.valuePath),
     availables: atPath(store, ownProps.descPath.concat('values'))
 }))(PromiseSelector);
@@ -68,25 +68,37 @@ class CameraSettingsView extends PureComponent {
     }
 
     render() {
+        var self = this;
         var content = [];
 
-        // Display bin. A list
-
-        if (this.props.binDesc !== undefined) {
-            content.push(<BinSelector
-                key='bin'
-                descPath={this.props.descPath.concat('bin')}
-                valuePath={this.props.settingsPath.concat('bin')}
-                setValue={this.props.setValue('bin')}
-            />);
+        // Setting is a list
+        function selectorProp(name) {
+            return <SettingSelector
+                key={name}
+                descPath={self.props.descPath.concat(name)}
+                valuePath={self.props.settingsPath.concat(name)}
+                setValue={self.props.setValue(name)}
+            />
         }
+
+        // Render a setting if present
+        function setting(name, provider)
+        {
+            if (self.props[name] !== undefined && self.props[name].available) {
+                content.push(<span className='cameraSetting' key={name}>{self.props[name].title || name}: {provider(name)}</span>);
+            }
+        }
+
+        setting('bin', selectorProp);
+        setting('iso', selectorProp);
 
         return(<div>{content}</div>);
     }
 
     static mapStateToProps = function(store, ownProps) {
         return ({
-            binDesc: atPath(store, ownProps.descPath.concat('bin'))
+            bin: atPath(store, ownProps.descPath.concat('bin')),
+            iso: atPath(store, ownProps.descPath.concat('iso'))
         });
     }
 }

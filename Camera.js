@@ -22,11 +22,13 @@ class Camera {
             // Describe each setting of the camera.
             currentSettingDesc: {
                 bin: {
+                    available: true,
                     title: 'bin',
                     values: [1, 2, 4]
                 },
 
                 exp: {
+                    available: true,
                     title: 'exposure',
                     min: 0.01,
                     max: 600,
@@ -34,6 +36,7 @@ class Camera {
                 },
 
                 iso: {
+                    available: true,
                     title: 'iso',
                     values: [100, 200, 400, 800, 1600, "auto"]
                 }
