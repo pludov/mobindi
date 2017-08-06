@@ -23,11 +23,14 @@ class CameraView extends PureComponent {
     }
 
     render() {
+        //var self = this;
         return(<div className="CameraView">
             <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
             <CameraSettingsView
                 settingsPath={'backend/camera/currentSettings'.split('/')}
-                descPath={'backend/camera/currentSettingDesc'.split('/')}/>
+                descPath={'backend/camera/currentSettingDesc'.split('/')}
+                setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
+                />
             <div className="FitsViewer">
                 <FitsViewer src={this.state.url}/>
             </div>

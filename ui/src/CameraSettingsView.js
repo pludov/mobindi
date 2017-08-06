@@ -1,6 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
+import PromiseSelector from './PromiseSelector';
 import FitsViewer from './FitsViewer';
 import './CameraView.css'
 
@@ -52,32 +53,40 @@ class CameraSettingView extends PureComponent {
 
 CameraSettingView = connect(CameraSettingView.mapStateToProps)(CameraSettingView);
 
+const BinSelector = connect((store, ownProps)=> ({
+    active: atPath(store, ownProps.valuePath),
+    availables: atPath(store, ownProps.descPath.concat('values'))
+}))(PromiseSelector);
+
 class CameraSettingsView extends PureComponent {
     // props:
     //      settingsPath: path to currentSettings,
     //      descPath: path to currentSettingDesc
+    //     setValue: (key)=>(value)=>promise
     constructor(props) {
         super(props);
     }
 
     render() {
         var content = [];
-        for(var item of this.props.list) {
-            var d = <CameraSettingView
-                key={item}
-                settingPath={this.props.settingsPath.concat(item)}
-                descPath={this.props.descPath.concat(item)}
-            />
-            content.push(d);
+
+        // Display bin. A list
+
+        if (this.props.binDesc !== undefined) {
+            content.push(<BinSelector
+                key='bin'
+                descPath={this.props.descPath.concat('bin')}
+                valuePath={this.props.settingsPath.concat('bin')}
+                setValue={this.props.setValue('bin')}
+            />);
         }
 
         return(<div>{content}</div>);
     }
 
     static mapStateToProps = function(store, ownProps) {
-
         return ({
-            list: atPath(store, ownProps.descPath.concat('$order'))
+            binDesc: atPath(store, ownProps.descPath.concat('bin'))
         });
     }
 }

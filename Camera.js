@@ -21,7 +21,6 @@ class Camera {
 
             // Describe each setting of the camera.
             currentSettingDesc: {
-                $order: ['bin', 'exp', 'iso' ],
                 bin: {
                     title: 'bin',
                     values: [1, 2, 4]
@@ -92,7 +91,19 @@ class Camera {
             }
             self.currentStatus.selectedDevice = message.data.device;
         });
+    }
 
+    $api_setShootParam(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e) => {
+            // FIXME: send the corresponding info ?
+            console.log('Request to set setting: ', JSON.stringify(message.data));
+            var key = message.data.key;
+            if (!Object.prototype.hasOwnProperty.call(self.currentStatus.currentSettings, key)) {
+                throw "property not supported by device: " + key;
+            }
+            self.currentStatus.currentSettings[key] = message.data.value;
+        });
     }
 
     $api_shoot(message, progress) {
