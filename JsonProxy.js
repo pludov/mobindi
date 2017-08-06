@@ -292,17 +292,44 @@ class SynchronizerTrigger {
     }
 
     getInstalledCallbackCount(cb) {
-        var result = 0;
+        return this.getInstalledCallbacks(cb).length;
+    }
+
+    getInstalledCallbacks(cb) {
+        var result = [];
         for(var o of this.listeners) {
             if (o.callback === cb) {
-                result++;
+                result.push('');
             }
         }
         for(var key of Object.keys(this.childsByProp)) {
-            result += this.childsByProp[key].getInstalledCallbackCount(cb);
+            for(var path of this.childsByProp[key].getInstalledCallbacks(cb))
+            {
+                result.push(key + '/' + path);
+            }
         }
         return result;
     }
+
+    getEmptyPath() {
+        var result = [];
+
+        for (var k of Object.keys(this.childsByProp)) {
+            for(var path of this.childsByProp[k].getEmptyPath()) {
+                result.push(k + "/" + path);
+            }
+        }
+        for (var w of this.wildcardChilds) {
+            for(var path of w.getEmptyPath()) {
+                result.push('*/' + path);
+            }
+        }
+        if (this.listeners.length || this.childsByProp.length || this.wildcardChilds.length) {
+            return [];
+        }
+        return [''];
+    }
+
 
     // Put every newly ready callback into result.
     // Update the minSerial/minChildSerial according
@@ -318,6 +345,7 @@ class SynchronizerTrigger {
         }
 
         var ret = false;
+        var changed = false;
 
         if (this.callback !== undefined) {
             this.minSerial = contentSerial;
@@ -349,7 +377,6 @@ class SynchronizerTrigger {
                     }
                 }
             }
-            // TODO : Instanciate (drop) wildcards for new items.
 
             // Calls to childs
             for (var childId of Object.keys(this.childsByProp)) {
@@ -360,23 +387,84 @@ class SynchronizerTrigger {
                     ret = true;
                 }
 
-                // Desinstnciate useless wildcards
-                // FIXME: do this also if processed (was last !)
-                if (childContent === undefined && childSynchronizerTrigger.hasChildFromWildcard) {
-                    var replacement = childSynchronizerTrigger.purgeWildcards();
-                    if (replacement === undefined) {
-                        delete this.childByProp[childId];
+                // FIXME: will be done for each run - use serial for wildcards ?
+                if (childContent === undefined) {
+                    // Deinstanciate every wildcard
+                    for(var wildcard of this.wildcardChilds) {
+                        if (Object.prototype.hasOwnProperty.call(wildcard.wildcardAppliedToChilds, childId)) {
+
+                            var wildcardChanged = childSynchronizerTrigger.removeFromWildcard(wildcard);
+
+                            delete wildcard.wildcardAppliedToChilds[childId];
+
+                            // Adjust serial required ?
+                            changed |= wildcardChanged;
+
+                            // Nothing left. probably done with wildcardChilds !
+                            if (wildcardChanged == 2) {
+                                delete this.childsByProp[childId];
+                                // Could break, but continue in case of empty wildcard
+                            }
+                        }
                     }
                 }
             }
 
 
-            if (ret) {
+            if (ret || changed) {
                 this.updateMins();
             }
         }
 
         return ret;
+    }
+
+    // 0: nothing changed
+    // 1 : changed but not empty
+    // 2 : changed and became empty
+    removeFromWildcard(originToRemove) {
+        var isEmpty = true;
+        var sthChanged = false;
+        for(var i = 0; i < this.listeners.length; ) {
+            if (this.listeners[i].wildcardOrigin == originToRemove) {
+                this.listeners[i] = this.listeners[this.listeners.length - 1];
+                this.listeners.splice(-1, 1);
+                sthChanged = true;
+            } else {
+                i++;
+                isEmpty = false;
+            }
+        }
+
+        for(var o of Object.keys(this.childsByProp)) {
+            var child =  this.childsByProp[o];
+            var childRemoveResult = child.removeFromWildcard(originToRemove);
+            if (childRemoveResult) {
+                sthChanged = true;
+                if (childRemoveResult == 2) {
+                    delete this.childsByProp[o];
+                } else {
+                    isEmpty = false;
+                }
+            } else {
+                isEmpty = false;
+            }
+        }
+
+        for(var i = 0; i < this.wildcardChilds; ) {
+            if( this.wildcardChilds[i].wildcardOrigin == originToRemove) {
+                this.wildcardChilds[i] = this.wildcardChilds[this.wildcardChilds.length - 1];
+                this.wildcardChilds.splice(-1, 1);
+                sthChanged = true;
+            } else {
+                i++;
+                isEmpty = false;
+            }
+        }
+        if (isEmpty) {
+            return 2;
+        }
+        return sthChanged ? 1 : 0;
     }
 }
 
@@ -404,6 +492,7 @@ class JsonProxy {
     }
 
     notifyAll() {
+        this.flushSynchronizers();
         this.notifyPending = false;
 
         var toCall = Object.assign(this.listeners);
