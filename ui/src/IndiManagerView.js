@@ -311,7 +311,7 @@ class IndiManagerView extends Component {
                         open={groupDesc.opened}
                         onOpen={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, true)}
                         onClose={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, false)}
-                        transitionTime="200"
+                        transitionTime={200}
                         trigger={group}
                         lazyRender={true}>{childs}</Collapsible>);
                     /**
