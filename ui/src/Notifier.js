@@ -313,10 +313,10 @@ class Notifier {
                                 request.next.done(data.result);
                                 break;
                             case 'canceled':
-                                request.next.onCancel();
+                                request.next.cancel();
                                 break;
                             default:
-                                request.next.onError(data.message);
+                                request.next.error(data.message);
                                 break;
                         }
 
