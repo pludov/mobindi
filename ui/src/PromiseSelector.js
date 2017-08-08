@@ -15,7 +15,7 @@ class PromiseSelector extends PureComponent {
         var active = this.props.active;
         if (active == undefined) active = null;
 
-        var availables = this.props.availables;
+        var availables = this.props.availablesGenerator(this.props);
         var options = [];
 
         if (this.state.forcedValue !== undefined) {
@@ -78,7 +78,8 @@ class PromiseSelector extends PureComponent {
 PromiseSelector.defaultProps = {
     getTitle: (e)=>'' + e,
     getId: (e)=>e,
-    placeholder: 'Choose...'
+    placeholder: 'Choose...',
+    availablesGenerator: (props)=>props.availables
 }
 
 PromiseSelector.propTypes = {
@@ -86,7 +87,8 @@ PromiseSelector.propTypes = {
         PropTypes.string,
         PropTypes.number
     ]),
-    availables: PropTypes.array.isRequired,
+    availables: PropTypes.array,
+    availablesGenerator: PropTypes.func,
     placeholder: PropTypes.string,
     // entry from availables
     getTitle: PropTypes.func,
