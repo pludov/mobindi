@@ -30,7 +30,7 @@ class CameraView extends PureComponent {
             </div>
             <CameraSettingsView
                 settingsPath={'backend/camera/currentSettings'.split('/')}
-                descPath={'backend/camera/currentSettingDesc'.split('/')}
+                activePath={'backend/camera/selectedDevice'.split('/')}
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <div className="FitsViewer FitsViewContainer">
@@ -60,6 +60,7 @@ class CameraView extends PureComponent {
     next() {
         this.setState({url: this.state.url != 'test.jpg' ? 'test.jpg' : 'http://127.0.0.1:18080/plop.png'});
     }
+
 }
 
 

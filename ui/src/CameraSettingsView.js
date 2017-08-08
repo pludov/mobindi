@@ -28,40 +28,38 @@ function atPath(obj, path) {
     return result;
 }
 
-class CameraSettingView extends PureComponent {
-    //      settingPath: [path] to currentSettings[item],
-    //      descPath: [path] to currentSettingDesc[item]
-    constructor(props) {
-        super(props);
-    }
+function availablesFromRange(props) {
+    var result = [];
+    console.log('WTF props: ' + JSON.stringify(props));
+    if (props.$min != undefined) {
+        var step =  parseFloat(props.$step);
+        var min = parseFloat(props.$min);
+        var max = parseFloat(props.$max);
 
-    render() {
-        return <div>
-            <div>{this.props.desc.title}:</div>
-            <div>{this.props.setting}</div>
-        </div>
+        for(var i = min; i <= max && result.length < 1000; i += step)
+        {
+            result.push(i);
+        }
     }
-
-    static mapStateToProps = function(store, ownProps) {
-
-        return ({
-            setting: atPath(store, ownProps.settingPath),
-            desc: atPath(store, ownProps.descPath)
-        });
-    }
+    return result;
 }
 
-CameraSettingView = connect(CameraSettingView.mapStateToProps)(CameraSettingView);
-
-const SettingSelector = connect((store, ownProps)=> ({
-    active: atPath(store, ownProps.valuePath),
-    availables: atPath(store, ownProps.descPath.concat('values'))
-}))(PromiseSelector);
+const SettingSelector = connect((store, ownProps)=> {
+    var desc = atPath(store, ownProps.descPath);
+    console.log('WTF : SettingsSelector.mapStateToProps : desc = ' +JSON.stringify(desc));
+    return ({
+        active: atPath(store, ownProps.valuePath),
+        availablesGenerator: availablesFromRange,
+        $min: atPath(desc, ['$min']),
+        $max: atPath(desc, ['$max']),
+        $step: atPath(desc, ['$step'])
+    });
+})(PromiseSelector);
 
 class CameraSettingsView extends PureComponent {
     // props:
     //      settingsPath: path to currentSettings,
-    //      descPath: path to currentSettingDesc
+    //      activePath: path to the property that hold the camera id
     //     setValue: (key)=>(value)=>promise
     constructor(props) {
         super(props);
@@ -72,33 +70,33 @@ class CameraSettingsView extends PureComponent {
         var content = [];
 
         // Setting is a list
-        function selectorProp(name) {
-            return <SettingSelector
-                key={name}
-                descPath={self.props.descPath.concat(name)}
-                valuePath={self.props.settingsPath.concat(name)}
-                setValue={self.props.setValue(name)}
-            />
+        function selectorProp(vector, prop) {
+            return function(name) {
+                return <SettingSelector
+                    key={name}
+                    descPath={['backend', 'indiManager', 'deviceTree', self.props.current, vector, 'childs', prop]}
+                    valuePath={self.props.settingsPath.concat(name)}
+                    setValue={self.props.setValue(name)}
+                />
+            }
         }
 
         // Render a setting if present
         function setting(name, provider)
         {
-            if (self.props[name] !== undefined && self.props[name].available) {
-                content.push(<span className='cameraSetting' key={name}>{self.props[name].title || name}: {provider(name)}</span>);
-            }
+            content.push(<span className='cameraSetting' key={name}>{name}: {provider(name)}</span>);
         }
 
-        setting('bin', selectorProp);
-        setting('iso', selectorProp);
+        setting('bin', selectorProp('CCD_BINNING', 'HOR_BIN'));
+        //setting('iso', selectorProp);
+        setting('exp', selectorProp('CCD_EXPOSURE', 'CCD_EXPOSURE_VALUE'));
 
         return(<div>{content}</div>);
     }
 
     static mapStateToProps = function(store, ownProps) {
         return ({
-            bin: atPath(store, ownProps.descPath.concat('bin')),
-            iso: atPath(store, ownProps.descPath.concat('iso'))
+            current: atPath(store, ownProps.activePath)
         });
     }
 }
