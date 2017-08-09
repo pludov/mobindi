@@ -5,6 +5,7 @@ import { atPath } from './shared/SimplePath';
 import FitsViewer from './FitsViewer';
 import StatePropCond from './StatePropCond';
 import CameraBinEditor from './CameraBinEditor';
+import CameraExpEditor from './CameraExpEditor';
 import './CameraView.css'
 
 
@@ -30,6 +31,15 @@ class CameraSettingsView extends PureComponent {
                             descPath={devTreeRoot.concat('CCD_BINNING')}
                             valuePath={this.props.settingsPath.concat('bin')}
                             setValue={this.props.setValue('bin')}/>
+                    </span>
+            </StatePropCond>
+
+            <StatePropCond path={devTreeRoot.concat('CCD_EXPOSURE')}>
+                    <span className='cameraSetting'>Exp:
+                        <CameraExpEditor
+                            descPath={devTreeRoot.concat('CCD_EXPOSURE')}
+                            valuePath={this.props.settingsPath.concat('exp')}
+                            setValue={this.props.setValue('exp')}/>
                     </span>
             </StatePropCond>
         </div>;
