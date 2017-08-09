@@ -180,6 +180,66 @@ class IndiManager {
         );
     }
 
+    // Return a promise that will set the value of the
+    // device and value can be function
+    // valFn returns a map to set at the vector, may be a function receiving the current state
+    setParam(device, vectorFn, valFn)
+    {
+        var self = this;
+        return new Promises.Builder((e)=>
+        {
+            var connection = self.connection;
+            if (connection === undefined) {
+                throw new Error("Indi server not connected");
+            }
+            var devId = Promises.dynValue(device);
+            
+            var dev = connection.getDevice(devId);
+
+            var vectorId = Promises.dynValue(vectorFn);
+
+            if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
+                throw new Error("Device is not connected : " + devId);
+            }
+
+            function getVec() {
+                var dev = connection.getDevice(devId);
+
+                var vecInstance = dev.getVector(vectorId);
+                if (vecInstance === null) throw new Error("Property vanished: " + vectorId);
+                return vecInstance;
+            }
+
+            return new Promises.Chain(
+                connection.wait(() => (getVec().getState() != "Busy")),
+                new Promises.Immediate(() => {
+                    var vec = getVec();
+
+                    var value = Promises.dynValue(valFn, vec);
+                    var diff = false;
+                    
+                    var todo = [];
+                    for(var key in value) {
+                        if (vec.getPropertyValueIfExists(key) !== value[key]) {
+                            todo.push({name: key, value: value[key]});
+                        }
+                    }
+
+                    if (!todo.length) {
+                        console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
+                        // Value is ready.
+                        return null;
+                    } else {
+                        vec.setValues(todo);
+                        return connection.wait(() => (getVec().getState() != "Busy"));
+                    }
+                }),
+                new Promises.ExecutePromise()
+            );
+        });
+    }
+
+
     $api_setProperty(message, progress)
     {
         return new Promises.Immediate(() => {
@@ -187,10 +247,12 @@ class IndiManager {
                 throw "not connected";
             } else {
                 var dev = this.connection.getDevice(message.data.dev);
-                dev.setVectorValues(message.data.vec, message.data.children);
+                dev.getVector(message.data.vec).setValues( message.data.children);
             }
         });
     }
+
+
 }
 
 module.exports = {IndiManager};

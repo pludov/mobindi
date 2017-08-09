@@ -77,63 +77,47 @@ function has(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-class Device {
-
-    constructor(connection, device) {
+class Vector {
+    constructor(connection, device, vectorId) {
         this.connection = connection;
         this.device = device;
+        this.vectorId = vectorId;
     }
 
-    getVector(property)
+    getVectorInTree()
     {
-        var devProps = this.connection.getDeviceInTree(this.device);
-        if (!has(devProps, property)) {
+        if (!has(this.connection.deviceTree, this.device))
+        {
             return null;
         }
-        return devProps[property];
+        var dev = this.connection.deviceTree[this.device];
+        if (!has(dev, this.vectorId)) {
+            return null;
+        }
+        return dev[this.vectorId];
     }
 
-
-    getProperty(property, name)
+    getExistingVectorInTree()
     {
-        var devProps = this.connection.getDeviceInTree(this.device);
-
-        if (!has(devProps, property)) {
-            return null;
-        }
-        var prop = devProps[property];
-        if (!has(prop.childs, name)) {
-            return null;
-        }
-
-        return prop.childs[name];
+        var rslt = this.getVectorInTree();
+        if (rslt === null) throw new Error("Property not found: " + this.device + "/" + this.vectorId);
+        return rslt;
     }
 
-    getPropertyValue(device, property, name)
-    {
-        var property = this.getProperty(device, property, name);
-        if (property == null) return null;
-        return property.$_;
+    // Throw device disconnected
+    getState() {
+        return this.getExistingVectorInTree().$state;
     }
 
     // affectation is an array of {name:key, value:value}
-    // Vector is switched to busy
-    setVectorValues(vec, affectations) {
-        var devProps = this.connection.getDeviceInTree(this.device);
-        if (devProps == null) {
-            throw new Error("Device " + this.device + " not found");
-        }
-
-        if (!has(devProps, vec)) {
-            throw new Error("Vector " + vec + " not found");
-        }
-
-        var vecDef = devProps[vec];
-
+    // Vector is switched to busy immediately
+    setValues(affectations) {
+        console.log('Received affectations: ' + JSON.stringify(affectations));
+        var vecDef = this.getExistingVectorInTree(this.device);
         var msg = {
             $$: 'new' + vecDef.$type + 'Vector',
             $device: this.device,
-            $name: vec,
+            $name: this.vectorId,
             ['one' + vecDef.$type]: affectations.map(item => {
                 return {
                     $name: item.name,
@@ -146,6 +130,76 @@ class Device {
         var xml = this.connection.toXml(msg)
         this.connection.queueMessage(xml);
     }
+
+    // Return the value of a property.
+    // throw if the vector or the property does not exists
+    getPropertyValue(name) {
+        var vecDef = this.getExistingVectorInTree();
+        if (!has(vecDef.childs, name)) {
+            throw new Error("Property not found: " + this.device + "/" + this.vectorId + "/" + name);
+        }
+        var prop = vecDef.childs[name];
+        return prop.$_;
+    }
+
+    getPropertyValueIfExists(name) {
+        var vecDef = this.getVectorInTree();
+        if (vecDef === null) return null;
+        if (!has(vecDef.childs, name)) {
+            return null;
+        }
+        var prop = vecDef.childs[name];
+        return prop.$_;
+    }
+}
+
+
+class Device {
+
+    constructor(connection, device) {
+        this.connection = connection;
+        this.device = device;
+    }
+
+    getDeviceInTree()
+    {
+        if (!has(this.connection.deviceTree, this.device))
+        {
+            throw "Device not found: " + this.device;
+        }
+            
+        return this.connection.deviceTree[this.device];
+    }
+
+    getVector(vectorId)
+    {
+        var devProps = this.getDeviceInTree();
+        return new Vector(this.connection, this.device, vectorId);
+    }
+
+
+    // getProperty(property, name)
+    // {
+    //     var devProps = this.getDeviceInTree(this.device);
+
+    //     if (!has(devProps, property)) {
+    //         return null;
+    //     }
+    //     var prop = devProps[property];
+    //     if (!has(prop.childs, name)) {
+    //         return null;
+    //     }
+
+    //     return prop.childs[name];
+    // }
+
+    // getPropertyValue(property, name)
+    // {
+    //     var property = this.getProperty( property, name);
+    //     if (property == null) return null;
+    //     return property.$_;
+    // }
+
 
 }
 
@@ -202,7 +256,7 @@ class IndiConnection {
             self.checkListeners();
         })
         this.connected = false;
-        socket.connect(7624, '127.0.0.1'); 
+        socket.connect(7624, '127.0.0.1');
     }
 
     flushQueue() {
@@ -237,11 +291,12 @@ class IndiConnection {
     // Return a Promises.Cancelable that wait until the predicate is true
     // will be checked after every indi event
     // allowDisconnectionState: if true, predicate will be checked event after disconnection
+    // The predicate will receive the promise input.
     wait(predicate, allowDisconnectionState) {
         const self = this;
 
         return new Promises.Cancelable(
-            function(next) {
+            function(next, input) {
                 var listener = undefined;
 
                 function dettach()
@@ -261,13 +316,14 @@ class IndiConnection {
                     next.error('Indi server disconnected');
                     return;
                 }
-                if (!predicate()) {
+                var result = predicate(input);
+                if (!result) {
                     console.log('predicate false');
                     listener = function() {
                         if (!next.isActive()) return;
                         var result;
                         try {
-                            result = predicate();
+                            result = predicate(input);
                             if (!result) {
                                 console.log('predicate still false');
                                 return;
@@ -482,37 +538,28 @@ function demo() {
 
     var shoot = new Promises.Chain(
         connection.wait(function() {
-            var status = connection.getPropertyValue("CCD Simulator", 'CONNECTION', 'CONNECT');
+            var status = connection.getDevice("CCD Simulator").getVector('CONNECTION').getPropertyValueIfExists('CONNECT');
             console.log('Status is : ' + status);
             if (status != 'On') return false;
 
-            return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
+            return connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").getPropertyValueIfExists("CCD_EXPOSURE_VALUE") !== null;
         }),
 
         new Promises.Immediate(() => {
             console.log('Connection established');
-            connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
-            connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
-            console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
+            connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues({name: "CCD_EXPOSURE_VALUE", value: 10});
         }),
 
         connection.wait(function() {
             console.log('Waiting for exposure end');
-            var vector = connection.getVector("CCD Simulator", "CCD_EXPOSURE");
-            if (vector == null) {
-                throw "CCD_EXPOSURE disappeared";
-            }
-
-            if (vector.$state == "Busy") {
+            var vector = connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE");
+            if (vector.getState() == "Busy") {
                 return false;
             }
 
-            var value = connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE");
-            if (value == null) {
-                throw "CCD_EXPOSURE_VALUE disappered";
-            }
+            var value = vector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
-            return (value.$_ == 0);
+            return (value == 0);
         })
     );
 

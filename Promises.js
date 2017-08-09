@@ -380,4 +380,16 @@ class Builder extends Cancelable {
 }
 
 
-module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop};
+// Recognize func and call them with arg
+// Otherwise, use value as is
+function dynValue(o, arg)
+{
+    if (o instanceof Function) {
+        return o(arg);
+    }
+    return o;
+
+}
+
+
+module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, dynValue};

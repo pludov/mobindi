@@ -86,48 +86,64 @@ class Camera {
         });
     }
 
-    $api_shoot(message, progress) {
-        var self = this;
+
+    // Return a promise to shoot at the given camera (where)
+    shoot(device)
+    {
         var connection;
-        var dev;
-
+        var self = this;
         return new Promises.Chain(
+            // Set the binning - FIXME if prop is present only
+            this.indiManager.setParam(device, 'CCD_BINNING', 
+                    () => ({
+                        HOR_BIN: self.currentStatus.currentSettings.bin, 
+                        VER_BIN: self.currentStatus.currentSettings.bin})),
+            // Set the upload mode to at least upload_client
+            this.indiManager.setParam(device, 'UPLOAD_MODE',
+                    (vec) => {
+                        if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') == 'On') {
+                            console.log('want upload_client\n');
+                            return {
+                                UPLOAD_BOTH: 'On'
+                            }
+                        } else {
+                            return ({});
+                        }
+                    }),
 
-            new Promises.Immediate(function() {
+            // Use a builder to ensure that connection is initialised when used
+            new Promises.Builder(() => {
                 connection = self.indiManager.connection;
                 if (connection == undefined) {
                     throw "Indi server not connected";
                 }
-                dev = connection.getDevice(message.data.dev);
+                var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
-                dev.setVectorValues('CCD_EXPOSURE', [{name: 'CCD_EXPOSURE_VALUE', value: 5 }]);
-            }),
-
-            // Use a builder to ensure that connection is initialised when used
-            new Promises.Builder(() => (
-                connection.wait(function() {
+                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: self.currentStatus.currentSettings.exp }]);
+                return connection.wait(function() {
                     console.log('Waiting for exposure end');
-                    var vector = dev.getVector("CCD_EXPOSURE");
-                    if (vector == null) {
-                        throw "CCD_EXPOSURE disappeared";
-                    }
-
-                    if (vector.$state == "Busy") {
+                    if (expVector.getState() == "Busy") {
                         return false;
                     }
 
-                    var value = dev.getProperty("CCD_EXPOSURE", "CCD_EXPOSURE_VALUE");
-                    if (value == null) {
-                        throw "CCD_EXPOSURE_VALUE disappered";
-                    }
+                    var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
-                    return (value.$_ == 0);
-                }))),
+                    return (value == "0");
+                })
+            }),
 
             new Promises.Immediate(function() {
-                return ({path: dev.getPropertyValue("CCD_FILE_PATH", "FILE_PATH")});
+                return ({path: connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH")});
             })
         );
+
+    }
+
+    $api_shoot(message, progress) {
+        var self = this;
+        
+        return this.shoot(this.currentStatus.selectedDevice);
+        
     }
 }
 

@@ -37,9 +37,9 @@ const CameraBinSelector = connect((store, ownProps) => {
         $minx: atPath(desc, ['childs', 'HOR_BIN', '$min']),
         $maxx: atPath(desc, ['childs', 'HOR_BIN', '$max']),
         $stepx: atPath(desc, ['childs', 'HOR_BIN', '$step']),
-        $miny: atPath(desc, ['childs', 'HOR_BIN', '$min']),
-        $maxy: atPath(desc, ['childs', 'HOR_BIN', '$max']),
-        $stepy: atPath(desc, ['childs', 'HOR_BIN', '$step']),
+        $miny: atPath(desc, ['childs', 'VER_BIN', '$min']),
+        $maxy: atPath(desc, ['childs', 'VER_BIN', '$max']),
+        $stepy: atPath(desc, ['childs', 'VER_BIN', '$step']),
     });
 })(PromiseSelector)
 
