@@ -42,6 +42,16 @@ class Phd {
             new Promises.Loop(
                 new Promises.Chain(
                     new Promises.Cancelable(function(next) {
+                        next.setCancelFunc(() => {
+                            if (self.client != undefined) {
+                                try {
+                                    self.client.close();
+                                } catch(e) {
+                                    console.log('Failed to close', e);
+                                }
+                            }
+                        });
+
                         self.stepUid = 0;
                         self.clientData = "";
                         self.client = new net.Socket();
@@ -80,14 +90,6 @@ class Phd {
                             console.log('Connected to phd');
                         });
 
-                    }, function(next) {
-                        if (self.client != undefined) {
-                            try {
-                                self.client.close();
-                            } catch(e) {
-                                console.log('Failed to close', e);
-                            }
-                        }
                     }),
                     new Promises.Sleep(1000)
                 )
@@ -265,6 +267,7 @@ class Phd {
 
 
     // Return a promise that send the order (generator) and waits for a result
+    // Not cancelable
     sendOrder(dataProvider) {
         var self = this;
 

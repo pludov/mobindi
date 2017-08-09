@@ -239,19 +239,24 @@ class IndiConnection {
     // allowDisconnectionState: if true, predicate will be checked event after disconnection
     wait(predicate, allowDisconnectionState) {
         const self = this;
-        var listener;
-
-        function dettach()
-        {
-            if (listener != undefined) {
-                self.removeListener(listener);
-                listener = undefined;
-            }
-        }
 
         return new Promises.Cancelable(
             function(next) {
-                listener = undefined;
+                var listener = undefined;
+
+                function dettach()
+                {
+                    if (listener != undefined) {
+                        self.removeListener(listener);
+                        listener = undefined;
+                    }
+                }
+
+                next.setCancelFunc(() => {
+                    dettach();
+                    next.cancel();
+                });
+
                 if (self.dead && !allowDisconnectionState) {
                     next.error('Indi server disconnected');
                     return;
@@ -280,14 +285,10 @@ class IndiConnection {
                     console.log('predicate true');
                     next.done(result);
                 }
-            },
-            function(next) {
-                dettach();
-                next.cancel();
             }
         );
     }
-    
+
     addListener(f)
     {
         this.listeners.push(f);
@@ -488,12 +489,11 @@ function demo() {
             return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
         }),
 
-        new Promises.Cancelable(function(next) {
+        new Promises.Immediate(() => {
             console.log('Connection established');
             connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
             connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
             console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
-            next.done();
         }),
 
         connection.wait(function() {
