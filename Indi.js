@@ -329,6 +329,7 @@ class IndiConnection {
                                 return;
                             }
                         } catch(e) {
+                            dettach();
                             next.error(e);
                             return;
                         }
@@ -501,7 +502,7 @@ class IndiConnection {
             if (message.$message != undefined) {
                 prop.$message = message.$message;
             }
-                        
+
             var updates = message['one' + kind];
             if (updates == undefined) {
                 console.warn('Wrong one' + kind + ' in: ' + JSON.stringify(message, null, 2));
