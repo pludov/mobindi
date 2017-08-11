@@ -909,7 +909,12 @@ function applyDiff(from, diff) {
         from = {};
     } else if (has(diff, 'update')) {
         updateProps = diff.update;
-        from = Object.assign({}, from);
+        if (Array.isArray(from)) {
+            from = from.slice(0,0);
+        } else {
+            from = Object.assign({}, from);
+        }
+
         if (has(diff, 'delete')) {
             var toDelete = diff.delete;
             for(var i = 0; i < toDelete.length; ++i) {
