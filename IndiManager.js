@@ -181,6 +181,15 @@ class IndiManager {
         );
     }
 
+    getValidConnection()
+    {
+        var connection = this.connection;
+        if (connection === undefined) {
+            throw new Error("Indi server not connected");
+        }
+        return this.connection;
+    }
+
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
@@ -189,10 +198,7 @@ class IndiManager {
         var self = this;
         return new Promises.Builder((e)=>
         {
-            var connection = self.connection;
-            if (connection === undefined) {
-                throw new Error("Indi server not connected");
-            }
+            var connection = self.getValidConnection();
             var devId = Promises.dynValue(device);
             
             var dev = connection.getDevice(devId);
@@ -244,12 +250,8 @@ class IndiManager {
     $api_setProperty(message, progress)
     {
         return new Promises.Immediate(() => {
-            if (this.connection == undefined) {
-                throw "not connected";
-            } else {
-                var dev = this.connection.getDevice(message.data.dev);
-                dev.getVector(message.data.vec).setValues( message.data.children);
-            }
+            var dev = this.getValidConnection().getDevice(message.data.dev);
+            dev.getVector(message.data.vec).setValues( message.data.children);
         });
     }
 

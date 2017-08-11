@@ -104,6 +104,10 @@ class Vector {
         return rslt;
     }
 
+    exists() {
+        return this.getVectorInTree() !== null;
+    }
+
     // Throw device disconnected
     getState() {
         return this.getExistingVectorInTree().$state;
@@ -173,7 +177,6 @@ class Device {
 
     getVector(vectorId)
     {
-        var devProps = this.getDeviceInTree();
         return new Vector(this.connection, this.device, vectorId);
     }
 

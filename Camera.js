@@ -94,10 +94,11 @@ class Camera {
         var self = this;
         return new Promises.Chain(
             // Set the binning - FIXME if prop is present only
-            this.indiManager.setParam(device, 'CCD_BINNING', 
+            new Promises.Conditional(() => (this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists()),
+                this.indiManager.setParam(device, 'CCD_BINNING',
                     () => ({
-                        HOR_BIN: self.currentStatus.currentSettings.bin, 
-                        VER_BIN: self.currentStatus.currentSettings.bin})),
+                        HOR_BIN: self.currentStatus.currentSettings.bin,
+                        VER_BIN: self.currentStatus.currentSettings.bin}))),
             // Set the upload mode to at least upload_client
             this.indiManager.setParam(device, 'UPLOAD_MODE',
                     (vec) => {
@@ -122,8 +123,12 @@ class Camera {
                 expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: self.currentStatus.currentSettings.exp }]);
                 return connection.wait(function() {
                     console.log('Waiting for exposure end');
-                    if (expVector.getState() == "Busy") {
+                    var state = expVector.getState();
+                    if (state == "Busy") {
                         return false;
+                    }
+                    if (state != "Ok" && state != "Idle") {
+                        throw "Exposure failed";
                     }
 
                     var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");

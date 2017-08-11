@@ -317,6 +317,37 @@ class Loop extends Cancelable {
     }
 }
 
+// Receive the result of previous in callback argument
+// If the callback returns an object, it is expected to be:
+//  { perform: true/false, result: object }
+class Conditional extends Cancelable {
+    constructor(cond, promise)
+    {
+        var next;
+        promise.then(function(rslt) {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.done(rslt);
+            }
+        });
+        promise.onError((e)=> { next.error(e); });
+        promise.onCancel(() => { next.cancel(); });
+        super(function(n, arg) {
+            next = n;
+            var condResult = cond(arg);
+            if (!(typeof(condResult) == "object")) {
+                condResult={perform: condResult};
+            }
+            if (condResult.perform) {
+                promise.start(condResult.result);
+            } else {
+                next.done(condResult.result);
+            }
+        });
+    }
+}
+
 /** A promise that always runs immediately */
 class Immediate extends Cancelable {
     constructor(f) {
@@ -392,4 +423,4 @@ function dynValue(o, arg)
 }
 
 
-module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, dynValue};
+module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
