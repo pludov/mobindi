@@ -51,7 +51,7 @@ class IndiManager {
         this.currentStatus = this.appStateManager.getTarget().indiManager;
 
         this.initConfiguration('indiManager', {
-            driverPath: '/usr/share/indi/'
+            driverPath: '/usr/share/indi/,/opt/share/indi/'
         });
 
         // List configuration settings
@@ -91,10 +91,11 @@ class IndiManager {
 
     readDrivers()
     {
-        var path = this.appStateManager.getTarget().configuration.indiManager.driverPath;
+        var pathList = this.appStateManager.getTarget().configuration.indiManager.driverPath.split(',');
         
         var driverToGroup = {};
 
+        pathList.forEach((path)=>
         fs.readdirSync(path).filter(file => (file.match(/\.xml$/) && !file.match(/_sk\.xml$/))).forEach((file)=> {
             file = path + '/' + file;
             console.log('Found driver: ' + file);
@@ -124,7 +125,7 @@ class IndiManager {
             } catch(e) {
                 console.log('Unable to parse ' + file, e.stack || e);
             }
-        });
+        }));
 
         this.currentStatus.driverToGroup = driverToGroup;
     }
