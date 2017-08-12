@@ -5,6 +5,9 @@
 
 const TraceError = require('trace-error');
 
+
+function noop() {};
+
 /**
  * CancelablePromise exports
  *
@@ -27,19 +30,21 @@ const TraceError = require('trace-error');
  *          next.error(e)       must be called once (error, cancel and done are exclusive)
  *          next.cancel()       must be called once, only if next.cancelationPending() is true (error, cancel and done are exclusive)
  *          next.isActive()     either done, error or cancel has already been called ?
+ *          next.setCancelFunc() set the function to call for cancelation (null if not supported)
  *          next.cancelationPending() time to call next.cancel() ?
  */
 class Cancelable {
     // FIXME: do cancel should be set by doStart.
-    constructor(doStart, doCancel) {
+    constructor(doStart, initialDoCancel) {
         // Allow for no cancel function (does nothing)
-        if (doCancel == undefined) doCancel = function() {};
+        if (initialDoCancel == undefined || initialDoCancel == null) initialDoCancel = noop;
 
         var self = this;
         var onDoneList = [];
         var onErrorList = [];
         var onCanceledList = [];
 
+        var doCancel = undefined;
         var done = false;
         var cancelRequested = false;
 
@@ -104,11 +109,15 @@ class Cancelable {
             },
             cancelationPending: function() {
                 return cancelRequested && !done;
+            },
+            setCancelFunc: function(f) {
+                doCancel = f;
             }
         }
 
         this.start = function() {
             done = false;
+            doCancel = noop;
             cancelRequested = false;
             try {
                 doStart(next, arguments[0]);
@@ -124,11 +133,7 @@ class Cancelable {
 
         // Quand cancel est appellé, on a seulement une garantie que onDone ou onCanceled va etre appellé
         // on ne sait pas lequel en fait.
-        this.cancel = function(onCancel) {
-            if (onCancel) {
-                onCanceledList.push(onCancel);
-            }
-
+        this.cancel = function() {
             if (done || cancelRequested) {
                 return this;
             }
@@ -183,6 +188,11 @@ class Timeout extends Cancelable {
 
         super(function (n) {
             next = n;
+
+            n.setCancelFunc(()=> {
+                cancelTimer();
+                promise.cancel();
+            })
             timedout = false;
             timeout = undefined;
 
@@ -192,9 +202,6 @@ class Timeout extends Cancelable {
                 promise.cancel();
             }, delay);
             promise.start();
-        }, function(n) {
-            cancelTimer();
-            promise.cancel();
         });
     }
 }
@@ -219,7 +226,11 @@ class Chain extends Cancelable {
                 if (current >= childs.length) {
                     next.done(rslt);
                 } else {
-                    startChild(rslt);
+                    if (next.cancelationPending()) {
+                        next.cancel();
+                    } else {
+                        startChild(rslt);
+                    }
                 }
             });
 
@@ -239,14 +250,15 @@ class Chain extends Cancelable {
 
         super(function(n, arg) {
             next = n;
+            n.setCancelFunc(() => {
+                childs[current].cancel();
+            })
             current = 0;
             if (childs.length == 0) {
                 next.done(arg);
                 return;
             }
             startChild(arg);
-        }, function(n) {
-            childs[current].cancel();
         })
     }
 }
@@ -263,13 +275,14 @@ class Sleep extends Cancelable {
         }
 
         super(function (next, arg) {
+            next.setCancelFunc(() => {
+                cancelTimer();
+                next.cancel();
+            });
             timeout = setTimeout(function() {
                 timeout = undefined;
                 next.done(arg);
             }, delay);
-        }, function(next) {
-            cancelTimer();
-            next.cancel();
         });
     }
 }
@@ -298,9 +311,39 @@ class Loop extends Cancelable {
         super(function(n, arg) {
             next = n;
             startArg = arg;
+            n.setCancelFunc(() => {repeat.cancel();});
             repeat.start(startArg);
-        }, function(c) {
-            repeat.cancel();
+        });
+    }
+}
+
+// Receive the result of previous in callback argument
+// If the callback returns an object, it is expected to be:
+//  { perform: true/false, result: object }
+class Conditional extends Cancelable {
+    constructor(cond, promise)
+    {
+        var next;
+        promise.then(function(rslt) {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.done(rslt);
+            }
+        });
+        promise.onError((e)=> { next.error(e); });
+        promise.onCancel(() => { next.cancel(); });
+        super(function(n, arg) {
+            next = n;
+            var condResult = cond(arg);
+            if (!(typeof(condResult) == "object")) {
+                condResult={perform: condResult};
+            }
+            if (condResult.perform) {
+                promise.start(condResult.result);
+            } else {
+                next.done(condResult.result);
+            }
         });
     }
 }
@@ -321,6 +364,11 @@ class ExecutePromise extends Cancelable {
         var child;
         super(function(next, arg) {
             child = arg;
+            next.setCancelFunc(() => {
+                var c = child;
+                child = undefined;
+                c.cancel();
+            });
             console.log('Received child: arg');
             if (arg == undefined) {
                 next.done();
@@ -331,15 +379,13 @@ class ExecutePromise extends Cancelable {
             arg.onCancel(() => { next.cancel(); });
             console.log('Starting child');
             arg.start();
-        }, function(next) {
-            var c = child;
-            child = undefined;
-            c.cancel();
         });
     }
 }
 
-/** Build the actual promise at last moment, using provider */
+/** Build the actual promise at last moment, using provider
+ * Assume that the builded promise is new and discarded thereafter. (no reusing)
+ */
 class Builder extends Cancelable {
     constructor(provider)
     {
@@ -350,18 +396,31 @@ class Builder extends Cancelable {
                 next.done();
                 return;
             }
+            next.setCancelFunc(() => {
+                var c = child;
+                child = undefined;
+                c.cancel();
+            });
             child.then((rslt) => { next.done(rslt); });
             child.onError((e) => { next.error(e); });
             child.onCancel(() => { next.cancel(); });
             console.log('Starting child');
             child.start();
-        }, function(next) {
-            var c = child;
-            child = undefined;
-            c.cancel();
         });
     }
 }
 
 
-module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop};
+// Recognize func and call them with arg
+// Otherwise, use value as is
+function dynValue(o, arg)
+{
+    if (o instanceof Function) {
+        return o(arg);
+    }
+    return o;
+
+}
+
+
+module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};

@@ -31,7 +31,9 @@ class Client {
     jsonListener() {
         // FIXME: Si la socket est pleine, abandonne (mais met un timer pour rééssai...)
         var patch = this.jsonProxy.diff(this.jsonSerial);
-        this.notify({type: 'update', status: "ok", diff: patch});
+        if (patch !== undefined) {
+            this.notify({type: 'update', status: "ok", diff: patch});
+        }
     }
 
     log(message) {
@@ -67,6 +69,9 @@ class Client {
         }
     }
     reply(data) {
+        // Ensure client view is up to date
+        this.jsonListener();
+
         if (this.socket != undefined) {
             console.log('Message to ' + this.uid + ':' + JSON.stringify(data));
             try {

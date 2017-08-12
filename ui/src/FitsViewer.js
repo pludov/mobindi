@@ -261,7 +261,7 @@ class JQImageDisplay {
             var zoom = 0;
             // deltaX => ignore
 
-            zoom = e.originalEvent.deltaY;
+            zoom = Math.sign(e.originalEvent.deltaY);
 
             zoom = Math.pow(2, -zoom / 8.0);
 
@@ -432,7 +432,7 @@ class FitsViewer extends PureComponent {
     }
 
     render() {
-        return(<div ref={el => this.el = el}/>);
+        return(<div className='FitsView' ref={el => this.el = el}/>);
     }
 
 }

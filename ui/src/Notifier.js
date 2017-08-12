@@ -165,6 +165,7 @@ class Notifier {
     // Returns a promise that will execute the request
     // Except an object with at least target and method property set
     // will call a $api_ method on server side
+    // Not cancelable
     sendRequest(content) {
         var self = this;
         return new Promises.Cancelable((next, arg) => {
@@ -313,10 +314,10 @@ class Notifier {
                                 request.next.done(data.result);
                                 break;
                             case 'canceled':
-                                request.next.onCancel();
+                                request.next.cancel();
                                 break;
                             default:
-                                request.next.onError(data.message);
+                                request.next.error(data.message);
                                 break;
                         }
 

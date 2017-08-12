@@ -9,3 +9,14 @@
     flex-grow: 1;
     flex-shrink: 1;
 }
+
+.FitsViewContainer {
+    position: relative;
+}
+.FitsView {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    top: 0px;
+    bottom: 0px;
+}

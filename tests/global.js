@@ -13,6 +13,12 @@ testrunner.run({
 });
 
 testrunner.run({
+    code: "JsonProxy.js",
+    tests: "tests/JsonProxySynchronizers.test.js"
+
+});
+
+testrunner.run({
     code: "Indi.js",
     tests: "tests/Indi.test.js"
 

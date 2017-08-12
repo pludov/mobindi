@@ -38,7 +38,7 @@ function has(obj, key) {
  * store for each property:
  *   * serial number
  *     * For final type (string, number, null) node the last "time" of assignment
- *     * For object/array, the time of creation of the object
+ *     * For object/array, the time of creation of the object. The serial of childs is always>= to the serial of parents
  *   * childSerial (on object/array)
  *     * The max(serial) of all childs
  *
@@ -94,6 +94,380 @@ function compatibleStorage(a, b) {
 }
 
 
+// Records all synchronizer listening for a node path
+// Two instances kinds:
+//   - nodes (callback === undefined)
+//   - final (callback != undefined), found in a node.listeners
+class SynchronizerTrigger {
+
+    constructor(cb) {
+        // The min of all childs (listeners, childsByProp, wildcardChilds)
+        this.minSerial = undefined;
+        this.minChildSerial = undefined;
+
+        // Pour les listeners qui sont en fait des callback
+        this.callback = cb;
+
+        // The wildcard node that created this node
+        // Valid for final and nodes in wildcardChilds
+        this.wildcardOrigin = undefined;
+
+        if (cb === undefined) {
+            // Tous les fils sont des SynchronizerTrigger aussi
+
+            // The listeners (all final)
+            this.listeners = [];
+            // The child nodes
+            this.childsByProp = {};
+            // A special node that get copie to every new child
+            this.wildcardChilds = [];
+
+            // List of properties known. Valid nodes within wildcardChilds
+            this.wildcardAppliedToChilds = undefined;
+        }
+    }
+
+    /**
+     * @param target clone into that
+     * @param content the actual data
+     * @param wildcardOrigin: wildcardChild that creates the callbacks
+     * @param forceInitialTrigger: true/false/null(means only for existing nodes)
+     */
+    cloneInto(target, content, wildcardOrigin, forceInitialTrigger) {
+        for(var o of this.listeners) {
+            var copy = new SynchronizerTrigger(o.callback);
+            copy.wildcardOrigin = wildcardOrigin;
+            copy.copySerialFromContent(content, forceInitialTrigger);
+            target.listeners.push(copy);
+        }
+
+        for(var childId of Object.keys(this.childsByProp)) {
+            var childContent = this.getContentChild(content, childId);
+            var childSynchronizerTrigger = this.childsByProp[childId];
+            childSynchronizerTrigger.cloneInto(target.getChild(childId),childContent, wildcardOrigin, forceInitialTrigger);
+        }
+
+        for(var wildcard of this.wildcardChilds) {
+
+            var wildcardCopy = new SynchronizerTrigger(undefined);
+            wildcardCopy.wildcardOrigin = wildcard;
+            wildcardCopy.wildcardAppliedToChilds = {};
+
+            target.wildcardChilds.push(wildcardCopy);
+
+            wildcard.cloneInto(wildcardCopy, undefined, wildcardOrigin, false);
+        }
+
+        target.updateMins();
+    }
+
+
+    getChild(propName) {
+        if (this.callback !== undefined) throw "getChild not available on final node";
+
+        if (!Object.prototype.hasOwnProperty.call(this.childsByProp, propName)) {
+            this.childsByProp[propName] = new SynchronizerTrigger();
+
+            this.childsByProp[propName].minSerial = this.minSerial;
+            this.childsByProp[propName].minChildSerial = this.minSerialValue;
+        }
+        return this.childsByProp[propName];
+    }
+
+    copySerialFromContent(content, forceInitialTrigger) {
+        if (forceInitialTrigger === null) {
+            forceInitialTrigger = content !== undefined;
+        }
+
+        if (forceInitialTrigger) {
+            this.minChildSerial = -1;
+            this.minSerial = -1;
+        } else if (content !== undefined) {
+            this.minChildSerial = content.childSerial;
+            this.minSerial = content.serial;
+        } else {
+            this.minChildSerial = undefined;
+            this.minSerial = undefined;
+        }
+    }
+
+    addToPath(parentContent, cb, path, startAt, forceInitialTrigger) {
+        if (forceInitialTrigger) {
+            this.minChildSerial = -1;
+            this.minSerial = -1;
+        }
+
+        if (startAt == path.length) {
+            // Add a listener
+            var nv = new SynchronizerTrigger(cb);
+            this.listeners.push(nv);
+            this.copySerialFromContent(parentContent, forceInitialTrigger);
+
+            return nv;
+        }
+        var step = path[startAt];
+        if (Array.isArray(step)) {
+            for(var o of step) {
+                if (!Array.isArray(o)) {
+                    throw new Error("invalid path in multi-path. Array of array");
+                }
+                this.addToPath(parentContent, cb, o, 0, forceInitialTrigger);
+            }
+            return;
+        }
+        // Wildcard
+        if (step === null || step === undefined) {
+            var wildcardChild = new SynchronizerTrigger();
+            wildcardChild.wildcardAppliedToChilds = {};
+            wildcardChild.addToPath(undefined, cb, path, startAt + 1, false);
+
+            for(var o of this.getContentChilds(parentContent)) {
+                // Create triggers that must trigger depending on forceInitialTrigger
+                wildcardChild.wildcardAppliedToChilds[o] = true;
+                wildcardChild.cloneInto(this.getChild(o), this.getContentChild(parentContent, o), wildcardChild, forceInitialTrigger);
+            }
+
+            this.wildcardChilds.push(wildcardChild);
+
+            return;
+        }
+        // named child
+        var childContent = this.getContentChild(parentContent, step);
+        this.getChild(step).addToPath(childContent, cb, path, startAt + 1, forceInitialTrigger);
+    }
+
+    updateMin(prop) {
+        var realMin = undefined;
+        for(var listener of this.listeners) {
+            var lval = listener[prop];
+            if (lval === undefined) continue;
+            if ((realMin === undefined || ((lval !== undefined) && (lval < realMin)))) {
+                realMin = lval;
+            }
+        }
+        for(var lid of Object.keys(this.childsByProp)) {
+            var listener = this.childsByProp[lid];
+            var lval = listener[prop];
+            if (lval === undefined) continue;
+            if ((realMin === undefined || ((lval !== undefined) && (lval < realMin)))) {
+                realMin = lval;
+            }
+        }
+        this[prop] = realMin;
+
+    }
+
+    updateMins() {
+        this.updateMin('minSerial');
+        this.updateMin('minChildSerial');
+    }
+
+    getContentChilds(content) {
+        if (content == undefined) {
+            return [];
+        }
+        var contentObj = content.value;
+        if (contentObj === null || (typeof(contentObj) != 'object')) {
+            return [];
+        } else {
+            return Object.keys(contentObj);
+        }
+    }
+
+    getContentChild(content, childId) {
+        var childContent;
+        if (content === undefined) {
+            childContent = undefined;
+        } else {
+            var contentObj = content.value;
+            if (contentObj === null || (typeof(contentObj) != 'object')) {
+                childContent = undefined;
+            } else if (!Object.prototype.hasOwnProperty.call(contentObj, childId)) {
+                childContent = undefined;
+            } else {
+                childContent = contentObj[childId];
+            }
+        }
+        return childContent;
+    }
+
+    getInstalledCallbackCount(cb) {
+        return this.getInstalledCallbacks(cb).length;
+    }
+
+    getInstalledCallbacks(cb) {
+        var result = [];
+        for(var o of this.listeners) {
+            if (o.callback === cb) {
+                result.push('');
+            }
+        }
+        for(var key of Object.keys(this.childsByProp)) {
+            for(var path of this.childsByProp[key].getInstalledCallbacks(cb))
+            {
+                result.push(key + '/' + path);
+            }
+        }
+        return result;
+    }
+
+    getEmptyPath() {
+        var result = [];
+
+        for (var k of Object.keys(this.childsByProp)) {
+            for(var path of this.childsByProp[k].getEmptyPath()) {
+                result.push(k + "/" + path);
+            }
+        }
+        for (var w of this.wildcardChilds) {
+            for(var path of w.getEmptyPath()) {
+                result.push('*/' + path);
+            }
+        }
+        if (this.listeners.length || this.childsByProp.length || this.wildcardChilds.length) {
+            return [];
+        }
+        return [''];
+    }
+
+
+    // Put every newly ready callback into result.
+    // Update the minSerial/minChildSerial according
+    // return true when something was done
+    findReadyCallbacks(content, result) {
+        var contentSerial = content === undefined ? undefined : content.serial;
+        var contentChildSerial = content === undefined ? undefined : content.childSerial;
+
+        if ((contentSerial === this.minSerial)
+            && (contentChildSerial === this.minChildSerial))
+        {
+            return false;
+        }
+
+        var ret = false;
+        var changed = false;
+
+        if (this.callback !== undefined) {
+            this.minSerial = contentSerial;
+            this.minChildSerial = contentChildSerial;
+            if (!this.callback.pending) {
+                this.callback.pending = true;
+                result.push(this.callback);
+            }
+            ret = true;
+        } else {
+            // Direct calls to listeners
+            for (var o of this.listeners) {
+                var beforeSerial = o.serial;
+                var beforeChildSerial = o.childSerial;
+
+                if (o.findReadyCallbacks(content, result)) {
+                    ret = true;
+                }
+            }
+
+            for(var wildcardChild of this.wildcardChilds) {
+                // Ensure that all childs exists where template applied
+                // FIXME: use serial and childSerial
+                for(var o of this.getContentChilds(content)) {
+                    // Create triggers that must trigger if key exists
+                    if (!Object.prototype.hasOwnProperty.call(wildcardChild.wildcardAppliedToChilds, o)) {
+                        wildcardChild.wildcardAppliedToChilds[o] = true;
+                        wildcardChild.cloneInto(this.getChild(o), this.getContentChild(content, o), wildcardChild, null);
+                    }
+                }
+            }
+
+            // Calls to childs
+            for (var childId of Object.keys(this.childsByProp)) {
+                var childContent = this.getContentChild(content, childId);
+
+                var childSynchronizerTrigger = this.childsByProp[childId];
+                if (childSynchronizerTrigger.findReadyCallbacks(childContent, result)) {
+                    ret = true;
+                }
+
+                // FIXME: will be done for each run - use serial for wildcards ?
+                if (childContent === undefined) {
+                    // Deinstanciate every wildcard
+                    for(var wildcard of this.wildcardChilds) {
+                        if (Object.prototype.hasOwnProperty.call(wildcard.wildcardAppliedToChilds, childId)) {
+
+                            var wildcardChanged = childSynchronizerTrigger.removeFromWildcard(wildcard);
+
+                            delete wildcard.wildcardAppliedToChilds[childId];
+
+                            // Adjust serial required ?
+                            changed |= wildcardChanged;
+
+                            // Nothing left. probably done with wildcardChilds !
+                            if (wildcardChanged == 2) {
+                                delete this.childsByProp[childId];
+                                // Could break, but continue in case of empty wildcard
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            if (ret || changed) {
+                this.updateMins();
+            }
+        }
+
+        return ret;
+    }
+
+    // 0: nothing changed
+    // 1 : changed but not empty
+    // 2 : changed and became empty
+    removeFromWildcard(originToRemove) {
+        var isEmpty = true;
+        var sthChanged = false;
+        for(var i = 0; i < this.listeners.length; ) {
+            if (this.listeners[i].wildcardOrigin == originToRemove) {
+                this.listeners[i] = this.listeners[this.listeners.length - 1];
+                this.listeners.splice(-1, 1);
+                sthChanged = true;
+            } else {
+                i++;
+                isEmpty = false;
+            }
+        }
+
+        for(var o of Object.keys(this.childsByProp)) {
+            var child =  this.childsByProp[o];
+            var childRemoveResult = child.removeFromWildcard(originToRemove);
+            if (childRemoveResult) {
+                sthChanged = true;
+                if (childRemoveResult == 2) {
+                    delete this.childsByProp[o];
+                } else {
+                    isEmpty = false;
+                }
+            } else {
+                isEmpty = false;
+            }
+        }
+
+        for(var i = 0; i < this.wildcardChilds; ) {
+            if( this.wildcardChilds[i].wildcardOrigin == originToRemove) {
+                this.wildcardChilds[i] = this.wildcardChilds[this.wildcardChilds.length - 1];
+                this.wildcardChilds.splice(-1, 1);
+                sthChanged = true;
+            } else {
+                i++;
+                isEmpty = false;
+            }
+        }
+        if (isEmpty) {
+            return 2;
+        }
+        return sthChanged ? 1 : 0;
+    }
+}
+
 class JsonProxy {
 
     newNode(parent, emptyValue) {
@@ -118,10 +492,11 @@ class JsonProxy {
     }
 
     notifyAll() {
+        this.flushSynchronizers();
         this.notifyPending = false;
 
         var toCall = Object.assign(this.listeners);
-        for (var k in toCall) {
+        for (var k of Object.keys(toCall)) {
             if (has(toCall, k) && has(this.listeners, k)) {
                 toCall[k]();
             }
@@ -134,6 +509,55 @@ class JsonProxy {
         var details = this.newNode(parent, emptyValue);
         this.toObjectNode(details);
         return details;
+    }
+
+
+    // Example: to be called on every change of the connected property in indiManager
+    // addSynchronizer({'indiManager':{deviceTree':{$@: {'CONNECTION':{'childs':{'CONNECT':{'$_': true}}}} )
+    // forceInitialTriggering
+    addSynchronizer(path, callback, forceInitialTrigger) {
+        if (this.currentSerialUsed) {
+            this.currentSerial++;
+            this.currentSerialUsed = false;
+        }
+        var listener = {
+            func: callback,
+            pending: false,
+            dead: false
+        };
+
+        this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger);
+
+        return listener;
+    }
+
+
+
+    // Call untils no more synchronizer is available
+    flushSynchronizers() {
+        do {
+            if (this.currentSerialUsed) {
+                this.currentSerial++;
+                this.currentSerialUsed = false;
+            }
+            var todoList = [];
+            var cb = this.synchronizerRoot.findReadyCallbacks(this.root, todoList);
+            if (!todoList.length) {
+                return;
+            }
+            for(var cb of todoList) {
+                // FIXME :check callback is not dead
+                if (cb.dead) {
+                    continue;
+                }
+                cb.pending = false;
+                cb.func();
+            }
+        } while(true);
+    }
+
+    removeSynchronizer(listener) {
+        throw new Error("not implemented");
     }
 
     addListener(listener) {
@@ -265,10 +689,10 @@ class JsonProxy {
         } else {
             // Assure que intoProxy contient bien toutes les propriété de from, ...
             // if (typeof intoProxy == 'array') throw new Error("Not implemented");
-            for(var k in from) {
+            for(var k of Object.keys(from)) {
                 intoProxy[k] = from[k];
             }
-            for(var k in intoProxy) {
+            for(var k of Object.keys(intoProxy)) {
                 if (!(k in from)) {
                     delete intoProxy[k];
                 }
@@ -287,6 +711,19 @@ class JsonProxy {
         this.root = this.newObjectNode(null, {})
         this.listeners = {};
         this.listenerId = 1;
+
+        this.synchronizerRoot = new SynchronizerTrigger();
+    }
+
+    // Store for each node in the path, the serial and the childSerial
+    takePathSnapshot(path) {
+        var result = [];
+        var at = this.root;
+        for(var i = 0; i <= path.length; ++i) {
+            path.push(at.serial);
+            path.push(at.childSerial);
+
+        }
     }
 
     takeSerialSnapshot()
@@ -305,7 +742,7 @@ class JsonProxy {
                     childSerial: desc.childSerial,
                     props: {}
                 };
-                for(var k in desc.value) {
+                for(var k of Object.keys(desc.value)) {
                     result.props[k] = forObject(desc.value[k]);
                 }
                 return result;
@@ -359,7 +796,7 @@ class JsonProxy {
 
                 // Find the properties to remove
                 var toDelete = [];
-                for (var key in objVersion.props) {
+                for (var key of Object.keys(objVersion.props)) {
                     if (has(objVersion.props, key)) {
                         if (!has(objDesc.value, key)) {
                             toDelete.push(key);
@@ -375,7 +812,7 @@ class JsonProxy {
                 }
             }
 
-            for(var key in objDesc.value) {
+            for(var key of Object.keys(objDesc.value)) {
                 if (has(objDesc.value, key)) {
                     // Verifier la prop
                     var propObjDesc = objDesc.value[key];
@@ -472,7 +909,12 @@ function applyDiff(from, diff) {
         from = {};
     } else if (has(diff, 'update')) {
         updateProps = diff.update;
-        from = Object.assign({}, from);
+        if (Array.isArray(from)) {
+            from = from.slice(0,0);
+        } else {
+            from = Object.assign({}, from);
+        }
+
         if (has(diff, 'delete')) {
             var toDelete = diff.delete;
             for(var i = 0; i < toDelete.length; ++i) {
@@ -482,7 +924,7 @@ function applyDiff(from, diff) {
     }
 
     if (updateProps != undefined) {
-        for(var k in updateProps) {
+        for(var k of Object.keys(updateProps)) {
             if (has(updateProps, k)) {
                 from[k] = applyDiff(has(from, k) ? from[k] : undefined, updateProps[k]);
             }

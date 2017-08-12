@@ -352,6 +352,33 @@ test("Streaming replication", function(assert) {
     previousData = checkConst(data);
 
 
+    STEP = "array splice";
+
+    root.d.splice(0, 1);
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {d: {update: {0:"b"}, delete: ["1"]}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+    STEP = "array insert";
+
+    root.d.splice(0, 0, "a is back");
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {d: {update: {0:"a is back", 1:"b"}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+
 
     STEP = "prop delete";
 
@@ -398,3 +425,4 @@ test("Streaming replication", function(assert) {
 
 
 });
+

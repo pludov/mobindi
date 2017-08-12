@@ -1,8 +1,17 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import FitsViewer from './FitsViewer';
+import PromiseSelector from './PromiseSelector';
+import CameraSettingsView from './CameraSettingsView';
 import './CameraView.css'
+
+
+const CameraSelector = connect((store)=> ({
+            active: store.backend.camera.selectedDevice,
+            availables: store.backend.camera.availableDevices
+}))(PromiseSelector);
 
 class CameraView extends PureComponent {
 
@@ -14,12 +23,23 @@ class CameraView extends PureComponent {
     }
 
     render() {
+        //var self = this;
         return(<div className="CameraView">
-            <div className="FitsViewer">
+            <div>
+                <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
+            </div>
+            <CameraSettingsView
+                settingsPath={'backend/camera/currentSettings'.split('/')}
+                activePath={'backend/camera/selectedDevice'.split('/')}
+                setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
+                />
+            <div className="FitsViewer FitsViewContainer">
                 <FitsViewer src={this.state.url}/>
             </div>
-            <input type="button" onClick={this.shoot} value="Shoot"/>
-            <input type="button" onClick={this.next} value="next"/>
+            <div className="ButtonBar">
+                <input type="button" onClick={this.shoot} value="Shoot"/>
+                <input type="button" onClick={this.next} value="next"/>
+            </div>
         </div>);
     }
 
@@ -40,6 +60,7 @@ class CameraView extends PureComponent {
     next() {
         this.setState({url: this.state.url != 'test.jpg' ? 'test.jpg' : 'http://127.0.0.1:18080/plop.png'});
     }
+
 }
 
 

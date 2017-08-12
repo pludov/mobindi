@@ -2,11 +2,9 @@
 
 const xmlbuilder = require('xmlbuilder');
 const net = require('net');
-const sax = require('sax');
 
 const Promises = require('./Promises');
-
-
+const Xml2JSONParser = require('./Xml2JSONParser.js');
 
 const schema = {
       
@@ -79,63 +77,51 @@ function has(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-class Device {
-
-    constructor(connection, device) {
+class Vector {
+    constructor(connection, device, vectorId) {
         this.connection = connection;
         this.device = device;
+        this.vectorId = vectorId;
     }
 
-    getVector(property)
+    getVectorInTree()
     {
-        var devProps = this.connection.getDeviceInTree(this.device);
-        if (!has(devProps, property)) {
+        if (!has(this.connection.deviceTree, this.device))
+        {
             return null;
         }
-        return devProps[property];
+        var dev = this.connection.deviceTree[this.device];
+        if (!has(dev, this.vectorId)) {
+            return null;
+        }
+        return dev[this.vectorId];
     }
 
-
-    getProperty(property, name)
+    getExistingVectorInTree()
     {
-        var devProps = this.connection.getDeviceInTree(this.device);
-
-        if (!has(devProps, property)) {
-            return null;
-        }
-        var prop = devProps[property];
-        if (!has(prop.childs, name)) {
-            return null;
-        }
-
-        return prop.childs[name];
+        var rslt = this.getVectorInTree();
+        if (rslt === null) throw new Error("Property not found: " + this.device + "/" + this.vectorId);
+        return rslt;
     }
 
-    getPropertyValue(device, property, name)
-    {
-        var property = this.getProperty(device, property, name);
-        if (property == null) return null;
-        return property.$_;
+    exists() {
+        return this.getVectorInTree() !== null;
+    }
+
+    // Throw device disconnected
+    getState() {
+        return this.getExistingVectorInTree().$state;
     }
 
     // affectation is an array of {name:key, value:value}
-    // Vector is switched to busy
-    setVectorValues(vec, affectations) {
-        var devProps = this.connection.getDeviceInTree(this.device);
-        if (devProps == null) {
-            throw new Error("Device " + this.device + " not found");
-        }
-
-        if (!has(devProps, vec)) {
-            throw new Error("Vector " + vec + " not found");
-        }
-
-        var vecDef = devProps[vec];
-
+    // Vector is switched to busy immediately
+    setValues(affectations) {
+        console.log('Received affectations: ' + JSON.stringify(affectations));
+        var vecDef = this.getExistingVectorInTree(this.device);
         var msg = {
             $$: 'new' + vecDef.$type + 'Vector',
             $device: this.device,
-            $name: vec,
+            $name: this.vectorId,
             ['one' + vecDef.$type]: affectations.map(item => {
                 return {
                     $name: item.name,
@@ -148,6 +134,75 @@ class Device {
         var xml = this.connection.toXml(msg)
         this.connection.queueMessage(xml);
     }
+
+    // Return the value of a property.
+    // throw if the vector or the property does not exists
+    getPropertyValue(name) {
+        var vecDef = this.getExistingVectorInTree();
+        if (!has(vecDef.childs, name)) {
+            throw new Error("Property not found: " + this.device + "/" + this.vectorId + "/" + name);
+        }
+        var prop = vecDef.childs[name];
+        return prop.$_;
+    }
+
+    getPropertyValueIfExists(name) {
+        var vecDef = this.getVectorInTree();
+        if (vecDef === null) return null;
+        if (!has(vecDef.childs, name)) {
+            return null;
+        }
+        var prop = vecDef.childs[name];
+        return prop.$_;
+    }
+}
+
+
+class Device {
+
+    constructor(connection, device) {
+        this.connection = connection;
+        this.device = device;
+    }
+
+    getDeviceInTree()
+    {
+        if (!has(this.connection.deviceTree, this.device))
+        {
+            throw "Device not found: " + this.device;
+        }
+            
+        return this.connection.deviceTree[this.device];
+    }
+
+    getVector(vectorId)
+    {
+        return new Vector(this.connection, this.device, vectorId);
+    }
+
+
+    // getProperty(property, name)
+    // {
+    //     var devProps = this.getDeviceInTree(this.device);
+
+    //     if (!has(devProps, property)) {
+    //         return null;
+    //     }
+    //     var prop = devProps[property];
+    //     if (!has(prop.childs, name)) {
+    //         return null;
+    //     }
+
+    //     return prop.childs[name];
+    // }
+
+    // getPropertyValue(property, name)
+    // {
+    //     var property = this.getProperty( property, name);
+    //     if (property == null) return null;
+    //     return property.$_;
+    // }
+
 
 }
 
@@ -204,7 +259,7 @@ class IndiConnection {
             self.checkListeners();
         })
         this.connected = false;
-        socket.connect(7624, '127.0.0.1'); 
+        socket.connect(7624, '127.0.0.1');
     }
 
     flushQueue() {
@@ -239,37 +294,45 @@ class IndiConnection {
     // Return a Promises.Cancelable that wait until the predicate is true
     // will be checked after every indi event
     // allowDisconnectionState: if true, predicate will be checked event after disconnection
+    // The predicate will receive the promise input.
     wait(predicate, allowDisconnectionState) {
         const self = this;
-        var listener;
-
-        function dettach()
-        {
-            if (listener != undefined) {
-                self.removeListener(listener);
-                listener = undefined;
-            }
-        }
 
         return new Promises.Cancelable(
-            function(next) {
-                listener = undefined;
+            function(next, input) {
+                var listener = undefined;
+
+                function dettach()
+                {
+                    if (listener != undefined) {
+                        self.removeListener(listener);
+                        listener = undefined;
+                    }
+                }
+
+                next.setCancelFunc(() => {
+                    dettach();
+                    next.cancel();
+                });
+
                 if (self.dead && !allowDisconnectionState) {
                     next.error('Indi server disconnected');
                     return;
                 }
-                if (!predicate()) {
+                var result = predicate(input);
+                if (!result) {
                     console.log('predicate false');
                     listener = function() {
                         if (!next.isActive()) return;
                         var result;
                         try {
-                            result = predicate();
+                            result = predicate(input);
                             if (!result) {
                                 console.log('predicate still false');
                                 return;
                             }
                         } catch(e) {
+                            dettach();
                             next.error(e);
                             return;
                         }
@@ -282,14 +345,10 @@ class IndiConnection {
                     console.log('predicate true');
                     next.done(result);
                 }
-            },
-            function(next) {
-                dettach();
-                next.cancel();
             }
         );
     }
-    
+
     addListener(f)
     {
         this.listeners.push(f);
@@ -365,80 +424,9 @@ class IndiConnection {
     }
 
     newParser(onMessage) {
+        var parser = Xml2JSONParser(schema, 2, onMessage);
+
         var self = this;
-        var parser = sax.parser(true)
-        var level = 2;
-        var currentNodes = [];
-        var currentSchemas = [];
-        var currentLevel = 0;
-
-        parser.onopentag = function (node) {
-            var name = node.name;
-            currentLevel++;
-            if (currentLevel >= level) {
-                var id = currentLevel - level;
-
-                if (id == 0) {
-                    currentSchemas[id] = schema[name];
-                } else {
-                    currentSchemas[id] = currentSchemas[id - 1][name];
-                }
-                if (currentSchemas[id] == undefined) {
-                    currentSchemas[id] = {};
-                }
-
-                var currentSchema = currentSchemas[id];
-                
-                var newNode = {};
-          
-                if (id == 0) {
-                    newNode.$$=name;
-                } else {
-                    if (currentSchema.$isArray) {
-                        currentNodes[id - 1][name].push(newNode);
-                    } else {
-                        currentNodes[id - 1][name] = newNode;
-                    }
-                }
-                for(var key in node.attributes) {
-                    newNode['$' + key] = node.attributes[key];
-                }
-          
-                for(var childId in currentSchema) {
-                    if (currentSchema[childId].$isArray) {
-                        newNode[childId] = [];
-                    }
-                }
-
-                currentNodes[id] = newNode;
-            }
-        };
-
-        parser.ontext = function(text) {
-            var id = currentLevel - level;
-            if (id >= 0) {
-                if (currentSchemas[id].$notext) {
-                    return;
-                }
-                // Hackish: trim but keep possibility to have \n
-                text = text.replace(/^\n/, '');
-                text = text.replace(/\n *$/, '');
-                currentNodes[id].$_ = text;
-            }
-        }
-
-        parser.onclosetag = function (name) {
-            currentLevel--;
-            if (currentLevel ==  level - 1) {
-                // End of current message
-                console.log('finished message parsing: ' + JSON.stringify(currentNodes[0]));
-                onMessage(currentNodes[0]);
-            }
-            if (currentLevel >= level - 1) {
-                delete currentNodes[currentLevel - (level - 1)];
-            }
-        };
-
 
         parser.onerror = function(e) {
             console.log('xml error: ' + e);
@@ -517,7 +505,7 @@ class IndiConnection {
             if (message.$message != undefined) {
                 prop.$message = message.$message;
             }
-                        
+
             var updates = message['one' + kind];
             if (updates == undefined) {
                 console.warn('Wrong one' + kind + ' in: ' + JSON.stringify(message, null, 2));
@@ -554,38 +542,28 @@ function demo() {
 
     var shoot = new Promises.Chain(
         connection.wait(function() {
-            var status = connection.getPropertyValue("CCD Simulator", 'CONNECTION', 'CONNECT');
+            var status = connection.getDevice("CCD Simulator").getVector('CONNECTION').getPropertyValueIfExists('CONNECT');
             console.log('Status is : ' + status);
             if (status != 'On') return false;
 
-            return connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE") != null;
+            return connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").getPropertyValueIfExists("CCD_EXPOSURE_VALUE") !== null;
         }),
 
-        new Promises.Cancelable(function(next) {
+        new Promises.Immediate(() => {
             console.log('Connection established');
-            connection.getVector("CCD Simulator", "CCD_EXPOSURE").$state = "Busy";
-            connection.queueMessage('<newNumberVector device="CCD Simulator" name="CCD_EXPOSURE"><oneNumber name="CCD_EXPOSURE_VALUE">10</oneNumber></newNumberVector>');
-            console.log('Initial exposure is :' + connection.getPropertyValue("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE"));
-            next.done();
+            connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues({name: "CCD_EXPOSURE_VALUE", value: 10});
         }),
 
         connection.wait(function() {
             console.log('Waiting for exposure end');
-            var vector = connection.getVector("CCD Simulator", "CCD_EXPOSURE");
-            if (vector == null) {
-                throw "CCD_EXPOSURE disappeared";
-            }
-
-            if (vector.$state == "Busy") {
+            var vector = connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE");
+            if (vector.getState() == "Busy") {
                 return false;
             }
 
-            var value = connection.getProperty("CCD Simulator", "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE");
-            if (value == null) {
-                throw "CCD_EXPOSURE_VALUE disappered";
-            }
+            var value = vector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
-            return (value.$_ == 0);
+            return (value == 0);
         })
     );
 
