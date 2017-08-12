@@ -30,6 +30,16 @@ else ()
   message(FATAL_ERROR "libpng not found")
 endif ()
 
+find_package(JPEG)
+if (JPEG_FOUND)
+  target_include_directories(fitsviewer.cgi PUBLIC ${JPEG_INCLUDE_DIR})
+  target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY})
+else ()
+  # Sinon, nous affichons un message
+  message(FATAL_ERROR "libjpeg not found")
+endif ()
+
+
 find_package(CFITSIO)
 
 if (CFITSIO_FOUND)
