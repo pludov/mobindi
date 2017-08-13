@@ -28,6 +28,15 @@ class BaseApp {
         });
     }
 
+    // Send a request to any server side app.
+    // Returns a promise that will execute the request
+    // Except an object with at least method property
+    // will call a $api_ method on server side
+    appServerRequest(appId, content) {
+        return notifier.sendRequest(Object.assign({'target': appId}, content));
+    }
+
+    // Send a request to the server side app counterpart
     // Returns a promise that will execute the request
     // Except an object with at least method property
     // will call a $api_ method on server side

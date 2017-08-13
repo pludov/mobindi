@@ -247,6 +247,68 @@ class IndiManager {
     }
 
 
+    connectDevice(deviceFn)
+    {
+        var self = this;
+
+        var device;
+        // Set connected to true, then wait for status, then load configuration
+        return new Promises.Chain(
+            new Promises.Conditional(() => {
+                    device = Promises.dynValue(deviceFn);
+                    var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
+                    if (!vector.isReadyForOrder()) {
+                        throw "Connection already pending";
+                    }
+                    var perform = vector.getPropertyValue('CONNECT') != 'On';
+                    if (perform) {
+                        console.log('Connecting: ' + device);
+                    }
+                    return perform;
+                },
+                new Promises.Chain(
+                    this.setParam(()=>(device), 'CONNECTION', () => ({CONNECT: "On"})),
+                    this.setParam(()=>(device), 'CONFIG_PROCESS', () => ({CONFIG_LOAD: "On"}))
+                )
+            )
+        );
+    }
+
+    disconnectDevice(deviceFn)
+    {
+        var self = this;
+
+        var device;
+        return new Promises.Chain(
+            new Promises.Conditional(() => {
+                    device = Promises.dynValue(deviceFn);
+                    var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
+                    if (!vector.isReadyForOrder()) {
+                        throw "Connection already pending";
+                    }
+                    var perform = vector.getPropertyValue('CONNECT') != 'Off';
+                    if (perform) {
+                        console.log('Connecting: ' + device);
+                    }
+                    return perform;
+                },
+                new Promises.Chain(
+                    this.setParam(()=>(device), 'CONNECTION', () => ({DISCONNECT: "On"}))
+                )
+            )
+        );
+    }
+
+    $api_connectDevice(message, progress)
+    {
+        return this.connectDevice(message.device);
+    }
+
+    $api_disconnectDevice(message, progress)
+    {
+        return this.disconnectDevice(message.device);
+    }
+
     $api_setProperty(message, progress)
     {
         return new Promises.Immediate(() => {

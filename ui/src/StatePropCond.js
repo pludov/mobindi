@@ -36,14 +36,12 @@ StatePropCond.exists = function(value) {
 }
 
 StatePropCond.defaultProps = {
-    truc: 'de ouf',
     condition: StatePropCond.exists
 }
 
 StatePropCond.propTypes = {
-    path: PropTypes.string.isRequired,
+    path: PropTypes.array.isRequired,
     condition: PropTypes.func,
-    truc: 'de ouf'
 }
 
 export default StatePropCond;

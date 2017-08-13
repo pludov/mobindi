@@ -57,9 +57,9 @@ class App extends Component {
         });
 
         this.apps = [
+            new CameraApp(this.storeManager),
             new PhdApp(this.storeManager),
-            new IndiManagerApp(this.storeManager),
-            new CameraApp(this.storeManager)
+            new IndiManagerApp(this.storeManager)
         ];
 
 

@@ -113,6 +113,12 @@ class Vector {
         return this.getExistingVectorInTree().$state;
     }
 
+    isReadyForOrder()
+    {
+        var state = this.getState();
+        return (state != "Busy");
+    }
+
     // affectation is an array of {name:key, value:value}
     // Vector is switched to busy immediately
     setValues(affectations) {

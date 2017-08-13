@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import FitsViewer from './FitsViewer';
 import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
+import DeviceConnectBton from './DeviceConnectBton';
 import './CameraView.css'
 
 
@@ -20,6 +21,7 @@ class CameraView extends PureComponent {
         this.state = {url: 'test.jpg'};
         this.next = this.next.bind(this);
         this.shoot = this.shoot.bind(this);
+        this.connect = this.connect.bind(this);
     }
 
     render() {
@@ -27,6 +29,9 @@ class CameraView extends PureComponent {
         return(<div className="CameraView">
             <div>
                 <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
+                <DeviceConnectBton
+                        activePath={'backend/camera/selectedDevice'.split('/')}
+                        app={this.props.app}/>
             </div>
             <CameraSettingsView
                 settingsPath={'backend/camera/currentSettings'.split('/')}
@@ -46,14 +51,21 @@ class CameraView extends PureComponent {
     shoot() {
         var self = this;
         this.props.app.serverRequest({
-            method: 'shoot',
-            data: {
-                dev: "CCD Simulator"
-            }
+            method: 'shoot'
         }).then((rslt)=>
         {
             console.log('got rslt:' + JSON.stringify(rslt));
             self.setState({url : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(rslt.path)});
+        }).start();
+    }
+
+    connect() {
+        var self = this;
+        this.props.app.serverRequest({
+            method: 'connect'
+        }).then((rslt)=>
+        {
+            console.log('got rslt:' + JSON.stringify(rslt));
         }).start();
     }
 
