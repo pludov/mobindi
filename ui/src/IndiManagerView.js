@@ -343,14 +343,6 @@ class IndiManagerView extends Component {
                 <div className="IndiPropertyView">
                     {vectors}
                 </div>
-
-
-
-
-                <div className="ButtonBar">
-                    <input type="button" value="Guide" />
-                    <input type="button" value="Stop" />
-                </div>
             </div>);
     }
 }
