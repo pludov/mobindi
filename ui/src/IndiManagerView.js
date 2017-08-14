@@ -227,9 +227,9 @@ class IndiVectorView extends PureComponent {
             content = this.props.childs.map((id) => <IndiPropertyView app={self.props.app} dev={self.props.dev}
                                                                       showVecLabel={this.props.childs.length == 1}
                                                                       onChange={changeCallbackForId(id)}
-                                                                      vec={self.props.vec} prop={id} key={id}/>);
+                                                                      vec={self.props.vec} prop={id} key={'child_' + id}/>);
             if (this.props.childs.length > 1) {
-                content.splice(0, 0, <div className="IndiVectorTitle">{this.props.label}</div>);
+                content.splice(0, 0, <div key='$$$title$$$' className="IndiVectorTitle">{this.props.label}</div>);
             }
         } else {
             content = <div className="IndiProperty">{this.props.label}></div>;
