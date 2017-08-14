@@ -16,6 +16,7 @@
     "express-session": "^1.15.2",
     "express-ws": "^3.0.0",
     "immutability-helper": "^2.3.0",
+    "jsonpath": "^0.2.12",
     "morgan": "~1.8.1",
     "nedb": "^1.8.0",
     "node-uuid": "^1.4.8",

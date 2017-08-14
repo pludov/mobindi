@@ -1,7 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
-import { atPath } from './shared/SimplePath';
+import { atPath } from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
 
 
@@ -42,8 +42,8 @@ const CameraExpEditor = connect((store, ownProps) => {
         active: atPath(store, ownProps.valuePath),
         availablesGenerator: ExpValueGenerator,
         getTitle: ExpTitle,
-        $min: atPath(desc, ['childs', 'CCD_EXPOSURE_VALUE', '$min']),
-        $max: atPath(desc, ['childs', 'CCD_EXPOSURE_VALUE', '$max'])
+        $min: atPath(desc, '$.childs.CCD_EXPOSURE_VALUE["$min"]'),
+        $max: atPath(desc, '$.childs.CCD_EXPOSURE_VALUE["$max"]'),
     });
 })(PromiseSelector)
 

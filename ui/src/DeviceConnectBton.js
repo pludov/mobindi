@@ -2,7 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import { atPath } from './shared/SimplePath';
+import { atPath } from './shared/JsonPath';
 
 // Display a connect/disconnect button for a device
 class DeviceConnectBton extends PureComponent {
@@ -35,7 +35,7 @@ class DeviceConnectBton extends PureComponent {
             enabled = false;
         }
 
-        return <input type="button" onClick={this.switchConnection} disable={!enabled} value={title}/>
+        return <input type="button" onClick={this.switchConnection} disabled={!enabled} value={title}/>
     }
 
     startPromise(t) {
@@ -104,7 +104,7 @@ DeviceConnectBton=connect(DeviceConnectBton.mapStateToProps)(DeviceConnectBton);
 
 
 DeviceConnectBton.propTypes = {
-    activePath: PropTypes.array.isRequired,
+    activePath: PropTypes.string.isRequired,
     app: PropTypes.any.isRequired
 }
 

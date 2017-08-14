@@ -29,12 +29,12 @@ class CameraView extends PureComponent {
             <div>
                 <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
                 <DeviceConnectBton
-                        activePath={'backend/camera/selectedDevice'.split('/')}
+                        activePath="$.backend.camera.selectedDevice"
                         app={this.props.app}/>
             </div>
             <CameraSettingsView
-                settingsPath={'backend/camera/currentSettings'.split('/')}
-                activePath={'backend/camera/selectedDevice'.split('/')}
+                settingsPath="$.backend.camera.currentSettings"
+                activePath="$.backend.camera.selectedDevice"
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <div className="FitsViewer FitsViewContainer">

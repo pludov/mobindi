@@ -1,9 +1,8 @@
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
-import { atPath } from './shared/SimplePath';
-
 import PropTypes from 'prop-types';
 
+import { atPath} from './shared/JsonPath';
 
 /* Render the child depending on a value in the store */
 class StatePropCond extends PureComponent {
@@ -40,7 +39,7 @@ StatePropCond.defaultProps = {
 }
 
 StatePropCond.propTypes = {
-    path: PropTypes.array.isRequired,
+    path: PropTypes.string.isRequired,
     condition: PropTypes.func,
 }
 
