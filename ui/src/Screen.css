@@ -67,5 +67,25 @@ input, button, select, option, textarea {
     margin: 0.5vw;
     collapse: true;
     padding: 1vw 2vw 1vw 2vw;
+    color: #000000;
 }
 
+select {
+    height: 2em;
+/*    border-width: 0.5vw;
+*/
+}
+
+input[type=button] {
+    height: 2em;
+    border-radius: 0.7vw;
+    border-width: 0.5vw;
+    background-color: #ccc;
+}
+input:disabled {
+    color: #808080
+}
+
+select {
+    max-width: 50vw;
+}

@@ -12,7 +12,9 @@
 
 .FitsViewContainer {
     position: relative;
+    border: 0.2vw solid grey;
 }
+
 .FitsView {
     position: absolute;
     left: 0px;
