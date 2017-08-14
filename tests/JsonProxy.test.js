@@ -379,6 +379,33 @@ test("Streaming replication", function(assert) {
     previousData = checkConst(data);
 
 
+    STEP = "array push (init)";
+    root.e = ['first'];
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {e: {newArray: {0:"first"}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+    STEP = "array push (push)";
+    root.e.push('second');
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {e: {update: {1:"second"}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
+
+
+
 
     STEP = "prop delete";
 

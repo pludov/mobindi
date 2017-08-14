@@ -910,15 +910,26 @@ function applyDiff(from, diff) {
     } else if (has(diff, 'update')) {
         updateProps = diff.update;
         if (Array.isArray(from)) {
-            from = from.slice(0,0);
+            from = from.slice();
         } else {
             from = Object.assign({}, from);
         }
 
         if (has(diff, 'delete')) {
             var toDelete = diff.delete;
-            for(var i = 0; i < toDelete.length; ++i) {
-                delete from[toDelete[i]];
+            if (Array.isArray(from)) {
+                var lowestDelete = from.length;
+                for(var i = 0; i < toDelete.length; ++i) {
+                    var id = parseInt(toDelete[i]);
+                    if (i == 0 || id < lowestDelete) {
+                        lowestDelete = id;
+                    }
+                }
+                from.splice(lowestDelete);
+            } else {
+                for(var i = 0; i < toDelete.length; ++i) {
+                    delete from[toDelete[i]];
+                }
             }
         }
     }
