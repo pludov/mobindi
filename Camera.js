@@ -93,12 +93,38 @@ class Camera {
         var connection;
         var self = this;
         return new Promises.Chain(
-            // Set the binning - FIXME if prop is present only
-            new Promises.Conditional(() => (this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists()),
+            // Set the binning - if prop is present only
+            new Promises.Conditional(() => (
+                                self.currentStatus.currentSettings.bin !== null
+                                && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists()),
                 this.indiManager.setParam(device, 'CCD_BINNING',
                     () => ({
                         HOR_BIN: self.currentStatus.currentSettings.bin,
                         VER_BIN: self.currentStatus.currentSettings.bin}))),
+            // Set the iso
+            new Promises.Conditional(() => (
+                                self.currentStatus.currentSettings.iso !== null
+                                && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()),
+                this.indiManager.setParam(device, 'CCD_ISO',
+                    (vec) => {
+                        vec = vec.getVectorInTree();
+                        var v = self.currentStatus.currentSettings.iso;
+                        var childToSet = undefined;
+                        console.log('WTF vec is ' + JSON.stringify(vec));
+                        for(var id of vec.childNames)
+                        {
+                            var child = vec.childs[id];
+                            if (child.$label == v) {
+                                childToSet = id;
+                                break;
+                            }
+                        }
+                        if (childToSet === undefined) throw new Error("Unsupported iso value: " + v);
+
+                        return ({[childToSet]: 'On'});
+                    }
+                )
+            ),
             // Set the upload mode to at least upload_client
             this.indiManager.setParam(device, 'UPLOAD_MODE',
                     (vec) => {
