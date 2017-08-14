@@ -92,40 +92,47 @@ class IndiManager {
     readDrivers()
     {
         var pathList = this.appStateManager.getTarget().configuration.indiManager.driverPath.split(',');
-        
+
         var driverToGroup = {};
 
-        pathList.forEach((path)=>
-        fs.readdirSync(path).filter(file => (file.match(/\.xml$/) && !file.match(/_sk\.xml$/))).forEach((file)=> {
-            file = path + '/' + file;
-            console.log('Found driver: ' + file);
-            
+        pathList.forEach((path)=>{
+            var content = [];
             try {
-                function onMessage(e) {
-                    if (e.$$ != 'driversList') {
-                        console.warn('Ignored xml driver content: ' + JSON.stringify(e, null, 2));
-                        return;
-                    }
-                    try {
-                        for(var group of e.devGroup)
-                        {
-                            for(var device of group.device) {
-                                var driver = device.driver.$_;
-                                driverToGroup[driver] = group.$group;
-                            }
-                        }
-                    } catch(e) {
-                        console.error('Failed to parse xml drivers', e.stack || e);
-                    }
-                }
-                var content = fs.readFileSync(file);
-                var parser = Xml2JSONParser(DriverXmlSchema, 1, onMessage);
-                parser.write(content)
-                parser.close();
+                content = fs.readdirSync(path);
             } catch(e) {
-                console.log('Unable to parse ' + file, e.stack || e);
             }
-        }));
+
+            content.filter(file => (file.match(/\.xml$/) && !file.match(/_sk\.xml$/))).forEach((file)=> {
+                file = path + '/' + file;
+                console.log('Found driver: ' + file);
+
+                try {
+                    function onMessage(e) {
+                        if (e.$$ != 'driversList') {
+                            console.warn('Ignored xml driver content: ' + JSON.stringify(e, null, 2));
+                            return;
+                        }
+                        try {
+                            for(var group of e.devGroup)
+                            {
+                                for(var device of group.device) {
+                                    var driver = device.driver.$_;
+                                    driverToGroup[driver] = group.$group;
+                                }
+                            }
+                        } catch(e) {
+                            console.error('Failed to parse xml drivers', e.stack || e);
+                        }
+                    }
+                    var content = fs.readFileSync(file);
+                    var parser = Xml2JSONParser(DriverXmlSchema, 1, onMessage);
+                    parser.write(content)
+                    parser.close();
+                } catch(e) {
+                    console.log('Unable to parse ' + file, e.stack || e);
+                }
+            });
+        });
 
         this.currentStatus.driverToGroup = driverToGroup;
     }
