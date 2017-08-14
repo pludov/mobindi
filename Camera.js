@@ -17,9 +17,15 @@ class Camera {
                 bin: 1,
                 exp: 1.0,
                 iso: null
+            },
+
+            // Device => duration
+            currentShoots: {
+
             }
         }
-
+        // Device => promise
+        this.shootPromises = {};
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.indiManager = indiManager;
 
@@ -92,23 +98,33 @@ class Camera {
     {
         var connection;
         var self = this;
-        return new Promises.Chain(
+        var currentShootSettings;
+
+        var result = new Promises.Chain(
+            new Promises.Immediate(() => {
+                if (Object.prototype.hasOwnProperty.call(self.shootPromises, device)) {
+                    throw new Error("Shoot already started for " + device);
+                }
+                self.currentStatus.currentShoots[device] = Object.assign({status: 'init'}, self.currentStatus.currentSettings);
+                self.shootPromises[device] = result;
+                currentShootSettings = self.currentStatus.currentShoots[device];
+            }),
             // Set the binning - if prop is present only
             new Promises.Conditional(() => (
-                                self.currentStatus.currentSettings.bin !== null
+                                currentShootSettings.bin !== null
                                 && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists()),
                 this.indiManager.setParam(device, 'CCD_BINNING',
                     () => ({
-                        HOR_BIN: self.currentStatus.currentSettings.bin,
-                        VER_BIN: self.currentStatus.currentSettings.bin}))),
+                        HOR_BIN: currentShootSettings.bin,
+                        VER_BIN: currentShootSettings.bin}))),
             // Set the iso
             new Promises.Conditional(() => (
-                                self.currentStatus.currentSettings.iso !== null
+                                currentShootSettings.iso !== null
                                 && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()),
                 this.indiManager.setParam(device, 'CCD_ISO',
                     (vec) => {
                         vec = vec.getVectorInTree();
-                        var v = self.currentStatus.currentSettings.iso;
+                        var v = currentShootSettings.iso;
                         var childToSet = undefined;
                         console.log('WTF vec is ' + JSON.stringify(vec));
                         for(var id of vec.childNames)
@@ -146,18 +162,25 @@ class Camera {
                 }
                 var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
-                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: self.currentStatus.currentSettings.exp }]);
+                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exp }]);
+
                 return connection.wait(function() {
                     console.log('Waiting for exposure end');
+
+                    var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
                     var state = expVector.getState();
+                    if (value != "0") {
+                        currentShootSettings.status = 'Exposing';
+                    } else if (state == "Busy" && currentShootSettings.status == 'Exposing') {
+                        currentShootSettings.status = 'Downloading';
+                    }
+
                     if (state == "Busy") {
                         return false;
                     }
                     if (state != "Ok" && state != "Idle") {
                         throw "Exposure failed";
                     }
-
-                    var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
                     return (value == "0");
                 })
@@ -168,14 +191,27 @@ class Camera {
             })
         );
 
+        var cleanup = () => {
+            console.log('Doing cleanup');
+            if (self.shootPromises[device] === result) {
+                delete self.shootPromises[device];
+                delete self.currentStatus.currentShoots[device];
+            }
+            currentShootSettings = undefined;
+        }
+        result.onCancel(cleanup);
+        result.onError(cleanup);
+        result.then(cleanup);
+
+        return result;
     }
 
     $api_shoot(message, progress) {
         var self = this;
         
         return this.shoot(this.currentStatus.selectedDevice);
-        
     }
+
 }
 
 module.exports = {Camera}
