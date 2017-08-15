@@ -164,7 +164,12 @@ class Camera {
 
                 expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exp }]);
 
-                return connection.wait(function() {
+                var cancelFunction = () => {
+                    var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");
+                    expVector.setValues([{name: 'ABORT', value: 'On'}]);
+                }
+                // Make this uninterruptible
+                return new Promises.Cancelator(cancelFunction, connection.wait(function() {
                     console.log('Waiting for exposure end');
 
                     var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
@@ -183,7 +188,7 @@ class Camera {
                     }
 
                     return (value == "0");
-                })
+                }));
             }),
 
             new Promises.Immediate(function() {

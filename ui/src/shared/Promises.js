@@ -287,6 +287,30 @@ class Sleep extends Cancelable {
     }
 }
 
+/** This promises encapsulate a child and gives a custom way of canceling */
+class Cancelator extends Cancelable {
+    constructor(doCancel, child) {
+        var next;
+        child.then(function(rslt) {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.done(rslt);
+            }
+        });
+        child.onError((e)=>next.error(e));
+        child.onCancel(()=>next.cancel());
+        super(function(n, arg) {
+            next = n;
+            if (doCancel !== undefined) {
+                n.setCancelFunc(doCancel);
+            }
+            child.start(arg);
+        })
+    }
+
+}
+
 class Loop extends Cancelable {
     constructor(repeat, until)
     {
@@ -423,4 +447,4 @@ function dynValue(o, arg)
 }
 
 
-module.exports = {Immediate, Cancelable, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
+module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
