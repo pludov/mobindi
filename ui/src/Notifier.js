@@ -314,7 +314,7 @@ class Notifier {
                                 request.next.done(data.result);
                                 break;
                             case 'canceled':
-                                request.next.cancel();
+                                request.next.error(new Error("Canceled on server side"));
                                 break;
                             default:
                                 request.next.error(data.message);

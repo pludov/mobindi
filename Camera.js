@@ -212,6 +212,19 @@ class Camera {
         return this.shoot(this.currentStatus.selectedDevice);
     }
 
+    $api_abort(message, progress) {
+        return new Promises.Immediate(() => {
+            var currentDevice = this.currentStatus.selectedDevice;
+            if (currentDevice === null) throw new Error("No device selected");
+            if (Object.prototype.hasOwnProperty.call(this.shootPromises, currentDevice)) {
+                this.shootPromises[currentDevice].cancel();
+            } else {
+                // FIXME: be more aggressive about abort !
+                throw new Error("Shoot not initiated on our side. Not aborting");
+            }
+        });
+    }
+
 }
 
 module.exports = {Camera}

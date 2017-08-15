@@ -20,13 +20,20 @@ class ShootBton extends PureComponent {
     constructor(props) {
         super(props);
         this.shoot = this.shoot.bind(this);
+        this.abort = this.abort.bind(this);
     }
 
     render() {
-        return <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="shootBton" value="Shoot"/>
+        return <div>
+            <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="shootBton" value="Shoot"/>
+            <input disabled={(!this.props.available) || !this.props.running} type="button" onClick={this.abort} className="shootAbortBton" value="Abort"/>
+        </div>;
     }
 
     shoot() {
+        // FIXME: the button should be disabled until ack from server
+        // ack from server should arrive only when state has been updated, ...
+        // This looks like a progress channel is required
         var self = this;
         this.props.app.serverRequest({
             method: 'shoot'
@@ -34,6 +41,15 @@ class ShootBton extends PureComponent {
         {
             console.log('got rslt:' + JSON.stringify(rslt));
             self.props.onSuccess(rslt);
+        }).start();
+    }
+
+    abort() {
+        this.props.app.serverRequest({
+            method: 'abort'
+        }).then((rslt)=>
+        {
+            console.log('got rslt:' + JSON.stringify(rslt));
         }).start();
     }
 

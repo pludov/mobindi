@@ -185,7 +185,7 @@ class Request {
             uid: this.uid,
             status: 'canceled'
         };
-        this.dispatch(status.finalStatus);
+        this.dispatch(this.finalStatus);
         this.dettach();
     }
 }

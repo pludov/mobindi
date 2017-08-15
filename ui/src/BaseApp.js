@@ -33,7 +33,9 @@ class BaseApp {
     // Except an object with at least method property
     // will call a $api_ method on server side
     appServerRequest(appId, content) {
-        return notifier.sendRequest(Object.assign({'target': appId}, content));
+        return (notifier.sendRequest(Object.assign({'target': appId}, content))
+                    .onCancel(()=>{console.log('request canceled')})
+                    .onError((e)=>{console.log('Request error:', e)}));
     }
 
     // Send a request to the server side app counterpart
@@ -41,7 +43,7 @@ class BaseApp {
     // Except an object with at least method property
     // will call a $api_ method on server side
     serverRequest(content) {
-        return notifier.sendRequest(Object.assign({'target': this.appId}, content));
+        return this.appServerRequest(this.appId, content);
     }
 }
 
