@@ -22,3 +22,39 @@
     top: 0px;
     bottom: 0px;
 }
+
+
+.ShootBar {
+    left: 0px;
+    right: 0px;
+    display: flex;
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.ShootBton {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.ShootProgress {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.ShootAbortBton {
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.ShootProgressAdvance {
+    background: #102040
+}
+
+.ShootProgressTitle {
+    overflow: hidden;
+    display:flex;
+    align-items: center;
+    justify-content:center;
+}

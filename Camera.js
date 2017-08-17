@@ -41,6 +41,22 @@ class Camera {
                     ]
             ], this.updateAvailableCamera.bind(this), true);
 
+        // Update shoots
+        this.appStateManager.addSynchronizer(
+            [
+                [
+                    [
+                        'indiManager', 'deviceTree', null, 'CCD_EXPOSURE',
+                        [
+                            ['childs', 'CCD_EXPOSURE_VALUE', '$_'],
+                            ['$state']
+                        ]
+                    ],
+                    [
+                        'camera', 'availableDevices'
+                    ]
+                ]
+            ], this.updateRunningShoots.bind(this), true);
     }
 
     updateAvailableCamera()
@@ -65,6 +81,61 @@ class Camera {
         }
 
         this.currentStatus.availableDevices = availableDevices;
+
+    }
+
+    updateRunningShoots()
+    {
+        var indiManager = this.appStateManager.getTarget().indiManager;
+        for(var deviceId of Object.keys(indiManager.deviceTree).sort()) {
+            var device = indiManager.deviceTree[deviceId];
+            var status, exp;
+            try {
+                status = device.CCD_EXPOSURE.$state;
+                exp = device.CCD_EXPOSURE.childs.CCD_EXPOSURE_VALUE.$_;
+                exp = parseFloat(exp);
+            } catch(e) {
+                continue;
+            }
+            
+            var currentShoot;
+            if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, deviceId)) {
+                currentShoot = this.currentStatus.currentShoots[deviceId];
+            } else {
+                currentShoot = undefined;
+            }
+
+            if (status == 'Busy' || exp > 0) {
+                // Create a shoot
+                if (currentShoot === undefined) {
+                    currentShoot= {
+                        exp: exp,
+                        expLeft: exp,
+                        type: 'external'
+                    };
+                    this.currentStatus.currentShoots[deviceId] = currentShoot;
+                } else {
+                    if (exp > 0 || currentShoot.expLeft) {
+                        currentShoot.expLeft = exp;
+                    }
+                    if (exp > currentShoot.exp) {
+                        currentShoot.exp = exp;
+                    }
+                }
+            } else {
+                // Destroy the shoot, if not managed
+                if (currentShoot !== undefined) {
+                    if (currentShoot.type == 'managed') {
+                        if (exp > 0 || currentShoot.expLeft) {
+                            currentShoot.expLeft = exp;
+                        }
+                    } else {
+                        delete this.currentStatus.currentShoots[deviceId];
+                    }
+                }
+            }
+
+        }
 
     }
 
@@ -102,10 +173,13 @@ class Camera {
 
         var result = new Promises.Chain(
             new Promises.Immediate(() => {
-                if (Object.prototype.hasOwnProperty.call(self.shootPromises, device)) {
+                if (Object.prototype.hasOwnProperty.call(self.currentStatus.currentShoots, device)) {
                     throw new Error("Shoot already started for " + device);
                 }
-                self.currentStatus.currentShoots[device] = Object.assign({status: 'init'}, self.currentStatus.currentSettings);
+                self.currentStatus.currentShoots[device] = Object.assign({
+                    status: 'init', 
+                    type:'managed'
+                }, self.currentStatus.currentSettings);
                 self.shootPromises[device] = result;
                 currentShootSettings = self.currentStatus.currentShoots[device];
             }),
