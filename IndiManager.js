@@ -7,6 +7,7 @@
 const Xml2JSONParser = require('./Xml2JSONParser.js');
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
+const IndiServer = require('./IndiServer');
 const fs = require('fs');
 
 function has(obj, key) {
@@ -46,8 +47,6 @@ class IndiManager {
             driverToGroup: {}
         }
 
-        
-
         this.currentStatus = this.appStateManager.getTarget().indiManager;
 
         this.initConfiguration('indiManager', {
@@ -59,6 +58,9 @@ class IndiManager {
 
         this.lifeCycle = this.buildLifeCycle();
         this.lifeCycle.start();
+
+        this.indiServer = new IndiServer();
+        this.indiServer.buildLifeCycle().start();
     }
 
     // FIXME: move up in class hierarchy

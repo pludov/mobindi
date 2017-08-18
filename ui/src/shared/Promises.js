@@ -4,6 +4,7 @@
 'use strict';
 
 const TraceError = require('trace-error');
+const child_process = require('child_process');
 
 
 function noop() {};
@@ -435,6 +436,27 @@ class Builder extends Cancelable {
 }
 
 
+class Exec extends Cancelable {
+    constructor(cmd) {
+        super(function(next, arg){
+            var cmdArr = dynValue(cmd, arg);
+            
+            var child = child_process.spawn(cmdArr[0], cmdArr.slice(1));
+            child.on('error', (err)=> {
+                console.warn("Process " + cmdArr[0] + " error : " + err);
+            });
+            child.on('exit', (ret, signal) => {
+                if (ret === 0) {
+                    next.done();
+                } else {
+                    next.error('Wrong result code for ' + JSON.stringify(cmdArr));
+                }
+            });
+        });
+    }
+
+}
+
 // Recognize func and call them with arg
 // Otherwise, use value as is
 function dynValue(o, arg)
@@ -447,4 +469,4 @@ function dynValue(o, arg)
 }
 
 
-module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
+module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, Exec, ExecutePromise, Builder, Loop, Conditional, dynValue};
