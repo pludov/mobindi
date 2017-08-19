@@ -23,6 +23,32 @@
     bottom: 0px;
 }
 
+.FitsViewOverlayContainer {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    top: 0px;
+    bottom: 0px;
+}
+
+.FitsViewLoading {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    width: 20vw;
+    height: 20vw;
+    visibility: hidden;
+}
+
+.FitsView.Loading ~.FitsViewLoading {
+    background: grey;
+    visibility: inherit;
+}
+
+.FitsView.Error ~.FitsViewLoading {
+    background: red;
+    visibility: inherit;
+}
 
 .ShootBar {
     left: 0px;

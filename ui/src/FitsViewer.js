@@ -53,6 +53,7 @@ class JQImageDisplay {
         if (this.loadingImg != undefined) {
             this.loadingImg.src = null;
             this.loadingImg = null;
+            this.child.removeClass('Loading');
         }
     }
 
@@ -60,6 +61,7 @@ class JQImageDisplay {
         var self = this;
 
         if ((this.currentImg != undefined) && (this.currentImg.src == src)) {
+            this.abortLoading();
             return;
         }
         if ((this.loadingImg != undefined) && (this.loadingImg.src == src)) {
@@ -69,10 +71,12 @@ class JQImageDisplay {
         this.abortLoading();
 
         var newImage = new Image();
-        newImage.onload = (() => { self.loaded(newImage) });
-        newImage.onerror = (() => { self.loaded(newImage) });
+        newImage.onload = (() => { console.warn('image loaded ok'); self.loaded(newImage, true) });
+        newImage.onerror = ((e) => { console.warn('image loading failed', e); self.loaded(newImage, false) });
         newImage.src = src;
+        console.log('Loading image: ' + src);
         this.loadingImg = newImage;
+        this.child.addClass('Loading');
     }
 
 
@@ -295,10 +299,12 @@ class JQImageDisplay {
 
 
     setRawCurrentImagePos(e) {
-        $(this.currentImg).css("width", e.w + 'px');
-        $(this.currentImg).css("height", e.h + 'px');
-        $(this.currentImg).css('top', e.y + 'px');
-        $(this.currentImg).css('left', e.x + 'px');
+        if (this.currentImg !== undefined) {
+            $(this.currentImg).css("width", e.w + 'px');
+            $(this.currentImg).css("height", e.h + 'px');
+            $(this.currentImg).css('top', e.y + 'px');
+            $(this.currentImg).css('left', e.x + 'px');
+        }
         this.currentImagePos = e;
     }
 
@@ -374,33 +380,41 @@ class JQImageDisplay {
 
 
 
-    loaded(newImage) {
+    loaded(newImage, result) {
         if (newImage !== this.loadingImg) {
             return;
         }
 
+        this.child.removeClass('Loading');
+        if (result) {
+            this.child.addClass('Success');
+        } else {
+            this.child.addClass('Error');
+        }
+
         var previousSize = this.currentImageSize;
-
-        this.currentImageSize = {x: newImage.naturalWidth, y: newImage.naturalHeight};
-
 
         var previousImg = this.currentImg;
 
         this.loadingImg = undefined;
-        this.currentImg = newImage;
+        this.currentImg = result ? newImage : undefined;
         this.child.empty();
 
-        $(this.currentImg).css('position', 'relative');
+        if (this.currentImg !== undefined) {
+            this.currentImageSize = {x: newImage.naturalWidth, y: newImage.naturalHeight};
+            
+            $(this.currentImg).css('position', 'relative');
 
-        this.child.append(this.currentImg);
+            this.child.append(this.currentImg);
 
-        if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
-            this.bestFit();
-        } else {
-            $(this.currentImg).css('top', $(previousImg).css('top'));
-            $(this.currentImg).css('left', $(previousImg).css('left'));
-            $(this.currentImg).css('width', $(previousImg).css('width'));
-            $(this.currentImg).css('height', $(previousImg).css('height'));
+            if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
+                this.bestFit();
+            } else {
+                $(this.currentImg).css('top', $(previousImg).css('top'));
+                $(this.currentImg).css('left', $(previousImg).css('left'));
+                $(this.currentImg).css('width', $(previousImg).css('width'));
+                $(this.currentImg).css('height', $(previousImg).css('height'));
+            }
         }
     }
 
@@ -432,7 +446,11 @@ class FitsViewer extends PureComponent {
     }
 
     render() {
-        return(<div className='FitsView' ref={el => this.el = el}/>);
+        return(
+            <div className='FitsViewOverlayContainer'>
+                <div className='FitsView' ref={el => this.el = el}/>
+                <div className='FitsViewLoading'/>
+            </div>);
     }
 
 }
