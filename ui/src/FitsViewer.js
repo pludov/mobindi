@@ -77,6 +77,7 @@ class JQImageDisplay {
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
         this.child.addClass('Loading');
+        this.child.removeClass('Error');
     }
 
 
