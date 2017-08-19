@@ -25,27 +25,20 @@ class IndiServer {
     // Return a promises that check if a valid indiserver process exists
     findIndiServer(resetConf) {
         var self = this;
-        return new Promises.Cancelable((next)=>{
-            var ps = child_process.spawn("pidof", ["indiserver"]);
-            ps.on('error', (err)=> {
-                console.warn("Process pidof error : " + err);
-            });
-            ps.on('exit', (code, signal) => {
-                if (code === 0 || code === 1) {
-                    if (resetConf) {
-                        if (code === 0) {
-                            this.currentConfiguration = Obj.deepCopy(self.wantedConfiguration);
-                            console.log('Indiserver process found. Assuming it already has the right configuration.');
-                        } else {
-                            console.log('Indiserver process not found.');
-                        }
+        return new Promises.Chain(
+            new SystemPromises.PidOf('indiserver'),
+            new Promises.Immediate((arg)=>{
+                if (resetConf) {
+                    if (arg) {
+                        self.currentConfiguration = Obj.deepCopy(self.wantedConfiguration);
+                        console.log('Indiserver process found. Assuming it already has the right configuration.');
+                    } else {
+                        console.log('Indiserver process not found.');
                     }
-                    next.done(code === 0);
-                } else {
-                    next.error("Failed to run pidof");
-                }
-            });
-        });
+                };
+                return arg;
+            })
+        );
     }
 
     startIndiServer() {
@@ -238,7 +231,7 @@ class IndiServer {
                             new Promises.Sleep(2000)
                         )
                     ),
-                    (o)=>(o === "dead" || self.wantedConfiguration.autorun)
+                    (o)=>(o === "dead" || !self.wantedConfiguration.autorun)
                 )
             ),
             (o)=>(!self.wantedConfiguration.autorun)

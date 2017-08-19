@@ -5,6 +5,26 @@ const child_process = require('child_process');
 const Promises = require('./Promises');
 
 
+// Return true if the given process exists
+class PidOf extends Promises.Cancelable {
+    constructor(exe) {
+        super((next)=>{
+            var ps = child_process.spawn("pidof", [Promises.dynValue(exe)]);
+            ps.on('error', (err)=> {
+                console.warn("Process pidof error : ", err);
+            });
+            ps.on('exit', (code, signal) => {
+                if (code === 0 || code === 1) {
+                    next.done(code === 0);
+                } else {
+                    next.error("Failed to run pidof");
+                }
+            });
+        });
+
+    }
+}
+
 class Exec extends Promises.Cancelable {
     constructor(cmd) {
         var self;
@@ -58,4 +78,4 @@ class Exec extends Promises.Cancelable {
 
 }
 
-module.exports = {Exec};
+module.exports = {Exec, PidOf};
