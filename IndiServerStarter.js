@@ -159,14 +159,13 @@ class IndiServerStarter {
                             result: false,
                             cmd: 'ping',
                             done: function() {
-                                console.log('Indi server ping ok'); 
                                 return 0;
                             }
                         }
                     } else {
+                        console.log('Indi: fifo order: ' + todo.cmd);
                         todo.result = true;
                     }
-                    console.log('Indi: fifo order: ' + todo.cmd);
                     var fifopath = self.actualFifoPath();
                     var writeStream = fs.createWriteStream(fifopath);
                     var drained = false;
@@ -184,7 +183,7 @@ class IndiServerStarter {
                                     }).setCancelable(true),
                                 new Promises.Immediate(todo.done)
                         )
-                    ).catchTimeout(() => { 
+                    ).catchTimeout(() => {
                         console.log('Catched indiserver fifo timeout');
                         self.currentConfiguration.devices = {};
                         return 'dead';

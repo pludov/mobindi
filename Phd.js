@@ -2,6 +2,8 @@
 
 const net = require('net');
 const Promises = require('./Promises');
+const ConfigStore = require('./ConfigStore');
+const ProcessStarter = require('./ProcessStarter');
 
 class Phd {
     constructor(app, appStateManager)
@@ -23,6 +25,7 @@ class Phd {
 
         this.currentStatus = this.appStateManager.getTarget().phd;
         this.currentStatus.guideSteps = {};
+        this.currentStatus.configuration = {};
         // Cet objet contient les dernier guide step
         this.steps = this.currentStatus.guideSteps;
         this.stepId = 0;
@@ -30,7 +33,25 @@ class Phd {
 
         this.reqId = 0;
 
+        new ConfigStore(appStateManager, 'phd', ['phd', 'configuration'], {
+            autorun: false,
+            path: null,
+            env: {
+                DISPLAY: ":0",
+                XAUTHORITY: process.env.HOME + "/.Xauthority"
+            }
+        }, {
+            autorun: true,
+            path: "/path/of/phd2/",
+            env: {
+                DISPLAY: "Whatever X11 setting required",
+                XAUTHORITY: "Whatever other X11 setting required"
+            }
+        });
+
         this.updateStepsStats();
+
+        new ProcessStarter('phd2', this.currentStatus.configuration);
 
         this.lifeCycle().start();
     }

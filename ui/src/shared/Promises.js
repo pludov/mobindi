@@ -420,7 +420,6 @@ class ExecutePromise extends Cancelable {
             arg.then((rslt) => { next.done(rslt); });
             arg.onError((e) => { next.error(e); });
             arg.onCancel(() => { next.cancel(); });
-            console.log('Starting child');
             arg.start();
         });
     }
@@ -447,7 +446,6 @@ class Builder extends Cancelable {
             child.then((rslt) => { next.done(rslt); });
             child.onError((e) => { next.error(e); });
             child.onCancel(() => { next.cancel(); });
-            console.log('Starting child');
             child.start();
         });
     }
