@@ -8,6 +8,7 @@ const Xml2JSONParser = require('./Xml2JSONParser.js');
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 const IndiServer = require('./IndiServer');
+const ConfigStore = require('./ConfigStore');
 const fs = require('fs');
 
 function has(obj, key) {
@@ -44,56 +45,50 @@ class IndiManager {
             status: "connecting",
             deviceTree: {},
             // Maps indi drivers to group
-            driverToGroup: {}
+            driverToGroup: {},
+            configuration: {}
         }
 
         this.currentStatus = this.appStateManager.getTarget().indiManager;
 
-        this.initConfiguration('indiManager', {
-            driverPath: '/usr/share/indi/,/opt/share/indi/'
+        new ConfigStore(appStateManager, 'indi', ['indiManager', 'configuration'], {
+            driverPath: '/usr/share/indi/',
+            indiServer: {
+                autorun: false,
+                path: null,
+                fifopath: null,
+                devices: {}
+            }
+        }, {
+            driverPath: '/usr/share/indi/,/opt/share/indi/',
+            indiServer: {
+                autorun: true,
+                path: '/opt/bin',
+                fifopath: null,
+                devices: {
+                    'CCD Simulator': {
+                        driver: 'indi_simulator_ccd',
+                        config: 'ccd_simul',
+                        prefix: null,
+                        skeleton: null
+                    }
+                }
+            }
         });
 
         // List configuration settings
-        this.appStateManager.addSynchronizer(['configuration', 'indiManager', 'driverPath'], () => {self.readDrivers();}, true);
+        this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {self.readDrivers();}, true);
 
         this.lifeCycle = this.buildLifeCycle();
         this.lifeCycle.start();
 
-        this.indiServer = new IndiServer();
+        this.indiServer = new IndiServer(this.currentStatus.configuration.indiServer);
         this.indiServer.buildLifeCycle().start();
-    }
-
-    // FIXME: move up in class hierarchy
-    initConfiguration(name, defaults)
-    {
-        function createChildObject(parent, name)
-        {
-            if (!Object.prototype.hasOwnProperty.call(parent, name)) {
-                parent[name] = {};
-            }
-        }
-
-        function sync(target, value) {
-            for(var key of Object.keys(defaults)) {
-                var value = defaults[key];
-                if (Object.prototype.hasOwnProperty.call(target, value)) {
-                    // Recurse in sub objects ?
-                    continue;
-                }
-                // We can put here since proxy mechanism will deep clone
-                target[key] = value;
-            }
-        }
-
-        var root = this.appStateManager.getTarget();
-        createChildObject(root, 'configuration');
-        createChildObject(root.configuration, name);
-        sync(root.configuration[name], defaults);
     }
 
     readDrivers()
     {
-        var pathList = this.appStateManager.getTarget().configuration.indiManager.driverPath.split(',');
+        var pathList = this.currentStatus.configuration.driverPath.split(',');
 
         var driverToGroup = {};
 

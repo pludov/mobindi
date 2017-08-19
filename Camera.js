@@ -105,7 +105,7 @@ class Camera {
                 currentShoot = undefined;
             }
 
-            if (status == 'Busy' || exp > 0) {
+            if (status == 'Busy' && exp > 0) {
                 // Create a shoot
                 if (currentShoot === undefined) {
                     currentShoot= {
@@ -126,6 +126,7 @@ class Camera {
                 // Destroy the shoot, if not managed
                 if (currentShoot !== undefined) {
                     if (currentShoot.type == 'managed') {
+                        if (status !== 'Busy') exp = 0;
                         if (exp > 0 || currentShoot.expLeft) {
                             currentShoot.expLeft = exp;
                         }
@@ -136,7 +137,7 @@ class Camera {
             }
 
         }
-
+        // FIXME: destroy shoots of disconnected devices
     }
 
     $api_setCamera(message, progress) {

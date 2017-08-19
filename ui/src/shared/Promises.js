@@ -4,8 +4,6 @@
 'use strict';
 
 const TraceError = require('trace-error');
-const child_process = require('child_process');
-
 
 function noop() {};
 
@@ -39,7 +37,6 @@ class Cancelable {
     constructor(doStart, initialDoCancel) {
         // Allow for no cancel function (does nothing)
         if (initialDoCancel == undefined || initialDoCancel == null) initialDoCancel = noop;
-
         var self = this;
         var onDoneList = [];
         var onErrorList = [];
@@ -162,6 +159,8 @@ class Timeout extends Cancelable {
         var timedout;
         var timeout;
         var next;
+        var arg;
+        var self;
 
         function cancelTimer() {
             if (timeout != undefined) {
@@ -180,16 +179,27 @@ class Timeout extends Cancelable {
         });
         promise.onCancel(function () {
             // Annulé suite à l'atteinte du timer ?
-            if (timedout) {
-                next.error("timeout");
+            if (timedout && !next.cancelationPending()) {
+                if (self.catchTimeoutFunc !== undefined) {
+                    var rslt;
+                    try {
+                        rslt = self.catchTimeoutFunc(arg);
+                    } catch(e) {
+                        next.error(e);
+                        return;
+                    }
+                    next.done(rslt);
+                } else {
+                    next.error("timeout");
+                }
             } else {
                 next.cancel();
             }
         });
 
-        super(function (n) {
+        super(function (n, a) {
             next = n;
-
+            arg = arg;
             n.setCancelFunc(()=> {
                 cancelTimer();
                 promise.cancel();
@@ -204,6 +214,13 @@ class Timeout extends Cancelable {
             }, delay);
             promise.start();
         });
+        self = this;
+        this.catchTimeoutFunc = undefined;
+    }
+
+    catchTimeout(func) {
+        this.catchTimeoutFunc = func;
+        return this;
     }
 }
 
@@ -266,16 +283,17 @@ class Chain extends Cancelable {
 
 class Sleep extends Cancelable {
     constructor(delay) {
-        var timeout = undefined;
-
-        function cancelTimer() {
-            if (timeout != undefined) {
-                clearTimeout(timeout);
-                timeout = undefined;
-            }
-        }
-
+    
         super(function (next, arg) {
+            var timeout = undefined;
+            
+            function cancelTimer() {
+                if (timeout != undefined) {
+                    clearTimeout(timeout);
+                    timeout = undefined;
+                }
+            }
+
             next.setCancelFunc(() => {
                 cancelTimer();
                 next.cancel();
@@ -436,27 +454,6 @@ class Builder extends Cancelable {
 }
 
 
-class Exec extends Cancelable {
-    constructor(cmd) {
-        super(function(next, arg){
-            var cmdArr = dynValue(cmd, arg);
-            
-            var child = child_process.spawn(cmdArr[0], cmdArr.slice(1));
-            child.on('error', (err)=> {
-                console.warn("Process " + cmdArr[0] + " error : " + err);
-            });
-            child.on('exit', (ret, signal) => {
-                if (ret === 0) {
-                    next.done();
-                } else {
-                    next.error('Wrong result code for ' + JSON.stringify(cmdArr));
-                }
-            });
-        });
-    }
-
-}
-
 // Recognize func and call them with arg
 // Otherwise, use value as is
 function dynValue(o, arg)
@@ -469,4 +466,4 @@ function dynValue(o, arg)
 }
 
 
-module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, Exec, ExecutePromise, Builder, Loop, Conditional, dynValue};
+module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
