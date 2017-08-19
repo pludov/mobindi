@@ -8,7 +8,7 @@
 #include <cgicc/HTMLClasses.h>
 
 #include <png.h>
-
+#include <zlib.h>
 #include <stdio.h>
 
 /*
