@@ -87,6 +87,7 @@ class Camera {
     updateRunningShoots()
     {
         var indiManager = this.appStateManager.getTarget().indiManager;
+        var connectedDevices = [];
         for(var deviceId of Object.keys(indiManager.deviceTree).sort()) {
             var device = indiManager.deviceTree[deviceId];
             var status, exp;
@@ -97,7 +98,7 @@ class Camera {
             } catch(e) {
                 continue;
             }
-            
+            connectedDevices.push(deviceId);
             var currentShoot;
             if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, deviceId)) {
                 currentShoot = this.currentStatus.currentShoots[deviceId];
@@ -135,9 +136,14 @@ class Camera {
                     }
                 }
             }
-
         }
-        // FIXME: destroy shoots of disconnected devices
+        // destroy shoots of disconnected devices
+        for(var k of Object.keys(this.currentStatus.currentShoots))
+        {
+            if (connectedDevices.indexOf(k) == -1) {
+                delete this.currentStatus.currentShoots[k];
+            }
+        }
     }
 
     $api_setCamera(message, progress) {
