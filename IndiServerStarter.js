@@ -8,7 +8,7 @@ const fs = require('fs');
 
 // Ensure that indiserver is running.
 // Restart as required.
-class IndiServer {
+class IndiServerStarter {
     constructor(wantedConfiguration) {
         // The actual status of indiserver
         this.currentConfiguration = {
@@ -243,4 +243,4 @@ class IndiServer {
 
 }
 
-module.exports = IndiServer;
+module.exports = IndiServerStarter;

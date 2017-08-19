@@ -7,7 +7,7 @@
 const Xml2JSONParser = require('./Xml2JSONParser.js');
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
-const IndiServer = require('./IndiServer');
+const IndiServerStarter = require('./IndiServerStarter');
 const ConfigStore = require('./ConfigStore');
 const fs = require('fs');
 
@@ -82,8 +82,7 @@ class IndiManager {
         this.lifeCycle = this.buildLifeCycle();
         this.lifeCycle.start();
 
-        this.indiServer = new IndiServer(this.currentStatus.configuration.indiServer);
-        
+        this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
     }
 
     readDrivers()
