@@ -83,7 +83,7 @@ class IndiManager {
         this.lifeCycle.start();
 
         this.indiServer = new IndiServer(this.currentStatus.configuration.indiServer);
-        this.indiServer.buildLifeCycle().start();
+        
     }
 
     readDrivers()

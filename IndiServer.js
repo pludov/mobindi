@@ -18,6 +18,8 @@ class IndiServer {
         };
 
         this.wantedConfiguration = wantedConfiguration;
+
+        if (this.wantedConfiguration.autorun) this.buildLifeCycle().start();
     }
 
     // Return a promises that check if a valid indiserver process exists
@@ -75,9 +77,7 @@ class IndiServer {
                     child.on('error', (err)=> {
                         console.warn("Process indiserver error : " + err);
                     });
-                })// ,
-                // Wait for startup. (ouch, ugly)
-                // new Promises.Sleep(500)
+                })
             );
         });
     }
@@ -206,7 +206,17 @@ class IndiServer {
     // otherwise, 
     buildLifeCycle() {
         var self = this;
-        return new Promises.Loop(
+        function atend()
+        {
+            if (self.currentLifeCycle == result) {
+                if (self.wantedConfiguration.autorun) {
+                    self.currentLifeCycle.start();
+                } else {
+                    self.currentLifeCycle = undefined;
+                }
+            }
+        }
+        var result = new Promises.Loop(
             new Promises.Chain(
                 self.findIndiServer(true),
                 new Promises.Conditional(
@@ -223,16 +233,18 @@ class IndiServer {
                         self.pushOneDriverChange(),
                         // check indiserver is alive
                         new Promises.Conditional((arg) => ({
-                                    perform: arg === 0 || arg === 'dead',
+                                    perform: (arg === 0 || arg === 'dead') && self.wantedConfiguration.autorun,
                                     result: arg}),
                             new Promises.Sleep(2000)
                         )
                     ),
-                    (o)=>(o === "dead")
+                    (o)=>(o === "dead" || self.wantedConfiguration.autorun)
                 )
             ),
-            (o)=>(false)
-        );
+            (o)=>(!self.wantedConfiguration.autorun)
+        ).then(atend).onError(atend).onCancel(atend);
+        this.currentLifeCycle = result;
+        return result;
     }
 
 
