@@ -1,10 +1,10 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Mobindi",
+  "name": "Mobile Indi Control Panel",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "192x192",
+      "src": "favicon.png",
+      "sizes": "32x32",
       "type": "image/png"
     }
   ],

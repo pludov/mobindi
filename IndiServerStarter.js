@@ -77,7 +77,7 @@ class IndiServerStarter {
 
     actualFifoPath() {
         if (this.currentConfiguration.fifopath === null) {
-            return "/tmp/iphdfifo";
+            return "/tmp/indiserverfifo";
         }
         return this.currentConfiguration.fifopath;
     }

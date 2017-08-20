@@ -73,14 +73,18 @@ class App extends Component {
 
                 return (
                     <div className="Loading">
+                            <h2>MOBINDI</h2>
+                            <h4>Mobile Indi Control Panel</h4>
                             <img src={logo} className="App-logo" alt="logo"/>
                             <h2>Initialisation...</h2>
                     </div>);
             case BackendStatus.Failed:
                 return (
                     <div className="Loading">
+                            <h2>MOBINDI</h2>
+                            <h4>Mobile Indi Control Panel</h4>
                             <img src={logo} className="App-logo" alt="logo"/>
-                            <h2>Backend HS {(this.props.backendStatusError ? " : " + this.props.backendStatusError : null)}</h2>
+                            <h2>Backend problem {(this.props.backendStatusError ? " : " + this.props.backendStatusError : null)}</h2>
                     </div>);
             case BackendStatus.Connected:
             case BackendStatus.Paused:
