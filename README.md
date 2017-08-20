@@ -30,6 +30,12 @@ The UI can also be displayed on a dedicated LCD display, using a browser in kios
 
 This software is still in early development stage; if it proves useful, lots of features will be added, to cover most aspects of a DSLR setup. (alignment, image sequences, astrometry, manual/auto focus, ...)
 
+Remark: this is not a full solution for astronomy on raspberry pi. It is just a user interface over 
+existing softwares. You can find full software stack for astro/PI in the following projects :
+  * iAstroHub : https://github.com/aruangra/iAstroHub
+  * NAFABox : http://www.webastro.net/forum/showthread.php?t=148388
+  * ...
+
 ## Quick start
 
 Prior to using this software, you must have a working installation of Indi (server and drivers) and phd2 (so that clicking connect then guide actually starts guiding...).
