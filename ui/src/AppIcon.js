@@ -14,6 +14,7 @@ class AppIcon extends Component {
 
     render() {
         var appId = this.props.appid;
+        if (!this.props.apps) return null;
         if (!(appId in this.props.apps)) return null;
         if (!this.props.apps[appId].enabled) return null;
 
