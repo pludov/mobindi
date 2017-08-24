@@ -74,6 +74,10 @@ appState.apps= {
     camera: {
         enabled: true,
         position: 3
+    },
+    sequence: {
+        enabled: true,
+        position: 4
     }
 };
 
