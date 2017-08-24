@@ -46,17 +46,20 @@ class IndiDriverSelector extends Component {
 
         var backend = store.backend.indiManager;
 
+        var currentDeviceFound= false;
+
         var currentDevice = store.indiManager.selectedDevice;
         if (currentDevice == undefined) currentDevice = "";
-        if (currentDevice == "") {
-            deviceSelectorOptions.push("");
-        }
 
         if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
 
             for(var o of Object.keys(backend.deviceTree).sort()) {
+                if (o === currentDevice) currentDeviceFound = true;
                 deviceSelectorOptions.push(o);
             }
+        }
+        if (!currentDeviceFound) {
+            deviceSelectorOptions.splice(0,0, currentDevice);
         }
 
         var result = {
