@@ -22,6 +22,20 @@ class Camera {
             // Device => duration
             currentShoots: {
 
+            },
+
+            // List of finished images
+            images: {
+                list: [],
+
+                // detail of each image
+                byuuid: {
+                    // 0: {
+                    //      path: "/path/to/file.fits",
+                    //      device: "device"
+                    // }
+
+                }
             }
         }
         // Device => promise
@@ -57,6 +71,55 @@ class Camera {
                     ]
                 ]
             ], this.updateRunningShoots.bind(this), true);
+
+        this.appStateManager.addSynchronizer(
+            [
+                [
+                    [   'indiManager', 'deviceTree', null, 'CCD_FILE_PATH', '$rev' ],
+                    [   'camera', 'availableDevices']
+                ]
+            ], this.updateDoneImages.bind(this), true
+        );
+        this.updateDoneImages();
+        this.previousImages = {};
+    }
+
+    updateDoneImages()
+    {
+        var indiManager = this.appStateManager.getTarget().indiManager;
+        // Ensure that the CCD_FILE_PATH property is set for all devices
+        for(var device of this.currentStatus.availableDevices)
+        {
+            var rev, value;
+            try {
+                rev = indiManager.deviceTree[device].CCD_FILE_PATH.$rev;
+                value = indiManager.deviceTree[device].CCD_FILE_PATH.childs.FILE_PATH.$_;
+
+            } catch(e) {
+                console.log('Error with device ' + device, e);
+                continue;
+            }
+
+            var stamp = rev + ":" + value;
+            if (!Object.prototype.hasOwnProperty.call(this.previousImages, device))
+            {
+                this.previousImages[device] = stamp;
+            } else {
+                if (this.previousImages[device] != stamp) {
+                    this.previousImages[device] = stamp;
+                    if (value != '') {
+                        console.log('New image :', value);
+                        var newUuid = "toto";
+
+                        this.currentStatus.images.list.push(newUuid);
+                        this.currentStatus.images.byuuid[newUuid] = {
+                            path: value,
+                            device: device
+                        };
+                    }
+                }
+            }
+        }
     }
 
     updateAvailableCamera()
