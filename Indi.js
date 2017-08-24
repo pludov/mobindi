@@ -73,6 +73,9 @@ const schema = {
       }
 };
 
+// Each change/notification will increment this by one
+var globalRevisionId = 0;
+
 function has(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
@@ -111,6 +114,11 @@ class Vector {
     // Throw device disconnected
     getState() {
         return this.getExistingVectorInTree().$state;
+    }
+
+    // Id that change for each new message concerning this vector
+    getRev() {
+        return this.getExistingVectorInTree().$rev;
     }
 
     isReadyForOrder()
@@ -242,6 +250,7 @@ class IndiConnection {
             self.connected = true;
             socket.write('<getProperties version="1.7"/>');
             self.flushQueue();
+            ++globalRevisionId;
         });
         socket.on('data', function(data) {
             parser.write(data);
@@ -251,6 +260,7 @@ class IndiConnection {
             console.log('socket error: ' + err);
         });
         socket.on('close', function() {
+            ++globalRevisionId;
             console.log('socket closed');
             try {
                 self.socket.destroy();
@@ -457,6 +467,7 @@ class IndiConnection {
     }
 
     onMessage(message) {
+        globalRevisionId++;
         if (message.$$.match(/^def.*Vector$/)) {
             var childsProps = message.$$.replace(/Vector$/, '');
 
@@ -473,7 +484,7 @@ class IndiConnection {
                 message.childNames[i] = child.$name;
             }
             delete message[childsProps];
-
+            message.$rev = globalRevisionId;
             this.getDeviceInTree(message.$device)[message.$name] = message;
         }
 
@@ -508,6 +519,7 @@ class IndiConnection {
             prop.$state = message.$state;
             prop.$timeout = message.$timeout;
             prop.$timestamp = message.$timestamp;
+            prop.$rev = globalRevisionId;
             if (message.$message != undefined) {
                 prop.$message = message.$message;
             }

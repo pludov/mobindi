@@ -177,6 +177,7 @@ class Camera {
         var connection;
         var self = this;
         var currentShootSettings;
+        var ccdFilePathInitRevId;
 
         var result = new Promises.Chain(
             new Promises.Immediate(() => {
@@ -241,6 +242,9 @@ class Camera {
                 if (connection == undefined) {
                     throw "Indi server not connected";
                 }
+
+                ccdFilePathInitRevId = connection.getDevice(device).getVector("CCD_FILE_PATH").getRev();
+
                 var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
                 expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exp }]);
@@ -273,6 +277,11 @@ class Camera {
             }),
 
             new Promises.Immediate(function() {
+                if (ccdFilePathInitRevId === connection.getDevice(device).getVector("CCD_FILE_PATH").getRev())
+                {
+                    throw new Error("CCD_FILE_PATH was not updated");
+                }
+
                 return ({path: connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH")});
             })
         );
