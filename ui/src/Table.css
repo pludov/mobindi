@@ -1,0 +1,67 @@
+table.DataTable {
+    min-width: 100%;
+}
+
+div.DataTable {
+    overflow-x: auto;
+    overflow-y: auto;
+    border: 0.25vw solid #303030;
+    width: calc(100% - 0.5vw);
+    height: calc(100% - 0.5vw);
+}
+
+.DataTable td {
+    overflow: hidden;
+    white-space: nowrap;
+    word-break: break-all;
+    text-overflow: ellipsis;
+    max-width: 0em;
+    min-width: 0em;
+}
+.DataTable th {
+    overflow: hidden;
+    white-space: nowrap;
+    word-break: break-all;
+    text-overflow: ellipsis;
+    max-width: 0em;
+    min-width: 0em;
+}
+
+.DataTableHeader {
+    width: 100%;
+    display: block;
+    position: sticky;
+    top: 0px;
+    background: #000000;
+    border-bottom: 0.25vw solid #303030;
+    border-spacing: 0px;
+    border-collapse: separate;
+    table-layout: fixed;
+    /* min-width: 100%; */
+}
+
+.DataTableHeader th {
+    margin: 0px;
+}
+
+.DataTableData {
+    width: 100%;
+    display: block;
+    border-spacing: 0px;
+    border-collapse: separate;
+    table-layout: fixed;
+    /*min-width: 100%;*/
+}
+
+.DataTableData td {
+    margin: 0px;
+}
+
+.DataTableHeader th:not(:first-child) {
+    border-left: 0.25vw solid #303030;
+}
+    
+.DataTableData td:not(:first-child) {
+    border-left: 0.25vw solid #303030;
+}
+
