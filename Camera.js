@@ -2,6 +2,7 @@
 
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
+const {IdGenerator} = require('./IdGenerator');
 
 class Camera {
     constructor(app, appStateManager, indiManager) {
@@ -43,6 +44,9 @@ class Camera {
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.indiManager = indiManager;
 
+        this.imageIdGenerator = new IdGenerator();
+        this.previousImages = {};
+        
         // Update available camera
         this.appStateManager.addSynchronizer(
             [
@@ -81,7 +85,6 @@ class Camera {
             ], this.updateDoneImages.bind(this), true
         );
         this.updateDoneImages();
-        this.previousImages = {};
     }
 
     updateDoneImages()
@@ -109,7 +112,7 @@ class Camera {
                     this.previousImages[device] = stamp;
                     if (value != '') {
                         console.log('New image :', value);
-                        var newUuid = "toto";
+                        var newUuid = this.imageIdGenerator.next();
 
                         this.currentStatus.images.list.push(newUuid);
                         this.currentStatus.images.byuuid[newUuid] = {
