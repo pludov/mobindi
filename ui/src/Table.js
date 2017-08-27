@@ -76,7 +76,7 @@ class Table extends PureComponent {
         for(var o of this.props.header) {
             var field = this.props.fields[o.id];
             header.push(<th key={o.id}>
-                {o.id}
+                {field.title}
             </th>);
             cols.push(<col key={o.id} style={{width: field.defaultWidth}}/>);
         }
