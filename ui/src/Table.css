@@ -62,11 +62,15 @@ div.DataTable {
 .DataTableHeader th:not(:first-child) {
     border-left: 0.25vw solid #303030;
 }
-    
+
 .DataTableData td:not(:first-child) {
     border-left: 0.25vw solid #303030;
 }
 
-tr.selected {
+.DataTableData tr.selected {
     background-color: #306060;
+}
+
+.DataTableData tr {
+    cursor: pointer;
 }
