@@ -8,7 +8,7 @@ import persistState from 'redux-localstorage'
 import Notifier from './Notifier';
 import JsonProxy from './shared/JsonProxy';
 import { update } from './shared/Obj'
-
+import { atPath } from './shared/JsonPath'
 
 const BackendStatus = {
     Idle: 0,
@@ -33,8 +33,9 @@ const actions = {};
 
 
 // Fork un état et des sous-objet (forcement des objets)
-function fork(state, path)
+function fork(state, path, fn)
 {
+    var orgState = state;
     state = Object.assign({}, state);
     if (path != undefined) {
         var current = state;
@@ -42,16 +43,32 @@ function fork(state, path)
         {
             var key = path[i];
 
-            if (current[key] == null || current[key] == undefined)
-            {
-                current[key] = {};
+            if (i == path.length - 1 && fn !== undefined) {
+                var prev = current[key];
+                var nv = fn(prev);
+                if (prev === nv) {
+                    return orgState;
+                }
+                current[key] = nv;
             } else {
-                current[key] = Object.assign({}, current[key]);
+                if (current[key] === null || current[key] === undefined)
+                {
+                    current[key] = {};
+                } else {
+                    current[key] = Object.assign({}, current[key]);
+                }
             }
+            current = current[key];
         }
     }
     return state;
 }
+
+function transform(state, path, fn)
+{
+    return fork(state, path, fn);
+}
+
 
 actions.SwitchToApp = function(state, action)
 {

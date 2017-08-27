@@ -14,7 +14,7 @@ class SequenceImageDetail extends PureComponent {
         return <div className="AspectRatio43ContainerOut">
             <div className="AspectRatio43ContainerIn">
                 <div className="AspectRatio43 FitsViewer FitsViewContainer">
-                    <FitsViewer src={this.props.url}/>
+                    <FitsViewer src={this.props.url === null ? '#blank' : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(this.props.url)}/>
                 </div>
             </div>
         </div>;
@@ -28,8 +28,12 @@ class SequenceImageDetail extends PureComponent {
                 url: null
             };
         }
+        var details = atPath(store, ownProps.detailPath + '[' + JSON.stringify(selected) + ']');
+        if (details === undefined) {
+            return {url: null};
+        }
         return {
-            url: selected.paths
+            url: details.path
         };
     }
 }
@@ -48,7 +52,8 @@ class SequenceView extends PureComponent {
         //var self = this;
         return(<div className="CameraView">
             <SequenceImageDetail
-                currentPath='$.sequence.selectedImage'
+                currentPath='$.sequence.currentImage'
+                detailPath='$.backend.camera.images.byuuid'
             />
             <Table statePath="$.sequenceView.list"
                 fields={{
@@ -65,6 +70,8 @@ class SequenceView extends PureComponent {
                 defaultHeader={[{id: 'path'}, {id: 'device'}]}
                 getItemList={(store)=>(atPath(store, '$.backend.camera.images.list'))}
                 getItem={(store,uid)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
+                currentPath='$.sequence.currentImage'
+                onItemClick={(uid)=>this.props.app.dispatchAction('setCurrentImage', uid)}
             />
         </div>);
     }

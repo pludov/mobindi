@@ -14,6 +14,11 @@ function firstDefined(a, b)
 
 class TableEntry extends PureComponent {
 
+    constructor(props) {
+        super(props);
+        this.onClick = this.onClick.bind(this);
+    }
+
     render() {
         var content = [];
         for(var o of this.props.header)
@@ -29,7 +34,12 @@ class TableEntry extends PureComponent {
                 {details}
             </td>)
         }
-        return <tr>{content}</tr>
+        return <tr onClick={this.onClick} className={this.props.selected?"selected" : ""}>{content}</tr>
+    }
+
+    onClick(e) {
+        console.log('WTF clicked', e);
+        this.props.onItemClick(this.props.uid, e);
     }
 
     static mapStateToProps = function(store, ownProps)
@@ -49,7 +59,9 @@ TableEntry.propTypes = {
     fields: PropTypes.object.isRequired,
     header: PropTypes.array.isRequired,
     // store, uid => item
-    getItem: PropTypes.func.isRequired
+    getItem: PropTypes.func.isRequired,
+    onItemClick: PropTypes.func,
+    selected: PropTypes.bool
 }
 
 /**
@@ -68,6 +80,8 @@ class Table extends PureComponent {
                 getItem={this.props.getItem}
                 statePath={this.props.statePath + '.items[' + JSON.stringify(o) + ']'}
                 uid={o}
+                onItemClick={this.props.onItemClick}
+                selected={o===this.props.current}
             />);
         }
 
@@ -105,7 +119,8 @@ class Table extends PureComponent {
         // FIXME: dispatch the cleanup of state of entries
         return {
             itemList: ownProps.getItemList(store),
-            header: firstDefined(atPath(store, ownProps.statePath + ".header"), ownProps.defaultHeader)
+            header: firstDefined(atPath(store, ownProps.statePath + ".header"), ownProps.defaultHeader),
+            current: atPath(store, ownProps.currentPath)
         };
     }
 }
@@ -113,12 +128,14 @@ class Table extends PureComponent {
 Table = connect(Table.mapStateToProps)(Table);
 Table.propTypes = {
     statePath: PropTypes.string.isRequired,
+    currentPath: PropTypes.string.isRequired,
     fields: PropTypes.object.isRequired,
     defaultHeader: PropTypes.array.isRequired,
     // store => [items]
     getItemList: PropTypes.func.isRequired,
     // store, uid => item
-    getItem: PropTypes.func.isRequired
+    getItem: PropTypes.func.isRequired,
+    onItemClick: PropTypes.func
 }
 
 

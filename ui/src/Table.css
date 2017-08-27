@@ -67,3 +67,6 @@ div.DataTable {
     border-left: 0.25vw solid #303030;
 }
 
+tr.selected {
+    background-color: #306060;
+}
