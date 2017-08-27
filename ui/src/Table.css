@@ -8,6 +8,8 @@ div.DataTable {
     border: 0.25vw solid #303030;
     width: calc(100% - 0.5vw);
     height: calc(100% - 0.5vw);
+    flex-grow: 1;
+    flex-shrink: 1;
 }
 
 .DataTable td {

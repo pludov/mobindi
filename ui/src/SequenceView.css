@@ -1,0 +1,9 @@
+.AspectRatio43ContainerOut {
+    position: relative;
+    text-align: center;
+}
+.AspectRatio43ContainerIn {
+    position: relative;
+    max-width: 70vh;
+    margin: auto;
+}
