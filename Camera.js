@@ -111,14 +111,26 @@ class Camera {
                 if (this.previousImages[device] != stamp) {
                     this.previousImages[device] = stamp;
                     if (value != '') {
-                        console.log('New image :', value);
-                        var newUuid = this.imageIdGenerator.next();
 
-                        this.currentStatus.images.list.push(newUuid);
-                        this.currentStatus.images.byuuid[newUuid] = {
-                            path: value,
-                            device: device
-                        };
+                        var currentShoot;
+                        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
+                            currentShoot = this.currentStatus.currentShoots[device];
+                        } else {
+                            currentShoot = undefined;
+                        }
+                        if (currentShoot != undefined && currentShoot.type == 'managed') {
+                            console.log('Image will be result of our action.', value)
+                        } else {
+                            console.log('New external image :', value);
+
+                            var newUuid = this.imageIdGenerator.next();
+
+                            this.currentStatus.images.list.push(newUuid);
+                            this.currentStatus.images.byuuid[newUuid] = {
+                                path: value,
+                                device: device
+                            };
+                        }
                     }
                 }
             }
@@ -348,7 +360,18 @@ class Camera {
                     throw new Error("CCD_FILE_PATH was not updated");
                 }
 
-                return ({path: connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH")});
+                var value = connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH");
+                console.log('Finished  image acquisistion :', value);
+
+                var newUuid = self.imageIdGenerator.next();
+
+                self.currentStatus.images.list.push(newUuid);
+                self.currentStatus.images.byuuid[newUuid] = {
+                    path: value,
+                    device: device
+                };
+
+                return ({path: value});
             })
         );
 
