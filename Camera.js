@@ -3,6 +3,7 @@
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 const {IdGenerator} = require('./IdGenerator');
+const ConfigStore = require('./ConfigStore');
 
 class Camera {
     constructor(app, appStateManager, indiManager) {
@@ -37,8 +38,21 @@ class Camera {
                     // }
 
                 }
-            }
-        }
+            },
+            configuration: {}
+        };
+
+        new ConfigStore(appStateManager, 'camera', ['camera', 'configuration'], {
+            fakeImagePath: null,
+            fakeImages: null
+        }, {
+            fakeImagePath: "/home/ludovic/Astronomie/home/photos/2015/2015-08-09/photos/2015-08-09/",
+            fakeImages: [
+                    "Single_Bin1x1_1s_2015-08-09_23-40-17.fit",  "Single_Bin1x1_1s_2015-08-09_23-44-44.fit",  "Single_Bin1x1_30s_2015-08-09_23-47-04.fit",  "Single_Bin2x2_2s_2015-08-09_23-28-37.fit",      "Single_M27_Bin1x1_2s_2015-08-10_03-40-12.fit",
+                    "Single_Bin1x1_1s_2015-08-09_23-41-16.fit",  "Single_Bin1x1_30s_2015-08-09_23-42-37.fit",  "Single_Bin1x1_5s_2015-08-09_23-41-47.fit",   "Single_Bin2x2_2s_2015-08-09_23-29-41.fit",      "Single_M27_G_Bin1x1_2s_2015-08-10_03-46-49.fit",
+                    "Single_Bin1x1_1s_2015-08-09_23-44-21.fit",  "Single_Bin1x1_30s_2015-08-09_23-45-37.fit",  "Single_Bin2x2_2s_2015-08-09_23-27-56.fit",   "Single_M27_Bin1x1_1s_2015-08-10_03-39-51.fit"
+            ]
+        });
         // Device => promise
         this.shootPromises = {};
         this.currentStatus = this.appStateManager.getTarget().camera;
@@ -263,7 +277,7 @@ class Camera {
                     throw new Error("Shoot already started for " + device);
                 }
                 self.currentStatus.currentShoots[device] = Object.assign({
-                    status: 'init', 
+                    status: 'init',
                     type:'managed'
                 }, self.currentStatus.currentSettings);
                 self.shootPromises[device] = result;
@@ -361,7 +375,17 @@ class Camera {
                 }
 
                 var value = connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH");
+
                 console.log('Finished  image acquisistion :', value);
+
+                if (self.currentStatus.configuration.fakeImages != null) {
+                    var examples = self.currentStatus.configuration.fakeImages;
+                    value = examples[Math.floor(Math.random() * examples.length)];
+                    if (self.currentStatus.configuration.fakeImagePath != null) {
+                        value = self.currentStatus.configuration.fakeImagePath + value;
+                    }
+                    console.log('Using fake image : ' + value);
+                }
 
                 var newUuid = self.imageIdGenerator.next();
 
