@@ -54,29 +54,38 @@ class PromiseSelector extends PureComponent {
             </select>;
     }
 
+    asyncUpdatePromise(from, to, forcedValue)
+    {
+        this.setState(function(prevState) {
+            console.log('WTF Doing transition from ' + from + ' to ' + to);
+            if (prevState.runningPromise === from) {
+                console.log('WTF Really Doing transition from ' + from + ' to ' + to);
+                return Object.assign({}, prevState, {
+                    runningPromise: to,
+                    forcedValue: forcedValue
+                });
+            }
+        });
+    }
+
     selectEntry(d) {
         var self = this;
         if (this.state.runningPromise) {
             this.state.runningPromise.cancel();
+            this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));
         }
         var treatment = this.props.setValue(d);
-        var treatmentDoneCalled = false;
+
         function treatmentDone() {
-            treatmentDoneCalled = true;
-            if (self.state.runningPromise != treatment) return;
-            self.setState({runningPromise: undefined, forcedValue: undefined});
+            self.asyncUpdatePromise(treatment, undefined, undefined);
         }
 
         treatment.then(treatmentDone);
         treatment.onError(treatmentDone);
         treatment.onCancel(treatmentDone);
+        this.asyncUpdatePromise(undefined, treatment, d);
 
         treatment.start();
-        if (!treatmentDoneCalled) {
-            // Warning: treatment can finish before setState really occurs
-            // in that case, treatmentDone will have already been called.
-            this.setState({runningPromise : treatment, forcedValue: d});
-        }
     }
 }
 
