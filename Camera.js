@@ -39,6 +39,31 @@ class Camera {
 
                 }
             },
+
+            sequences: {
+                list: ['aaaa'],
+                byuuid: {
+                    'aaaa':
+                    {
+                        title: 'Test 1',
+                        settings: {
+                            bin:    1,
+                            exp:    60,
+                            iso:    1600
+                        },
+                        steps: [
+                            {
+                                count:  3,
+                                type:   'Light'
+                            },
+                            {
+                                count:  3,
+                                type:   'Dark'
+                            }
+                        ]
+                    }
+                }
+            },
             configuration: {}
         };
 

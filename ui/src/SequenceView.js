@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 
+import PromiseSelector from './PromiseSelector';
+import * as Promises from './shared/Promises';
 import Table from './Table';
 import { atPath } from './shared/JsonPath';
 import FitsViewer from './FitsViewer';
@@ -44,6 +46,17 @@ SequenceImageDetail.propTypes = {
     currentPath: PropTypes.string.isRequired
 }
 
+const SequenceSelector = connect((store, ownProps)=> ({
+    active: atPath(store, ownProps.currentPath),
+    availables: store.backend.camera.sequences.list,
+    definitions: store.backend.camera.sequences.byuuid,
+    placeholder: 'Sequence...',
+    getTitle:(id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
+    setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.dispatchAction("setCurrentSequence", id))),
+    nullAlwaysPossible: true
+}))(PromiseSelector);
+
+
 class SequenceView extends PureComponent {
     constructor(props) {
         super(props);
@@ -51,6 +64,12 @@ class SequenceView extends PureComponent {
     render() {
         //var self = this;
         return(<div className="CameraView">
+            <div>
+                <SequenceSelector
+                    app={this.props.app}
+                    currentPath='$.sequence.currentSequence'
+                />
+            </div>
             <SequenceImageDetail
                 currentPath='$.sequence.currentImage'
                 detailPath='$.backend.camera.images.byuuid'

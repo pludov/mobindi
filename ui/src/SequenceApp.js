@@ -14,9 +14,14 @@ class SequenceApp extends BaseApp {
         storeManager.addActions("sequence", {
             setCurrentImage:
                 (store, imageUid) =>
-                    (fork(store, ['sequence', 'currentImage'], (u)=>(imageUid)))
-            }
-        );
+                    (fork(store, ['sequence', 'currentImage'], (u)=>(imageUid))),
+                    
+            setCurrentSequence:
+                (store, sequenceUid) =>
+                    (fork(store, ['sequence', 'currentSequence'], function(u){
+                        console.log('WTF UPDATE CURRENT SEQ to ' + sequenceUid);
+                        return sequenceUid;}))
+        });
     }
 
     getUi() {
