@@ -23,6 +23,21 @@ class SequenceApp extends BaseApp {
         return fork($store, ['sequence', 'currentSequence'], (u)=>(sequenceUid));
     }
 
+    // Returns a promise
+    startSequence(sequenceUid) {
+        return this.appServerRequest('camera', {
+            method: 'startSequence',
+            key: sequenceUid
+        });
+    }
+
+    stopSequence(sequenceUid) {
+        return this.appServerRequest('camera', {
+            method: 'stopSequence',
+            key: sequenceUid
+        });
+    }
+
     getUi() {
         var self = this;
         return (<div className="Page" key={self.appId}>

@@ -45,6 +45,8 @@ class Camera {
                 byuuid: {
                     'aaaa':
                     {
+                        // status are: idle/paused/error, running, done
+                        status: 'idle',
                         title: 'Test 1',
                         settings: {
                             bin:    1,
@@ -86,6 +88,10 @@ class Camera {
         this.imageIdGenerator = new IdGenerator();
         this.previousImages = {};
         
+        this.currentSequenceUuid = undefined;
+        this.currentSequencePromise = undefined;
+
+
         // Update available camera
         this.appStateManager.addSynchronizer(
             [
@@ -287,6 +293,56 @@ class Camera {
         });
     }
 
+    
+    startSequence(uuid) {
+        return new Promises.Sleep(5000);
+    }
+
+    $api_startSequence(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to start sequence', JSON.stringify(message));
+            var key = message.key;
+            // Check no sequence is running ?
+            if (self.currentSequencePromise != undefined) {
+                throw new Error("A sequence is already running");
+            }
+
+            if (!self.currentStatus.sequences.byuuid[key]) {
+                throw new Error("No sequence");
+            }
+
+            self.currentStatus.sequences.byuuid[key].status = 'running';
+
+            self.currentSequencePromise = self.startSequence(key);
+            self.currentSequenceUuid = key;
+
+            function finishWithStatus(s) {
+                console.log('finishing with final status: ' + s);
+                self.currentStatus.sequences.byuuid[key].status = s;
+                self.currentSequenceUuid = null;
+                self.currentSequencePromise = null;
+            }
+
+            self.currentSequencePromise.then((e) => finishWithStatus('done'));
+            self.currentSequencePromise.onError((e) => finishWithStatus('error'));
+            self.currentSequencePromise.onCancel((e) => finishWithStatus('paused'));
+            self.currentSequencePromise.start();
+        });
+    }
+
+    $api_stopSequence(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to stop sequence', JSON.stringify(message));
+            var key = message.key;
+            if (self.currentSequenceUuid !== key) {
+                throw new Error("Sequence " + key + " is not running");
+            }
+            
+            self.currentSequencePromise.cancel();
+        });
+    }
 
     // Return a promise to shoot at the given camera (where)
     shoot(device)

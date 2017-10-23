@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 
+import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
 import * as Promises from './shared/Promises';
 import Table from './Table';
@@ -56,6 +57,66 @@ const SequenceSelector = connect((store, ownProps)=> ({
     nullAlwaysPossible: true
 }))(PromiseSelector);
 
+class SequenceControler extends PureComponent {
+    constructor(props) {
+        super(props);
+        this.state = {};
+    }
+
+    render() {
+        var clickable = {
+            start: false,
+            stop: false
+        }
+        if (this.props.current && !this.state.runningPromise) {
+            switch(this.props.current.status) {
+                case 'running':
+                    clickable.stop = true;
+                    break;
+                case 'done':
+                    break;
+                default:
+                    clickable.start = true;
+                    break;
+            }
+        }
+        return(<span>
+            <input
+                type='button'
+                value='Start'
+                id='Start'
+                disabled={!clickable.start}
+                onClick={(e)=>Utils.promiseToState(this.props.app.startSequence(this.props.uuid), this)}
+            />
+            <input
+                type='button'
+                value='Stop'
+                id='Stop'
+                disabled={!clickable.stop}
+                onClick={(e)=>Utils.promiseToState(this.props.app.stopSequence(this.props.uuid), this)}
+            />
+        </span>);
+    }
+
+    static mapStateToProps(store, ownProps) {
+        var selected = atPath(store, ownProps.currentPath);
+        if (!selected) {
+            return {}
+        }
+        var currentSequence = store.backend.camera.sequences.byuuid[selected];
+        return {
+            uuid: selected,
+            current: currentSequence
+        };
+    }
+}
+
+SequenceControler = connect(SequenceControler.mapStateToProps)(SequenceControler);
+
+SequenceControler.propTypes = {
+    currentPath: PropTypes.string.isRequired
+}
+
 
 class SequenceView extends PureComponent {
     constructor(props) {
@@ -66,6 +127,10 @@ class SequenceView extends PureComponent {
         return(<div className="CameraView">
             <div>
                 <SequenceSelector
+                    app={this.props.app}
+                    currentPath='$.sequence.currentSequence'
+                />
+                <SequenceControler
                     app={this.props.app}
                     currentPath='$.sequence.currentSequence'
                 />
