@@ -11,17 +11,16 @@ class SequenceApp extends BaseApp {
         super(storeManager, "sequence");
         storeManager.addAdjuster(store=> (fork(store, ['sequence', 'currentImage'], (u)=>(u === undefined ? null : u))));
 
-        storeManager.addActions("sequence", {
-            setCurrentImage:
-                (store, imageUid) =>
-                    (fork(store, ['sequence', 'currentImage'], (u)=>(imageUid))),
-                    
-            setCurrentSequence:
-                (store, sequenceUid) =>
-                    (fork(store, ['sequence', 'currentSequence'], function(u){
-                        console.log('WTF UPDATE CURRENT SEQ to ' + sequenceUid);
-                        return sequenceUid;}))
-        });
+        this.bindStoreFunction(this.setCurrentImage);
+        this.bindStoreFunction(this.setCurrentSequence);
+    }
+
+    setCurrentImage($store, imageUid) {
+        return fork($store, ['sequence', 'currentImage'], (u)=>(imageUid));
+    }
+
+    setCurrentSequence($store, sequenceUid) {
+        return fork($store, ['sequence', 'currentSequence'], (u)=>(sequenceUid));
     }
 
     getUi() {

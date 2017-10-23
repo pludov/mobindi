@@ -52,7 +52,7 @@ const SequenceSelector = connect((store, ownProps)=> ({
     definitions: store.backend.camera.sequences.byuuid,
     placeholder: 'Sequence...',
     getTitle:(id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
-    setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.dispatchAction("setCurrentSequence", id))),
+    setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.setCurrentSequence(id))),
     nullAlwaysPossible: true
 }))(PromiseSelector);
 
@@ -90,7 +90,7 @@ class SequenceView extends PureComponent {
                 getItemList={(store)=>(atPath(store, '$.backend.camera.images.list'))}
                 getItem={(store,uid)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
                 currentPath='$.sequence.currentImage'
-                onItemClick={(uid)=>this.props.app.dispatchAction('setCurrentImage', uid)}
+                onItemClick={this.props.app.setCurrentImage}
             />
         </div>);
     }

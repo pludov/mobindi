@@ -12,11 +12,8 @@ class IndiManagerApp extends BaseApp {
 
     constructor(storeManager) {
         super(storeManager, "indiManager");
-
-        this.declareActions({
-            switchToDevice : this.switchToDevice.bind(this),
-            setGroupState: this.setGroupState.bind(this)
-        });
+        this.bindStoreFunction(this.switchToDevice);
+        this.bindStoreFunction(this.setGroupState);
     }
 
     getUi() {
@@ -25,8 +22,8 @@ class IndiManagerApp extends BaseApp {
         return <IndiManagerView app={self} key={self.appId}></IndiManagerView>;
     }
 
-    setGroupState(state, dev, group, onoff) {
-        var result = update(state, {
+    switchToDevice($state, dev, group, onoff) {
+        var result = update($state, {
             $mergedeep: {
                 indiManager: {
                     expandedGroups: {
@@ -40,8 +37,7 @@ class IndiManagerApp extends BaseApp {
         return result;
     }
 
-
-    switchToDevice(state, dev) {
+    setGroupState($state, dev) {
         var emptyDev = {};
         emptyDev[dev] = {};
         var u = {
@@ -55,7 +51,7 @@ class IndiManagerApp extends BaseApp {
             }
         };
 
-        return update(state, u);
+        return update($state, u);
     }
 
     rqtSwitchProperty(desc) {

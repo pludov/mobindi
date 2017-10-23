@@ -28,9 +28,9 @@ class IndiDriverSelector extends Component {
 
     render() {
         var deviceSelectorOptions = this.props.options.map((item) => <option key={item} value={item}>{item}</option>);
-        return (<select value={this.props.current} onChange={(e) => {
-            this.props.app.dispatchAction("switchToDevice", e.target.value)
-        }} placeholder="Select device...">
+        return (<select value={this.props.current} 
+            onChange={(e) => this.props.app.switchToDevice(e.target.value)}
+            placeholder="Select device...">
             {deviceSelectorOptions}
         </select>);
 
@@ -312,8 +312,8 @@ class IndiManagerView extends Component {
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
                         open={groupDesc.opened}
-                        onOpen={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, true)}
-                        onClose={this.props.app.dispatchAction.bind(null, "setGroupState", currentDevice, group, false)}
+                        onOpen={()=>this.props.app.setGroupState(currentDevice, group, true)}
+                        onClose={()=>this.props.app.setGroupState(currentDevice, group, false)}
                         transitionTime={200}
                         trigger={group}
                         lazyRender={true}>{childs}</Collapsible>);

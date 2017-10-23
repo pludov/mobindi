@@ -124,7 +124,11 @@ var {reducer, storeManager } = function() {
         } else if (type == "appAction") {
             var nvArgs = action.args.slice();
             nvArgs.unshift(state);
-            state = actionsByApp[action.app][action.method].apply(null, nvArgs);
+            try {
+                state = actionsByApp[action.app][action.method].apply(null, nvArgs);
+            } catch(e) {
+                console.error('Error in ' + action.app + '.' + action.method, e);
+            }
         } else if (type in actions) {
             state = actions[type](state, action);
         } else {

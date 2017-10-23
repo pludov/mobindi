@@ -8,23 +8,35 @@ class BaseApp {
     constructor(storeManager, appId) {
         this.storeManager = storeManager;
         this.appId = appId;
-        this.dispatchAction = this.dispatchAction.bind(this);
     }
 
     declareActions(obj) {
         this.storeManager.addActions(this.appId, obj);
     }
 
+    bindStoreFunction(fn) 
+    {
+        var self = this;
+        this.storeManager.addActions(this.appId, {
+            [fn.name]: fn
+        });
+        this[fn.name] = function() {
+            var invocationArgs = Array.from(arguments);
+            return self.dispatchAction(fn.name, invocationArgs)
+        };
+    }
+
     getAppId() {
         return this.appId;
     }
 
-    dispatchAction(method) {
+    dispatchAction(method, args) {
+        if (!args) args = [];
         this.storeManager.dispatch({
             type: "appAction",
-            app: this.getAppId(),
+            app: this.appId,
             method: method,
-            args: Array.from(arguments).slice(1)
+            args: args
         });
     }
 
