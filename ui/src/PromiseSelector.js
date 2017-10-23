@@ -23,7 +23,7 @@ class PromiseSelector extends PureComponent {
         }
         console.log('WTF with keys');
 
-        if (active == null) {
+        if (active == null || this.props.nullAlwaysPossible) {
             console.log("WTF key = null");
             options.push(<option value='null' key='null'>{this.props.placeholder}</option>)
         }
@@ -31,7 +31,7 @@ class PromiseSelector extends PureComponent {
         if (active != null) {
             var present = false;
             for(var o of availables) {
-                if (this.props.getId(o) === active) {
+                if (this.props.getId(o, this.props) === active) {
                     present = true;
                 }
             }
@@ -42,9 +42,9 @@ class PromiseSelector extends PureComponent {
         }
 
         for(var v of availables) {
-            var id = JSON.stringify(this.props.getId(v));
+            var id = JSON.stringify(this.props.getId(v, this.props));
             console.log("WTF key = " + id);
-            options.push(<option value={id} key={id}>{this.props.getTitle(v)}</option>);
+            options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
         }
 
         return <select
@@ -60,8 +60,9 @@ class PromiseSelector extends PureComponent {
             this.state.runningPromise.cancel();
         }
         var treatment = this.props.setValue(d);
-
+        var treatmentDoneCalled = false;
         function treatmentDone() {
+            treatmentDoneCalled = true;
             if (self.state.runningPromise != treatment) return;
             self.setState({runningPromise: undefined, forcedValue: undefined});
         }
@@ -70,8 +71,12 @@ class PromiseSelector extends PureComponent {
         treatment.onError(treatmentDone);
         treatment.onCancel(treatmentDone);
 
-        this.setState({runningPromise : treatment, forcedValue: d});
         treatment.start();
+        if (!treatmentDoneCalled) {
+            // Warning: treatment can finish before setState really occurs
+            // in that case, treatmentDone will have already been called.
+            this.setState({runningPromise : treatment, forcedValue: d});
+        }
     }
 }
 
@@ -94,7 +99,9 @@ PromiseSelector.propTypes = {
     getTitle: PropTypes.func,
     getId: PropTypes.func,
     // receive an id, must return a promise
-    setValue: PropTypes.func.isRequired
+    setValue: PropTypes.func.isRequired,
+    // Keep "null" always possible
+    nullAlwaysPossible: PropTypes.bool
 }
 
 
