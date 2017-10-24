@@ -4,6 +4,7 @@ const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
+const uuid = require('node-uuid');
 
 class Camera {
     constructor(app, appStateManager, indiManager) {
@@ -296,6 +297,30 @@ class Camera {
                 throw "property not supported by device: " + key;
             }
             self.currentStatus.currentSettings[key] = message.data.value;
+        });
+    }
+
+    $api_newSequence(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to create sequence: ', JSON.stringify(message.data));
+            var key = uuid.v4();
+            self.currentStatus.sequences.byuuid[key] = {
+                status: 'idle',
+                title: 'New sequence',
+                camera: null,
+                settings: {
+                    bin:    null,
+                    exp:    null,
+                    iso:    null
+                },
+                steps: {
+                    list: [],
+                    byuuid: {}
+                }
+            };
+            self.currentStatus.sequences.list.push(key);
+            return key;
         });
     }
 

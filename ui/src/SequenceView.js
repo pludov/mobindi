@@ -11,7 +11,6 @@ import { atPath } from './shared/JsonPath';
 import FitsViewer from './FitsViewer';
 import './SequenceView.css';
 import SequenceEditDialog from './SequenceEditDialog';
-import ModalDialog from './ModalDialog';
 
 
 class SequenceImageDetail extends PureComponent {
@@ -57,7 +56,13 @@ const SequenceSelector = connect((store, ownProps)=> ({
     placeholder: 'Sequence...',
     getTitle:(id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
     setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.setCurrentSequence(id))),
-    nullAlwaysPossible: true
+    nullAlwaysPossible: true,
+
+    controls: [{
+        id:'new',
+        title:'New',
+        run: ()=>ownProps.app.newSequence()
+    }]
 }))(PromiseSelector);
 
 class SequenceControler extends PureComponent {

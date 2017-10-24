@@ -3,6 +3,7 @@ import BaseApp from './BaseApp';
 import SequenceView from './SequenceView';
 import {fork} from './Store.js';
 import * as Utils from './Utils';
+import * as Promises from './shared/Promises';
 
 
 class SequenceApp extends BaseApp {
@@ -15,6 +16,7 @@ class SequenceApp extends BaseApp {
 
         this.bindStoreFunction(this.setCurrentImage);
         this.bindStoreFunction(this.setCurrentSequence);
+        this.bindStoreFunction(this.setCurrentSequenceAndEdit);
         this.bindStoreFunction(this.editCurrentSequence);
         this.bindStoreFunction(this.closeSequenceEditor);
     }
@@ -25,6 +27,12 @@ class SequenceApp extends BaseApp {
 
     setCurrentSequence($store, sequenceUid) {
         return fork($store, ['sequence', 'currentSequence'], (u)=>(sequenceUid));
+    }
+
+    setCurrentSequenceAndEdit($store, sequenceUid) {
+        return fork(fork($store,
+                 ['sequence', 'currentSequence'], (u)=>(sequenceUid)),
+                 ['sequence', 'currentSequenceEdit'], (u)=>(sequenceUid));
     }
 
     // Dispatch to store
@@ -48,6 +56,18 @@ class SequenceApp extends BaseApp {
 
     closeSequenceEditor($store) {
         return fork($store, ['sequence', 'currentSequenceEdit'], ()=>undefined);
+    }
+
+    newSequence() {
+        var self = this;
+        return new Promises.Chain(
+            this.appServerRequest('camera', {
+                method: 'newSequence'
+            }),
+            new Promises.Immediate((uid)=> {
+                console.log('WTF new sequence: '+ uid);
+                self.setCurrentSequenceAndEdit(uid);
+            }));
     }
 
     // Returns a promise
