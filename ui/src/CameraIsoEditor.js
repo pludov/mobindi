@@ -89,11 +89,15 @@ const CameraIsoEditor = connect((store, ownProps) => {
         getTitle: IsoTitle
     });
 
-    result.$itemCount = desc.childNames.length;
-    for(var i = 0; i < desc.childNames.length; ++i)
-    {
-        var childId = desc.childNames[i];
-        result['$item_' + i]= desc.childs[childId].$label;
+    if (desc) {
+        result.$itemCount = desc.childNames.length;
+        for(var i = 0; i < desc.childNames.length; ++i)
+        {
+            var childId = desc.childNames[i];
+            result['$item_' + i]= desc.childs[childId].$label;
+        }
+    } else {
+        result.$itemCount = 0;
     }
 
     return result;

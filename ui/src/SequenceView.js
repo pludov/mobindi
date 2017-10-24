@@ -10,6 +10,9 @@ import Table from './Table';
 import { atPath } from './shared/JsonPath';
 import FitsViewer from './FitsViewer';
 import './SequenceView.css';
+import SequenceEditDialog from './SequenceEditDialog';
+import ModalDialog from './ModalDialog';
+
 
 class SequenceImageDetail extends PureComponent {
 
@@ -66,7 +69,11 @@ class SequenceControler extends PureComponent {
     render() {
         var clickable = {
             start: false,
-            stop: false
+            stop: false,
+            edit: false
+        }
+        if (this.props.current) {
+            clickable.edit = true;
         }
         if (this.props.current && !this.state.runningPromise) {
             switch(this.props.current.status) {
@@ -95,6 +102,7 @@ class SequenceControler extends PureComponent {
                 disabled={!clickable.stop}
                 onClick={(e)=>Utils.promiseToState(this.props.app.stopSequence(this.props.uuid), this)}
             />
+            <input type='button' disabled={!clickable.edit} value='edit' onClick={()=>this.props.app.editCurrentSequence()}/>
         </span>);
     }
 
@@ -121,10 +129,14 @@ SequenceControler.propTypes = {
 class SequenceView extends PureComponent {
     constructor(props) {
         super(props);
+        this.state = {
+            sequenceEditDialogVisible: false
+        }
     }
     render() {
         //var self = this;
         return(<div className="CameraView">
+            <SequenceEditDialog currentPath='$.sequence.currentSequenceEdit' app={this.props.app}/>
             <div>
                 <SequenceSelector
                     app={this.props.app}

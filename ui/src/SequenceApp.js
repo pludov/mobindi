@@ -2,7 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import SequenceView from './SequenceView';
 import {fork} from './Store.js';
-
+import * as Utils from './Utils';
 
 
 class SequenceApp extends BaseApp {
@@ -11,8 +11,12 @@ class SequenceApp extends BaseApp {
         super(storeManager, "sequence");
         storeManager.addAdjuster(store=> (fork(store, ['sequence', 'currentImage'], (u)=>(u === undefined ? null : u))));
 
+        storeManager.addAdjuster(store=>(fork(store, ['sequence', 'currentEditSequence'], (u)=>(Utils.noErr(()=>store.backend.camera.sequences.byUuid[u]) === undefined ? null: u))));
+
         this.bindStoreFunction(this.setCurrentImage);
         this.bindStoreFunction(this.setCurrentSequence);
+        this.bindStoreFunction(this.editCurrentSequence);
+        this.bindStoreFunction(this.closeSequenceEditor);
     }
 
     setCurrentImage($store, imageUid) {
@@ -21,6 +25,29 @@ class SequenceApp extends BaseApp {
 
     setCurrentSequence($store, sequenceUid) {
         return fork($store, ['sequence', 'currentSequence'], (u)=>(sequenceUid));
+    }
+
+    // Dispatch to store
+    editCurrentSequence($store) {
+        var currentSequence=$store.sequence.currentSequence;
+        console.log('WTF pre switching currentSequence to ' + currentSequence);
+        if (currentSequence == undefined) return $store;
+        console.log('WTF switching currentSequence to ' + currentSequence);
+        return fork($store, ['sequence', 'currentSequenceEdit'], ()=>currentSequence);
+    }
+
+    // Returns a promise
+    updateSequenceParam(sequenceUid, params) {
+        var args = Object.assign({
+            method:'updateSequenceParam',
+            sequenceUid: sequenceUid
+        }, params);
+
+        return this.appServerRequest('camera', args);
+    }
+
+    closeSequenceEditor($store) {
+        return fork($store, ['sequence', 'currentSequenceEdit'], ()=>undefined);
     }
 
     // Returns a promise

@@ -48,21 +48,27 @@ class Camera {
                         // status are: idle/paused/error, running, done
                         status: 'idle',
                         title: 'Test 1',
+                        camera: null,
                         settings: {
                             bin:    1,
                             exp:    60,
                             iso:    1600
                         },
-                        steps: [
+                        steps: {
+                            list: ['000001', '000002'],
+                            byuuid: 
                             {
-                                count:  3,
-                                type:   'Light'
-                            },
-                            {
-                                count:  3,
-                                type:   'Dark'
+                                'OOOOO1': {
+                                    count:  3,
+                                    type:   'Light'
+                                },
+                                'OOOOO2': {
+                                    count:  3,
+                                    expt:   30,
+                                    type:   'Light'
+                                }
                             }
-                        ]
+                        }
                     }
                 }
             },
@@ -293,6 +299,16 @@ class Camera {
         });
     }
 
+    $api_updateSequenceParam(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to set setting: ', JSON.stringify(message.data));
+            var key = message.sequenceUid;
+            var param = message.param;
+            var value = message.value;
+            self.currentStatus.sequences.byuuid[key][param] = value;
+        });
+    }
     
     startSequence(uuid) {
         return new Promises.Sleep(5000);

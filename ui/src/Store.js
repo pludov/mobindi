@@ -33,6 +33,7 @@ const actions = {};
 
 
 // Fork un état et des sous-objet (forcement des objets)
+// Keep the state if no modif is implied
 function fork(state, path, fn)
 {
     var orgState = state;
