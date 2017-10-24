@@ -21,10 +21,8 @@ class PromiseSelector extends PureComponent {
         if (this.state.forcedValue !== undefined) {
             active = this.state.forcedValue;
         }
-        console.log('WTF with keys');
 
         if (active == null || this.props.nullAlwaysPossible) {
-            console.log("WTF key = null");
             options.push(<option value='null' key='null'>{this.props.placeholder}</option>)
         }
 
@@ -36,7 +34,6 @@ class PromiseSelector extends PureComponent {
                 }
             }
             if (!present) {
-                console.log("missing WTF key = " + JSON.stringify(active));
                 options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{active}</option>);
             }
         }
@@ -47,11 +44,33 @@ class PromiseSelector extends PureComponent {
             options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
         }
 
+        if (this.props.controls) {
+            for(var v of this.props.controls) {
+                var id = "ctrl:" + JSON.stringify(v.id);
+                options.push(<option value={id} key={id}><i>{v.title}</i></option>);
+            }
+        }
+
         return <select
                     disabled={this.state.runningPromise !== undefined}
                     value={JSON.stringify(active)}
-                    onChange={(e)=>this.selectEntry(JSON.parse(e.target.value))}>{options}
+                    onChange={(e)=>this.clicked(e.target.value)}>{options}
             </select>;
+    }
+
+    clicked(value)
+    {
+        if (value !== null && value !== undefined && value.startsWith("ctrl:")) {
+            var id = JSON.parse(value.substring(5));
+            for(var v of this.props.controls) {
+                if (v.id == id) {
+                    
+                    this.selectEntry(null, v.run);
+                }
+            }
+        } else {
+            this.selectEntry(JSON.parse(value), this.props.setValue);
+        }
     }
 
     asyncUpdatePromise(from, to, forcedValue)
@@ -68,13 +87,13 @@ class PromiseSelector extends PureComponent {
         });
     }
 
-    selectEntry(d) {
+    selectEntry(d, generator) {
         var self = this;
         if (this.state.runningPromise) {
             this.state.runningPromise.cancel();
             this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));
         }
-        var treatment = this.props.setValue(d);
+        var treatment = generator(d);
 
         function treatmentDone() {
             self.asyncUpdatePromise(treatment, undefined, undefined);
