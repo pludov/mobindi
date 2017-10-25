@@ -10,6 +10,7 @@ import Table from './Table';
 import { atPath } from './shared/JsonPath';
 import './SequenceView.css';
 import './Modal.css';
+import StatePropCond from './StatePropCond';
 import TextEdit from "./TextEdit.js";
 import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
@@ -163,6 +164,12 @@ class SequenceEditDialog extends PureComponent {
             set: (e)=>self.props.app.updateSequenceParam(self.props.uid, {param: 'iso', value: e})
         };
 
+        function isParamOverride(store, param) {
+            var v = atPath(store, param.valuePath);
+            if (v !== null && v !== undefined) return true;
+            return undefined;
+        }
+
         var stepEditors = [];
         for(var sequenceStepUid of this.props.details.steps.list) {
             stepEditors.push(<SequenceStepEdit
@@ -187,42 +194,57 @@ class SequenceEditDialog extends PureComponent {
                             setValue={(e)=>this.props.app.updateSequenceParam(this.props.uid, {param: 'camera', value: e})}
                         />
                 </div>
-                <div className="IndiProperty">
-                        Exp:
-                        <KeepValue app={this.props.app}
-                                valuePath={exposureParam.valuePath}
-                                setValue={exposureParam.set}>
-                            <CameraExpEditor
-                                device={this.props.details.camera}
-                                valuePath={exposureParam.valuePath}
-                                setValue={exposureParam.set}
-                            />
-                        </KeepValue>
-                </div>
-                <div className="IndiProperty">
-                        Bin:
-                        <KeepValue app={this.props.app}
-                                valuePath={binningParam.valuePath}
-                                setValue={binningParam.set}>
-                            <CameraBinEditor
-                                device={this.props.current}
-                                valuePath={binningParam.valuePath}
-                                setValue={binningParam.set}
-                            />
-                        </KeepValue>
-                </div>
-                <div className="IndiProperty">
-                        Iso:
-                        <KeepValue app={this.props.app} 
-                                valuePath={isoParam.valuePath}
-                                setValue={isoParam.set}>
-                            <CameraIsoEditor
-                                device={this.props.current}
-                                valuePath={isoParam.valuePath}
-                                setValue={isoParam.set}
-                            />
-                        </KeepValue>
-                </div>
+                <StatePropCond
+                            device={this.props.details.camera}
+                            property="CCD_EXPOSURE"
+                            overridePredicate={(store)=>isParamOverride(store, exposureParam)}>
+                    <div className="IndiProperty">
+                            Exp:
+                            <KeepValue app={this.props.app}
+                                    valuePath={exposureParam.valuePath}
+                                    setValue={exposureParam.set}>
+                                <CameraExpEditor
+                                    device={this.props.details.camera}
+                                    valuePath={exposureParam.valuePath}
+                                    setValue={exposureParam.set}
+                                />
+                            </KeepValue>
+                    </div>
+                </StatePropCond>
+                <StatePropCond
+                            device={this.props.details.camera}
+                            property="CCD_BINNING"
+                            overridePredicate={(store)=>isParamOverride(store, binningParam)}>
+                    <div className="IndiProperty">
+                            Bin:
+                            <KeepValue app={this.props.app}
+                                    valuePath={binningParam.valuePath}
+                                    setValue={binningParam.set}>
+                                <CameraBinEditor
+                                    device={this.props.details.camera}
+                                    valuePath={binningParam.valuePath}
+                                    setValue={binningParam.set}
+                                />
+                            </KeepValue>
+                    </div>
+                </StatePropCond>
+                <StatePropCond
+                            device={this.props.details.camera}
+                            property="CCD_ISO"
+                            overridePredicate={(store)=>isParamOverride(store, isoParam)}>
+                    <div className="IndiProperty">
+                            Iso:
+                            <KeepValue app={this.props.app}
+                                    valuePath={isoParam.valuePath}
+                                    setValue={isoParam.set}>
+                                <CameraIsoEditor
+                                    device={this.props.details.camera}
+                                    valuePath={isoParam.valuePath}
+                                    setValue={isoParam.set}
+                                />
+                            </KeepValue>
+                    </div>
+                </StatePropCond>
 
                 {stepEditors}
 

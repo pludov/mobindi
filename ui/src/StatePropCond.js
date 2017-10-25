@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import * as Utils from './Utils';
 import * as IndiUtils from './IndiUtils';
 
-/* Render the child depending on a value in the store */
+/* Render the child depending on the availability of an Indi Setting */
 class StatePropCond extends PureComponent {
     constructor(props) {
         super(props);
@@ -20,9 +20,12 @@ class StatePropCond extends PureComponent {
     }
 
     static mapStateToProps = function(store, ownProps) {
-        if (ownProps.override !== undefined) {
-            return {
-                active: ownProps.override
+        if (ownProps.overridePredicate !== undefined) {
+            var override = ownProps.overridePredicate(store, ownProps);
+            if (override !== undefined) {
+                return {
+                    active: ownProps.override
+                }
             }
         }
         var desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)[ownProps.property]);
@@ -46,8 +49,9 @@ StatePropCond.defaultProps = {
 StatePropCond.propTypes = {
     device: PropTypes.string.isRequired,
     property: PropTypes.string.isRequired,
-    override: PropTypes.bool,
     condition: PropTypes.func,
+    /** override the property check (true/false). undefined to use condition */
+    overridePredicate: PropTypes.func,
 }
 
 export default StatePropCond;
