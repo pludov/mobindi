@@ -16,6 +16,7 @@ class PromiseSelector extends PureComponent {
         if (active == undefined) active = null;
 
         var availables = this.props.availablesGenerator(this.props);
+        if (!availables) availables = [];
         var options = [];
 
         if (this.state.forcedValue !== undefined) {
@@ -89,6 +90,8 @@ class PromiseSelector extends PureComponent {
 
     selectEntry(d, generator) {
         var self = this;
+        if (generator === undefined) return;
+
         if (this.state.runningPromise) {
             this.state.runningPromise.cancel();
             this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));

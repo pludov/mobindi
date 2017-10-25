@@ -14,7 +14,7 @@ import TextEdit from "./TextEdit.js";
 import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
 import CameraExpEditor from './CameraExpEditor';
-
+import CameraFrameTypeEditor from './CameraFrameTypeEditor';
 
 // TODO : create a "new" item list in sequence (in PromiseSeletor)
 // TODO : create a full screen sequence editor (a component that can be added as top level of the view)
@@ -91,10 +91,19 @@ class SequenceStepEdit extends PureComponent {
 
     // Juste afficher le count
     render() {
+        var settingsPath = 'backend.camera.sequences.byuuid[' + JSON.stringify(this.props.sequenceUid) + '].steps.byuuid[' + JSON.stringify(this.props.sequenceStepUid) + ']';
         if (this.props.details === undefined) {
             return null;
         }
         return <div>
+            <div className="IndiProperty">
+                Type:
+                <CameraFrameTypeEditor
+                        device={this.props.camera}
+                        valuePath={settingsPath + '.type'}
+                        setValue={(e)=>this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'type', value: e})}
+                        />
+            </div>
             <div className="IndiProperty">
                 Count:
                 <TextEdit
@@ -120,6 +129,7 @@ class SequenceStepEdit extends PureComponent {
 SequenceStepEdit = connect(SequenceStepEdit.mapStateToProps)(SequenceStepEdit);
 
 SequenceStepEdit.propTypes = {
+    camera: PropTypes.string.isRequired,
     sequenceUid: PropTypes.string.isRequired,
     sequenceStepUid: PropTypes.string.isRequired,
     app: PropTypes.object.isRequired
@@ -156,7 +166,8 @@ class SequenceEditDialog extends PureComponent {
 
         var stepEditors = [];
         for(var sequenceStepUid of this.props.details.steps.list) {
-            stepEditors.push(<SequenceStepEdit 
+            stepEditors.push(<SequenceStepEdit
+                        camera={this.props.details.camera}
                         app={this.props.app}
                         sequenceUid={this.props.uid}
                         sequenceStepUid={sequenceStepUid}
