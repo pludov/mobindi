@@ -188,7 +188,7 @@ class SequenceEditDialog extends PureComponent {
                         app={this.props.app}
                         sequenceUid={this.props.uid}
                         sequenceStepUid={sequenceStepUid}
-                        allowRemove={this.props.details.steps.list.length >= 1}
+                        allowRemove={this.props.details.steps.list.length > 1}
                         key={sequenceStepUid}/>);
         }
         return <div className="Modal">
