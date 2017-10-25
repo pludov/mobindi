@@ -146,7 +146,6 @@ class SequenceEditDialog extends PureComponent {
             return null;
         }
         var self =this;
-        var devTreeRoot = 'backend.indiManager.deviceTree[' + (!this.props.details.camera? '?(false)' : JSON.stringify(this.props.details.camera)) + ']';
         var settingsPath = 'backend.camera.sequences.byuuid[' + JSON.stringify(this.props.uid) + ']';
 
         var exposureParam = {
@@ -177,7 +176,7 @@ class SequenceEditDialog extends PureComponent {
             <div className="ModalContent">
                 <div className="IndiProperty">
                         Title:
-                        <TextEdit 
+                        <TextEdit
                             value={this.props.details.title}
                             onChange={(e)=> {Utils.promiseToState(this.props.app.updateSequenceParam(this.props.uid, {param: 'title', value: e}), this)}}/>
                 </div>
@@ -194,7 +193,7 @@ class SequenceEditDialog extends PureComponent {
                                 valuePath={exposureParam.valuePath}
                                 setValue={exposureParam.set}>
                             <CameraExpEditor
-                                descPath={devTreeRoot+ '.CCD_EXPOSURE'}
+                                device={this.props.details.camera}
                                 valuePath={exposureParam.valuePath}
                                 setValue={exposureParam.set}
                             />
@@ -206,7 +205,7 @@ class SequenceEditDialog extends PureComponent {
                                 valuePath={binningParam.valuePath}
                                 setValue={binningParam.set}>
                             <CameraBinEditor
-                                descPath={devTreeRoot+ '.CCD_BINNING'}
+                                device={this.props.current}
                                 valuePath={binningParam.valuePath}
                                 setValue={binningParam.set}
                             />
@@ -218,7 +217,7 @@ class SequenceEditDialog extends PureComponent {
                                 valuePath={isoParam.valuePath}
                                 setValue={isoParam.set}>
                             <CameraIsoEditor
-                                descPath={devTreeRoot+ '.CCD_ISO'}
+                                device={this.props.current}
                                 valuePath={isoParam.valuePath}
                                 setValue={isoParam.set}
                             />

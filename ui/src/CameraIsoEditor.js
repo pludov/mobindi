@@ -1,8 +1,11 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
+import * as Utils from './Utils';
+import * as IndiUtils from './IndiUtils';
 
 /*
     Unfortunately, iso are stored as meaningless strings. (ISO1, ISO2, ...)
@@ -78,9 +81,8 @@ function IsoTitle(x) {
     return "" + x + " iso";
 }
 
-// Descpath points to vector
 const CameraIsoEditor = connect((store, ownProps) => {
-    var desc = atPath(store, ownProps.descPath);
+    var desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device).CCD_ISO);
 
     var result = ({
         placeholder: 'ISO...',
@@ -102,5 +104,14 @@ const CameraIsoEditor = connect((store, ownProps) => {
 
     return result;
 })(PromiseSelector)
+
+CameraIsoEditor.propTypes = {
+  // name of the device (indi id)
+  device: PropTypes.string.isRequired,
+  // Location of the value in the store
+  valuePath: PropTypes.string.isRequired,
+  // Function that build a promises
+  setValue: PropTypes.func.isRequired
+}
 
 export default CameraIsoEditor;

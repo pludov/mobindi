@@ -22,31 +22,29 @@ class CameraSettingsView extends PureComponent {
     }
 
     render() {
-        var devTreeRoot = 'backend.indiManager.deviceTree[' + (this.props.current === null ? '?(false)' : JSON.stringify(this.props.current)) + ']';
         return <div>
-            <StatePropCond path={devTreeRoot + '.CCD_BINNING'}>
+            <StatePropCond device={this.props.current} property="CCD_BINNING">
                     <span className='cameraSetting'>
                         <CameraBinEditor
-                            descPath={devTreeRoot + '.CCD_BINNING'}
+                            device={this.props.current}
                             valuePath={this.props.settingsPath + '.bin'}
                             setValue={this.props.setValue('bin')}/>
                     </span>
             </StatePropCond>
-            <StatePropCond path={devTreeRoot + '.CCD_ISO'}>
+
+            <StatePropCond device={this.props.current} property="CCD_ISO">
                     <span className='cameraSetting'>
                         <CameraIsoEditor
-                            descPath={devTreeRoot+ '.CCD_ISO'}
+                            device={this.props.current}
                             valuePath={this.props.settingsPath + '.iso'}
                             setValue={this.props.setValue('iso')} />
                     </span>
-
             </StatePropCond>
 
-
-            <StatePropCond path={devTreeRoot + '.CCD_EXPOSURE'}>
+            <StatePropCond device={this.props.current} property="CCD_EXPOSURE">
                     <span className='cameraSetting'>Exp:
                         <CameraExpEditor
-                            descPath={devTreeRoot+ '.CCD_EXPOSURE'}
+                            device={this.props.current}
                             valuePath={this.props.settingsPath + '.exp'}
                             setValue={this.props.setValue('exp')}/>
                     </span>

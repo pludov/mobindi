@@ -1,8 +1,11 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
+import * as Utils from './Utils';
+import * as IndiUtils from './IndiUtils';
 
 
 function ExpValueGenerator(props) {
@@ -35,16 +38,24 @@ function ExpTitle(x) {
     return x + "s";
 }
 
-// Descpath points to vector
 const CameraExpEditor = connect((store, ownProps) => {
-    var desc = atPath(store, ownProps.descPath);
+    var indiDeviceDesc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device).CCD_EXPOSURE);
     return ({
         active: atPath(store, ownProps.valuePath),
         availablesGenerator: ExpValueGenerator,
         getTitle: ExpTitle,
-        $min: atPath(desc, '$.childs.CCD_EXPOSURE_VALUE["$min"]'),
-        $max: atPath(desc, '$.childs.CCD_EXPOSURE_VALUE["$max"]'),
+        $min: atPath(indiDeviceDesc, '$.childs.CCD_EXPOSURE_VALUE["$min"]'),
+        $max: atPath(indiDeviceDesc, '$.childs.CCD_EXPOSURE_VALUE["$max"]'),
     });
 })(PromiseSelector)
+
+CameraExpEditor.propTypes = {
+    // name of the device (indi id)
+    device: PropTypes.string.isRequired,
+    // Location of the value in the store
+    valuePath: PropTypes.string.isRequired,
+    // Function that build a promises
+    setValue: PropTypes.func.isRequired
+}
 
 export default CameraExpEditor;

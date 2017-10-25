@@ -1,8 +1,11 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
+import * as Utils from './Utils';
+import * as IndiUtils from './IndiUtils';
 
 
 function BinValueGenerator(props) {
@@ -27,9 +30,8 @@ function BinTitle(x) {
     return "bin" + x;
 }
 
-// Descpath points to vector
 const CameraBinSelector = connect((store, ownProps) => {
-    var desc = atPath(store, ownProps.descPath);
+    var desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device).CCD_BINNING);
     return ({
         active: atPath(store, ownProps.valuePath),
         availablesGenerator: BinValueGenerator,
@@ -42,5 +44,14 @@ const CameraBinSelector = connect((store, ownProps) => {
         $stepy: atPath(desc, '$.childs.VER_BIN["$step"]'),
     });
 })(PromiseSelector)
+
+CameraBinSelector.propTypes = {
+    // name of the device (indi id)
+    device: PropTypes.string.isRequired,
+    // Location of the value in the store
+    valuePath: PropTypes.string.isRequired,
+    // Function that build a promises
+    setValue: PropTypes.func.isRequired
+}
 
 export default CameraBinSelector;
