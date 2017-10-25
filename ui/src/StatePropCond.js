@@ -24,7 +24,7 @@ class StatePropCond extends PureComponent {
             var override = ownProps.overridePredicate(store, ownProps);
             if (override !== undefined) {
                 return {
-                    active: ownProps.override
+                    active: override
                 }
             }
         }
