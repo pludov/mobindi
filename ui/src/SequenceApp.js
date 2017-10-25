@@ -38,10 +38,21 @@ class SequenceApp extends BaseApp {
     // Dispatch to store
     editCurrentSequence($store) {
         var currentSequence=$store.sequence.currentSequence;
-        console.log('WTF pre switching currentSequence to ' + currentSequence);
         if (currentSequence == undefined) return $store;
-        console.log('WTF switching currentSequence to ' + currentSequence);
         return fork($store, ['sequence', 'currentSequenceEdit'], ()=>currentSequence);
+    }
+
+    // Returns a promise that produce an uid
+    newSequenceStep(sequenceUid) {
+        return this.appServerRequest('camera', {method: 'newSequenceStep', sequenceUid: sequenceUid});
+    }
+
+    deleteSequenceStep(sequenceUid, sequenceStepUid) {
+        return this.appServerRequest('camera', {
+            method: 'deleteSequenceStep', 
+            sequenceUid: sequenceUid, 
+            sequenceStepUid: sequenceStepUid
+        });
     }
 
     // Returns a promise

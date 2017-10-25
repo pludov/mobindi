@@ -320,7 +320,7 @@ class Camera {
                     byuuid: {
                         [firstSeq]: {
                             count:  1,
-                            type:   'Light'
+                            type:   'FRAME_LIGHT'
                         }
                     }
                 }
@@ -330,10 +330,41 @@ class Camera {
         });
     }
 
+    $api_newSequenceStep(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to add step: ', JSON.stringify(message));
+            var sequenceUid = message.sequenceUid;
+            var sequenceStepUid = uuid.v4();
+            self.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid] = { count: 1, type: 'FRAME_LIGHT'};
+            self.currentStatus.sequences.byuuid[sequenceUid].steps.list.push(sequenceStepUid);
+            return sequenceStepUid;
+        });
+    }
+
+    $api_deleteSequenceStep(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to drop step: ', JSON.stringify(message));
+            var sequenceUid = message.sequenceUid;
+            var sequenceStepUid = message.sequenceStepUid;
+            var sequenceStepUidList = self.currentStatus.sequences.byuuid[sequenceUid].steps.list;
+            var pos = sequenceStepUidList.indexOf(sequenceStepUid);
+            if (pos == -1) {
+                console.warn('step ' + sequenceStepUid + ' not found in ' + JSON.stringify(sequenceStepUidList));
+                throw new Error("Step not found");
+            }
+            sequenceStepUidList.splice(pos, 1);
+            delete self.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid];
+            return sequenceStepUid;
+        });
+
+    }
+
     $api_updateSequenceParam(message, progress) {
         var self = this;
         return new Promises.Immediate((e)=> {
-            console.log('Request to set setting: ', JSON.stringify(message.data));
+            console.log('Request to set setting: ', JSON.stringify(message));
             var key = message.sequenceUid;
             var param = message.param;
             var value = message.value;
@@ -346,7 +377,7 @@ class Camera {
             }
         });
     }
-    
+
     startSequence(uuid) {
         return new Promises.Sleep(5000);
     }

@@ -88,6 +88,7 @@ KeepValue.propTypes = {
 class SequenceStepEdit extends PureComponent {
     constructor(props) {
         super(props);
+        this.state = {};
     }
 
     // Juste afficher le count
@@ -111,6 +112,14 @@ class SequenceStepEdit extends PureComponent {
                     value={this.props.details.count == null ? "" : this.props.details.count}
                     onChange={(e)=> {Utils.promiseToState(this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'count', value: parseInt(e)}), this)}}/>
             </div>
+            {!this.props.allowRemove ? null :
+                <input 
+                    type="button" 
+                    value="remove" 
+                    onClick={e=>Utils.promiseToState(this.props.app.deleteSequenceStep(this.props.sequenceUid, this.props.sequenceStepUid), this, "dropButtonBusy")}
+                    disabled={!!this.state.dropButtonBusy}
+                    />
+            }
         </div>
     }
 
@@ -133,6 +142,7 @@ SequenceStepEdit.propTypes = {
     camera: PropTypes.string.isRequired,
     sequenceUid: PropTypes.string.isRequired,
     sequenceStepUid: PropTypes.string.isRequired,
+    allowRemove: PropTypes.bool.isRequired,
     app: PropTypes.object.isRequired
 }
 
@@ -140,6 +150,7 @@ SequenceStepEdit.propTypes = {
 class SequenceEditDialog extends PureComponent {
     constructor(props) {
         super(props);
+        this.state = {};
     }
 
     render() {
@@ -177,6 +188,7 @@ class SequenceEditDialog extends PureComponent {
                         app={this.props.app}
                         sequenceUid={this.props.uid}
                         sequenceStepUid={sequenceStepUid}
+                        allowRemove={this.props.details.steps.list.length >= 1}
                         key={sequenceStepUid}/>);
         }
         return <div className="Modal">
@@ -248,7 +260,11 @@ class SequenceEditDialog extends PureComponent {
 
                 {stepEditors}
 
-                <input type='button' value='Fermer' onClick={e=>this.props.app.closeSequenceEditor()}/>
+                <input type='button' value='Add a step' 
+                    disabled={!!this.state.AddStepBusy}
+                    onClick={e=>Utils.promiseToState(this.props.app.newSequenceStep(this.props.uid), this, "AddStepBusy")}/>
+
+                <input type='button' value='Close' onClick={e=>this.props.app.closeSequenceEditor()}/>
             </div>
         </div>;
     }
