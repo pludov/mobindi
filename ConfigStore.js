@@ -2,6 +2,7 @@
 
 const Obj = require('./Obj.js');
 const fs = require('fs');
+const tmp = require('tmp');
 
 var configDir = 'local';
 
@@ -14,6 +15,9 @@ class ConfigStore
     constructor(appStateManager, fileName, path, defaultContent, exampleContent)
     {
         this.appStateManager = appStateManager;
+        
+        this.saveRunning = false;
+        this.saveMustRestart = false;
 
         var target = appStateManager.getTarget();
         for(var i = 0; i < path.length; ++i) {
@@ -29,7 +33,7 @@ class ConfigStore
         this.defaultContent = Obj.deepCopy(defaultContent);
 
         // load local config patch
-
+        this.fileName = fileName;
         this.localPath = configDir + '/' + fileName + '.json';
         var examplePath = configDir + '/' + fileName + '.default.json';
 
@@ -137,12 +141,137 @@ class ConfigStore
         return result;
     }
 
+    startSave() {
+        var self = this;
+        var state = {};
+
+
+        // Gives a delay to not save too often
+        function start() {
+            setTimeout(createTemp, 1000);
+        }
+
+        function createTemp() {
+            tmp.file({dir: configDir, prefix: self.fileName, suffix: '.json'},
+                function(err, path, fd, cleanupCallback) {
+                    if (err) {
+                        return onError(err);
+                    }
+                    state.tmpPath = path;
+                    state.tmpFd = fd;
+                    state.tmpCleanupCallback = cleanupCallback;
+                    writeContent();
+                });
+        }
+
+        function writeContent() {
+            self.saveMustRestart = false;
+            var buffer = new Buffer( JSON.stringify(self.lastPatch, null, 2), "utf8" );
+            var position = 0;
+
+            function writeMore() {
+                fs.write(state.tmpFd, buffer, position, buffer.length - position,
+                    function (err, bytesWritten) {
+                        if (err) {
+                            return onError(err);
+                        }
+                        if (bytesWritten == 0) {
+                            return onError(new Error("Write failed"));
+                        }
+                        position += bytesWritten;
+                        if (position < buffer.length) {
+                            writeMore();
+                        } else {
+                            writeDone();
+                        }
+                    });
+            }
+            function writeDone() {
+                syncFile();
+            }
+
+            if (buffer.length > 0) {
+                writeMore();
+            } else {
+                writeDone();
+            }
+        }
+
+        function syncFile()
+        {
+            fs.fsync(state.tmpFd, function(err) {
+                if (err) {
+                    return onError(err);
+                }
+                return closeFile();
+            })
+        }
+
+        function closeFile()
+        {
+            fs.close(state.tmpFd, function(err) {
+                state.tmpFd = undefined;
+                if (err) {
+                    return onError(err);
+                }
+                renameFile();
+            });
+        }
+
+        function renameFile()
+        {
+            fs.rename(state.tmpPath, self.localPath, function(err) {
+                if (err) {
+                    return onError(err);
+                }
+
+                try {
+                    state.tmpCleanupCallback();
+                } catch(e) {}
+                done();
+            })
+        }
+
+        function onError(err) {
+            console.error('Error saving ' + self.localPath, err);
+            if (state.tmpCleanupCallback) {
+                try {
+                    state.tmpCleanupCallback();
+                } catch(e) {}
+            }
+            state = {};
+            self.saveMustRestart = true;
+
+            done();
+        }
+
+        function done() {
+            if (self.saveMustRestart) {
+                console.log('save must restart for ' + self.localPath);
+                state = {};
+                return start();
+            } else {
+                self.saveRunning = false;
+                console.log('Successfully saved ' + self.localPath);
+            }
+        }
+
+        this.saveRunning = true;
+        start();
+    }
+
     saveLocal()
     {
         var newPatch = this.createPatch();
         if (newPatch === undefined) newPatch = {};
         if (!Obj.deepEqual(newPatch, this.lastPatch)) {
             console.log('should save : ' + JSON.stringify(newPatch, null, 2));
+            this.lastPatch = Obj.deepCopy(newPatch);
+            if (this.saveRunning) {
+                this.saveMustRestart = true;
+            } else {
+                this.startSave();
+            }
         }
     }
 

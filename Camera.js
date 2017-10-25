@@ -42,37 +42,10 @@ class Camera {
             },
 
             sequences: {
-                list: ['aaaa'],
-                byuuid: {
-                    'aaaa':
-                    {
-                        // status are: idle/paused/error, running, done
-                        status: 'idle',
-                        title: 'Test 1',
-                        camera: null,
-                        settings: {
-                            bin:    1,
-                            exp:    60,
-                            iso:    1600
-                        },
-                        steps: {
-                            list: ['000001', '000002'],
-                            byuuid: 
-                            {
-                                'OOOOO1': {
-                                    count:  3,
-                                    type:   'Light'
-                                },
-                                'OOOOO2': {
-                                    count:  3,
-                                    expt:   30,
-                                    type:   'Light'
-                                }
-                            }
-                        }
-                    }
-                }
+                list: [],
+                byuuid: {}
             },
+
             configuration: {}
         };
 
@@ -86,6 +59,39 @@ class Camera {
                     "Single_Bin1x1_1s_2015-08-09_23-41-16.fit",  "Single_Bin1x1_30s_2015-08-09_23-42-37.fit",  "Single_Bin1x1_5s_2015-08-09_23-41-47.fit",   "Single_Bin2x2_2s_2015-08-09_23-29-41.fit",      "Single_M27_G_Bin1x1_2s_2015-08-10_03-46-49.fit",
                     "Single_Bin1x1_1s_2015-08-09_23-44-21.fit",  "Single_Bin1x1_30s_2015-08-09_23-45-37.fit",  "Single_Bin2x2_2s_2015-08-09_23-27-56.fit",   "Single_M27_Bin1x1_1s_2015-08-10_03-39-51.fit"
             ]
+        });
+
+        new ConfigStore(appStateManager, 'sequences', ['camera', 'sequences'], {
+            list: [],
+            byuuid: {}
+        },{
+            list: ['21324564'],
+            byuuid: {
+                '21324564': {
+                    // status are: idle/paused/error, running, done
+                    status: 'idle',
+                    title: 'Test 1',
+                    camera: null,
+                    exposure: null,
+                    iso: null,
+                    bin: null,
+                    steps: {
+                        list: ['000001', '000002'],
+                        byuuid:
+                        {
+                            'OOOOO1': {
+                                count: 3,
+                                type: 'Light'
+                            },
+                            'OOOOO2': {
+                                count: 3,
+                                expt: 30,
+                                type: 'Light'
+                            }
+                        }
+                    }
+                }
+            }
         });
         // Device => promise
         this.shootPromises = {};
@@ -310,11 +316,6 @@ class Camera {
                 status: 'idle',
                 title: 'New sequence',
                 camera: null,
-                settings: {
-                    bin:    null,
-                    exp:    null,
-                    iso:    null
-                },
                 steps: {
                     list: [firstSeq],
                     byuuid: {
