@@ -305,6 +305,7 @@ class Camera {
         return new Promises.Immediate((e)=> {
             console.log('Request to create sequence: ', JSON.stringify(message.data));
             var key = uuid.v4();
+            var firstSeq = uuid.v4();
             self.currentStatus.sequences.byuuid[key] = {
                 status: 'idle',
                 title: 'New sequence',
@@ -315,8 +316,13 @@ class Camera {
                     iso:    null
                 },
                 steps: {
-                    list: [],
-                    byuuid: {}
+                    list: [firstSeq],
+                    byuuid: {
+                        [firstSeq]: {
+                            count:  1,
+                            type:   'Light'
+                        }
+                    }
                 }
             };
             self.currentStatus.sequences.list.push(key);
@@ -331,7 +337,13 @@ class Camera {
             var key = message.sequenceUid;
             var param = message.param;
             var value = message.value;
-            self.currentStatus.sequences.byuuid[key][param] = value;
+
+            if ('sequenceStepUid' in message) {
+                var sequenceStepUid = message.sequenceStepUid;
+                self.currentStatus.sequences.byuuid[key].steps.byuuid[sequenceStepUid][param] = value;
+            } else {
+                self.currentStatus.sequences.byuuid[key][param] = value;
+            }
         });
     }
     

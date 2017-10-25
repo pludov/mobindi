@@ -84,6 +84,48 @@ KeepValue.propTypes = {
     valuePath: PropTypes.string.isRequired
 }
 
+class SequenceStepEdit extends PureComponent {
+    constructor(props) {
+        super(props);
+    }
+
+    // Juste afficher le count
+    render() {
+        if (this.props.details === undefined) {
+            return null;
+        }
+        return <div>
+            <div className="IndiProperty">
+                Count:
+                <TextEdit
+                    value={this.props.details.count == null ? "" : this.props.details.count}
+                    onChange={(e)=> {Utils.promiseToState(this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'count', value: parseInt(e)}), this)}}/>
+            </div>
+        </div>
+    }
+
+    static mapStateToProps(store, ownProps) {
+        var details = Utils.noErr(()=>store.backend.camera.sequences.byuuid[ownProps.sequenceUid].steps.byuuid[ownProps.sequenceStepUid], undefined);
+        if (details == undefined) {
+            return {
+                details: undefined
+            };
+        }
+        return {
+            details: details
+        };
+    }
+
+}
+SequenceStepEdit = connect(SequenceStepEdit.mapStateToProps)(SequenceStepEdit);
+
+SequenceStepEdit.propTypes = {
+    sequenceUid: PropTypes.string.isRequired,
+    sequenceStepUid: PropTypes.string.isRequired,
+    app: PropTypes.object.isRequired
+}
+
+
 class SequenceEditDialog extends PureComponent {
     constructor(props) {
         super(props);
@@ -112,6 +154,14 @@ class SequenceEditDialog extends PureComponent {
             set: (e)=>self.props.app.updateSequenceParam(self.props.uid, {param: 'iso', value: e})
         };
 
+        var stepEditors = [];
+        for(var sequenceStepUid of this.props.details.steps.list) {
+            stepEditors.push(<SequenceStepEdit 
+                        app={this.props.app}
+                        sequenceUid={this.props.uid}
+                        sequenceStepUid={sequenceStepUid}
+                        key={sequenceStepUid}/>);
+        }
         return <div className="Modal">
             <div className="ModalContent">
                 <div className="IndiProperty">
@@ -164,6 +214,8 @@ class SequenceEditDialog extends PureComponent {
                         </KeepValue>
                 </div>
 
+                {stepEditors}
+
                 <input type='button' value='Fermer' onClick={e=>this.props.app.closeSequenceEditor()}/>
             </div>
         </div>;
@@ -180,7 +232,6 @@ class SequenceEditDialog extends PureComponent {
         console.log('WTF selected is ' + selected);
         var details = Utils.noErr(()=>store.backend.camera.sequences.byuuid[selected], undefined);
         if (details == undefined) {
-            throw "C'est ici qu'on devrait pas arriver"
             return {
                 visible: false,
                 uid: undefined
