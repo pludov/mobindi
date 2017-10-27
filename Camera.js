@@ -362,6 +362,31 @@ class Camera {
 
     }
 
+    $api_moveSequenceSteps(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to move steps: ', JSON.stringify(message));
+            var sequenceUid = message.sequenceUid;
+            var sequenceStepUidList = message.sequenceStepUidList;
+            // Check that no uid is lost
+            var currentSequenceStepUidList = self.currentStatus.sequences.byuuid[sequenceUid].steps.list;
+            if (sequenceStepUidList.length != currentSequenceStepUidList.length) {
+                throw new Error("Sequence step list size mismatch. Concurrent modification ?");
+            }
+            for(var i = 0; i < currentSequenceStepUidList.length; ++i) {
+                if (sequenceStepUidList.indexOf(currentSequenceStepUidList[i]) == -1) {
+                    throw new Error("Missing step in new order. Concurrent modification ?");
+                }
+            }
+            for(var i = 0; i < sequenceStepUidList.length; ++i) {
+                if (currentSequenceStepUidList.indexOf(sequenceStepUidList[i]) == -1) {
+                    throw new Error("Unknown step in new order. Concurrent modification ?");
+                }
+            }
+            self.currentStatus.sequences.byuuid[sequenceUid].steps.list = sequenceStepUidList;
+        });
+    }
+
     $api_updateSequenceParam(message, progress) {
         var self = this;
         return new Promises.Immediate((e)=> {

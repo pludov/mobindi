@@ -2,6 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
+import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
@@ -146,11 +147,79 @@ SequenceStepEdit.propTypes = {
     app: PropTypes.object.isRequired
 }
 
+const SortableItem = SortableElement(({camera, app, sequenceUid, sequenceStepUid, allowRemove})=> {
+    return (<li className="SequenceStepMovableBlock"><SequenceStepEdit camera={camera} app={app} sequenceUid={sequenceUid} sequenceStepUid={sequenceStepUid} allowRemove={allowRemove}/></li>);
+})
+
+const SortableList = SortableContainer(({items, camera, app, sequenceUid}) => {
+    return (
+      <ul className="SequenceStepContainer">
+        {items.map((sequenceStepUid, index) => (
+          <SortableItem
+                    key={`item-${index}`}
+                    index={index}
+                    camera={camera}
+                    app={app}
+                    sequenceUid={sequenceUid}
+                    sequenceStepUid={sequenceStepUid}
+                    allowRemove={items.length > 1} />
+        ))}
+      </ul>
+    );
+  });
 
 class SequenceEditDialog extends PureComponent {
     constructor(props) {
         super(props);
-        this.state = {};
+        this.state = {
+            runningMoves: 0,
+            overridenList: null,
+            overridenListSource: null
+        };
+        this.moveSteps = this.moveSteps.bind(this);
+        this.moveStepsEnd = this.moveStepsEnd.bind(this);
+    }
+
+    getCurrentStepList(state, props) {
+        if (state.overridenList !== null && state.overridenListSource == props.details.steps.list) {
+            return state.overridenList;
+        }
+        return props.details.steps.list;
+    }
+
+    moveStepsEnd() {
+        this.setState((state, props) => {
+            state = Object.assign({}, state, {runningMoves: state.runningMoves - 1});
+            if (state.runningMoves == 0) {
+                state.overridenList = null;
+                state.overridenListSource = null;
+            }
+            return state;
+        });
+    }
+
+    moveSteps({oldIndex, newIndex}) {
+        if (oldIndex == newIndex) return;
+        var newOrder = arrayMove(this.getCurrentStepList(this.state, this.props), oldIndex, newIndex);
+        var initialOrder = this.props.details.steps.list;
+
+        // Update the state, then start a trigger
+        this.setState((state, props)=>
+            Object.assign(
+                    {},
+                    state,
+                    {
+                        overridenList: newOrder,
+                        overridenListSource: initialOrder,
+                        runningMoves: state.runningMoves + 1
+                    }),
+            ()=>{
+                this.props.app.moveSequenceSteps(this.props.uid, this.getCurrentStepList(this.state, this.props))
+                    .then(this.moveStepsEnd)
+                    .onError(this.moveStepsEnd)
+                    .onCancel(this.moveStepsEnd)
+                    .start();
+            });
     }
 
     render() {
@@ -181,16 +250,6 @@ class SequenceEditDialog extends PureComponent {
             return undefined;
         }
 
-        var stepEditors = [];
-        for(var sequenceStepUid of this.props.details.steps.list) {
-            stepEditors.push(<SequenceStepEdit
-                        camera={this.props.details.camera}
-                        app={this.props.app}
-                        sequenceUid={this.props.uid}
-                        sequenceStepUid={sequenceStepUid}
-                        allowRemove={this.props.details.steps.list.length > 1}
-                        key={sequenceStepUid}/>);
-        }
         return <div className="Modal">
             <div className="ModalContent">
                 <div className="IndiProperty">
@@ -258,9 +317,15 @@ class SequenceEditDialog extends PureComponent {
                     </div>
                 </StatePropCond>
 
-                {stepEditors}
+                <SortableList items={this.getCurrentStepList(this.state, this.props)}
+                        onSortEnd={this.moveSteps}
+                        camera={this.props.details.camera}
+                        app={this.props.app}
+                        sequenceUid={this.props.uid}
+                        pressDelay={200}
+                        helperClass="sortableHelper"/>
 
-                <input type='button' value='Add a step' 
+                <input type='button' value='Add a step'
                     disabled={!!this.state.AddStepBusy}
                     onClick={e=>Utils.promiseToState(this.props.app.newSequenceStep(this.props.uid), this, "AddStepBusy")}/>
 

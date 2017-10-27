@@ -55,6 +55,14 @@ class SequenceApp extends BaseApp {
         });
     }
 
+    moveSequenceSteps(sequenceUid, sequenceStepUidList) {
+        return this.appServerRequest('camera', {
+            method: 'moveSequenceSteps', 
+            sequenceUid: sequenceUid,
+            sequenceStepUidList: sequenceStepUidList
+        });
+    }
+
     // Returns a promise
     updateSequenceParam(sequenceUid, params) {
         var args = Object.assign({

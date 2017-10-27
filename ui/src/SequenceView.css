@@ -10,3 +10,17 @@
 .AspectRatio43 {
     padding-bottom: 75%;
 }
+
+.SequenceStepMovableBlock.sortableHelper {
+    z-index: 10;
+    color: #ffffff;
+    background-color: #000000;
+}
+
+.SequenceStepMovableBlock {
+    list-style: none;
+}
+
+.SequenceStepContainer {
+    padding: 0px;
+}
