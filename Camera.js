@@ -70,6 +70,7 @@ class Camera {
                 '21324564': {
                     // status are: idle/paused/error, running, done
                     status: 'idle',
+                    errorMessage: null,
                     title: 'Test 1',
                     camera: null,
                     exposure: null,
@@ -405,7 +406,12 @@ class Camera {
     }
 
     startSequence(uuid) {
-        return new Promises.Sleep(5000);
+        return new Promises.Chain(
+                new Promises.Sleep(5000),
+                new Promises.Immediate(()=>{
+                    throw new Error("Not implemented !");
+                })
+            );
     }
 
     $api_startSequence(message, progress) {
@@ -423,19 +429,33 @@ class Camera {
             }
 
             self.currentStatus.sequences.byuuid[key].status = 'running';
+            self.currentStatus.sequences.byuuid[key].errorMessage = null;
 
             self.currentSequencePromise = self.startSequence(key);
             self.currentSequenceUuid = key;
 
-            function finishWithStatus(s) {
+            function finishWithStatus(s, e) {
                 console.log('finishing with final status: ' + s);
-                self.currentStatus.sequences.byuuid[key].status = s;
+                if (e) {
+                    console.log('Error ' , e);
+                }
+                var seq = self.currentStatus.sequences.byuuid[key];
+                seq.status = s;
+                if (e) {
+                    if (e instanceof Error) {
+                        seq.errorMessage = e.message;
+                    } else {
+                        seq.errorMessage = "" + e;
+                    }
+                } else {
+                    seq.errorMessage = null;
+                }
                 self.currentSequenceUuid = null;
                 self.currentSequencePromise = null;
             }
 
             self.currentSequencePromise.then((e) => finishWithStatus('done'));
-            self.currentSequencePromise.onError((e) => finishWithStatus('error'));
+            self.currentSequencePromise.onError((e) => finishWithStatus('error', e));
             self.currentSequencePromise.onCancel((e) => finishWithStatus('paused'));
             self.currentSequencePromise.start();
         });

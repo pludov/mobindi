@@ -24,3 +24,18 @@
 .SequenceStepContainer {
     padding: 0px;
 }
+
+.SequenceStatusERROR {
+    font-weight: bold;
+    color: red;
+}
+
+.SequenceStatusRUNNING {
+    font-style: italic;
+    color: blue;
+}
+
+.SequenceStatusDONE {
+    font-style: bold;
+    color: green;
+}

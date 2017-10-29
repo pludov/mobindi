@@ -66,3 +66,30 @@ div {
   -webkit-user-select: none;
   user-select: none;
 }
+
+
+.messageContainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: 100%;
+
+}
+
+.messageTitle {
+  white-space: nowrap;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.messageContent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex;
+  flex-grow: 1;
+  flex-shrink: 1;
+  white-space: nowrap;
+  min-width: 0;
+}
+

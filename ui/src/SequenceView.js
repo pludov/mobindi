@@ -92,7 +92,21 @@ class SequenceControler extends PureComponent {
                     break;
             }
         }
-        return(<span>
+        return(<div>
+            <div className='messageContainer'>
+                    <div className='messageTitle'>Status:</div>
+                    <div className='messageContent'>
+                        <span className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} 
+                            key='status'>{!this.props.current
+                                            ? ("")
+                                            : (
+                                                this.props.current.status == 'error'
+                                                 ? this.props.current.errorMessage
+                                                 :  this.props.current.status
+                                            )}
+                        </span>
+                    </div>
+            </div>
             <input
                 type='button'
                 value='Start'
@@ -108,7 +122,7 @@ class SequenceControler extends PureComponent {
                 onClick={(e)=>Utils.promiseToState(this.props.app.stopSequence(this.props.uuid), this)}
             />
             <input type='button' disabled={!clickable.edit} value='edit' onClick={()=>this.props.app.editCurrentSequence()}/>
-        </span>);
+        </div>);
     }
 
     static mapStateToProps(store, ownProps) {
