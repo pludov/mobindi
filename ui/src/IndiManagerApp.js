@@ -22,7 +22,8 @@ class IndiManagerApp extends BaseApp {
         return <IndiManagerView app={self} key={self.appId}></IndiManagerView>;
     }
 
-    switchToDevice($state, dev, group, onoff) {
+    setGroupState($state, dev, group, onoff) {
+        console.log('WTF: switch to device ' + dev + ' => ' + onoff);
         var result = update($state, {
             $mergedeep: {
                 indiManager: {
@@ -37,7 +38,7 @@ class IndiManagerApp extends BaseApp {
         return result;
     }
 
-    setGroupState($state, dev) {
+    switchToDevice($state, dev) {
         var emptyDev = {};
         emptyDev[dev] = {};
         var u = {
