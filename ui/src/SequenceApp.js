@@ -14,11 +14,11 @@ class SequenceApp extends BaseApp {
 
         storeManager.addAdjuster(store=>(fork(store, ['sequence', 'currentEditSequence'], (u)=>(Utils.noErr(()=>store.backend.camera.sequences.byUuid[u]) === undefined ? null: u))));
 
-        this.bindStoreFunction(this.setCurrentImage);
-        this.bindStoreFunction(this.setCurrentSequence);
-        this.bindStoreFunction(this.setCurrentSequenceAndEdit);
-        this.bindStoreFunction(this.editCurrentSequence);
-        this.bindStoreFunction(this.closeSequenceEditor);
+        this.setCurrentImage = this.bindStoreFunction(this.setCurrentImage, "setCurrentImage");
+        this.setCurrentSequence = this.bindStoreFunction(this.setCurrentSequence, "setCurrentSequence");
+        this.setCurrentSequenceAndEdit = this.bindStoreFunction(this.setCurrentSequenceAndEdit, "setCurrentSequenceAndEdit");
+        this.editCurrentSequence = this.bindStoreFunction(this.editCurrentSequence, "editCurrentSequence");
+        this.closeSequenceEditor = this.bindStoreFunction(this.closeSequenceEditor, "closeSequenceEditor");
     }
 
     setCurrentImage($store, imageUid) {

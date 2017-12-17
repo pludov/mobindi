@@ -12,8 +12,8 @@ class IndiManagerApp extends BaseApp {
 
     constructor(storeManager) {
         super(storeManager, "indiManager");
-        this.bindStoreFunction(this.switchToDevice);
-        this.bindStoreFunction(this.setGroupState);
+        this.switchToDevice = this.bindStoreFunction(this.switchToDevice, "switchToDevice");
+        this.setGroupState = this.bindStoreFunction(this.setGroupState, "setGroupState");
     }
 
     getUi() {

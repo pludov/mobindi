@@ -14,15 +14,15 @@ class BaseApp {
         this.storeManager.addActions(this.appId, obj);
     }
 
-    bindStoreFunction(fn) 
+    bindStoreFunction(fn, fnname)
     {
         var self = this;
         this.storeManager.addActions(this.appId, {
-            [fn.name]: fn
+            [fnname]: fn
         });
-        this[fn.name] = function() {
+        return function() {
             var invocationArgs = Array.from(arguments);
-            return self.dispatchAction(fn.name, invocationArgs)
+            return self.dispatchAction(fnname, invocationArgs)
         };
     }
 
