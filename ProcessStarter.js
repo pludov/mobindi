@@ -16,7 +16,9 @@ class ProcessStarter {
     constructor(exe, configuration) {
         this.exe = exe;
         this.configuration = configuration;
-        this.buildLifeCycle().start();
+        if (this.configuration.autorun) {
+            this.buildLifeCycle().start();
+        }
     }
 
 
