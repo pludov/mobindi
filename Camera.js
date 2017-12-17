@@ -154,9 +154,14 @@ class Camera {
         {
             var rev, value;
             try {
-                rev = indiManager.deviceTree[device].CCD_FILE_PATH.$rev;
-                value = indiManager.deviceTree[device].CCD_FILE_PATH.childs.FILE_PATH.$_;
-
+                var dtree =  indiManager.deviceTree[device];
+                if ("CCD_FILE_PATH" in dtree) {
+                    rev = dtree.CCD_FILE_PATH.$rev;
+                    value = dtree.CCD_FILE_PATH.childs.FILE_PATH.$_;
+                } else {
+                    rev = "undefined";
+                    value = "";
+                }
             } catch(e) {
                 console.log('Error with device ' + device, e);
                 continue;
