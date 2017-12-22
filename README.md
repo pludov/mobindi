@@ -44,7 +44,7 @@ The above instructions are valid for a debian based system (including raspbian f
 
 Some packages are required for building. Install them:
 ```
-sudo apt-get install git cmake zlib1g-dev libcurl4-openssl-dev libgsl-dev libraw-dev libcfitsio-dev libjpeg-dev libpng-dev libcgicc-dev
+sudo apt-get install git cmake zlib1g-dev libcurl4-openssl-dev libgsl-dev libraw-dev libcfitsio-dev libjpeg-dev libpng-dev libcgicc-dev daemontools
 ```
 
 You also need nodejs installed, with a recent version (> v8). I use the latest v6 (v8.4.0)
