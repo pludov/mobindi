@@ -133,7 +133,7 @@ class IndiPropertyView extends PureComponent {
     render() {
         var self = this;
         var label = this.props.propLabel;
-        if (this.props.vecLabel != undefined) {
+        if (this.props.vecLabel != undefined && label != this.props.vecLabel) {
             label = this.props.vecLabel + ": " + label;
         }
 
