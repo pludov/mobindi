@@ -158,6 +158,9 @@ class Camera {
                 if ("CCD_FILE_PATH" in dtree) {
                     rev = dtree.CCD_FILE_PATH.$rev;
                     value = dtree.CCD_FILE_PATH.childs.FILE_PATH.$_;
+                    if (value === undefined) {
+                        value = '';
+                    }
                 } else {
                     rev = "undefined";
                     value = "";
