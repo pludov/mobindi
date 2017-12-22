@@ -9,7 +9,7 @@ const Promises = require('./Promises');
 class PidOf extends Promises.Cancelable {
     constructor(exe) {
         super((next)=>{
-            var ps = child_process.spawn("pidof", [Promises.dynValue(exe)]);
+            var ps = child_process.spawn("pidof", [Promises.dynValue(exe)], {stdio: [process.stdin, process.stdout, process.stderr]});
             ps.on('error', (err)=> {
                 console.warn("Process pidof error : ", err);
             });
@@ -31,8 +31,7 @@ class Exec extends Promises.Cancelable {
         super(function(next, arg){
             var cmdDesc = Promises.dynValue(cmd, arg);
             var cmdArr = [], opts = {
-                stdio: 'inherit', 
-                stderr: 'inherit'
+                stdio: [process.stdin, process.stdout, process.stderr]
             };
             if (Array.isArray(cmdDesc)) {
                 cmdArr = cmdDesc;

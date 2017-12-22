@@ -64,8 +64,7 @@ class IndiServerStarter {
                     var child = child_process.spawn('indiserver', ['-v', '-f', fifopath], {
                         env: env,
                         detached: true,
-                        stderr: "inherit",
-                        stdout: "inherit"
+                        stdio: [process.stdin, process.stdout, process.stderr]
                     });
                     child.on('error', (err)=> {
                         console.warn("Process indiserver error : " + err);
