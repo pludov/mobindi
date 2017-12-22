@@ -193,6 +193,34 @@ class IndiManager {
         return this.connection;
     }
 
+    // Return a promise that waits until the vector exists
+    waitForVectors(device, vectorFn)
+    {
+        var self = this;
+        return new Promises.Builder((e)=>
+        {
+            var connection = self.getValidConnection();
+            var devId = Promises.dynValue(device);
+            var dev = connection.getDevice(devId);
+
+            var vectorIds = Promises.dynValue(vectorFn);
+            if (!Array.isArray(vectorIds)) {
+                vectorIds = [vectorIds];
+            }
+            console.log('Sync with vectors:' + JSON.stringify(vectorIds));
+            for(var i = 0; i < vectorIds.length; ++i) {
+                var vectorId = vectorIds[i];
+                var vecInstance = dev.getVector(vectorId);
+                if (!vecInstance.exists()) {
+                    console.log('Waiting for vector ' + vectorId + ' on ' + devId);
+                    return new Promises.Sleep(1000);
+                }
+            }
+            
+            return undefined;
+        });
+    }
+
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
@@ -221,6 +249,7 @@ class IndiManager {
             }
 
             return new Promises.Chain(
+                self.waitForVectors(devId, vectorId),
                 connection.wait(() => (getVec().getState() != "Busy")),
                 new Promises.Immediate(() => {
                     var vec = getVec();
@@ -230,8 +259,13 @@ class IndiManager {
                     
                     var todo = [];
                     for(var key in value) {
-                        if (vec.getPropertyValueIfExists(key) !== value[key]) {
-                            todo.push({name: key, value: value[key]});
+                        var v = value[key];
+                        if (v === null || v === undefined) {
+                            continue;
+                        }
+                        console.log('Setting value: ' + v);
+                        if (vec.getPropertyValueIfExists(key) !== v) {
+                            todo.push({name: key, value: v});
                         }
                     }
 

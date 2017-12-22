@@ -18,7 +18,7 @@ class Camera {
             // The settings, some may not be available
             currentSettings: {
                 bin: 1,
-                exp: 1.0,
+                exposure: 1.0,
                 iso: null
             },
 
@@ -43,8 +43,24 @@ class Camera {
 
             sequences: {
                 list: [],
-                byuuid: {}
+                byuuid: {
+                    // Objects with:
+                    //   status: 'idle',
+                    //   title: 'New sequence',
+                    //   camera: null,
+                    //   steps: {
+                    //     list: [firstSeq],
+                    //     byuuid: {
+                    //         [firstSeq]: {
+                    //             count:  1,
+                    //             type:   'FRAME_LIGHT'
+                    //         }
+                    //     }
+                    //
+                }
             },
+
+
 
             configuration: {}
         };
@@ -185,7 +201,7 @@ class Camera {
                         } else {
                             currentShoot = undefined;
                         }
-                        if (currentShoot != undefined && currentShoot.type == 'managed') {
+                        if (currentShoot != undefined && currentShoot.managed) {
                             console.log('Image will be result of our action.', value)
                         } else {
                             console.log('New external image :', value);
@@ -235,11 +251,11 @@ class Camera {
         var connectedDevices = [];
         for(var deviceId of Object.keys(indiManager.deviceTree).sort()) {
             var device = indiManager.deviceTree[deviceId];
-            var status, exp;
+            var status, exposure;
             try {
                 status = device.CCD_EXPOSURE.$state;
-                exp = device.CCD_EXPOSURE.childs.CCD_EXPOSURE_VALUE.$_;
-                exp = parseFloat(exp);
+                exposure = device.CCD_EXPOSURE.childs.CCD_EXPOSURE_VALUE.$_;
+                exposure = parseFloat(exposure);
             } catch(e) {
                 continue;
             }
@@ -251,30 +267,30 @@ class Camera {
                 currentShoot = undefined;
             }
 
-            if (status == 'Busy' && exp > 0) {
+            if (status == 'Busy' && exposure > 0) {
                 // Create a shoot
                 if (currentShoot === undefined) {
                     currentShoot= {
-                        exp: exp,
-                        expLeft: exp,
+                        exposure: exposure,
+                        expLeft: exposure,
                         type: 'external'
                     };
                     this.currentStatus.currentShoots[deviceId] = currentShoot;
                 } else {
-                    if (exp > 0 || currentShoot.expLeft) {
-                        currentShoot.expLeft = exp;
+                    if (exposure > 0 || currentShoot.expLeft) {
+                        currentShoot.expLeft = exposure;
                     }
-                    if (exp > currentShoot.exp) {
-                        currentShoot.exp = exp;
+                    if (exposure > currentShoot.exposure) {
+                        currentShoot.exposure = exposure;
                     }
                 }
             } else {
                 // Destroy the shoot, if not managed
                 if (currentShoot !== undefined) {
-                    if (currentShoot.type == 'managed') {
-                        if (status !== 'Busy') exp = 0;
-                        if (exp > 0 || currentShoot.expLeft) {
-                            currentShoot.expLeft = exp;
+                    if (currentShoot.managed) {
+                        if (status !== 'Busy') exposure = 0;
+                        if (exposure > 0 || currentShoot.expLeft) {
+                            currentShoot.expLeft = exposure;
                         }
                     } else {
                         delete this.currentStatus.currentShoots[deviceId];
@@ -414,11 +430,64 @@ class Camera {
     }
 
     startSequence(uuid) {
-        return new Promises.Chain(
-                new Promises.Sleep(5000),
-                new Promises.Immediate(()=>{
-                    throw new Error("Not implemented !");
-                })
+        var self = this;
+        function getSequence() {
+            var rslt = self.currentStatus.sequences.byuuid[uuid];
+            if (!rslt) {
+                throw new Error("Sequence removed: " + uuid);
+            }
+            return rslt;
+        }
+
+        function getNextStep() {
+            var sequence = getSequence();
+            var stepsUuid = sequence.steps.list;
+            for(var i = 0; i < stepsUuid.length; ++i)
+            {
+                var stepUuid = stepsUuid[i];
+                var step = sequence.steps.byuuid[stepUuid];
+                if (!('done' in step)) {
+                    step.done = 0;
+                }
+                if (step.done < step.count) {
+                    return step;
+                }
+            }
+            return undefined;
+        }
+        return new Promises.Loop(
+                new Promises.Builder(()=> {
+                    var sequence = getSequence();
+                    console.log('Shoot in sequence:' + JSON.stringify(sequence));
+                    var step = getNextStep();
+
+                    if (step === undefined) {
+                        console.log('Sequence terminated: ' + uuid);
+                        return new Promises.Immediate((e) => {
+                            // Break
+                            return false;
+                        });
+                    }
+
+                    var settings = Object.assign({}, sequence);
+                    delete settings.steps;
+                    delete settings.errorMessage;
+                    settings = Object.assign(settings, step);
+                    delete settings.count;
+                    delete settings.done;
+
+
+                    return new Promises.Chain(
+                        self.shoot(sequence.camera, ()=>(settings)),
+                        new Promises.Immediate((e)=> {
+                            step.done++;
+                            return true;
+                        })
+                    );
+                }), function(b) {
+                    console.log('Sequencey Continue ? ', JSON.stringify(b));
+                    return !b;
+                }
             );
     }
 
@@ -483,7 +552,7 @@ class Camera {
     }
 
     // Return a promise to shoot at the given camera (where)
-    shoot(device)
+    shoot(device, settingsProvider)
     {
         var connection;
         var self = this;
@@ -495,12 +564,24 @@ class Camera {
                 if (Object.prototype.hasOwnProperty.call(self.currentStatus.currentShoots, device)) {
                     throw new Error("Shoot already started for " + device);
                 }
+
+                var settings = Object.assign({}, self.currentStatus.currentSettings);
+                if (settingsProvider !== undefined) {
+                    settings = settingsProvider(settings);
+                }
+                console.log('Shoot settings:' + JSON.stringify(settings, null, 2));
                 self.currentStatus.currentShoots[device] = Object.assign({
                     status: 'init',
-                    type:'managed'
-                }, self.currentStatus.currentSettings);
+                    managed: true
+                }, settings);
                 self.shootPromises[device] = result;
                 currentShootSettings = self.currentStatus.currentShoots[device];
+                console.log('Starting shoot: ' + JSON.stringify(currentShootSettings));
+                var exposure = currentShootSettings.exposure;
+                if (exposure === null || exposure === undefined) {
+                    exposure = 0.1;
+                }
+                currentShootSettings.exposure = exposure;
             }),
             // Set the binning - if prop is present only
             new Promises.Conditional(() => (
@@ -519,7 +600,6 @@ class Camera {
                         vec = vec.getVectorInTree();
                         var v = currentShootSettings.iso;
                         var childToSet = undefined;
-                        console.log('WTF vec is ' + JSON.stringify(vec));
                         for(var id of vec.childNames)
                         {
                             var child = vec.childs[id];
@@ -547,6 +627,8 @@ class Camera {
                         }
                     }),
 
+            this.indiManager.waitForVectors(device, ['CCD_FILE_PATH']),
+
             // Use a builder to ensure that connection is initialised when used
             new Promises.Builder(() => {
                 connection = self.indiManager.connection;
@@ -558,7 +640,7 @@ class Camera {
 
                 var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
-                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exp }]);
+                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exposure }]);
 
                 var cancelFunction = () => {
                     var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");

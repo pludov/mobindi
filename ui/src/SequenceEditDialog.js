@@ -23,7 +23,7 @@ import CameraFrameTypeEditor from './CameraFrameTypeEditor';
 //   Field: Name
 //   Global settings:
 //          (mandatory) device
-//          (mandatory) exp
+//          (mandatory) exposure
 //          (optional) bin
 //          (optional) iso
 //          (mandatory) dithering
@@ -31,7 +31,7 @@ import CameraFrameTypeEditor from './CameraFrameTypeEditor';
 //       (mandatory) type
 //       (mandatory) repeat
 //       (optional) bin
-//       (optional) exp
+//       (optional) exposure
 //       (optional) iso
 
 

@@ -25,8 +25,8 @@ class ShootBton extends PureComponent {
 
     render() {
         var progress = 60;
-        progress = this.props.running ? 100.0 * this.props.elapsed / this.props.exp : 0;
-        var title = !this.props.running ? '' :this.props.exp + "s";
+        progress = this.props.running ? 100.0 * this.props.elapsed / this.props.exposure : 0;
+        var title = !this.props.running ? '' :this.props.exposure + "s";
 
         return <div className={'ShootBar' + (this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
             <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot"/>
@@ -85,11 +85,11 @@ class ShootBton extends PureComponent {
         result.running = (currentShoot != undefined);
         if (result.running) {
             if ('expLeft' in currentShoot) {
-                result.elapsed = currentShoot.exp - currentShoot.expLeft;
+                result.elapsed = currentShoot.exposure - currentShoot.expLeft;
             } else {
                 result.elapsed = 0;
             }
-            result.exp = currentShoot.exp;
+            result.exposure = currentShoot.exposure;
         }
 
         return result;

@@ -435,7 +435,7 @@ class Builder extends Cancelable {
         super(function(next, arg) {
             child = provider(arg);
             if (child == undefined) {
-                next.done();
+                next.done(arg);
                 return;
             }
             next.setCancelFunc(() => {

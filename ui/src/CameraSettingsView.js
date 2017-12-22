@@ -45,8 +45,8 @@ class CameraSettingsView extends PureComponent {
                     <span className='cameraSetting'>Exp:
                         <CameraExpEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + '.exp'}
-                            setValue={this.props.setValue('exp')}/>
+                            valuePath={this.props.settingsPath + '.exposure'}
+                            setValue={this.props.setValue('exposure')}/>
                     </span>
             </StatePropCond>
         </div>;
