@@ -265,7 +265,6 @@ class ConfigStore
         var newPatch = this.createPatch();
         if (newPatch === undefined) newPatch = {};
         if (!Obj.deepEqual(newPatch, this.lastPatch)) {
-            console.log('should save : ' + JSON.stringify(newPatch, null, 2));
             this.lastPatch = Obj.deepCopy(newPatch);
             if (this.saveRunning) {
                 this.saveMustRestart = true;
