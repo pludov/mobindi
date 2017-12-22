@@ -1,6 +1,6 @@
 'use strict';
 
-const {IndiConnection} = require('./Indi');
+const {IndiConnection, timestampToEpoch} = require('./Indi');
 const Promises = require('./Promises');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
@@ -166,32 +166,49 @@ class Camera {
     {
         var indiManager = this.appStateManager.getTarget().indiManager;
         // Ensure that the CCD_FILE_PATH property is set for all devices
+        var found = {};
         for(var device of this.currentStatus.availableDevices)
         {
+            
             var rev, value;
             try {
                 var dtree =  indiManager.deviceTree[device];
                 if ("CCD_FILE_PATH" in dtree) {
                     rev = dtree.CCD_FILE_PATH.$rev;
+                    var timestamp = dtree.CCD_FILE_PATH.$timestamp;
                     value = dtree.CCD_FILE_PATH.childs.FILE_PATH.$_;
+
                     if (value === undefined) {
-                        value = '';
+                        continue;
                     }
+
+                    // Ignore CCD_FILE_PATH that are from before connection
+                    // Some buggy drivers send spurious CCD_FILE_PATH message, not distinguishable from new shoot
+                    if (!"CONNECTION" in dtree) {
+                        continue;
+                    }
+                    var age = timestampToEpoch(timestamp) - timestampToEpoch(dtree.CONNECTION.$timestamp);
+                    if (age <= 2) {
+                        console.log('Ignored CCD_FILE_PATH from before last connection event : ' + age);
+                        continue;
+                    }
+
                 } else {
-                    rev = "undefined";
-                    value = "";
+                    continue;
                 }
             } catch(e) {
                 console.log('Error with device ' + device, e);
                 continue;
             }
-
             var stamp = rev + ":" + value;
+            
+            found[device] = stamp;
             if (!Object.prototype.hasOwnProperty.call(this.previousImages, device))
             {
                 this.previousImages[device] = stamp;
             } else {
                 if (this.previousImages[device] != stamp) {
+                    console.log('changed value from ' + this.previousImages[device]);
                     this.previousImages[device] = stamp;
                     if (value != '') {
 
@@ -216,6 +233,15 @@ class Camera {
                         }
                     }
                 }
+            }
+        }
+        // console.log('Known devices are : ' + JSON.stringify(Object.keys(this.previousImages)));
+        // console.log('Devices with stamp : ' + JSON.stringify(found));
+        for(var o of Object.keys(this.previousImages))
+        {
+            if (!found[o]) {
+                console.log('No more looking for shoot of ' + o);
+                delete(this.previousImages[o]);
             }
         }
     }

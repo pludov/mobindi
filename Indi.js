@@ -627,4 +627,25 @@ function demo() {
     */
 }
 
-module.exports = {IndiConnection};
+function timestampToEpoch(v)
+{
+    var values = v.match(/^([0-9]+)-([0-9]+)-([0-9]+)T([0-9]+):([0-9]+):([0-9]+)$/);
+    if (!values) {
+        throw new Error("Invalid timestamp: " + v);
+    }
+
+    var d = Date.UTC(parseInt(values[1]),
+                parseInt(values[2]) - 1,
+                parseInt(values[3]),
+                parseInt(values[4]),
+                parseInt(values[5]),
+                parseInt(values[6]));
+    return d / 1000.0;
+}
+
+function timestampDiff(a, b)
+{
+    return timestampToEpoch(a) - timestampToEpoch(b);
+}
+
+module.exports = {IndiConnection, timestampToEpoch};
