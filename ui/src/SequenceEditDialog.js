@@ -13,6 +13,7 @@ import './SequenceView.css';
 import './Modal.css';
 import StatePropCond from './StatePropCond';
 import TextEdit from "./TextEdit.js";
+import DeviceConnectBton from './DeviceConnectBton';
 import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
 import CameraExpEditor from './CameraExpEditor';
@@ -263,6 +264,10 @@ class SequenceEditDialog extends PureComponent {
                         <CameraSelector
                             getValue={(store)=>Utils.noErr(()=>store.backend.camera.sequences.byuuid[this.props.uid].camera)}
                             setValue={(e)=>this.props.app.updateSequenceParam(this.props.uid, {param: 'camera', value: e})}
+                        />
+                        <DeviceConnectBton
+                            activePath={"$.backend.camera.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
+                            app={this.props.app}
                         />
                 </div>
                 <StatePropCond
