@@ -4,15 +4,29 @@ import $ from 'jquery';
 
 const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
 
+class ContextMenu extends PureComponent {
+    
+    render() {
+        var css = {
+            left: this.props.x,
+            top: this.props.y,
+            position: 'absolute'
+        }
+        console.log('x = ', this.props.x, 'y = ', this.props.y);
+        return(
+            <div style={css}>Coucou !</div>);
+    }
+}
+
 class JQImageDisplay {
 
 
 
-    constructor(elt) {
+    constructor(elt, contextMenuCb) {
         this.currentImg = undefined;
         this.loadingImg = undefined;
         this.child = elt;
-
+        this.contextMenuCb = contextMenuCb;
         elt.css('display', 'block');
         elt.css('width', '100%');
         elt.css('height', '100%');
@@ -59,23 +73,23 @@ class JQImageDisplay {
 
     setSrc(src) {
         var self = this;
-
-        if ((this.currentImg != undefined) && (this.currentImg.src == src)) {
+        if (this.currentImgSrc == src) {
             this.abortLoading();
             return;
         }
-        if ((this.loadingImg != undefined) && (this.loadingImg.src == src)) {
+        if ((this.loadingImg != undefined) && (this.loadingImgSrc == src)) {
             return;
         }
 
         this.abortLoading();
 
         var newImage = new Image();
-        newImage.onload = (() => { console.warn('image loaded ok'); self.loaded(newImage, true) });
-        newImage.onerror = ((e) => { console.warn('image loading failed', e); self.loaded(newImage, false) });
+        newImage.onload = (() => { console.warn('image loaded ok'); self.loaded(src, newImage, true) });
+        newImage.onerror = ((e) => { console.warn('image loading failed', e); self.loaded(src, newImage, false) });
         newImage.src = src;
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
+        this.loadingImgSrc = src;
         this.child.addClass('Loading');
         this.child.removeClass('Error');
     }
@@ -245,7 +259,11 @@ class JQImageDisplay {
 
 
     contextmenu(e) {
+        var offset = this.child.offset();
+        var x = e.pageX - offset.left;
+        var y = e.pageY - offset.top;
         e.preventDefault();
+        this.contextMenuCb(x, y);
     }
 
     click(e) {
@@ -381,7 +399,7 @@ class JQImageDisplay {
 
 
 
-    loaded(newImage, result) {
+    loaded(newSrc, newImage, result) {
         if (newImage !== this.loadingImg) {
             return;
         }
@@ -396,9 +414,11 @@ class JQImageDisplay {
         var previousSize = this.currentImageSize;
 
         var previousImg = this.currentImg;
+        var previousImgSrc = this.currentImgSrc;
 
         this.loadingImg = undefined;
         this.currentImg = result ? newImage : undefined;
+        this.currentImgSrc = newSrc;
         this.child.empty();
 
         if (this.currentImg !== undefined) {
@@ -428,6 +448,7 @@ class FitsViewer extends PureComponent {
     constructor(props) {
         super(props);
         this.uid = uid++;
+        this.state = {};
     }
 
     componentDidUpdate(prevProps) {
@@ -436,7 +457,7 @@ class FitsViewer extends PureComponent {
 
     componentDidMount() {
         this.$el = $(this.el);
-        this.ImageDisplay = new JQImageDisplay(this.$el);
+        this.ImageDisplay = new JQImageDisplay(this.$el, this.openContextMenu.bind(this));
         this.ImageDisplay.setSrc(this.props.src);
     }
 
@@ -446,11 +467,22 @@ class FitsViewer extends PureComponent {
         this.$el = undefined;
     }
 
+    openContextMenu(x, y) {
+        this.setState({contextmenu:{x:x, y:y}});
+    }
+
     render() {
+        var contextMenu;
+        if (this.state.contextmenu !== undefined) {
+            contextMenu = <ContextMenu x={this.state.contextmenu.x} y={this.state.contextmenu.y}/>
+        } else {
+            contextMenu = null;
+        }
         return(
             <div className='FitsViewOverlayContainer'>
                 <div className='FitsView' ref={el => this.el = el}/>
                 <div className='FitsViewLoading'/>
+                {contextMenu}
             </div>);
     }
 
