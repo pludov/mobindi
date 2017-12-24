@@ -14,7 +14,8 @@ class IndiServerStarter {
         this.currentConfiguration = {
             path: null,
             fifopath: null,
-            devices: {}
+            devices: {},
+            restartList: []
         };
 
         this.wantedConfiguration = wantedConfiguration;
@@ -36,6 +37,7 @@ class IndiServerStarter {
                         console.log('Indiserver process not found.');
                     }
                 };
+                self.currentConfiguration.restartList = [];
                 return arg;
             })
         );
@@ -72,6 +74,15 @@ class IndiServerStarter {
                 })
             );
         });
+    }
+
+    restartDevice(dev)
+    {
+        if (this.currentConfiguration.restartList.indexOf(dev) != -1) {
+            return;
+        }
+        this.currentConfiguration.restartList.push(dev);
+
     }
 
     actualFifoPath() {
@@ -112,9 +123,15 @@ class IndiServerStarter {
 
         // Stop what is not required anymore
         for(var running in self.currentConfiguration.devices) {
+            var restartId = self.currentConfiguration.restartList.indexOf(running);
             if ((!Object.prototype.hasOwnProperty.call(self.wantedConfiguration.devices, running))
-                ||(!compatible(self.currentConfiguration[running], self.wantedConfiguration[running])))
+                ||(!compatible(self.currentConfiguration[running], self.wantedConfiguration[running]))
+                ||(restartId != - 1))
             {
+                if (restartId != -1) {
+                    self.currentConfiguration.restartList.splice(restartId, 1);
+                }
+
                 return {
                     cmd: cmdFor(false, running, self.currentConfiguration.devices[running]),
                     done: ()=>{
@@ -226,6 +243,7 @@ class IndiServerStarter {
                         new Promises.Conditional((arg) => ({
                                     perform: (arg === 0 || arg === 'dead') && self.wantedConfiguration.autorun,
                                     result: arg}),
+                            // FIXME: make this sleep interruptible
                             new Promises.Sleep(2000)
                         )
                     ),
@@ -233,7 +251,7 @@ class IndiServerStarter {
                 )
             ),
             (o)=>(!self.wantedConfiguration.autorun)
-        ).then(atend).onError(atend).onCancel(atend);
+        ).then(atend).onError((e) =>  { console.log('error:' + e); atend(); }).onCancel(atend);
         this.currentLifeCycle = result;
         return result;
     }

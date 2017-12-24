@@ -55,6 +55,14 @@ class IndiManagerApp extends BaseApp {
         return update($state, u);
     }
 
+    restartDriver(driver) {
+        this.serverRequest({
+            method: 'restartDriver',
+            driver: driver
+        }).start();
+
+    }
+
     rqtSwitchProperty(desc) {
         this.serverRequest({
             method: 'setProperty',

@@ -354,7 +354,12 @@ class IndiManager {
         });
     }
 
-
+    $api_restartDriver(message, progress)
+    {
+        return new Promises.Immediate(() => {
+            this.indiServerStarter.restartDevice(message.driver);
+        });
+    }
 }
 
 module.exports = {IndiManager};

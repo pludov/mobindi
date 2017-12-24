@@ -3,6 +3,7 @@
  */
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
+import { atPath } from './shared/JsonPath';
 import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
@@ -51,6 +52,7 @@ class IndiDriverSelector extends Component {
         var currentDevice = store.indiManager.selectedDevice;
         if (currentDevice == undefined) currentDevice = "";
 
+        var found = {};
         if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
 
             for(var o of Object.keys(backend.deviceTree).sort()) {
@@ -58,6 +60,19 @@ class IndiDriverSelector extends Component {
                 deviceSelectorOptions.push(o);
             }
         }
+
+        var configuredDevices = atPath(backend, '$.configuration.indiServer.devices');
+        if (configuredDevices) {
+            for(var o of Object.keys(configuredDevices).sort())
+            {
+                if (Object.prototype.hasOwnProperty.call(found, o)) {
+                    continue;
+                }
+                if (o === currentDevice) currentDeviceFound = true;
+                deviceSelectorOptions.push(o);
+            }
+        }
+
         if (!currentDeviceFound) {
             deviceSelectorOptions.splice(0,0, currentDevice);
         }
@@ -71,6 +86,46 @@ class IndiDriverSelector extends Component {
 }
 
 IndiDriverSelector = connect(IndiDriverSelector.mapStateToProps)(IndiDriverSelector);
+
+class IndiDriverControlButton extends PureComponent {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        if (this.props.configured) {
+            return <input type='button'
+                            onClick={() => this.props.app.restartDriver(this.props.current)}
+                            value='Restart'/>
+        }
+        return null;
+    }
+
+    static mapStateToProps(store) {
+        var deviceSelectorOptions = [];
+
+        var backend = store.backend.indiManager;
+
+        var currentDeviceFound= false;
+
+        var currentDevice = store.indiManager.selectedDevice;
+        if (currentDevice == undefined) currentDevice = "";
+
+        var configured = false;
+        var configuredDevices = atPath(backend, '$.configuration.indiServer.devices');
+        if (configuredDevices && Object.prototype.hasOwnProperty.call(configuredDevices, currentDevice)) {
+            configured = true;
+        }
+
+        var result = {
+            current: currentDevice,
+            configured: configured
+        };
+        return result;
+    }
+}
+
+IndiDriverControlButton = connect(IndiDriverControlButton.mapStateToProps)(IndiDriverControlButton);
 
 const VectorStateToColor = {
     Idle: 'grey',
@@ -510,6 +565,7 @@ class IndiManagerView extends Component {
 
                 <div className="IndiDriverSelector">
                     Driver: <IndiDriverSelector app={this.props.app}/>
+                    <IndiDriverControlButton app={this.props.app}/>
                 </div>
 
                 <div className="IndiPropertyView">
