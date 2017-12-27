@@ -494,11 +494,16 @@ class IndiConnection {
                 return;
             }
             var dev = this.deviceTree[message.$device];
-            if (!has(dev, message.$name)) {
-                console.log('Message about unknown vector: ' + JSON.stringify(message));
-                return;
+            if (has(message, '$name')) {
+                if (!has(dev, message.$name)) {
+                    console.log('Message about unknown vector: ' + JSON.stringify(message));
+                    return;
+                }
+                delete dev[message.$name];
+            } else {
+                // Device delete
+                delete this.deviceTree[message.$device];
             }
-            delete dev[message.$name];
         }
         
         if (message.$$.match(/^set.*Vector$/)) {
