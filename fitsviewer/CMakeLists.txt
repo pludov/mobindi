@@ -15,7 +15,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(SRCS
-    fitsviewer.cpp
+	fitsviewer.cpp
+	SharedCache.cpp
     )
 
 add_executable(fitsviewer.cgi ${SRCS})
