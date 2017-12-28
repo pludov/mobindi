@@ -16,15 +16,40 @@
 
 #define MAX_MESSAGE_SIZE 32768
 
+static long now() {
+	return 0;
+}
+
 namespace SharedCache {
+
 	class CacheFileDesc {
+		friend class Cache;
 		long size;
 		long prodDuration;
 		long lastUse;
 
 		bool produced;
 		long clientCount;
+		std::string identifier;
 		std::string path;
+
+		CacheFileDesc(const std::string & identifier, const std::string & path):
+			identifier(identifier),
+			path(path)
+		{
+			size = 0;
+			prodDuration = 0;
+			lastUse = now();
+			produced = false;
+			clientCount = 0;
+		}
+
+		void unlink()
+		{
+			if (::unlink(path.c_str()) == -1) {
+				perror(path.c_str());
+			}
+		}
 	};
 
 	class Client {
@@ -35,6 +60,10 @@ namespace SharedCache {
 		char * readBuffer;
 		int readBufferPos;
 
+		Messages::Request * blockingRequest;
+		std::list<CacheFileDesc *> reading;
+		std::list<CacheFileDesc *> producing;
+
 		char * writeBuffer;
 		int writeBufferPos;
 		int writeBufferLeft;
@@ -44,6 +73,7 @@ namespace SharedCache {
 		Client(int fd) :readBuffer(), writeBuffer() {
 			this->fd = fd;
 			poll = nullptr;
+			blockingRequest = nullptr;
 			writeBufferPos = 0;
 			writeBufferLeft = 0;
 			readBufferPos = 0;
@@ -56,6 +86,7 @@ namespace SharedCache {
 				close(this->fd);
 				this->fd = -1;
 			}
+			delete(blockingRequest);
 			free(readBuffer);
 			free(writeBuffer);
 		}
@@ -81,61 +112,93 @@ namespace SharedCache {
 			}
 
 		}
+
+		void reply(const Messages::Result & result) {
+			nlohmann::json j = result;
+			std::string reply = j.dump(0);
+			send(reply);
+		}
 	};
+
+	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
+			cache(cache),
+			path(result.path),
+			wasReady(result.ready)
+	{
+	}
+
+	bool Entry::ready() const {
+		return wasReady;
+	}
+
+	void Entry::produced(uint32_t size) {
+		Messages::Request request;
+		request.finishedAnnounce = new Messages::FinishedAnnounce();
+		request.finishedAnnounce->path = path;
+		request.finishedAnnounce->size = size;
+		cache->clientSend(request);
+	}
+
+	void Entry::release() {
+		Messages::Request request;
+		request.releasedAnnounce = new Messages::ReleasedAnnounce();
+		request.releasedAnnounce->path = path;
+		cache->clientSend(request);
+	}
 
 	Cache::Cache(const std::string & path, long maxSize) :
 				basePath(path)
 	{
 		this->maxSize = maxSize;
+		this->fileGenerator = 0;
 		init();
 	}
 
-	namespace Messages {
-		struct Query {
-			int type;
-			nlohmann::json details;
-		};
+	std::string Cache::newPath() {
+		std::string result;
+		int fd;
+		do {
+			std::ostringstream oss;
+			oss << basePath << "/data" << std::setfill('0') << std::setw(12) << (fileGenerator++);
+			result = oss.str();
+			fd = open(result.c_str(), O_CREAT | O_EXCL, 0600);
+			if (fd == -1 && errno != EEXIST) {
+				perror(result.c_str());
+				throw std::runtime_error("Failed to create data file");
+			}
+		} while(fd == -1);
+		close(fd);
+		return result;
+	}
 
-		struct ResourceLoc {
-			std::string path;
-			bool ready;
-		};
-
-		void to_json(nlohmann::json& j, const Query & q)
+	Messages::Result Cache::clientSend(const Messages::Request & request)
+	{
+		std::string str;
 		{
-			j = nlohmann::json();
-			j["type"] = q.type;
-			j["details"] = q.details;
+			nlohmann::json j = request;
+			str = j.dump();
 		}
-
-		void from_json(nlohmann::json& j, Query & q)
-		{
-			q.type = j.at("type").get<int>();
-			q.details = j.at("details");
-		}
+		std::cerr << "Sending " << str << "\n";
+		clientSendMessage(str.data(), str.length());
+		char buffer[MAX_MESSAGE_SIZE];
+		int sze = clientWaitMessage(buffer);
+		std::string received(buffer, sze);
+		std::cerr << "Received: " << received << "\n";
+		auto jsonResult = nlohmann::json::parse(received);
+		return jsonResult.get<Messages::Result>();
 	}
 
 	Entry * Cache::getEntry(const nlohmann::json & jsonDesc)
 	{
-		Messages::Query msg;
-		msg.type = 0;
-		msg.details = jsonDesc;
-		std::string str;
-		{
-			nlohmann::json j = msg;
-			str = j.dump();
-		}
-//		std::cerr << "Sending " << str << "\n";
-		clientSendMessage(str.data(), str.length());
-		char buffer[MAX_MESSAGE_SIZE];
-		int sze = clientWaitMessage(buffer);
-		str = std::string(buffer, sze);
+		Messages::Request request;
+		request.contentRequest = new Messages::ContentRequest();
+		request.contentRequest->fitsContent = new Messages::FitsContent();
+		request.contentRequest->fitsContent->path = "/fichier_a_ouvrir";
 
-
-
-//		std::cerr<<"Received " << str << "\n";
-		return 0;
+		Messages::Result r = clientSend(request);
+		return new Entry(this, *r.contentResult);
 	}
+
 
 	void Cache::connectExisting()
 	{
@@ -151,18 +214,6 @@ namespace SharedCache {
 			perror("connect");
 			throw std::runtime_error("connect");
 		}
-
-
-//		char message[256];
-//		const char * payload = "coucou !\n";
-//		*((uint16_t*)message) = strlen(payload) + 2;
-//		strcpy(message + 2, payload);
-//		write(clientFd, message, strlen(payload) + 2);
-//
-//		char receive[MAX_MESSAGE_SIZE];
-//		int receiveSize = clientWaitMessage(receive);
-//		receive[receiveSize] = 0;
-//		printf("received back: %s\n", receive);
 	}
 
 	void Cache::clientSendMessage(const void * data, int length)
@@ -306,18 +357,124 @@ namespace SharedCache {
 		return new Client(fd);
 	}
 
-	void Cache::processMessage(Client * c, uint16_t size)
+	void Cache::receiveMessage(Client * c, uint16_t size)
 	{
-		// Decypher the message
 //		printf("Message from %d (%d):\n", c->fd, c->readBufferPos);
 		std::string jsonStr(c->readBuffer + 2, c->readBufferPos - 2);
 //		printf("%s\n", jsonStr.c_str());
 		c->readBufferPos = 0;
 		auto json = nlohmann::json::parse(jsonStr);
+		c->blockingRequest = new Messages::Request(json.get<Messages::Request>());
 
-		json["ok"] = true;
-		std::string reply = json.dump(0);
-		c->send(reply);
+		nlohmann::json debug = *c->blockingRequest;
+		std::cerr << "Received request: " << debug.dump(0) << "\n";
+
+		blockedClients.push_back(c);
+	}
+
+	bool Cache::proceedMessage(Client * c)
+	{
+		if (c->blockingRequest->contentRequest) {
+			nlohmann::json j = *c->blockingRequest->contentRequest;
+			std::string identifier = j.dump();
+			auto where = contentByIdentifier.find(identifier);
+			if (where == contentByIdentifier.end()) {
+				CacheFileDesc * cfd = new CacheFileDesc(identifier, newPath());
+				cfd->produced = false;
+				cfd->lastUse = now();
+				cfd->prodDuration = 0;
+				cfd->size = 0;
+				cfd->clientCount = 1;
+				contentByIdentifier[identifier] = cfd;
+				contentByPath[cfd->path] = cfd;
+
+				c->producing.push_back(cfd);
+
+				Messages::Result result;
+				result.contentResult = new Messages::ContentResult();
+				result.contentResult->path = cfd->path;
+				result.contentResult->ready = false;
+				c->reply(result);
+				return true;
+			} else {
+				CacheFileDesc * cfd = where->second;
+				if (!cfd->produced) {
+					// Not ready... Please wait
+					return false;
+				}
+
+				cfd->clientCount++;
+
+				// Ready...
+				Messages::Result result;
+				result.contentResult = new Messages::ContentResult();
+				result.contentResult->path = cfd->path;
+				result.contentResult->ready = true;
+				c->reading.push_back(cfd);
+				c->reply(result);
+				return true;
+			}
+		}
+
+		if (c->blockingRequest->finishedAnnounce) {
+			std::string path = c->blockingRequest->finishedAnnounce->path;
+			auto cfdLoc = contentByPath.find(path);
+			if (cfdLoc == contentByPath.end()) {
+				std::cerr << "Access to unknown file rejected\n";
+				c->kill();
+				return true;
+			}
+			CacheFileDesc * cfd = cfdLoc->second;
+			if (cfd->produced) {
+				std::cerr << "Announce to already producing rejected\n";
+				c->kill();
+				return true;
+			}
+			auto cfdLocInProducing = std::find(c->producing.begin(), c->producing.end(), cfd);
+			if (cfdLocInProducing == c->producing.end()) {
+				std::cerr << "Announce for not producing rejected\n";
+				c->kill();
+				return true;
+			}
+
+			c->producing.erase(cfdLocInProducing);
+			c->reading.push_back(cfd);
+			cfd->clientCount++;
+			cfd->produced = true;
+			Messages::Result result;
+			c->reply(result);
+			return true;
+		}
+		if (c->blockingRequest->releasedAnnounce) {
+			std::string path = c->blockingRequest->releasedAnnounce->path;
+			auto cfdLoc = contentByPath.find(path);
+			if (cfdLoc == contentByPath.end()) {
+				std::cerr << "Access to unknown file rejected\n";
+				c->kill();
+				return true;
+			}
+			CacheFileDesc * cfd = cfdLoc->second;
+			if (!cfd->produced) {
+				std::cerr << "Release of not produced rejected\n";
+				c->kill();
+				return true;
+			}
+			auto cfdLocInProducing = std::find(c->reading.begin(), c->reading.end(), cfd);
+			if (cfdLocInProducing == c->reading.end()) {
+				std::cerr << "Release for not read rejected\n";
+				c->kill();
+				return true;
+			}
+
+			c->reading.erase(cfdLocInProducing);
+			cfd->clientCount--;
+			Messages::Result result;
+			c->reply(result);
+			return true;
+		}
+		std::cerr << "Client has invalid blocking request ?\n";
+		c->kill();
+		return true;
 	}
 
 	void Cache::server()
@@ -386,7 +543,10 @@ namespace SharedCache {
 						} else {
 							c->kill();
 						}
-					} else if (rd == 0) {
+					} else if (rd == 0 || clients[i]->blockingRequest) {
+						if (rd != 0) {
+							std::cerr << "Client " << clients[i]->fd << " sent too much data\n";
+						}
 						c->kill();
 					} else {
 						// FIXME: read 0 ? possible ?
@@ -398,7 +558,7 @@ namespace SharedCache {
 							} else if (size >= c->readBufferPos){
 								// Process a message for the client.
 								try {
-									processMessage(c, size);
+									receiveMessage(c, size);
 								} catch(const std::exception& ex) {
 									std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
 									c->kill();
@@ -410,16 +570,62 @@ namespace SharedCache {
 					}
 				}
 			}
-			for(int i = 0; i < clients.size();) {
-				Client  * c = clients[i];
-				if (c->fd == -1) {
-					delete(c);
-					clients[i] = clients[clients.size() - 1];
-					clients.pop_back();
-				} else {
-					i++;
+
+			bool restart;
+			do {
+				restart = false;
+				// Proceed all blocked clients.
+				// When a client is unblocked, it may be possible to restart already blocked clients
+				for(auto it = blockedClients.begin(); it != blockedClients.end();)
+				{
+					Client * c = *it;
+					if (c->fd == -1) {
+						continue;
+					}
+					if (proceedMessage(c)) {
+						delete c->blockingRequest;
+						c->blockingRequest = nullptr;
+						it = blockedClients.erase(it);
+						restart = true;
+					} else {
+						 ++it;
+					}
 				}
-			}
+
+				for(int i = 0; i < clients.size();) {
+					Client  * c = clients[i];
+					if (c->fd == -1) {
+						for(auto it = c->producing.begin(); it != c->producing.end(); ++it)
+						{
+							// Remove the producing.
+							// Remove the file as well
+							CacheFileDesc * cfd = *it;
+							std::cerr << "Production of " << cfd->identifier << " in " << cfd->path << " failed\n";
+							contentByIdentifier.erase(cfd->identifier);
+							contentByPath.erase(cfd->identifier);
+							cfd->unlink();
+							delete(cfd);
+						}
+						for(auto it = c->reading.begin(); it != c->reading.end(); ++it)
+						{
+							CacheFileDesc * cfd = *it;
+							cfd->clientCount --;
+						}
+						if (c->blockingRequest) {
+							auto where = std::find(blockedClients.begin(), blockedClients.end(), c);
+							if (where != blockedClients.end()) {
+								blockedClients.erase(where);
+							}
+						}
+						delete(c);
+						clients[i] = clients[clients.size() - 1];
+						clients.pop_back();
+						restart = true;
+					} else {
+						i++;
+					}
+				}
+			} while(restart);
 		}
 	}
 }

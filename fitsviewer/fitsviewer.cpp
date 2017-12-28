@@ -444,7 +444,7 @@ int main () {
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
 //	path = arg;
 
-	cache->getEntry(j);
+	SharedCache::Entry * entry = cache->getEntry(j);
 
 	u_int16_t * data;
 	fprintf(stderr, "Decoding %s\n", path.c_str());
@@ -569,6 +569,11 @@ int main () {
 
 		}
 		fits_close_file(fptr, &status);
+	}
+	if (!entry->ready()) {
+		entry->produced(0);
+	} else {
+		entry->release();
 	}
 
 	return 0;
