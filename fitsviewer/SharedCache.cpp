@@ -4,200 +4,422 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/file.h>
-
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 #include <stdint.h>
+#include <signal.h>
 
+#include <iostream>
 #include "SharedCache.h"
 
-#define ENTRY_PRODUCING 1
-
-// Autre approche:
-//   un process ouvre un socket/serveur et un répertoire contenant les données
-//   il autorise les traitement et donne les noms des fichiers
-//   il assure que la taille utilisée ne dépasse pas un seuil donnée
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Wait for unlock:
-// A process grab the lock, and mark a struct as busy, release the lock
-// Another one takes the lock, see the struct "busy", then wait
-// How can it wake up ?
-
-// We can have a signal struct that indicates which process are to be notified (list of pid)
-//    => require cleanup (a pid that is not there must be removed)
-// Could be a table of pid=>waited_id
-
-// Will start with sleep
-
-#define SIGNATURE 0x7f5e221a
-
-struct EntryDesc {
-	uint32_t hash;
-	uint32_t offset, length;
-	// FIXME: should be a list of pids, all sets to -1
-	// Or could maintain a buffer list.
-	uint16_t readerCount;
-	uint8_t flag;
-
-	void init()
-	{
-		hash = 0;
-		offset = 0;
-		length = 0;
-	}
-
-	bool isProducing() const {
-		return flag & ENTRY_PRODUCING;
-	}
-
-	bool canAcceptNewReaders() const {
-		return readerCount < 65535;
-	}
-};
-
-struct Head {
-	uint32_t sig;
-	uint32_t totalSize;
-	uint32_t entryCount;
-	EntryDesc entries[0];
-};
+#define MAX_MESSAGE_SIZE 32768
 
 namespace SharedCache {
+	class CacheFileDesc {
+		long size;
+		long prodDuration;
+		long lastUse;
 
-	void Cache::lock()
-	{
-		lockCount++;
-		if (lockCount == 1) {
-			flock(fd, LOCK_EX);
-		}
-	}
+		bool produced;
+		long clientCount;
+		std::string path;
+	};
 
-	void Cache::unlock()
-	{
-		lockCount--;
-		if (lockCount == 0) {
-			flock(fd, LOCK_UN);
-		}
-	}
+	class Client {
+		friend class Cache;
 
-	bool Cache::attach()
-	{
-		fd = open(path.c_str(), O_EXCL | O_CREAT | O_RDWR, 0600);
-		if (fd == -1) {
-			if (errno == EEXIST) {
-				return joinExisting();
-			} else {
-				perror(path.c_str());
-				throw std::runtime_error("Failed to open shared struct");
-			}
-		}
-		// Write the head struct.
-		// Size of file, number of entry
-		size_t headSize = sizeof(Head) + sizeof(EntryDesc) * (size_t)entryCount;
-		Head * head = (Head*)malloc(headSize);
-		if (!head) {
-			close(fd);
-			throw new std::runtime_error("Not enough memory");
-		}
-		head->sig = SIGNATURE;
-		head->totalSize = bufferSize;
-		head->entryCount = entryCount;
-		for(int i = 0; i < entryCount; ++i) {
-			head->entries[i].init();
-		}
-		int written;
-		if ((written = write(fd, head, headSize)) != headSize) {
-			if (written == -1) {
-				perror("write");
-			}
-			close(fd);
-			free(head);
-			throw new std::runtime_error("Initial write failed");
-		}
-		free(head);
+		int fd;
 
-		// We just created the file. mmap it and so on
-		buffer = mmap(0, fd, bufferSize, PROT_READ|PROT_WRITE, MAP_SHARED, 0);
-		if (buffer == MAP_FAILED) {
-			perror("mmap");
-			close(fd);
-			buffer = 0;
-			fd = -1;
-			throw new std::runtime_error("Mmap failed");
-		}
+		char * readBuffer;
+		int readBufferPos;
 
-		return true;
-	}
+		char * writeBuffer;
+		int writeBufferPos;
+		int writeBufferLeft;
 
-	bool Cache::joinExisting()
-	{
-		fd = open(path.c_str(), O_RDWR);
-		if (fd == -1) {
-			// Could not open
-			perror(path.c_str());
-			throw new std::runtime_error("Failed to open shared struct");
+		pollfd * poll;
+
+		Client(int fd) :readBuffer(), writeBuffer() {
+			this->fd = fd;
+			poll = nullptr;
+			writeBufferPos = 0;
+			writeBufferLeft = 0;
+			readBufferPos = 0;
+			readBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
+			writeBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
 		}
-		Head head;
-		int readen;
-		if ((readen = read(fd, &head, sizeof(head)) ) != sizeof(head))
+		~Client()
 		{
-			if (readen == -1) {
-				perror("read");
+			if (this->fd != -1) {
+				close(this->fd);
+				this->fd = -1;
 			}
-			close(fd);
-			fd = -1;
-			if (readen == -1) {
-				throw new std::runtime_error("Read error");
+			free(readBuffer);
+			free(writeBuffer);
+		}
+
+		void kill()
+		{
+			close(this->fd);
+			this->fd = -1;
+		}
+
+		void send(const std::string & str)
+		{
+			if (this->fd == -1) return;
+			unsigned long l = str.length();
+			if (l > MAX_MESSAGE_SIZE - 2) {
+				kill();
+			} else {
+
+				*((uint16_t*)writeBuffer) = l;
+				memcpy(writeBuffer + 2, str.c_str(), l);
+				writeBufferPos = 0;
+				writeBufferLeft = 2 + l;
 			}
-			return false;
+
 		}
-		buffer = mmap(0, fd, head.totalSize, PROT_READ|PROT_WRITE, MAP_SHARED, 0);
-		if (buffer == MAP_FAILED) {
-			perror("mmap");
-			close(fd);
-			fd = -1;
-			buffer = 0;
-			throw new std::runtime_error("Mmap failed");
-		}
-		bufferSize = head.totalSize;
+	};
+
+	Cache::Cache(const std::string & path, long maxSize) :
+				basePath(path)
+	{
+		this->maxSize = maxSize;
+		init();
 	}
 
+	namespace Messages {
+		struct Query {
+			int type;
+			nlohmann::json details;
+		};
 
-	// Scan the mem pool for the given identifer.
-	// If not found, create an entry and return it
-	Entry * Cache::getReady(const std::string & identifier)
+		struct ResourceLoc {
+			std::string path;
+			bool ready;
+		};
+
+		void to_json(nlohmann::json& j, const Query & q)
+		{
+			j = nlohmann::json();
+			j["type"] = q.type;
+			j["details"] = q.details;
+		}
+
+		void from_json(nlohmann::json& j, Query & q)
+		{
+			q.type = j.at("type").get<int>();
+			q.details = j.at("details");
+		}
+	}
+
+	Entry * Cache::getEntry(const nlohmann::json & jsonDesc)
 	{
-		Lock lock;
-		while(true) {
-			lock.lock();
+		Messages::Query msg;
+		msg.type = 0;
+		msg.details = jsonDesc;
+		std::string str;
+		{
+			nlohmann::json j = msg;
+			str = j.dump();
+		}
+//		std::cerr << "Sending " << str << "\n";
+		clientSendMessage(str.data(), str.length());
+		char buffer[MAX_MESSAGE_SIZE];
+		int sze = clientWaitMessage(buffer);
+		str = std::string(buffer, sze);
 
-			int entryId = find(identifier);
-			if (entryId != -1) {
-				EntryDesc * entry = getEntry(entryId);
-				if (entry->isProducing() || !entry->canAcceptNewReaders()) {
-					// Sit there and wait.
-					lock.release();
-					usleep(5000);
+
+
+//		std::cerr<<"Received " << str << "\n";
+		return 0;
+	}
+
+	void Cache::connectExisting()
+	{
+		clientFd = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (clientFd == -1) {
+			perror("socket");
+			throw std::runtime_error("socket");
+		}
+		struct sockaddr_un addr;
+		setSockAddr(addr);
+
+		if (connect(clientFd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+			perror("connect");
+			throw std::runtime_error("connect");
+		}
+
+
+//		char message[256];
+//		const char * payload = "coucou !\n";
+//		*((uint16_t*)message) = strlen(payload) + 2;
+//		strcpy(message + 2, payload);
+//		write(clientFd, message, strlen(payload) + 2);
+//
+//		char receive[MAX_MESSAGE_SIZE];
+//		int receiveSize = clientWaitMessage(receive);
+//		receive[receiveSize] = 0;
+//		printf("received back: %s\n", receive);
+	}
+
+	void Cache::clientSendMessage(const void * data, int length)
+	{
+		if (length > MAX_MESSAGE_SIZE - 2) {
+			throw std::runtime_error("Message too big");
+		}
+		uint16_t size = length + 2;
+		int wr = write(clientFd, &size, 2);
+		if (wr == -1) {
+			perror("write");
+			throw std::runtime_error("write");
+		}
+		if (wr < 2) {
+			throw std::runtime_error("short write");
+		}
+
+		wr = write(clientFd, data, length);
+		if (wr == -1) {
+			perror("write");
+			throw std::runtime_error("write");
+		}
+		if (wr < length) {
+			throw std::runtime_error("short write");
+		}
+	}
+
+	int Cache::clientWaitMessage(char * buffer)
+	{
+		uint16_t size;
+		int readen = read(clientFd, &size, 2);
+		if (readen == -1) {
+			perror("read");
+			throw std::runtime_error("read");
+		}
+		if (readen < 2) {
+			throw std::runtime_error("short read");
+		}
+		if (size > MAX_MESSAGE_SIZE) {
+			throw std::runtime_error("invalid size");
+		}
+		readen = read(clientFd, buffer, size);
+		if (readen == -1) {
+			perror("read");
+			throw std::runtime_error("read");
+		}
+		if (readen < size) {
+			throw std::runtime_error("short read");
+		}
+		return size;
+	}
+
+	void Cache::setSockAddr(struct sockaddr_un & addr)
+	{
+		memset(&addr, 0, sizeof(addr));
+		addr.sun_family = AF_UNIX;
+		strncpy(addr.sun_path + 1, basePath.c_str(), sizeof(addr.sun_path)-2);
+	}
+
+	void Cache::init()
+	{
+		int rslt = mkdir(basePath.c_str(), 0777);
+		if (rslt == -1 && errno != EEXIST) {
+			perror(basePath.c_str());
+			throw std::runtime_error("Unable to create cache directory");
+		}
+
+		serverFd = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (serverFd < 0) {
+			perror("socket");
+			throw std::runtime_error("Unable to create socket");
+		}
+		int on = 1;
+		if (ioctl(serverFd, FIONBIO, (char *)&on) == -1)
+		{
+			perror("ioctl");
+			throw std::runtime_error("Unable to setup socket");
+		}
+		struct sockaddr_un addr;
+		setSockAddr(addr);
+		rslt = bind(serverFd, (struct sockaddr*)&addr, sizeof(addr));
+		if (rslt == -1) {
+			if (errno == EADDRINUSE) {
+				connectExisting();
+				return;
+			}
+			perror(basePath.c_str());
+			throw std::runtime_error("Unable to bind socket");
+		}
+		if (listen(serverFd, 32) == -1) {
+			perror("listen");
+			close(serverFd);
+			throw std::runtime_error("Unable to listen");
+		}
+		signal(SIGCHLD, SIG_IGN); //stops the parent waiting for the child process to end
+		pid_t p = fork();
+		if (p == -1) {
+			perror("fork");
+			close(serverFd);
+			throw std::runtime_error("Unable to fork");
+		}
+		if (p == 0) {
+			std::cerr << "Server started\n";
+			chdir("/");
+			signal (SIGHUP, SIG_IGN);
+			/*setsid();
+			close(0);
+			close(1);
+			close(2);*/
+
+			try {
+				server();
+			} catch(...) {
+				//_exit(0);
+				throw;
+			}
+			//_exit(0);
+		}
+		close(serverFd);
+		connectExisting();
+	}
+
+	void handleErrno(const char * msg)
+	{
+		if (errno == EAGAIN || errno == EINTR) {
+			return;
+		}
+		perror(msg);
+		throw std::runtime_error(std::string(msg));
+	}
+
+	Client * Cache::doAccept()
+	{
+		// Accept a new client
+		int fd;
+		if ((fd = accept(serverFd, 0, 0)) == -1) {
+			handleErrno("accept");
+			return nullptr;
+		}
+
+		return new Client(fd);
+	}
+
+	void Cache::processMessage(Client * c, uint16_t size)
+	{
+		// Decypher the message
+//		printf("Message from %d (%d):\n", c->fd, c->readBufferPos);
+		std::string jsonStr(c->readBuffer + 2, c->readBufferPos - 2);
+//		printf("%s\n", jsonStr.c_str());
+		c->readBufferPos = 0;
+		auto json = nlohmann::json::parse(jsonStr);
+
+		json["ok"] = true;
+		std::string reply = json.dump(0);
+		c->send(reply);
+	}
+
+	void Cache::server()
+	{
+		std::vector<Client *> clients;
+		while(true) {
+			pollfd polls[clients.size() + 1];
+
+			pollfd * server;
+			int pollCount = 0;
+
+			server = polls + (pollCount++);
+			server->fd = serverFd;
+			server->events = POLLIN;
+
+			for(int i = 0; i < clients.size(); ++i)
+			{
+				clients[i]->poll = polls + (pollCount++);
+				clients[i]->poll->fd = clients[i]->fd;
+				if (clients[i]->writeBufferLeft) {
+					clients[i]->poll->events=POLLOUT;
+				} else {
+					clients[i]->poll->events=POLLIN;
+				}
+
+			}
+
+			if (poll(polls, pollCount, 1000) == -1) {
+				perror("poll");
+				throw std::runtime_error("Unable to poll");
+			}
+
+			if (server->revents & POLLIN) {
+				Client * c = doAccept();
+				if (c != nullptr) {
+					clients.push_back(c);
+				}
+			}
+
+			for(int i = 0; i < clients.size(); ++i) {
+				Client * c = clients[i];
+				if (!c->poll) {
 					continue;
 				}
-				entry->readerCount++;
-				// Got the entry. Fine
-				return new Entry(entryId, entry->getData(), true);
+				if (c->writeBufferLeft && (c->poll->revents & POLLOUT)) {
+					int wr = write(c->fd, c->writeBuffer + c->writeBufferPos, c->writeBufferLeft);
+					if (wr == -1) {
+						if (errno == EAGAIN || errno == EINTR) {
+							// Just ignore
+							continue;
+						} else {
+							c->kill();
+						}
+					} else {
+						c->writeBufferLeft -= wr;
+						if (c->writeBufferLeft == 0) {
+							c->readBufferPos = 0;
+						}
+					}
+				} else if ((!c->writeBufferLeft) && (c->poll->revents & POLLIN)) {
+					int rd = read(c->fd, c->readBuffer + c->readBufferPos, MAX_MESSAGE_SIZE - c->readBufferPos);
+					if (rd == -1) {
+						if (errno == EAGAIN || errno == EINTR) {
+							// Just ignore
+							continue;
+						} else {
+							c->kill();
+						}
+					} else if (rd == 0) {
+						c->kill();
+					} else {
+						// FIXME: read 0 ? possible ?
+						c->readBufferPos += rd;
+						if (c->readBufferPos > 2) {
+							uint16_t size = *(uint16_t*)c->readBuffer;
+							if (size >= MAX_MESSAGE_SIZE || size <= 2) {
+								c->kill();
+							} else if (size >= c->readBufferPos){
+								// Process a message for the client.
+								try {
+									processMessage(c, size);
+								} catch(const std::exception& ex) {
+									std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
+									c->kill();
+								}
+							} else if (c->readBufferPos == MAX_MESSAGE_SIZE) {
+								c->kill();
+							}
+						}
+					}
+				}
 			}
-			entryId = allocateNewEntry(identifier);
-			return new Entry(entryId, entry->getData(), false);
+			for(int i = 0; i < clients.size();) {
+				Client  * c = clients[i];
+				if (c->fd == -1) {
+					delete(c);
+					clients[i] = clients[clients.size() - 1];
+					clients.pop_back();
+				} else {
+					i++;
+				}
+			}
 		}
 	}
 }

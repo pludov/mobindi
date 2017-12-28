@@ -10,59 +10,35 @@
 // create a semaphore
 // mark it ready
 namespace SharedCache {
+
 	class Entry {
-		friend class Cache;
 
-		uint32_t entryId;
-		bool ready;
-		void * data;
-
-		void allocate(uint32_t size);
-		void done();
-		void cancel();
-
-		Entry(uint32_t entryId, void * data, bool ready);
-	public:
-		bool ready() const;
-
-		// During production (ie when !ready())
-		void allocate(uint32_t size);
-		// During production (ie when !ready())
-		void done();
-
-		// When usage is done
-		void release();
+		std::string & path;
 	};
 
+	class Client;
+	class CacheFileDesc;
 	class Cache {
-		class Lock {
-			int lockCount;
-		public:
-			Lock();
-			~Lock();
-			void lock();
-			void unlock();
-			void release();
-		};
+		std::map<std::string, CacheFileDesc*> content;
+		std::string basePath;
+		int clientFd;
+		int serverFd;
+		long maxSize;
 
-		int fd;
-		void * buffer;
-		uint32_t bufferSize;
-		uint32_t entryCount;
-		std::string path;
-		bool attach();
-
-		int lockCount;
-
-		// assume the file exists.
-		bool joinExisting();
-
-		void lock();
-		void unlock();
+		// Wait a message and returns its size
+		int clientWaitMessage(char * buffer);
+		void clientSendMessage(const void * data, int length);
+		void setSockAddr(struct sockaddr_un & addr);
+		// Try to connect
+		void init();
+		void connectExisting();
+		void server();
+		void processMessage(Client * client, uint16_t size);
+		Client * doAccept();
 	public:
-		Cache(uint32_t bufferSize);
+		Cache(const std::string & path, long maxSize);
 
-		Entry * prepare(const nlohmann::json & json);
+		Entry * getEntry(const nlohmann::json & jsonDesc);
 	};
 }
 

@@ -28,9 +28,10 @@
 
 #include <setjmp.h>
 
-#include "json.hpp"
 
+#include "json.hpp"
 #include "fitsio.h"
+#include "SharedCache.h"
 
 using namespace std;
 using namespace cgicc;
@@ -416,7 +417,8 @@ int getRGBIndex(char c)
 
 int main () {
 	Cgicc formData;
-
+	// 128Mo cache
+	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
 
 	IPC::ImageDetails img = { 320, 200, "RGGB", 0, 32767 };
@@ -441,6 +443,8 @@ int main () {
 
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
 //	path = arg;
+
+	cache->getEntry(j);
 
 	u_int16_t * data;
 	fprintf(stderr, "Decoding %s\n", path.c_str());
