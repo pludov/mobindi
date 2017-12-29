@@ -81,9 +81,19 @@ void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
 	}
 }
 
-void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
-{
+struct JpegContent {
+	unsigned char * data;
+	unsigned long memsize;
 
+	JpegContent() {
+		data = nullptr;
+		memsize = 0;
+	}
+};
+
+JpegContent write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
+{
+	struct JpegContent result;
 	  /* This struct contains the JPEG compression parameters and pointers to
 	   * working space (which is allocated as needed by the JPEG library).
 	   * It is possible to have several such structures, representing multiple
@@ -101,7 +111,6 @@ void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
 	   */
 	  struct jpeg_error_mgr jerr;
 	  /* More stuff */
-	  FILE * outfile;		/* target file */
 	  JSAMPROW row_pointer[32];	/* pointer to JSAMPLE row[s] */
 	  int row_stride;		/* physical row width in image buffer */
 
@@ -124,7 +133,7 @@ void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
 	   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that
 	   * requires it in order to write binary files.
 	   */
-	  jpeg_stdio_dest(&cinfo, stdout);
+	  jpeg_mem_dest(&cinfo, &result.data, &result.memsize);
 
 	  /* Step 3: set parameters for compression */
 
@@ -177,14 +186,14 @@ void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
 
 	  jpeg_finish_compress(&cinfo);
 	  /* After finish_compress, we can close the output file. */
-	  // fclose(outfile);
 
 	  /* Step 7: release JPEG compression object */
 
 	  /* This is an important step since it will release a good deal of memory. */
 	  jpeg_destroy_compress(&cinfo);
-
+	  cerr << "jpeg write done: " << result.memsize << "\n";
 	  /* And we're done! */
+	  return result;
 }
 
 void write_png_file(u_int8_t * grey, int width, int height)
@@ -431,9 +440,14 @@ int main () {
 	form_iterator fi = formData.getElement("path");
 	if( !fi->isEmpty() && fi != (*formData).end()) {
 		path =  **fi;
+	} else {
+		// cout << "HTTP/1.1 500 Missing path\r\n\r\n";
+		// return 0;
+		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
 
-	cout << "Content-type: image/jpeg\r\n\r\n";
+	cout << "HTTP/1.1 200 OK\r\n";
+	cout << "Content-type: image/jpeg\r\n";
 
 
 	fitsfile *fptr;
@@ -444,10 +458,23 @@ int main () {
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
 //	path = arg;
 
-	SharedCache::Entry * entry = cache->getEntry(j);
+	SharedCache::Messages::ContentRequest contentRequest;
+	contentRequest.fitsContent = new SharedCache::Messages::FitsContent();
+	contentRequest.fitsContent->path = path;
+
+	SharedCache::Entry * entry = cache->getEntry(contentRequest);
+	if (entry->ready()) {
+		cerr << "Returning datas from " << entry->getPath() << "\n";
+		cout << "DEBUG: from-cache\r\n\r\n";
+		write(1, entry->data(), entry->size());
+		return 0;
+	}
+	cerr << "Computing datas for " << entry->getPath() << "\n";
+	cout << "DEBUG: fresh data\r\n\r\n";
 
 	u_int16_t * data;
 	fprintf(stderr, "Decoding %s\n", path.c_str());
+	JpegContent resultContent;
 	if (!fits_open_file(&fptr, path.c_str(), READONLY, &status))
 	{
 		if (!fits_get_img_param(fptr, 2, &bitpix, &naxis, naxes, &status) )
@@ -558,11 +585,11 @@ int main () {
 					u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * h / 4));
 					debayer(result, w, h, superPixel);
 					// DO super pixel !
-					write_jpeg_file(superPixel, w / 2, h / 2, 3);
+					resultContent = write_jpeg_file(superPixel, w / 2, h / 2, 3);
 					free(superPixel);
 
 				} else {
-					write_jpeg_file(result, w, h, 1);
+					resultContent = write_jpeg_file(result, w, h, 1);
 				}
 			}
 
@@ -570,11 +597,15 @@ int main () {
 		}
 		fits_close_file(fptr, &status);
 	}
-	if (!entry->ready()) {
-		entry->produced(0);
-	} else {
-		entry->release();
+	entry->allocate(resultContent.memsize + sizeof(unsigned long));
+	memcpy(entry->data(), &resultContent.memsize, sizeof(unsigned long));
+	if (resultContent.memsize) {
+		memcpy(entry->data() + sizeof(unsigned long), resultContent.data, resultContent.memsize);
 	}
+
+	entry->produced(resultContent.memsize + sizeof(unsigned long));
+
+	write(1, resultContent.data, resultContent.memsize);
 
 	return 0;
 }

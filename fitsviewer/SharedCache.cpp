@@ -10,7 +10,7 @@
 #include <sys/ioctl.h>
 #include <stdint.h>
 #include <signal.h>
-
+#include <assert.h>
 #include <iostream>
 #include "SharedCache.h"
 
@@ -125,10 +125,71 @@ namespace SharedCache {
 			path(result.path),
 			wasReady(result.ready)
 	{
+		mmapped = nullptr;
+		dataSize = 0;
+		wasMmapped = false;
+		fd = -1;
 	}
 
 	bool Entry::ready() const {
 		return wasReady;
+	}
+
+	void Entry::open() {
+		if (fd != -1) {
+			return;
+		}
+		fd = ::open(path.c_str(), O_CLOEXEC | (wasReady ? O_RDONLY : O_RDWR));
+		if (fd == -1) {
+			perror(path.c_str());
+			throw std::runtime_error("Failed to open data file");
+		}
+	}
+
+	void Entry::allocate(unsigned long int size)
+	{
+		assert(!wasReady);
+		assert(!wasMmapped);
+		open();
+		wasMmapped = true;
+		if (size) {
+			posix_fallocate(fd, 0, size);
+			mmapped = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+			if (mmapped == MAP_FAILED) {
+				perror("mmap");
+				std::cerr << "mmap of fd " << fd << " for " << path << " failed\n";
+				throw std::runtime_error("Mmap failed");
+			}
+		}
+		dataSize = size;
+	}
+
+	void * Entry::data() {
+		if (!wasMmapped) {
+			open();
+			struct stat statbuf;
+			if (fstat(fd, &statbuf) == -1) {
+				perror("stat");
+				throw std::runtime_error("Unable to stat file");
+			}
+
+			dataSize = statbuf.st_size;
+			if (dataSize > 0) {
+				mmapped = mmap(0, dataSize, PROT_READ, MAP_SHARED, fd, 0);
+				if (mmapped == MAP_FAILED) {
+					perror("mmap");
+					throw std::runtime_error("Mmap failed");
+				}
+			}
+			wasMmapped = true;
+		}
+		return mmapped;
+	}
+
+	unsigned long int Entry::size()
+	{
+		this->data();
+		return dataSize;
 	}
 
 	void Entry::produced(uint32_t size) {
@@ -188,12 +249,10 @@ namespace SharedCache {
 		return jsonResult.get<Messages::Result>();
 	}
 
-	Entry * Cache::getEntry(const nlohmann::json & jsonDesc)
+	Entry * Cache::getEntry(const Messages::ContentRequest & wanted)
 	{
 		Messages::Request request;
-		request.contentRequest = new Messages::ContentRequest();
-		request.contentRequest->fitsContent = new Messages::FitsContent();
-		request.contentRequest->fitsContent->path = "/fichier_a_ouvrir";
+		request.contentRequest = new Messages::ContentRequest(wanted);
 
 		Messages::Result r = clientSend(request);
 		return new Entry(this, *r.contentResult);

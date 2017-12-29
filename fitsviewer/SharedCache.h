@@ -117,11 +117,26 @@ namespace SharedCache {
 		std::string path;
 		bool wasReady;
 		Cache * cache;
+		bool wasMmapped;
+		void * mmapped;
+		unsigned long int dataSize;
+		int fd;
+
 		Entry(Cache * cache, const Messages::ContentResult & result);
+		void open();
 	public:
+
 		bool ready() const;
 		void produced(uint32_t size);
 		void release();
+
+		void allocate(unsigned long int size);
+		void * data();
+		unsigned long int size();
+
+		const std::string & getPath() const {
+			return path;
+		}
 	};
 
 	class Client;
@@ -155,7 +170,7 @@ namespace SharedCache {
 	public:
 		Cache(const std::string & path, long maxSize);
 
-		Entry * getEntry(const nlohmann::json & jsonDesc);
+		Entry * getEntry(const Messages::ContentRequest & wanted);
 	};
 }
 
