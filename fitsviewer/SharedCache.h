@@ -11,6 +11,8 @@
 // create a semaphore
 // mark it ready
 namespace SharedCache {
+	const int MAX_MESSAGE_SIZE = 32768;
+
 	template<class M> class ChildPtr {
 		M*ptr;
 	public:
@@ -139,38 +141,27 @@ namespace SharedCache {
 		}
 	};
 
-	class Client;
-	class CacheFileDesc;
 	class Cache {
 		friend class Entry;
-		std::map<std::string, CacheFileDesc*> contentByIdentifier;
-		std::map<std::string, CacheFileDesc*> contentByPath;
-		std::list<Client*> blockedClients;
 		std::string basePath;
 		int clientFd;
-		int serverFd;
 		long maxSize;
-		long fileGenerator;
 
 		// Wait a message and returns its size
 		int clientWaitMessage(char * buffer);
 		void clientSendMessage(const void * data, int length);
 		Messages::Result clientSend(const Messages::Request & request);
 
-		void setSockAddr(struct sockaddr_un & addr);
 		// Try to connect
 		void init();
-		void connectExisting();
-		void server();
-		void receiveMessage(Client * client, uint16_t size);
-		// True if the client is no more blocked
-		bool proceedMessage(Client * blocked);
-		Client * doAccept();
-		std::string newPath();
+		bool connectExisting();
+
 	public:
 		Cache(const std::string & path, long maxSize);
 
 		Entry * getEntry(const Messages::ContentRequest & wanted);
+
+		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr);
 	};
 }
 

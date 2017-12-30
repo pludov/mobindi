@@ -17,6 +17,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(SRCS
 	fitsviewer.cpp
 	SharedCache.cpp
+	SharedCacheServer.cpp
 	Messages.cpp
     )
 
