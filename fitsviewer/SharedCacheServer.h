@@ -10,6 +10,7 @@
 
 #include <string>
 #include <list>
+#include <set>
 #include "json.hpp"
 #include "SharedCache.h"
 
@@ -45,7 +46,7 @@ class SharedCacheServer {
 
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
 	std::map<std::string, CacheFileDesc*> contentByPath;
-
+	std::set<Client *> clients;
 	// Clients that are stuck in waitOrder state
 	ClientFifo waitingWorkers;
 
@@ -67,15 +68,19 @@ class SharedCacheServer {
 
 	bool checkWaitingConsumer(Client * blocked);
 
-	Client * doAccept();
+	void doAccept();
 	std::string newPath();
 
 	void startWorker();
+
+	static void workerLogic(Cache * cache);
 public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();
 
 	void init();
+
+
 };
 
 } /* namespace SharedCache */

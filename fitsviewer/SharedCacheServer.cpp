@@ -122,9 +122,10 @@ void SharedCacheServer::init() {
 	}
 	if (p == 0) {
 		std::cerr << "Server started\n";
-		chdir("/");
 		signal (SIGHUP, SIG_IGN);
-		/*setsid();
+		/*
+		chdir("/");
+		setsid();
 		close(0);
 		close(1);
 		close(2);*/
@@ -149,16 +150,16 @@ static void handleErrno(const char * msg)
 	throw std::runtime_error(std::string(msg));
 }
 
-Client * SharedCacheServer::doAccept()
+void SharedCacheServer::doAccept()
 {
 	// Accept a new client
 	int fd;
 	if ((fd = accept(serverFd, 0, 0)) == -1) {
 		handleErrno("accept");
-		return nullptr;
+		return;
 	}
 
-	return new Client(this, fd);
+	clients.insert(new Client(this, fd));
 }
 
 void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
@@ -171,7 +172,7 @@ void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
 	c->activeRequest = new Messages::Request(json.get<Messages::Request>());
 
 	nlohmann::json debug = *c->activeRequest;
-	std::cerr << "Received request: " << debug.dump(0) << "\n";
+	std::cerr << "Server received request from " << c->fd << " : " << debug.dump(0) << "\n";
 }
 
 bool SharedCacheServer::checkWaitingConsumer(Client * c)
@@ -222,7 +223,11 @@ bool SharedCacheServer::checkWaitingConsumer(Client * c)
 void SharedCacheServer::proceedNewMessage(Client * c)
 {
 	if (c->activeRequest->contentRequest) {
-		waitingConsumers.push_back(c);
+		waitingConsumers.add(c);
+		return;
+	}
+	if (c->activeRequest->workRequest) {
+		waitingWorkers.add(c);
 		return;
 	}
 
@@ -276,33 +281,101 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 class SharedCacheServer::RequirementEvaluator {
 	SharedCacheServer * server;
 
-	std::list<Messages::ContentRequest> requirements;
+	std::set<std::string> dedup;
+	std::list<std::pair<Messages::ContentRequest, std::string>> requirements;
 
 public:
 	RequirementEvaluator(SharedCacheServer * server) : server(server) {}
 
 	void markAsRequired(const Messages::ContentRequest & r, const std::string & key) {
-		requirements.push_back(r);
+		if (!dedup.insert(key).second) {
+			return;
+		}
+		requirements.push_back(std::pair<Messages::ContentRequest, std::string>(r, key));
 	}
 
-	CacheFileDesc * startFirst() {
-		if (requirements.empty()) return nullptr;
-		Messages::ContentRequest r = requirements.front();
-		requirements.pop_front();
-		return new CacheFileDesc(server, r.uniqKey(), server->newPath());
+	std::pair<CacheFileDesc *, Messages::ContentRequest> startFirst() {
+		while (!requirements.empty()) {
+			std::pair<Messages::ContentRequest, std::string> r = requirements.front();
+			requirements.pop_front();
+			auto exists = server->contentByIdentifier.find(r.second);
+			if (exists != server->contentByIdentifier.end()) {
+				// Already producing. Ingore.
+				continue;
+			}
+			return
+					std::pair<CacheFileDesc *, Messages::ContentRequest>(
+						new CacheFileDesc(server, r.second, server->newPath()),
+						r.first);
+		}
+		return std::pair<CacheFileDesc *, Messages::ContentRequest>(nullptr, Messages::ContentRequest());
 	}
 };
+
+void SharedCacheServer::workerLogic(Cache * cache)
+{
+	while(true) {
+		Messages::Request queryWork;
+		queryWork.workRequest.build();
+
+		Messages::Result work = cache->clientSend(queryWork);
+		sleep(5);
+
+		Messages::Request doneWork;
+		doneWork.finishedAnnounce.build();
+		doneWork.finishedAnnounce->path = work.todoResult->path;
+		doneWork.finishedAnnounce->size = 4545;
+
+		cache->clientSend(doneWork);
+	}
+}
 
 void SharedCacheServer::startWorker()
 {
 	// FIXME: close all sockets...
+	int fd[2];
+	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd) == -1) {
+		perror("socketpair");
+		throw std::runtime_error("failed to create socket pair");
+	}
+	int on = 1;
+	if (ioctl(fd[0], FIONBIO, (char *)&on) == -1)
+	{
+		perror("ioctl");
+		close(fd[0]);
+		close(fd[1]);
+		throw std::runtime_error("Unable to setup socket");
+	}
+
+	pid_t pid = fork();
+	if (pid == -1) {
+		perror("fork");
+		throw std::runtime_error("failed to create socket pair");
+	}
+	if (pid == 0) {
+
+		close(fd[0]); /* Close the parent file descriptor */
+		// FIXME: close all but fd[1]...
+		// FIXME: free all server
+		try {
+			workerLogic(new Cache(basePath, maxSize, fd[1]));
+		}catch(...) {
+			_exit(255);
+		}
+		std::cerr << "Worker dead\n";
+		_exit(0);
+	}
+	close(fd[1]);
+
+	Client * worker = new Client(this, fd[0]);
+	worker->worker = true;
+	clients.insert(worker);
+	std::cerr << "New worker started\n";
 	startedWorkerCount ++;
-	throw std::runtime_error("not implemented");
 }
 
 void SharedCacheServer::server()
 {
-	std::vector<Client *> clients;
 	while(true) {
 		// Starts some workers if possible
 		while(startedWorkerCount < 2) {
@@ -318,16 +391,18 @@ void SharedCacheServer::server()
 		server->fd = serverFd;
 		server->events = POLLIN;
 
-		for(int i = 0; i < clients.size(); ++i)
+		for(auto it = clients.begin(); it != clients.end();)
 		{
-			clients[i]->poll = polls + (pollCount++);
-			clients[i]->poll->fd = clients[i]->fd;
-			if (clients[i]->writeBufferLeft) {
-				clients[i]->poll->events=POLLOUT;
-			} else {
-				clients[i]->poll->events=POLLIN;
-			}
+			Client * c = *it;
+			it++;
 
+			c->poll = polls + (pollCount++);
+			c->poll->fd = c->fd;
+			if (c->writeBufferLeft) {
+				c->poll->events=POLLOUT|POLLIN;
+			} else {
+				c->poll->events=POLLIN;
+			}
 		}
 
 		if (poll(polls, pollCount, 1000) == -1) {
@@ -336,14 +411,11 @@ void SharedCacheServer::server()
 		}
 
 		if (server->revents & POLLIN) {
-			Client * c = doAccept();
-			if (c != nullptr) {
-				clients.push_back(c);
-			}
+			doAccept();
 		}
 
-		for(int i = 0; i < clients.size(); ++i) {
-			Client * c = clients[i];
+		for(auto it = clients.begin(); it != clients.end();) {
+			Client * c = *it++;
 			if (!c->poll) {
 				continue;
 			}
@@ -371,9 +443,11 @@ void SharedCacheServer::server()
 					} else {
 						c->kill();
 					}
-				} else if (rd == 0 || clients[i]->activeRequest) {
+				} else if (rd == 0 || c->activeRequest) {
 					if (rd != 0) {
-						std::cerr << "Client " << clients[i]->fd << " sent too much data\n";
+						std::cerr << "Client " << c->fd << " sent too much data\n";
+					} else {
+						std::cerr << "Client " << c->fd << " terminated\n";
 					}
 					c->kill();
 				} else {
@@ -407,7 +481,6 @@ void SharedCacheServer::server()
 			}
 		}
 
-		std::map<std::string, int> requirements;
 		RequirementEvaluator evaluator(this);
 
 		// Distribute availables resources to waiting consumers
@@ -442,33 +515,21 @@ void SharedCacheServer::server()
 		// FIXME: check space is ok
 		for(auto it = waitingWorkers.begin(); it != waitingWorkers.end();)
 		{
-			CacheFileDesc * entry = evaluator.startFirst();
-			if (entry == nullptr) {
+			Client * c = (*it++);
+
+			std::pair<CacheFileDesc *, Messages::ContentRequest> entry = evaluator.startFirst();
+			if (entry.first == nullptr) {
 				break;
 			}
 
-			Client * c = (*it++);
 			Messages::Result resultMessage;
 			resultMessage.todoResult.build();
-			*resultMessage.todoResult = entry->toContentResult();
+			resultMessage.todoResult->content = new Messages::ContentRequest(entry.second);
+			resultMessage.todoResult->path = entry.first->path;
 			waitingWorkers.remove(c);
-			c->producing.push_back(entry);
+			c->producing.push_back(entry.first);
 			c->reply(resultMessage);
 		}
-
-		// Remove dead clients
-		for(int i = 0; i < clients.size();) {
-			Client  * c = clients[i];
-			if (c->fd == -1) {
-
-				delete(c);
-				clients[i] = clients[clients.size() - 1];
-				clients.pop_back();
-			} else {
-				i++;
-			}
-		}
-
 	}
 }
 } /* namespace SharedCache */

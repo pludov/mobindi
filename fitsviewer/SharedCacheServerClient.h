@@ -35,6 +35,9 @@ class CacheFileDesc {
 		lastUse = now();
 		produced = false;
 		clientCount = 0;
+
+		server->contentByIdentifier[identifier] = this;
+		server->contentByPath[path] = this;
 	}
 
 	void unlink()
@@ -74,6 +77,7 @@ class CacheFileDesc {
 
 class Client {
 	friend class SharedCacheServer;
+	friend class ClientFifo;
 
 	SharedCacheServer * server;
 
@@ -152,6 +156,8 @@ class Client {
 			worker = false;
 		}
 
+		server->clients.erase(this);
+
 	}
 
 	void send(const std::string & str)
@@ -173,6 +179,7 @@ class Client {
 		nlohmann::json j = result;
 		std::string reply = j.dump(0);
 		send(reply);
+		std::cerr << "Server reply to " << fd << " : " << reply << "\n";
 
 		delete activeRequest;
 		activeRequest = nullptr;

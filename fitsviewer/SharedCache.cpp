@@ -111,6 +111,13 @@ namespace SharedCache {
 		init();
 	}
 
+	Cache::Cache(const std::string & path, long maxSize, int fd) :
+				basePath(path)
+	{
+		this->maxSize = maxSize;
+		this->clientFd = fd;
+	}
+
 	Messages::Result Cache::clientSend(const Messages::Request & request)
 	{
 		std::string str;

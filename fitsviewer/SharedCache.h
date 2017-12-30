@@ -48,7 +48,9 @@ namespace SharedCache {
 			this->ptr = value;
 			delete old;
 		}
-
+		void operator=(const ChildPtr<M> & value) {
+			this->operator=(value.ptr);
+		}
 		M & operator*() const{
 			return *ptr;
 		}
@@ -84,6 +86,21 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ContentRequest & i);
 		void from_json(const nlohmann::json& j, ContentRequest & p);
 
+		struct WorkRequest {
+		};
+
+		void to_json(nlohmann::json&j, const WorkRequest & i);
+		void from_json(const nlohmann::json& j, WorkRequest & p);
+
+
+		struct WorkResponse {
+			ChildPtr<ContentRequest> content;
+			std::string path;
+		};
+
+		void to_json(nlohmann::json&j, const WorkResponse & i);
+		void from_json(const nlohmann::json& j, WorkResponse & p);
+
 		struct FinishedAnnounce {
 			long size;
 			std::string path;
@@ -101,6 +118,7 @@ namespace SharedCache {
 
 		struct Request {
 			ChildPtr<ContentRequest> contentRequest;
+			ChildPtr<WorkRequest> workRequest;
 			ChildPtr<FinishedAnnounce> finishedAnnounce;
 			ChildPtr<ReleasedAnnounce> releasedAnnounce;
 		};
@@ -120,7 +138,7 @@ namespace SharedCache {
 
 		struct Result {
 			ChildPtr<ContentResult> contentResult;
-			ChildPtr<ContentResult> todoResult;
+			ChildPtr<WorkResponse> todoResult;
 		};
 
 		void to_json(nlohmann::json&j, const Result & i);
@@ -159,6 +177,7 @@ namespace SharedCache {
 
 	class Cache {
 		friend class Entry;
+		friend class SharedCacheServer;
 		std::string basePath;
 		int clientFd;
 		long maxSize;
@@ -171,6 +190,8 @@ namespace SharedCache {
 		// Try to connect
 		void init();
 		bool connectExisting();
+
+		Cache(const std::string & path, long maxSize, int fd);
 
 	public:
 		Cache(const std::string & path, long maxSize);
