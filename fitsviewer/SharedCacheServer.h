@@ -19,22 +19,58 @@ namespace SharedCache {
 class Client;
 class CacheFileDesc;
 
+class ClientError : public std::runtime_error {
+public:
+	ClientError(const std::string & s);
+};
+
+
+class ClientFifo : public std::list<Client*> {
+	typedef bool (Client::*Getter)() const;
+	typedef void (Client::*Setter)(bool value);
+private:
+	Getter getter;
+	Setter setter;
+public:
+	ClientFifo(Getter getter, Setter setter);
+
+	void add(Client * c);
+	void remove(Client * c);
+};
+
 class SharedCacheServer {
+	class RequirementEvaluator;
+	friend class Client;
+	friend class CacheFileDesc;
+
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
 	std::map<std::string, CacheFileDesc*> contentByPath;
-	std::list<Client*> blockedClients;
+
+	// Clients that are stuck in waitOrder state
+	ClientFifo waitingWorkers;
+
+	// Clients that awaits some resources
+	ClientFifo waitingConsumers;
+
 	std::string basePath;
 	long maxSize;
 
 	int serverFd;
 	long fileGenerator;
 
+	int startedWorkerCount;
+
 	void server();
 	void receiveMessage(Client * client, uint16_t size);
 	// True if the client is no more blocked
-	bool proceedMessage(Client * blocked);
+	void proceedNewMessage(Client * blocked);
+
+	bool checkWaitingConsumer(Client * blocked);
+
 	Client * doAccept();
 	std::string newPath();
+
+	void startWorker();
 public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();

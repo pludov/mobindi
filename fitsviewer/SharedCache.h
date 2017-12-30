@@ -33,6 +33,15 @@ namespace SharedCache {
 			delete ptr;
 		}
 
+		M * build() {
+			this->operator=(new M());
+			return ptr;
+		}
+
+		void clear() {
+			this->operator=(nullptr);
+		}
+
 		void operator=(M* value) {
 			if (value == this->ptr) return;
 			M* old = this->ptr;
@@ -64,6 +73,12 @@ namespace SharedCache {
 
 		struct ContentRequest {
 			ChildPtr<FitsContent> fitsContent;
+
+			std::string uniqKey() const
+			{
+				nlohmann::json debug = *this;
+				return debug.dump(0);
+			}
 		};
 
 		void to_json(nlohmann::json&j, const ContentRequest & i);
@@ -105,6 +120,7 @@ namespace SharedCache {
 
 		struct Result {
 			ChildPtr<ContentResult> contentResult;
+			ChildPtr<ContentResult> todoResult;
 		};
 
 		void to_json(nlohmann::json&j, const Result & i);

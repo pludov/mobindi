@@ -19,118 +19,48 @@
 #include <assert.h>
 #include <iostream>
 #include "SharedCacheServer.h"
+#include "SharedCacheServerClient.h"
 
 namespace SharedCache {
 
-static long now() {
+long now()
+{
 	return 0;
 }
 
 
-class CacheFileDesc {
-	friend class SharedCacheServer;
-	long size;
-	long prodDuration;
-	long lastUse;
+ClientError::ClientError(const std::string & msg) : std::runtime_error(msg) {}
 
-	bool produced;
-	long clientCount;
-	std::string identifier;
-	std::string path;
+ClientFifo::ClientFifo(Getter getter, Setter setter) : setter(setter), getter(getter) {}
 
-	CacheFileDesc(const std::string & identifier, const std::string & path):
-		identifier(identifier),
-		path(path)
-	{
-		size = 0;
-		prodDuration = 0;
-		lastUse = now();
-		produced = false;
-		clientCount = 0;
+void ClientFifo::add(Client * c) {
+	if ((c->*getter)()) {
+		return;
 	}
+	(c->*setter)(true);
+	push_back(c);
+}
 
-	void unlink()
-	{
-		if (::unlink(path.c_str()) == -1) {
-			perror(path.c_str());
-		}
+void ClientFifo::remove(Client * c) {
+	if (!(c->*getter)()) {
+		return;
 	}
-};
-
-class Client {
-	friend class SharedCacheServer;
-
-	int fd;
-
-	char * readBuffer;
-	int readBufferPos;
-
-	Messages::Request * blockingRequest;
-	std::list<CacheFileDesc *> reading;
-	std::list<CacheFileDesc *> producing;
-
-	char * writeBuffer;
-	int writeBufferPos;
-	int writeBufferLeft;
-
-	pollfd * poll;
-
-	Client(int fd) :readBuffer(), writeBuffer() {
-		this->fd = fd;
-		poll = nullptr;
-		blockingRequest = nullptr;
-		writeBufferPos = 0;
-		writeBufferLeft = 0;
-		readBufferPos = 0;
-		readBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
-		writeBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
+	auto where = std::find(begin(), end(), c);
+	if (where != end()) {
+		erase(where);
 	}
-	~Client()
-	{
-		if (this->fd != -1) {
-			close(this->fd);
-			this->fd = -1;
-		}
-		delete(blockingRequest);
-		free(readBuffer);
-		free(writeBuffer);
-	}
-
-	void kill()
-	{
-		close(this->fd);
-		this->fd = -1;
-	}
-
-	void send(const std::string & str)
-	{
-		if (this->fd == -1) return;
-		unsigned long l = str.length();
-		if (l > MAX_MESSAGE_SIZE - 2) {
-			kill();
-		} else {
-
-			*((uint16_t*)writeBuffer) = l;
-			memcpy(writeBuffer + 2, str.c_str(), l);
-			writeBufferPos = 0;
-			writeBufferLeft = 2 + l;
-		}
-
-	}
-
-	void reply(const Messages::Result & result) {
-		nlohmann::json j = result;
-		std::string reply = j.dump(0);
-		send(reply);
-	}
-};
+	(c->*setter)(false);
+}
 
 SharedCacheServer::SharedCacheServer(const std::string & path, long maxSize):
 			basePath(path),
-			maxSize(maxSize)
+			maxSize(maxSize),
+			waitingWorkers(&Client::isWaitingWorker, &Client::setWaitingWorker),
+			waitingConsumers(&Client::isWaitingConsumer, &Client::setWaitingConsumer)
 {
 	serverFd = -1;
 	fileGenerator = 0;
+	startedWorkerCount = 0;
 }
 
 SharedCacheServer::~SharedCacheServer() {
@@ -228,7 +158,7 @@ Client * SharedCacheServer::doAccept()
 		return nullptr;
 	}
 
-	return new Client(fd);
+	return new Client(this, fd);
 }
 
 void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
@@ -238,123 +168,147 @@ void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
 //		printf("%s\n", jsonStr.c_str());
 	c->readBufferPos = 0;
 	auto json = nlohmann::json::parse(jsonStr);
-	c->blockingRequest = new Messages::Request(json.get<Messages::Request>());
+	c->activeRequest = new Messages::Request(json.get<Messages::Request>());
 
-	nlohmann::json debug = *c->blockingRequest;
+	nlohmann::json debug = *c->activeRequest;
 	std::cerr << "Received request: " << debug.dump(0) << "\n";
-
-	blockedClients.push_back(c);
 }
 
-bool SharedCacheServer::proceedMessage(Client * c)
+bool SharedCacheServer::checkWaitingConsumer(Client * c)
 {
-	if (c->blockingRequest->contentRequest) {
-		nlohmann::json j = *c->blockingRequest->contentRequest;
-		std::string identifier = j.dump();
-		auto where = contentByIdentifier.find(identifier);
-		if (where == contentByIdentifier.end()) {
-			CacheFileDesc * cfd = new CacheFileDesc(identifier, newPath());
-			cfd->produced = false;
-			cfd->lastUse = now();
-			cfd->prodDuration = 0;
-			cfd->size = 0;
-			cfd->clientCount = 1;
-			contentByIdentifier[identifier] = cfd;
-			contentByPath[cfd->path] = cfd;
+	nlohmann::json j = *c->activeRequest->contentRequest;
+	std::string identifier = j.dump();
+	auto where = contentByIdentifier.find(identifier);
+	if (where == contentByIdentifier.end()) {
+		CacheFileDesc * cfd = new CacheFileDesc(this, identifier, newPath());
+		cfd->produced = false;
+		cfd->lastUse = now();
+		cfd->prodDuration = 0;
+		cfd->size = 0;
+		cfd->clientCount = 1;
+		contentByIdentifier[identifier] = cfd;
+		contentByPath[cfd->path] = cfd;
 
-			c->producing.push_back(cfd);
+		c->producing.push_back(cfd);
 
-			Messages::Result result;
-			result.contentResult = new Messages::ContentResult();
-			result.contentResult->path = cfd->path;
-			result.contentResult->ready = false;
-			c->reply(result);
-			return true;
-		} else {
-			CacheFileDesc * cfd = where->second;
-			if (!cfd->produced) {
-				// Not ready... Please wait
-				return false;
-			}
-
-			cfd->clientCount++;
-
-			// Ready...
-			Messages::Result result;
-			result.contentResult = new Messages::ContentResult();
-			result.contentResult->path = cfd->path;
-			result.contentResult->ready = true;
-			c->reading.push_back(cfd);
-			c->reply(result);
-			return true;
-		}
-	}
-
-	if (c->blockingRequest->finishedAnnounce) {
-		std::string path = c->blockingRequest->finishedAnnounce->path;
-		auto cfdLoc = contentByPath.find(path);
-		if (cfdLoc == contentByPath.end()) {
-			std::cerr << "Access to unknown file rejected\n";
-			c->kill();
-			return true;
-		}
-		CacheFileDesc * cfd = cfdLoc->second;
-		if (cfd->produced) {
-			std::cerr << "Announce to already producing rejected\n";
-			c->kill();
-			return true;
-		}
-		auto cfdLocInProducing = std::find(c->producing.begin(), c->producing.end(), cfd);
-		if (cfdLocInProducing == c->producing.end()) {
-			std::cerr << "Announce for not producing rejected\n";
-			c->kill();
-			return true;
-		}
-
-		c->producing.erase(cfdLocInProducing);
-		c->reading.push_back(cfd);
-		cfd->clientCount++;
-		cfd->produced = true;
 		Messages::Result result;
+		result.contentResult = new Messages::ContentResult();
+		result.contentResult->path = cfd->path;
+		result.contentResult->ready = false;
+		c->reply(result);
+		return true;
+	} else {
+		CacheFileDesc * cfd = where->second;
+		if (!cfd->produced) {
+			// Not ready... Please wait
+			return false;
+		}
+
+		cfd->clientCount++;
+
+		// Ready...
+		Messages::Result result;
+		result.contentResult = new Messages::ContentResult();
+		result.contentResult->path = cfd->path;
+		result.contentResult->ready = true;
+		c->reading.push_back(cfd);
 		c->reply(result);
 		return true;
 	}
-	if (c->blockingRequest->releasedAnnounce) {
-		std::string path = c->blockingRequest->releasedAnnounce->path;
+
+}
+
+// Either proceed directly the message, or put the client in a waiting queue
+void SharedCacheServer::proceedNewMessage(Client * c)
+{
+	if (c->activeRequest->contentRequest) {
+		waitingConsumers.push_back(c);
+		return;
+	}
+
+	if (c->activeRequest->finishedAnnounce) {
+		std::string path = c->activeRequest->finishedAnnounce->path;
 		auto cfdLoc = contentByPath.find(path);
 		if (cfdLoc == contentByPath.end()) {
-			std::cerr << "Access to unknown file rejected\n";
-			c->kill();
-			return true;
+			throw ClientError("Access to unknown file rejected");
+		}
+		CacheFileDesc * cfd = cfdLoc->second;
+		if (cfd->produced) {
+			throw ClientError("Announce to already producing rejected");
+		}
+		auto cfdLocInProducing = std::find(c->producing.begin(), c->producing.end(), cfd);
+		if (cfdLocInProducing == c->producing.end()) {
+			throw ClientError("Announce for not producing rejected");
+		}
+
+		c->producing.erase(cfdLocInProducing);
+		cfd->produced = true;
+		Messages::Result result;
+		c->reply(result);
+		return;
+	}
+	if (c->activeRequest->releasedAnnounce) {
+		std::string path = c->activeRequest->releasedAnnounce->path;
+		auto cfdLoc = contentByPath.find(path);
+		if (cfdLoc == contentByPath.end()) {
+			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
 		if (!cfd->produced) {
-			std::cerr << "Release of not produced rejected\n";
-			c->kill();
-			return true;
+			throw ClientError("Release of not produced rejected");
 		}
 		auto cfdLocInProducing = std::find(c->reading.begin(), c->reading.end(), cfd);
 		if (cfdLocInProducing == c->reading.end()) {
-			std::cerr << "Release for not read rejected\n";
-			c->kill();
-			return true;
+			throw ClientError("Release for not read rejected");
 		}
 
 		c->reading.erase(cfdLocInProducing);
 		cfd->clientCount--;
 		Messages::Result result;
 		c->reply(result);
-		return true;
+		return;
 	}
-	std::cerr << "Client has invalid blocking request ?\n";
-	c->kill();
-	return true;
+	throw ClientError("Client has invalid active request ?");
+}
+
+
+
+class SharedCacheServer::RequirementEvaluator {
+	SharedCacheServer * server;
+
+	std::list<Messages::ContentRequest> requirements;
+
+public:
+	RequirementEvaluator(SharedCacheServer * server) : server(server) {}
+
+	void markAsRequired(const Messages::ContentRequest & r, const std::string & key) {
+		requirements.push_back(r);
+	}
+
+	CacheFileDesc * startFirst() {
+		if (requirements.empty()) return nullptr;
+		Messages::ContentRequest r = requirements.front();
+		requirements.pop_front();
+		return new CacheFileDesc(server, r.uniqKey(), server->newPath());
+	}
+};
+
+void SharedCacheServer::startWorker()
+{
+	// FIXME: close all sockets...
+	startedWorkerCount ++;
+	throw std::runtime_error("not implemented");
 }
 
 void SharedCacheServer::server()
 {
 	std::vector<Client *> clients;
 	while(true) {
+		// Starts some workers if possible
+		while(startedWorkerCount < 2) {
+			startWorker();
+		}
+
 		pollfd polls[clients.size() + 1];
 
 		pollfd * server;
@@ -417,7 +371,7 @@ void SharedCacheServer::server()
 					} else {
 						c->kill();
 					}
-				} else if (rd == 0 || clients[i]->blockingRequest) {
+				} else if (rd == 0 || clients[i]->activeRequest) {
 					if (rd != 0) {
 						std::cerr << "Client " << clients[i]->fd << " sent too much data\n";
 					}
@@ -433,10 +387,18 @@ void SharedCacheServer::server()
 							// Process a message for the client.
 							try {
 								receiveMessage(c, size);
+
 							} catch(const std::exception& ex) {
 								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
 								c->kill();
 							}
+							try {
+								proceedNewMessage(c);
+							} catch(const ClientError & ex) {
+								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
+								c->kill();
+							}
+
 						} else if (c->readBufferPos == MAX_MESSAGE_SIZE) {
 							c->kill();
 						}
@@ -445,61 +407,68 @@ void SharedCacheServer::server()
 			}
 		}
 
-		bool restart;
-		do {
-			restart = false;
-			// Proceed all blocked clients.
-			// When a client is unblocked, it may be possible to restart already blocked clients
-			for(auto it = blockedClients.begin(); it != blockedClients.end();)
-			{
-				Client * c = *it;
-				if (c->fd == -1) {
-					continue;
-				}
-				if (proceedMessage(c)) {
-					delete c->blockingRequest;
-					c->blockingRequest = nullptr;
-					it = blockedClients.erase(it);
-					restart = true;
-				} else {
-					 ++it;
-				}
+		std::map<std::string, int> requirements;
+		RequirementEvaluator evaluator(this);
+
+		// Distribute availables resources to waiting consumers
+		// Compute required resources, and their dependencies
+		// Distribute the first required resource to a worker
+
+		for(auto it = waitingConsumers.begin(); it != waitingConsumers.end();)
+		{
+			Client * c = (*it++);
+
+			std::string identifier = c->activeRequest->contentRequest->uniqKey();
+
+			auto result = contentByIdentifier.find(identifier);
+			if (result == contentByIdentifier.end() || !result->second->produced) {
+				evaluator.markAsRequired(*(c->activeRequest->contentRequest), identifier);
+			} else {
+				CacheFileDesc * entry = result->second;
+				Messages::Result resultMessage;
+				resultMessage.contentResult.build();
+				*resultMessage.contentResult = entry->toContentResult();
+
+				waitingConsumers.remove(c);
+				entry->addReader();
+				c->reading.push_back(entry);
+				c->reply(resultMessage);
+			}
+		}
+
+		// Mark dependencies of all targets as required (with a level)
+
+		// Distribute some works
+		// FIXME: check space is ok
+		for(auto it = waitingWorkers.begin(); it != waitingWorkers.end();)
+		{
+			CacheFileDesc * entry = evaluator.startFirst();
+			if (entry == nullptr) {
+				break;
 			}
 
-			for(int i = 0; i < clients.size();) {
-				Client  * c = clients[i];
-				if (c->fd == -1) {
-					for(auto it = c->producing.begin(); it != c->producing.end(); ++it)
-					{
-						// Remove the producing.
-						// Remove the file as well
-						CacheFileDesc * cfd = *it;
-						std::cerr << "Production of " << cfd->identifier << " in " << cfd->path << " failed\n";
-						contentByIdentifier.erase(cfd->identifier);
-						contentByPath.erase(cfd->identifier);
-						cfd->unlink();
-						delete(cfd);
-					}
-					for(auto it = c->reading.begin(); it != c->reading.end(); ++it)
-					{
-						CacheFileDesc * cfd = *it;
-						cfd->clientCount --;
-					}
-					if (c->blockingRequest) {
-						auto where = std::find(blockedClients.begin(), blockedClients.end(), c);
-						if (where != blockedClients.end()) {
-							blockedClients.erase(where);
-						}
-					}
-					delete(c);
-					clients[i] = clients[clients.size() - 1];
-					clients.pop_back();
-					restart = true;
-				} else {
-					i++;
-				}
+			Client * c = (*it++);
+			Messages::Result resultMessage;
+			resultMessage.todoResult.build();
+			*resultMessage.todoResult = entry->toContentResult();
+			waitingWorkers.remove(c);
+			c->producing.push_back(entry);
+			c->reply(resultMessage);
+		}
+
+		// Remove dead clients
+		for(int i = 0; i < clients.size();) {
+			Client  * c = clients[i];
+			if (c->fd == -1) {
+
+				delete(c);
+				clients[i] = clients[clients.size() - 1];
+				clients.pop_back();
+			} else {
+				i++;
 			}
-		} while(restart);
+		}
+
 	}
 }
 } /* namespace SharedCache */
