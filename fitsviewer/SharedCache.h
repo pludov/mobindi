@@ -76,8 +76,17 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const RawContent & i);
 		void from_json(const nlohmann::json& j, RawContent & p);
 
+		struct Histogram {
+			RawContent source;
+			void produce(Entry * entry);
+		};
+
+		void to_json(nlohmann::json&j, const Histogram & i);
+		void from_json(const nlohmann::json& j, Histogram & p);
+
 		struct ContentRequest {
 			ChildPtr<RawContent> fitsContent;
+			ChildPtr<Histogram> histogram;
 
 			std::string uniqKey() const
 			{
@@ -154,10 +163,25 @@ namespace SharedCache {
 
 	}
 
+	/** Reference to an Entry. Auto release */
+	class EntryRef {
+		Entry * entry;
+	public:
+		EntryRef(Entry * entry);
+		~EntryRef();
+
+		operator Entry*() {return entry;}
+		Entry * operator->() { return entry; }
+
+		// No sharing...
+		EntryRef(const EntryRef & other) = delete;
+		void operator=(const EntryRef & other) = delete;
+	};
 
 	class Cache;
 	class Entry {
 		friend class Cache;
+		friend class EntryRef;
 		friend class SharedCacheServer;
 		std::string filename;
 		bool wasReady;
@@ -169,6 +193,9 @@ namespace SharedCache {
 
 		bool error;
 		std::string errorDetails;
+
+		// either one of produced/failed/release was already called
+		bool released;
 
 		Entry(Cache * cache, const Messages::ContentResult & result);
 		Entry(Cache * cache, const Messages::WorkResponse & tobuild);
@@ -189,7 +216,7 @@ namespace SharedCache {
 		std::string getErrorDetails() const { return errorDetails; };
 
 
-		Cache * server() const;
+		Cache * getServer() const;
 	};
 
 	class Cache {

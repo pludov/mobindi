@@ -10,6 +10,7 @@ struct RawDataStorage {
 
 	// Empty for grayscale. pattern in the form RGGB otherwise
 	std::string getBayer() const;
+	bool hasColors() const;
 
 	void setSize(int w, int h);
 	void setBayer(const std::string & bayer);

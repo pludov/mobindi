@@ -12,6 +12,10 @@ std::string RawDataStorage::getBayer() const {
 	return std::string(bayer, 4);
 }
 
+bool RawDataStorage::hasColors() const {
+	return bayer[0] != 0;
+}
+
 void RawDataStorage::setSize(int w, int h)
 {
 	this->w = w;

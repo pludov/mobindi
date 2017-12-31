@@ -33,6 +33,7 @@
 #include "fitsio.h"
 #include "SharedCache.h"
 #include "RawDataStorage.h"
+#include "HistogramStorage.h"
 
 using namespace std;
 using namespace cgicc;
@@ -255,105 +256,6 @@ void write_png_file(u_int8_t * grey, int width, int height)
         fclose(fp);
 }
 
-// Build an histogram
-// Max MPixel handled : 20M => 32 bit counter required
-// 64K*4 = 256K/Channel = 1Mo global
-class Histo {
-	u_int32_t * counts;
-	u_int32_t pixcount;
-	u_int32_t min, max;
-public:
-	Histo() {
-		counts = new u_int32_t[65536]();
-		pixcount = 0;
-		min = -1;
-		max = -1;
-	}
-
-	void scanPlane(u_int16_t * data, int w, int h)
-	{
-		pixcount += w*h;
-		while(h > 0) {
-			int tw = w;
-			while(tw > 0) {
-				counts[*data]++;
-				data++;
-				tw--;
-			}
-			h--;
-		}
-	}
-
-	// w and h must be even
-	void scanBayer(u_int16_t * data, int w, int h)
-	{
-		pixcount += w * h / 4;
-		int th = h / 2;
-		while(th > 0) {
-			int tw = w / 2;
-			while(tw > 0) {
-				counts[*data]++;
-				data += 2;
-				tw--;
-			}
-			data += w / 2;
-			th--;
-		}
-	}
-	void scanR(u_int16_t * data, int w, int h)
-	{
-		scanBayer(data, w, h);
-	}
-	void scanGG(u_int16_t * data, int w, int h)
-	{
-		scanBayer(data + 1, w, h);
-		scanBayer(data + w, w, h);
-	}
-	void scanB(u_int16_t * data, int w, int h)
-	{
-		scanBayer(data + w + 1, w, h);
-	}
-
-	/** Make count represent the number of pixel at or under a given level */
-	void cumulative() {
-		u_int32_t current = 0;
-		for(int i = 0; i < 65536; ++i) {
-			current += counts[i];
-			counts[i] = current;
-		}
-	}
-
-	// first index for which count is at least wantedCount
-	u_int32_t findFirstWithAtLeast(u_int32_t wantedCount)
-	{
-		int min = 0, max = 65535;
-		if (counts[min] >= wantedCount) return min;
-		while (min < max) {
-			int med = (max + min) / 2;
-			if (counts[med] < wantedCount) {
-				if (med == min) {
-					return max;
-				}
-				min = med;
-			} else {
-				if (med == max) {
-					return min;
-				}
-				max = med;
-			}
-		}
-		return min;
-	}
-
-	// Return the highest adu X that for which at least v% of the pixels are >= X
-	u_int32_t getLevel(double v) {
-		u_int32_t wantedCount = floor((double)(pixcount * v));
-		// Search the first index i in counts for which count[i] >= wantedCount;
-		return findFirstWithAtLeast(wantedCount);
-	}
-};
-
-
 void applyScale(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
 {
 	int nbpix = w * h;
@@ -432,22 +334,24 @@ int main (int argc, char ** argv) {
 	contentRequest.fitsContent = new SharedCache::Messages::RawContent();
 	contentRequest.fitsContent->path = path;
 
-	SharedCache::Entry * entry = cache->getEntry(contentRequest);
-	if (entry->hasError()) {
+	SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
+	if (aduPlane->hasError()) {
 		// FIXME: how to return 500 ?
 		exit(1);
 	}
-//	if (entry->ready()) {
-//		cerr << "Returning datas from " << entry->getPath() << "\n";
-//		cout << "DEBUG: from-cache\r\n\r\n";
-//		write(1, entry->data(), entry->size());
-//		return 0;
-//	}
-//	cerr << "Computing datas for " << entry->getPath() << "\n";
-//	cout << "DEBUG: fresh data\r\n\r\n";
+
+	contentRequest.fitsContent.clear();
+	contentRequest.histogram.build();
+	contentRequest.histogram->source.path = path;
+	SharedCache::EntryRef histogram(cache->getEntry(contentRequest));
+	if (histogram->hasError()) {
+		// FIXME: how to return 500 ?
+		exit(1);
+	}
 
 	JpegContent resultContent;
-	RawDataStorage * storage = (RawDataStorage *)entry->data();
+	RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
+	HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
 
 	int w = storage->w;
 	int h = storage->h;
@@ -460,23 +364,12 @@ int main (int argc, char ** argv) {
 
 	// do histogram for each channel !
 	if (bayer.length() > 0) {
-		Histo* histoByColor[3];
-		for(int i = 0; i < 3; ++i) {
-			histoByColor[i] = new Histo();
-		}
-
-		for(int i = 0; i < 4; ++i) {
-			int hist = RawDataStorage::getRGBIndex(bayer[i]);
-			int offset = (i & 1) + ((i & 2) >> 1) * w;
-			histoByColor[hist]->scanBayer(data + offset, w, h);
-		}
-
 		int levels[3][3];
 		for(int i = 0; i < 3; ++i) {
-			histoByColor[i]->cumulative();
-			levels[i][0]= histoByColor[i]->getLevel(0.05);
-			levels[i][1]= histoByColor[i]->getLevel(0.5);
-			levels[i][2]= histoByColor[i]->getLevel(0.95);
+			auto channelStorage = histogramStorage->channel(i);
+			levels[i][0]= channelStorage->getLevel(0.05);
+			levels[i][1]= channelStorage->getLevel(0.5);
+			levels[i][2]= channelStorage->getLevel(0.95);
 		}
 
 
@@ -486,15 +379,15 @@ int main (int argc, char ** argv) {
 			applyScaleBayer(data + offset, w, h, levels[hist][0], levels[hist][1], levels[hist][2], result + offset);
 		}
 	} else {
-		Histo * histo = new Histo();
-		histo->scanPlane(data, w, h);
-		histo->cumulative();
-		int min = histo->getLevel(0.05);
-		int med = histo->getLevel(0.5);
-		int max = histo->getLevel(0.95);
+		auto channelStorage = histogramStorage->channel(0);
+
+		int min = channelStorage->getLevel(0.05);
+		int med = channelStorage->getLevel(0.5);
+		int max = channelStorage->getLevel(0.95);
 		fprintf(stderr, "levels are %d %d %d", min, med, max);
 		applyScale(data, w, h, min, med, max, result);
 	}
+	histogram->release();
 
 	// Let's bin 2x2
 	if (bayer.length() > 0) {
@@ -510,7 +403,6 @@ int main (int argc, char ** argv) {
 	write(1, resultContent.data, resultContent.memsize);
 
 	delete [] result;
-	delete(entry);
 
 	return 0;
 }

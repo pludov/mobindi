@@ -320,7 +320,16 @@ void SharedCacheServer::workerLogic(Cache * cache)
 
 void Messages::ContentRequest::produce(Entry * entry)
 {
-	this->fitsContent->produce(entry);
+	if (this->fitsContent) {
+		this->fitsContent->produce(entry);
+		return;
+	}
+	if (this->histogram) {
+		this->histogram->produce(entry);
+		return;
+	}
+	throw new WorkerError("Invalid ContentRequest");
+
 }
 
 void SharedCacheServer::startWorker()

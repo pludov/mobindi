@@ -16,6 +16,16 @@
 #include "SharedCacheServer.h"
 
 namespace SharedCache {
+	EntryRef::EntryRef(Entry * e) :entry(e) {
+	}
+
+	EntryRef::~EntryRef() {
+		if (!entry->released) {
+			entry->release();
+		}
+		delete(entry);
+	}
+
 
 	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
 			cache(cache),
@@ -25,6 +35,7 @@ namespace SharedCache {
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
+		released = false;
 		fd = -1;
 		if (!result.error) {
 			error = false;
@@ -45,6 +56,7 @@ namespace SharedCache {
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
+		released = false;
 		fd = -1;
 	}
 
@@ -114,6 +126,10 @@ namespace SharedCache {
 		return mmapped;
 	}
 
+	Cache * Entry::getServer() const {
+		return cache;
+	}
+
 	unsigned long int Entry::size()
 	{
 		this->data();
@@ -128,6 +144,7 @@ namespace SharedCache {
 		request.finishedAnnounce->error = false;
 		request.finishedAnnounce->errorDetails = "";
 		cache->clientSend(request);
+		released = true;
 	}
 
 	void Entry::failed(const std::string & str) {
@@ -138,6 +155,7 @@ namespace SharedCache {
 		request.finishedAnnounce->error = true;
 		request.finishedAnnounce->errorDetails = str;
 		cache->clientSend(request);
+		released = true;
 	}
 
 	void Entry::release() {
@@ -145,6 +163,7 @@ namespace SharedCache {
 		request.releasedAnnounce = new Messages::ReleasedAnnounce();
 		request.releasedAnnounce->filename = filename;
 		cache->clientSend(request);
+		released = true;
 	}
 
 	Cache::Cache(const std::string & path, long maxSize) :

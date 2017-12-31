@@ -13,17 +13,33 @@ namespace SharedCache {
 			p.path = j.at("path").get<std::string>();
 		}
 
+		void to_json(nlohmann::json&j, const Histogram & i)
+		{
+			j = nlohmann::json::object();
+			j["source"] = i.source;
+		}
+
+		void from_json(const nlohmann::json& j, Histogram & p) {
+			p.source = j.at("source").get<RawContent>();
+		}
+
 		void to_json(nlohmann::json&j, const ContentRequest & i)
 		{
 			j = nlohmann::json::object();
 			if (i.fitsContent) {
 				j["fitsContent"] = *i.fitsContent;
 			}
+			if (i.histogram) {
+				j["histogram"] = *i.histogram;
+			}
 		}
 
 		void from_json(const nlohmann::json& j, ContentRequest & p) {
 			if (j.find("fitsContent") != j.end()) {
 				p.fitsContent = new RawContent(j.at("fitsContent").get<RawContent>());
+			}
+			if (j.find("histogram") != j.end()) {
+				p.histogram = new Histogram(j.at("histogram").get<Histogram>());
 			}
 		}
 
