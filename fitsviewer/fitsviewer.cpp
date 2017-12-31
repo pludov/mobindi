@@ -416,8 +416,6 @@ int main (int argc, char ** argv) {
 	} else if (argc > 1) {
 		path = std::string(argv[1]);
 	} else {
-		// cout << "HTTP/1.1 500 Missing path\r\n\r\n";
-		// return 0;
 		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
 
@@ -435,6 +433,10 @@ int main (int argc, char ** argv) {
 	contentRequest.fitsContent->path = path;
 
 	SharedCache::Entry * entry = cache->getEntry(contentRequest);
+	if (entry->hasError()) {
+		// FIXME: how to return 500 ?
+		exit(1);
+	}
 //	if (entry->ready()) {
 //		cerr << "Returning datas from " << entry->getPath() << "\n";
 //		cout << "DEBUG: from-cache\r\n\r\n";

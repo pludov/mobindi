@@ -32,6 +32,7 @@ long now()
 
 
 ClientError::ClientError(const std::string & msg) : std::runtime_error(msg) {}
+WorkerError::WorkerError(const std::string & msg) : std::runtime_error(msg) {}
 
 ClientFifo::ClientFifo(Getter getter, Setter setter) : setter(setter), getter(getter) {}
 
@@ -67,7 +68,17 @@ SharedCacheServer::SharedCacheServer(const std::string & path, long maxSize):
 }
 
 SharedCacheServer::~SharedCacheServer() {
-	// TODO Auto-generated destructor stub
+	for(auto it = clients.begin(); it != clients.end();)
+	{
+		Client * c = *(it++);
+		delete(c);
+	}
+
+	for(auto it = contentByIdentifier.begin(); it != contentByIdentifier.end();)
+	{
+		CacheFileDesc* item = (it++)->second;
+		delete(item);
+	}
 }
 
 
@@ -198,7 +209,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
-		if (cfd->produced) {
+		if (cfd->produced || cfd->error) {
 			throw ClientError("Announce to already producing rejected");
 		}
 		auto cfdLocInProducing = std::find(c->producing.begin(), c->producing.end(), cfd);
@@ -207,9 +218,14 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		}
 
 		c->producing.erase(cfdLocInProducing);
-		cfd->produced = true;
-		cfd->size = c->activeRequest->finishedAnnounce->size;
-		currentSize += cfd->size;
+		if (c->activeRequest->finishedAnnounce->error) {
+			cfd->prodFailed(c->activeRequest->finishedAnnounce->errorDetails);
+		} else {
+			cfd->produced = true;
+			cfd->size = c->activeRequest->finishedAnnounce->size;
+			cfd->lastUse = now();
+			currentSize += cfd->size;
+		}
 		Messages::Result result;
 		c->reply(result);
 		return;
@@ -291,9 +307,13 @@ void SharedCacheServer::workerLogic(Cache * cache)
 		Entry * entry = new Entry(cache, *work.todoResult);
 
 		// FIXME: report errors
-		work.todoResult->content->produce(entry);
+		try {
+			work.todoResult->content->produce(entry);
 
-		entry->produced();
+			entry->produced();
+		} catch(const WorkerError & e) {
+			entry->failed(e.what());
+		}
 		delete(entry);
 	}
 }
@@ -331,7 +351,9 @@ void SharedCacheServer::startWorker()
 		// FIXME: close all but fd[1]...
 		// FIXME: free all server
 		try {
-			workerLogic(new Cache(basePath, maxSize, fd[1]));
+			Cache * clientCache = new Cache(basePath, maxSize, fd[1]);
+			delete(this);
+			workerLogic(clientCache);
 		}catch(const std::exception& e) {
 			std::cerr << "Worker dead: "<< e.what() << "\n";
 			_exit(255);
@@ -436,7 +458,8 @@ void SharedCacheServer::server()
 						// Just ignore
 						continue;
 					} else {
-						c->kill();
+						delete(c);
+						continue;
 					}
 				} else {
 					c->writeBufferLeft -= wr;
@@ -451,7 +474,8 @@ void SharedCacheServer::server()
 						// Just ignore
 						continue;
 					} else {
-						c->kill();
+						delete(c);
+						continue;
 					}
 				} else if (rd == 0 || c->activeRequest) {
 					if (rd != 0) {
@@ -459,14 +483,16 @@ void SharedCacheServer::server()
 					} else {
 						std::cerr << "Client " << c->fd << " terminated\n";
 					}
-					c->kill();
+					delete(c);
+					continue;
 				} else {
 					// FIXME: read 0 ? possible ?
 					c->readBufferPos += rd;
 					if (c->readBufferPos > 2) {
 						uint16_t size = *(uint16_t*)c->readBuffer;
 						if (size >= MAX_MESSAGE_SIZE || size <= 2) {
-							c->kill();
+							delete(c);
+							continue;
 						} else if (size >= c->readBufferPos){
 							// Process a message for the client.
 							try {
@@ -474,17 +500,20 @@ void SharedCacheServer::server()
 
 							} catch(const std::exception& ex) {
 								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								c->kill();
+								delete(c);
+								continue;
 							}
 							try {
 								proceedNewMessage(c);
 							} catch(const ClientError & ex) {
 								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								c->kill();
+								delete(c);
+								continue;
 							}
 
 						} else if (c->readBufferPos == MAX_MESSAGE_SIZE) {
-							c->kill();
+							delete(c);
+							continue;
 						}
 					}
 				}
@@ -504,7 +533,7 @@ void SharedCacheServer::server()
 			std::string identifier = c->activeRequest->contentRequest->uniqKey();
 
 			auto result = contentByIdentifier.find(identifier);
-			if (result == contentByIdentifier.end() || !result->second->produced) {
+			if (result == contentByIdentifier.end() || ((!result->second->produced) && (!result->second->error))) {
 				evaluator.markAsRequired(*(c->activeRequest->contentRequest), identifier);
 			} else {
 				CacheFileDesc * entry = result->second;

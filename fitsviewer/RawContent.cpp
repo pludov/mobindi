@@ -1,6 +1,7 @@
 #include "fitsio.h"
 
 #include "SharedCache.h"
+#include "SharedCacheServer.h"
 #include "RawDataStorage.h"
 
 
@@ -62,6 +63,12 @@ int RawDataStorage::getRGBIndex(char c)
 	return -1;
 }
 
+static void throwFitsIOError(const std::string & text, int status)
+{
+	char buffer[128];
+	fits_get_errstatus(status, buffer);
+	throw SharedCache::WorkerError(text + ": " + std::string(buffer));
+}
 
 void SharedCache::Messages::RawContent::produce(Entry * entry)
 {
@@ -145,6 +152,8 @@ void SharedCache::Messages::RawContent::produce(Entry * entry)
 		}
 		status = 0;
 		fits_close_file(fptr, &status);
+	} else {
+		throwFitsIOError(path, status);
 	}
 	throw std::runtime_error("Failed to read fits");
 

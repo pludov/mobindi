@@ -25,6 +25,10 @@ public:
 	ClientError(const std::string & s);
 };
 
+class WorkerError : public std::runtime_error {
+public:
+	WorkerError(const std::string & s);
+};
 
 class ClientFifo : public std::list<Client*> {
 	typedef bool (Client::*Getter)() const;

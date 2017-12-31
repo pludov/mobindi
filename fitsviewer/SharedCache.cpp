@@ -20,18 +20,27 @@ namespace SharedCache {
 	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
 			cache(cache),
 			filename(result.filename),
-			wasReady(result.ready)
+			wasReady(true)
 	{
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
 		fd = -1;
+		if (!result.error) {
+			error = false;
+			errorDetails = "";
+		} else {
+			error = true;
+			errorDetails = result.errorDetails;
+		}
+
 	}
 
 	Entry::Entry(Cache * cache, const Messages::WorkResponse & result):
 						cache(cache),
 						filename(result.filename),
-						wasReady(false)
+						wasReady(false),
+						error(false)
 	{
 		mmapped = nullptr;
 		dataSize = 0;
@@ -116,6 +125,18 @@ namespace SharedCache {
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
 		request.finishedAnnounce->filename = filename;
 		request.finishedAnnounce->size = dataSize;
+		request.finishedAnnounce->error = false;
+		request.finishedAnnounce->errorDetails = "";
+		cache->clientSend(request);
+	}
+
+	void Entry::failed(const std::string & str) {
+		Messages::Request request;
+		request.finishedAnnounce = new Messages::FinishedAnnounce();
+		request.finishedAnnounce->filename = filename;
+		request.finishedAnnounce->size = 0;
+		request.finishedAnnounce->error = true;
+		request.finishedAnnounce->errorDetails = str;
 		cache->clientSend(request);
 	}
 

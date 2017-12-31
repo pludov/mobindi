@@ -22,6 +22,10 @@ class CacheFileDesc {
 
 	bool produced;
 	long clientCount;
+
+	bool error;
+	std::string errorDetails;
+
 	std::string identifier;
 	// Path, without the basePath.
 	std::string filename;
@@ -36,6 +40,7 @@ class CacheFileDesc {
 		lastUse = now();
 		produced = false;
 		clientCount = 0;
+		error = false;
 
 		server->contentByIdentifier[identifier] = this;
 		server->contentByFilename[filename] = this;
@@ -44,7 +49,9 @@ class CacheFileDesc {
 	~CacheFileDesc()
 	{
 		server->contentByIdentifier.erase(identifier);
-		server->contentByFilename.erase(filename);
+		if (filename.size()) {
+			server->contentByFilename.erase(filename);
+		}
 	}
 
 	void unlink()
@@ -53,6 +60,8 @@ class CacheFileDesc {
 		if (::unlink(path.c_str()) == -1) {
 			perror(path.c_str());
 		}
+		server->contentByFilename.erase(filename);
+		filename = "";
 	}
 
 	void addReader() {
@@ -65,19 +74,21 @@ class CacheFileDesc {
 	}
 
 
-	void prodFailed() {
+	void prodFailed(const std::string & message) {
 		// FIXME: mark as error
 		// Remove the producing.
 		// Remove the file as well
 		std::cerr << "Production of " << identifier << " in " << filename << " failed\n";
 		unlink();
-		delete(this);
+		error = true;
+		errorDetails = message;
 	}
 
 	Messages::ContentResult toContentResult() const {
 		Messages::ContentResult r;
 		r.filename = filename;
-		r.ready = produced;
+		r.error = this->error;
+		r.errorDetails = errorDetails;
 		return r;
 	}
 
@@ -134,14 +145,6 @@ class Client {
 
 	~Client()
 	{
-		kill();
-
-		free(readBuffer);
-		free(writeBuffer);
-	}
-
-	void kill()
-	{
 		if (this->fd != -1) {
 			close(this->fd);
 			this->fd = -1;
@@ -157,7 +160,7 @@ class Client {
 
 		for(auto it = producing.begin(); it != producing.end(); ++it)
 		{
-			(*it)->prodFailed();
+			(*it)->prodFailed("generic worker error");
 		}
 		producing.clear();
 
@@ -171,31 +174,39 @@ class Client {
 
 		server->clients.erase(this);
 
+		free(readBuffer);
+		free(writeBuffer);
 	}
 
-	void send(const std::string & str)
+	bool send(const std::string & str)
 	{
-		if (this->fd == -1) return;
 		unsigned long l = str.length();
 		if (l > MAX_MESSAGE_SIZE - 2) {
-			kill();
+			std::cerr << "Unable to send message : " << str << "\n";
+			delete(this);
+			return false;
 		} else {
 
 			*((uint16_t*)writeBuffer) = l;
 			memcpy(writeBuffer + 2, str.c_str(), l);
 			writeBufferPos = 0;
 			writeBufferLeft = 2 + l;
+			return true;
 		}
 	}
 
-	void reply(const Messages::Result & result) {
+	bool reply(const Messages::Result & result) {
 		nlohmann::json j = result;
 		std::string reply = j.dump(0);
-		send(reply);
+
+		if (!send(reply)) {
+			return false;
+		}
 		std::cerr << "Server reply to " << fd << " : " << reply << "\n";
 
 		delete activeRequest;
 		activeRequest = nullptr;
+		return true;
 	}
 
 	// Is it waiting for a todo item

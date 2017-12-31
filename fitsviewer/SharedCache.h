@@ -107,8 +107,10 @@ namespace SharedCache {
 		void from_json(const nlohmann::json& j, WorkResponse & p);
 
 		struct FinishedAnnounce {
+			bool error;
 			long size;
 			std::string filename;
+			std::string errorDetails;
 		};
 
 		void to_json(nlohmann::json&j, const FinishedAnnounce & i);
@@ -134,8 +136,9 @@ namespace SharedCache {
 		// Return a content key (a file).
 		// if not ready, it is up to the caller to actually produce the content
 		struct ContentResult {
+			bool error;
 			std::string filename;
-			bool ready;
+			std::string errorDetails;
 		};
 
 		void to_json(nlohmann::json&j, const ContentResult & i);
@@ -164,6 +167,9 @@ namespace SharedCache {
 		unsigned long int dataSize;
 		int fd;
 
+		bool error;
+		std::string errorDetails;
+
 		Entry(Cache * cache, const Messages::ContentResult & result);
 		Entry(Cache * cache, const Messages::WorkResponse & tobuild);
 		void open();
@@ -172,11 +178,16 @@ namespace SharedCache {
 
 		bool ready() const;
 		void produced();
+		void failed(const std::string & str);
 		void release();
 
 		void allocate(unsigned long int size);
 		void * data();
 		unsigned long int size();
+
+		bool hasError() const { return error; };
+		std::string getErrorDetails() const { return errorDetails; };
+
 
 		Cache * server() const;
 	};

@@ -56,12 +56,16 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["size"] = i.size;
+			j["error"] = i.error;
 			j["filename"] = i.filename;
+			j["errorDetails"] = i.errorDetails;
 		}
 
 		void from_json(const nlohmann::json& j, FinishedAnnounce & p) {
+			p.error = j.at("error").get<bool>();
 			p.size = j.at("size").get<long>();
 			p.filename = j.at("filename").get<std::string>();
+			p.errorDetails = j.at("errorDetails").get<std::string>();
 		}
 
 
@@ -113,12 +117,14 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["filename"] = i.filename;
-			j["ready"] = i.ready;
+			j["errorDetails"] = i.errorDetails;
+			j["error"] = i.error;
 		}
 		void from_json(const nlohmann::json& j, ContentResult & p)
 		{
 			p.filename = j.at("filename").get<std::string>();
-			p.ready = j.at("ready").get<bool>();
+			p.errorDetails = j.at("errorDetails").get<std::string>();
+			p.error = j.at("error").get<bool>();
 		}
 
 		void to_json(nlohmann::json&j, const Result & i)
