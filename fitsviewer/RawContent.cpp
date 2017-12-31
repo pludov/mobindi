@@ -70,17 +70,33 @@ static void throwFitsIOError(const std::string & text, int status)
 	throw SharedCache::WorkerError(text + ": " + std::string(buffer));
 }
 
+class OpenedFits {
+public:
+	fitsfile * fptr;
+
+	OpenedFits() {
+		fptr = nullptr;
+	}
+
+	~OpenedFits() {
+		if (fptr) {
+			int status = 0;
+			fits_close_file(fptr, &status);
+		}
+	}
+};
+
 void SharedCache::Messages::RawContent::produce(Entry * entry)
 {
-	fitsfile *fptr;
+	OpenedFits file;
 	int status = 0;
 	int bitpix, naxis;
 	long naxes[2] = {1,1};
 	u_int16_t * data;
 
-	if (!fits_open_file(&fptr, path.c_str(), READONLY, &status))
+	if (!fits_open_file(&file.fptr, path.c_str(), READONLY, &status))
 	{
-		if (!fits_get_img_param(fptr, 2, &bitpix, &naxis, naxes, &status) )
+		if (!fits_get_img_param(file.fptr, 2, &bitpix, &naxis, naxes, &status) )
 		{
 			fprintf(stderr, "bitpix = %d\n", bitpix);
 			fprintf(stderr, "naxis = %d\n", naxis);
@@ -101,21 +117,21 @@ void SharedCache::Messages::RawContent::produce(Entry * entry)
 			std::string cardBAYERPAT;
 			for (; !status; hdupos++)  /* Main loop through each extension */
 			{
-				fits_get_hdrspace(fptr, &nkeys, NULL, &status); /* get # of keywords */
+				fits_get_hdrspace(file.fptr, &nkeys, NULL, &status); /* get # of keywords */
 
 				fprintf(stderr, "Header listing for HDU #%d:\n", hdupos);
 
 				for (int ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
 
-					if (fits_read_record(fptr, ii, card, &status))break;
+					if (fits_read_record(file.fptr, ii, card, &status))break;
 					fprintf(stderr, "%s\n", card);
 				}
 				fprintf(stderr, "END\n\n");  /* terminate listing with END */
 
-				if (readKey(fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
+				if (readKey(file.fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
 					fprintf(stderr, "BAYER detected");
 				}
-				fits_movrel_hdu(fptr, 1, NULL, &status);  /* try to move to next HDU */
+				fits_movrel_hdu(file.fptr, 1, NULL, &status);  /* try to move to next HDU */
 			}
 
 			status = 0;
@@ -145,13 +161,14 @@ void SharedCache::Messages::RawContent::produce(Entry * entry)
 			storage->setBayer(bayer);
 
 			long fpixels[2]= {1,1};
-			if (!fits_read_pix(fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
-				fits_close_file(fptr, &status);
+			if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
 				return;
+			} else {
+				throwFitsIOError(path, status);
 			}
+		} else {
+			throwFitsIOError(path, status);
 		}
-		status = 0;
-		fits_close_file(fptr, &status);
 	} else {
 		throwFitsIOError(path, status);
 	}
