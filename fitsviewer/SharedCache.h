@@ -100,7 +100,7 @@ namespace SharedCache {
 
 		struct WorkResponse {
 			ChildPtr<ContentRequest> content;
-			std::string path;
+			std::string filename;
 		};
 
 		void to_json(nlohmann::json&j, const WorkResponse & i);
@@ -108,14 +108,14 @@ namespace SharedCache {
 
 		struct FinishedAnnounce {
 			long size;
-			std::string path;
+			std::string filename;
 		};
 
 		void to_json(nlohmann::json&j, const FinishedAnnounce & i);
 		void from_json(const nlohmann::json& j, FinishedAnnounce & p);
 
 		struct ReleasedAnnounce {
-			std::string path;
+			std::string filename;
 		};
 
 		void to_json(nlohmann::json&j, const ReleasedAnnounce & i);
@@ -134,7 +134,7 @@ namespace SharedCache {
 		// Return a content key (a file).
 		// if not ready, it is up to the caller to actually produce the content
 		struct ContentResult {
-			std::string path;
+			std::string filename;
 			bool ready;
 		};
 
@@ -156,7 +156,7 @@ namespace SharedCache {
 	class Entry {
 		friend class Cache;
 		friend class SharedCacheServer;
-		std::string path;
+		std::string filename;
 		bool wasReady;
 		Cache * cache;
 		bool wasMmapped;
@@ -168,6 +168,7 @@ namespace SharedCache {
 		Entry(Cache * cache, const Messages::WorkResponse & tobuild);
 		void open();
 	public:
+		~Entry();
 
 		bool ready() const;
 		void produced();
@@ -176,10 +177,6 @@ namespace SharedCache {
 		void allocate(unsigned long int size);
 		void * data();
 		unsigned long int size();
-
-		const std::string & getPath() const {
-			return path;
-		}
 
 		Cache * server() const;
 	};

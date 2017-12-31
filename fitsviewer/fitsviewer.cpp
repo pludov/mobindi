@@ -264,7 +264,7 @@ class Histo {
 	u_int32_t min, max;
 public:
 	Histo() {
-		counts = new u_int32_t[65536];
+		counts = new u_int32_t[65536]();
 		pixcount = 0;
 		min = -1;
 		max = -1;
@@ -503,8 +503,10 @@ int main () {
 	} else {
 		resultContent = write_jpeg_file(result, w, h, 1);
 	}
-
 	write(1, resultContent.data, resultContent.memsize);
+
+	delete [] result;
+	delete(entry);
 
 	return 0;
 }

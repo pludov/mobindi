@@ -41,14 +41,14 @@ namespace SharedCache {
 			if (i.content) {
 				j["content"] = *i.content;
 			}
-			j["path"] = i.path;
+			j["filename"] = i.filename;
 		}
 
 		void from_json(const nlohmann::json& j, WorkResponse & p) {
 			if (j.find("content") != j.end()) {
 				p.content = new ContentRequest(j.at("content").get<ContentRequest>());
 			}
-			p.path = j["path"].get<std::string>();
+			p.filename = j["filename"].get<std::string>();
 		}
 
 
@@ -56,23 +56,23 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["size"] = i.size;
-			j["path"] = i.path;
+			j["filename"] = i.filename;
 		}
 
 		void from_json(const nlohmann::json& j, FinishedAnnounce & p) {
 			p.size = j.at("size").get<long>();
-			p.path = j.at("path").get<std::string>();
+			p.filename = j.at("filename").get<std::string>();
 		}
 
 
 		void to_json(nlohmann::json&j, const ReleasedAnnounce & i)
 		{
 			j = nlohmann::json::object();
-			j["path"] = i.path;
+			j["filename"] = i.filename;
 		}
 
 		void from_json(const nlohmann::json& j, ReleasedAnnounce & p) {
-			p.path = j.at("path").get<std::string>();
+			p.filename = j.at("filename").get<std::string>();
 		}
 
 
@@ -112,12 +112,12 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ContentResult & i)
 		{
 			j = nlohmann::json::object();
-			j["path"] = i.path;
+			j["filename"] = i.filename;
 			j["ready"] = i.ready;
 		}
 		void from_json(const nlohmann::json& j, ContentResult & p)
 		{
-			p.path = j.at("path").get<std::string>();
+			p.filename = j.at("filename").get<std::string>();
 			p.ready = j.at("ready").get<bool>();
 		}
 

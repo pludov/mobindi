@@ -23,11 +23,12 @@ class CacheFileDesc {
 	bool produced;
 	long clientCount;
 	std::string identifier;
-	std::string path;
+	// Path, without the basePath.
+	std::string filename;
 
-	CacheFileDesc(SharedCacheServer * server, const std::string & identifier, const std::string & path):
+	CacheFileDesc(SharedCacheServer * server, const std::string & identifier, const std::string & filename):
 		identifier(identifier),
-		path(path)
+		filename(filename)
 	{
 		this->server = server;
 		size = 0;
@@ -37,11 +38,12 @@ class CacheFileDesc {
 		clientCount = 0;
 
 		server->contentByIdentifier[identifier] = this;
-		server->contentByPath[path] = this;
+		server->contentByFilename[filename] = this;
 	}
 
 	void unlink()
 	{
+		std::string path = server->basePath + filename;
 		if (::unlink(path.c_str()) == -1) {
 			perror(path.c_str());
 		}
@@ -57,18 +59,19 @@ class CacheFileDesc {
 
 
 	void prodFailed() {
+		// FIXME: mark as error
 		// Remove the producing.
 		// Remove the file as well
-		std::cerr << "Production of " << identifier << " in " << path << " failed\n";
+		std::cerr << "Production of " << identifier << " in " << filename << " failed\n";
 		server->contentByIdentifier.erase(identifier);
-		server->contentByPath.erase(path);
+		server->contentByFilename.erase(filename);
 		unlink();
 		delete(this);
 	}
 
 	Messages::ContentResult toContentResult() const {
 		Messages::ContentResult r;
-		r.path = path;
+		r.filename = filename;
 		r.ready = produced;
 		return r;
 	}

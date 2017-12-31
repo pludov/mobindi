@@ -45,7 +45,7 @@ class SharedCacheServer {
 	friend class CacheFileDesc;
 
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
-	std::map<std::string, CacheFileDesc*> contentByPath;
+	std::map<std::string, CacheFileDesc*> contentByFilename;
 	std::set<Client *> clients;
 	// Clients that are stuck in waitOrder state
 	ClientFifo waitingWorkers;
@@ -53,6 +53,7 @@ class SharedCacheServer {
 	// Clients that awaits some resources
 	ClientFifo waitingConsumers;
 
+	// Starts and terminate with '/'
 	std::string basePath;
 	long maxSize;
 
@@ -62,6 +63,7 @@ class SharedCacheServer {
 	int startedWorkerCount;
 
 	void server();
+	void clearWorkingDirectory();
 	void receiveMessage(Client * client, uint16_t size);
 	// True if the client is no more blocked
 	void proceedNewMessage(Client * blocked);
@@ -69,7 +71,7 @@ class SharedCacheServer {
 	bool checkWaitingConsumer(Client * blocked);
 
 	void doAccept();
-	std::string newPath();
+	std::string newFilename();
 
 	void startWorker();
 

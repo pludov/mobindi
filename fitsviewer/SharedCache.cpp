@@ -19,7 +19,7 @@ namespace SharedCache {
 
 	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
 			cache(cache),
-			path(result.path),
+			filename(result.filename),
 			wasReady(result.ready)
 	{
 		mmapped = nullptr;
@@ -30,13 +30,23 @@ namespace SharedCache {
 
 	Entry::Entry(Cache * cache, const Messages::WorkResponse & result):
 						cache(cache),
-						path(result.path),
+						filename(result.filename),
 						wasReady(false)
 	{
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
 		fd = -1;
+	}
+
+	Entry::~Entry()
+	{
+		if (wasMmapped && mmapped) {
+			munmap(mmapped, dataSize);
+		}
+		if (fd != -1) {
+			close(fd);
+		}
 	}
 
 	bool Entry::ready() const {
@@ -47,6 +57,7 @@ namespace SharedCache {
 		if (fd != -1) {
 			return;
 		}
+		std::string path = cache->basePath  + filename;
 		fd = ::open(path.c_str(), O_CLOEXEC | (wasReady ? O_RDONLY : O_RDWR));
 		if (fd == -1) {
 			perror(path.c_str());
@@ -65,7 +76,7 @@ namespace SharedCache {
 			mmapped = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 			if (mmapped == MAP_FAILED) {
 				perror("mmap");
-				std::cerr << "mmap of fd " << fd << " for " << path << " failed\n";
+				std::cerr << "mmap of fd " << fd << " for " << filename << " failed\n";
 				throw std::runtime_error("Mmap failed");
 			}
 		}
@@ -103,7 +114,7 @@ namespace SharedCache {
 	void Entry::produced() {
 		Messages::Request request;
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
-		request.finishedAnnounce->path = path;
+		request.finishedAnnounce->filename = filename;
 		request.finishedAnnounce->size = dataSize;
 		cache->clientSend(request);
 	}
@@ -111,7 +122,7 @@ namespace SharedCache {
 	void Entry::release() {
 		Messages::Request request;
 		request.releasedAnnounce = new Messages::ReleasedAnnounce();
-		request.releasedAnnounce->path = path;
+		request.releasedAnnounce->filename = filename;
 		cache->clientSend(request);
 	}
 
@@ -119,6 +130,14 @@ namespace SharedCache {
 				basePath(path)
 	{
 		this->maxSize = maxSize;
+		if (basePath.length() == 0 || basePath[0] != '/') {
+			throw std::runtime_error("invalide base path");
+		}
+
+		if (basePath[basePath.length() - 1] != '/') {
+			basePath += '/';
+		}
+
 		init();
 	}
 

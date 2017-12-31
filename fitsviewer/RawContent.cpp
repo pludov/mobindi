@@ -137,8 +137,6 @@ void SharedCache::Messages::RawContent::produce(Entry * entry)
 			storage->setSize(w, h);
 			storage->setBayer(bayer);
 
-			u_int8_t * result = new u_int8_t[naxes[0] * naxes[1]];
-
 			long fpixels[2]= {1,1};
 			if (!fits_read_pix(fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
 				fits_close_file(fptr, &status);

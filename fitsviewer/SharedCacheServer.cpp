@@ -18,6 +18,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <iostream>
+#include <dirent.h>
 #include "SharedCacheServer.h"
 #include "SharedCacheServerClient.h"
 
@@ -68,16 +69,17 @@ SharedCacheServer::~SharedCacheServer() {
 }
 
 
-std::string SharedCacheServer::newPath() {
+std::string SharedCacheServer::newFilename() {
 	std::string result;
 	int fd;
 	do {
 		std::ostringstream oss;
-		oss << basePath << "/data" << std::setfill('0') << std::setw(12) << (fileGenerator++);
+		oss << "data" << std::setfill('0') << std::setw(12) << (fileGenerator++);
 		result = oss.str();
-		fd = open(result.c_str(), O_CREAT | O_EXCL, 0600);
+		std::string path = basePath + result;
+		fd = open(path.c_str(), O_CREAT | O_EXCL, 0600);
 		if (fd == -1 && errno != EEXIST) {
-			perror(result.c_str());
+			perror(path.c_str());
 			throw std::runtime_error("Failed to create data file");
 		}
 	} while(fd == -1);
@@ -175,50 +177,6 @@ void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
 	std::cerr << "Server received request from " << c->fd << " : " << debug.dump(0) << "\n";
 }
 
-bool SharedCacheServer::checkWaitingConsumer(Client * c)
-{
-	nlohmann::json j = *c->activeRequest->contentRequest;
-	std::string identifier = j.dump();
-	auto where = contentByIdentifier.find(identifier);
-	if (where == contentByIdentifier.end()) {
-		CacheFileDesc * cfd = new CacheFileDesc(this, identifier, newPath());
-		cfd->produced = false;
-		cfd->lastUse = now();
-		cfd->prodDuration = 0;
-		cfd->size = 0;
-		cfd->clientCount = 1;
-		contentByIdentifier[identifier] = cfd;
-		contentByPath[cfd->path] = cfd;
-
-		c->producing.push_back(cfd);
-
-		Messages::Result result;
-		result.contentResult = new Messages::ContentResult();
-		result.contentResult->path = cfd->path;
-		result.contentResult->ready = false;
-		c->reply(result);
-		return true;
-	} else {
-		CacheFileDesc * cfd = where->second;
-		if (!cfd->produced) {
-			// Not ready... Please wait
-			return false;
-		}
-
-		cfd->clientCount++;
-
-		// Ready...
-		Messages::Result result;
-		result.contentResult = new Messages::ContentResult();
-		result.contentResult->path = cfd->path;
-		result.contentResult->ready = true;
-		c->reading.push_back(cfd);
-		c->reply(result);
-		return true;
-	}
-
-}
-
 // Either proceed directly the message, or put the client in a waiting queue
 void SharedCacheServer::proceedNewMessage(Client * c)
 {
@@ -232,9 +190,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 	}
 
 	if (c->activeRequest->finishedAnnounce) {
-		std::string path = c->activeRequest->finishedAnnounce->path;
-		auto cfdLoc = contentByPath.find(path);
-		if (cfdLoc == contentByPath.end()) {
+		std::string filename = c->activeRequest->finishedAnnounce->filename;
+		auto cfdLoc = contentByFilename.find(filename);
+		if (cfdLoc == contentByFilename.end()) {
 			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
@@ -253,9 +211,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		return;
 	}
 	if (c->activeRequest->releasedAnnounce) {
-		std::string path = c->activeRequest->releasedAnnounce->path;
-		auto cfdLoc = contentByPath.find(path);
-		if (cfdLoc == contentByPath.end()) {
+		std::string filename = c->activeRequest->releasedAnnounce->filename;
+		auto cfdLoc = contentByFilename.find(filename);
+		if (cfdLoc == contentByFilename.end()) {
 			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
@@ -305,7 +263,7 @@ public:
 			}
 			return
 					std::pair<CacheFileDesc *, Messages::ContentRequest>(
-						new CacheFileDesc(server, r.second, server->newPath()),
+						new CacheFileDesc(server, r.second, server->newFilename()),
 						r.first);
 		}
 		return std::pair<CacheFileDesc *, Messages::ContentRequest>(nullptr, Messages::ContentRequest());
@@ -327,6 +285,7 @@ void SharedCacheServer::workerLogic(Cache * cache)
 		work.todoResult->content->produce(entry);
 
 		entry->produced();
+		delete(entry);
 	}
 }
 
@@ -379,8 +338,33 @@ void SharedCacheServer::startWorker()
 	startedWorkerCount ++;
 }
 
+void SharedCacheServer::clearWorkingDirectory()
+{
+	DIR* dir = opendir(basePath.c_str());
+	if (dir == nullptr) {
+		perror("opendir");
+		return;
+	}
+	dirent * entry;
+	while((entry = readdir(dir))) {
+		std::string name(entry->d_name);
+		if (name == "." || name == "..") {
+			continue;
+		}
+		name = basePath + "/" + name;
+		if (unlink(name.c_str()) == -1) {
+			perror(name.c_str());
+		}
+	}
+
+	closedir(dir);
+}
+
 void SharedCacheServer::server()
 {
+	clearWorkingDirectory();
+
+	// Cleanup the directory
 	while(true) {
 		// Starts some workers if possible
 		while(startedWorkerCount < 2) {
@@ -530,7 +514,7 @@ void SharedCacheServer::server()
 			Messages::Result resultMessage;
 			resultMessage.todoResult.build();
 			resultMessage.todoResult->content = new Messages::ContentRequest(entry.second);
-			resultMessage.todoResult->path = entry.first->path;
+			resultMessage.todoResult->filename = entry.first->filename;
 			waitingWorkers.remove(c);
 			c->producing.push_back(entry.first);
 			c->reply(resultMessage);
