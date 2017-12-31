@@ -41,6 +41,12 @@ class CacheFileDesc {
 		server->contentByFilename[filename] = this;
 	}
 
+	~CacheFileDesc()
+	{
+		server->contentByIdentifier.erase(identifier);
+		server->contentByFilename.erase(filename);
+	}
+
 	void unlink()
 	{
 		std::string path = server->basePath + filename;
@@ -51,6 +57,7 @@ class CacheFileDesc {
 
 	void addReader() {
 		clientCount++;
+		lastUse = now();
 	}
 
 	void removeReader() {
@@ -63,8 +70,6 @@ class CacheFileDesc {
 		// Remove the producing.
 		// Remove the file as well
 		std::cerr << "Production of " << identifier << " in " << filename << " failed\n";
-		server->contentByIdentifier.erase(identifier);
-		server->contentByFilename.erase(filename);
 		unlink();
 		delete(this);
 	}
@@ -74,6 +79,11 @@ class CacheFileDesc {
 		r.filename = filename;
 		r.ready = produced;
 		return r;
+	}
+
+	static bool compare_last_use (const CacheFileDesc * first, const CacheFileDesc * second)
+	{
+		return first->lastUse < second->lastUse;
 	}
 };
 

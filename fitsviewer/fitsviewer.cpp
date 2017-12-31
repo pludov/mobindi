@@ -397,7 +397,7 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 
 
 
-int main () {
+int main (int argc, char ** argv) {
 	Cgicc formData;
 	// 128Mo cache
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
@@ -413,6 +413,8 @@ int main () {
 	form_iterator fi = formData.getElement("path");
 	if( !fi->isEmpty() && fi != (*formData).end()) {
 		path =  **fi;
+	} else if (argc > 1) {
+		path = std::string(argv[1]);
 	} else {
 		// cout << "HTTP/1.1 500 Missing path\r\n\r\n";
 		// return 0;

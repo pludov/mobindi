@@ -24,9 +24,10 @@
 
 namespace SharedCache {
 
+static long nowCpt = 0;
 long now()
 {
-	return 0;
+	return nowCpt++;
 }
 
 
@@ -62,6 +63,7 @@ SharedCacheServer::SharedCacheServer(const std::string & path, long maxSize):
 	serverFd = -1;
 	fileGenerator = 0;
 	startedWorkerCount = 0;
+	currentSize = 0;
 }
 
 SharedCacheServer::~SharedCacheServer() {
@@ -206,6 +208,8 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 
 		c->producing.erase(cfdLocInProducing);
 		cfd->produced = true;
+		cfd->size = c->activeRequest->finishedAnnounce->size;
+		currentSize += cfd->size;
 		Messages::Result result;
 		c->reply(result);
 		return;
@@ -250,6 +254,11 @@ public:
 			return;
 		}
 		requirements.push_back(std::pair<Messages::ContentRequest, std::string>(r, key));
+	}
+
+	bool required(const CacheFileDesc * cfd)
+	{
+		return (dedup.find(cfd->identifier) != dedup.end());
 	}
 
 	std::pair<CacheFileDesc *, Messages::ContentRequest> startFirst() {
@@ -323,7 +332,11 @@ void SharedCacheServer::startWorker()
 		// FIXME: free all server
 		try {
 			workerLogic(new Cache(basePath, maxSize, fd[1]));
+		}catch(const std::exception& e) {
+			std::cerr << "Worker dead: "<< e.what() << "\n";
+			_exit(255);
 		}catch(...) {
+			std::cerr << "Worker dead with exception\n";
 			_exit(255);
 		}
 		std::cerr << "Worker dead\n";
@@ -358,6 +371,14 @@ void SharedCacheServer::clearWorkingDirectory()
 	}
 
 	closedir(dir);
+}
+
+void SharedCacheServer::evict(CacheFileDesc * item)
+{
+	std::cerr << "Server evicts " << item->filename << " of size " << item->size << " used at " << item->lastUse << "\n";
+	currentSize -= item->size;
+	item->unlink();
+	delete(item);
 }
 
 void SharedCacheServer::server()
@@ -498,10 +519,8 @@ void SharedCacheServer::server()
 			}
 		}
 
-		// Mark dependencies of all targets as required (with a level)
-
 		// Distribute some works
-		// FIXME: check space is ok
+		// FIXME: check space is ok (ie don't start under low space condition)
 		for(auto it = waitingWorkers.begin(); it != waitingWorkers.end();)
 		{
 			Client * c = (*it++);
@@ -519,6 +538,46 @@ void SharedCacheServer::server()
 			c->producing.push_back(entry.first);
 			c->reply(resultMessage);
 		}
+
+		// Keep cache under its nominal size
+		if (currentSize > maxSize) {
+			long wanted = currentSize - maxSize;
+			std::cerr << "Out of space condition detected. current size is " << currentSize << "/" << maxSize << "\n";
+
+			std::list<CacheFileDesc *> removables;
+			long removableSize = 0;
+			for(auto it = contentByIdentifier.begin(); it != contentByIdentifier.end();)
+			{
+				CacheFileDesc * cfd = (it++)->second;
+				if (!cfd->produced) {
+					continue;
+				}
+				if (cfd->clientCount) {
+					continue;
+				}
+				if (evaluator.required(cfd)) {
+					// For the moment, do not drop entry that are required in the future
+					// FIXME: use a level to indidcate when it will be required, then fall back to drop them
+					continue;
+				}
+
+				removables.push_back(cfd);
+				removableSize += cfd->size;
+			}
+
+			if (removableSize >= wanted && removables.size() > 1) {
+				// Sort by last recent usage
+				removables.sort(CacheFileDesc::compare_last_use);
+			}
+
+			while(wanted > 0 && removables.size()) {
+				CacheFileDesc * item = removables.front();
+				removables.pop_front();
+				wanted -= item->size;
+				evict(item);
+			}
+		}
+
 	}
 }
 } /* namespace SharedCache */
