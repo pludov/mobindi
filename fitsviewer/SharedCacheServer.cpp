@@ -319,15 +319,20 @@ void SharedCacheServer::workerLogic(Cache * cache)
 		queryWork.workRequest.build();
 
 		Messages::Result work = cache->clientSend(queryWork);
-		sleep(5);
 
-		Messages::Request doneWork;
-		doneWork.finishedAnnounce.build();
-		doneWork.finishedAnnounce->path = work.todoResult->path;
-		doneWork.finishedAnnounce->size = 4545;
+		// Create an entry object out of work
+		Entry * entry = new Entry(cache, *work.todoResult);
 
-		cache->clientSend(doneWork);
+		// FIXME: report errors
+		work.todoResult->content->produce(entry);
+
+		entry->produced();
 	}
+}
+
+void Messages::ContentRequest::produce(Entry * entry)
+{
+	this->fitsContent->produce(entry);
 }
 
 void SharedCacheServer::startWorker()

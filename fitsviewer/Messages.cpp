@@ -3,13 +3,13 @@
 namespace SharedCache {
 	namespace Messages {
 
-		void to_json(nlohmann::json&j, const FitsContent & i)
+		void to_json(nlohmann::json&j, const RawContent & i)
 		{
 			j = nlohmann::json::object();
 			j["path"] = i.path;
 		}
 
-		void from_json(const nlohmann::json& j, FitsContent & p) {
+		void from_json(const nlohmann::json& j, RawContent & p) {
 			p.path = j.at("path").get<std::string>();
 		}
 
@@ -23,7 +23,7 @@ namespace SharedCache {
 
 		void from_json(const nlohmann::json& j, ContentRequest & p) {
 			if (j.find("fitsContent") != j.end()) {
-				p.fitsContent = new FitsContent(j.at("fitsContent").get<FitsContent>());
+				p.fitsContent = new RawContent(j.at("fitsContent").get<RawContent>());
 			}
 		}
 

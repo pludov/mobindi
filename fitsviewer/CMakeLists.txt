@@ -19,6 +19,7 @@ set(SRCS
 	SharedCache.cpp
 	SharedCacheServer.cpp
 	Messages.cpp
+	RawContent.cpp
     )
 
 add_executable(fitsviewer.cgi ${SRCS})

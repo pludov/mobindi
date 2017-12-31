@@ -28,6 +28,17 @@ namespace SharedCache {
 		fd = -1;
 	}
 
+	Entry::Entry(Cache * cache, const Messages::WorkResponse & result):
+						cache(cache),
+						path(result.path),
+						wasReady(false)
+	{
+		mmapped = nullptr;
+		dataSize = 0;
+		wasMmapped = false;
+		fd = -1;
+	}
+
 	bool Entry::ready() const {
 		return wasReady;
 	}
@@ -89,11 +100,11 @@ namespace SharedCache {
 		return dataSize;
 	}
 
-	void Entry::produced(uint32_t size) {
+	void Entry::produced() {
 		Messages::Request request;
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
 		request.finishedAnnounce->path = path;
-		request.finishedAnnounce->size = size;
+		request.finishedAnnounce->size = dataSize;
 		cache->clientSend(request);
 	}
 

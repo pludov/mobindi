@@ -32,6 +32,7 @@
 #include "json.hpp"
 #include "fitsio.h"
 #include "SharedCache.h"
+#include "RawDataStorage.h"
 
 using namespace std;
 using namespace cgicc;
@@ -346,7 +347,7 @@ public:
 
 	// Return the highest adu X that for which at least v% of the pixels are >= X
 	u_int32_t getLevel(double v) {
-		u_int32_t wantedCount = floor(pixcount * v);
+		u_int32_t wantedCount = floor((double)(pixcount * v));
 		// Search the first index i in counts for which count[i] >= wantedCount;
 		return findFirstWithAtLeast(wantedCount);
 	}
@@ -394,34 +395,6 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 	}
 }
 
-bool readKey(fitsfile * fptr, const std::string & key, std::string * o_value)
-{
-	char comment[128];
-	char * value = NULL;
-	int status = 0;
-	fits_read_key_longstr(fptr, key.c_str(), &value, comment, &status);
-	// FIXME check of status == KEY_NO_EXIST
-	if (status > 0) return false;
-	if (value == NULL) return false;
-	(*o_value) = string(value);
-	free(value);
-	return true;
-
-}
-
-int getRGBIndex(char c)
-{
-	switch(c) {
-		case 'R':
-			return 0;
-		case 'G':
-			return 1;
-		case 'B':
-			return 2;
-	}
-	return -1;
-}
-
 
 
 int main () {
@@ -446,164 +419,90 @@ int main () {
 		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
 
-	cout << "HTTP/1.1 200 OK\r\n";
-	cout << "Content-type: image/jpeg\r\n";
 
 
-	fitsfile *fptr;
-	int status = 0;
-	int bitpix, naxis;
-	long naxes[2] = {1,1};
+//		cout << "HTTP/1.1 200 OK\r\n";
+	cout << "Content-type: image/jpeg\r\n\r\n";
+
 
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
 //	path = arg;
 
 	SharedCache::Messages::ContentRequest contentRequest;
-	contentRequest.fitsContent = new SharedCache::Messages::FitsContent();
+	contentRequest.fitsContent = new SharedCache::Messages::RawContent();
 	contentRequest.fitsContent->path = path;
 
 	SharedCache::Entry * entry = cache->getEntry(contentRequest);
-	if (entry->ready()) {
-		cerr << "Returning datas from " << entry->getPath() << "\n";
-		cout << "DEBUG: from-cache\r\n\r\n";
-		write(1, entry->data(), entry->size());
-		return 0;
-	}
-	cerr << "Computing datas for " << entry->getPath() << "\n";
-	cout << "DEBUG: fresh data\r\n\r\n";
+//	if (entry->ready()) {
+//		cerr << "Returning datas from " << entry->getPath() << "\n";
+//		cout << "DEBUG: from-cache\r\n\r\n";
+//		write(1, entry->data(), entry->size());
+//		return 0;
+//	}
+//	cerr << "Computing datas for " << entry->getPath() << "\n";
+//	cout << "DEBUG: fresh data\r\n\r\n";
 
-	u_int16_t * data;
-	fprintf(stderr, "Decoding %s\n", path.c_str());
 	JpegContent resultContent;
-	if (!fits_open_file(&fptr, path.c_str(), READONLY, &status))
-	{
-		if (!fits_get_img_param(fptr, 2, &bitpix, &naxis, naxes, &status) )
-		{
-			fprintf(stderr, "bitpix = %d\n", bitpix);
-			fprintf(stderr, "naxis = %d\n", naxis);
-			if (naxis != 2) {
-				fprintf(stderr, "unsupported axis count\n");
-			} else {
-				fprintf(stderr, "size=%ldx%ld\n", naxes[0], naxes[1]);
+	RawDataStorage * storage = (RawDataStorage *)entry->data();
 
-			}
+	int w = storage->w;
+	int h = storage->h;
+	std::string bayer = storage->getBayer();
 
-			int w = naxes[0];
-			int h = naxes[1];
+	u_int8_t * result = new u_int8_t[w * h];
+	uint16_t * data = storage->data;
 
-			int hdupos = 1;
-			int nkeys;
-			char card[FLEN_CARD];
-			string bayer = "";
-			string cardBAYERPAT;
-			for (; !status; hdupos++)  /* Main loop through each extension */
-			{
-				fits_get_hdrspace(fptr, &nkeys, NULL, &status); /* get # of keywords */
+	int nbpix = w * h;
 
-				fprintf(stderr, "Header listing for HDU #%d:\n", hdupos);
-
-				for (int ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
-
-					if (fits_read_record(fptr, ii, card, &status))break;
-					fprintf(stderr, "%s\n", card);
-				}
-				fprintf(stderr, "END\n\n");  /* terminate listing with END */
-
-				if (readKey(fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
-					fprintf(stderr, "BAYER detected");
-				}
-				fits_movrel_hdu(fptr, 1, NULL, &status);  /* try to move to next HDU */
-			}
-
-			status = 0;
-			if (bayer.size() > 0) {
-				if (bayer.size() != 4) {
-					fprintf(stderr, "Ignoring bayer pattern: %s\n", bayer.c_str());
-					bayer = "";
-				} else {
-					bool valid = true;
-					for(int i = 0; i < 4; ++i) {
-						if (getRGBIndex(bayer[i]) == -1) {
-							valid = false;
-							break;
-						}
-					}
-					if (!valid) {
-						fprintf(stderr, "Ignoring bayer pattern: %s\n", bayer.c_str());
-						bayer = "";
-					}
-				}
-			}
-
-			data = new u_int16_t[naxes[0] * naxes[1]];
-			u_int8_t * result = new u_int8_t[naxes[0] * naxes[1]];
-
-			long fpixels[2]= {1,1};
-			if (!fits_read_pix(fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, (void*)data, NULL, &status)) {
-				int nbpix = naxes[0] * naxes[1];
-
-				// do histogram for each channel !
-				if (bayer.length() > 0) {
-					Histo* histoByColor[3];
-					for(int i = 0; i < 3; ++i) {
-						histoByColor[i] = new Histo();
-					}
-
-					for(int i = 0; i < 4; ++i) {
-						int hist = getRGBIndex(bayer[i]);
-						int offset = (i & 1) + ((i & 2) >> 1) * w;
-						histoByColor[hist]->scanBayer(data + offset, w, h);
-					}
-
-					int levels[3][3];
-					for(int i = 0; i < 3; ++i) {
-						histoByColor[i]->cumulative();
-						levels[i][0]= histoByColor[i]->getLevel(0.05);
-						levels[i][1]= histoByColor[i]->getLevel(0.5);
-						levels[i][2]= histoByColor[i]->getLevel(0.95);
-					}
-
-
-					for(int i = 0; i < 4; ++i) {
-						int offset = (i & 1) + ((i & 2) >> 1) * w;
-						int hist = getRGBIndex(bayer[i]);
-						applyScaleBayer(data + offset, w, h, levels[hist][0], levels[hist][1], levels[hist][2], result + offset);
-					}
-				} else {
-					Histo * histo = new Histo();
-					histo->scanPlane(data, naxes[0], naxes[1]);
-					histo->cumulative();
-					int min = histo->getLevel(0.05);
-					int med = histo->getLevel(0.5);
-					int max = histo->getLevel(0.95);
-					fprintf(stderr, "levels are %d %d %d", min, med, max);
-					applyScale(data, w, h, min, med, max, result);
-				}
-
-				// Let's bin 2x2
-				if (bayer.length() > 0) {
-					u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * h / 4));
-					debayer(result, w, h, superPixel);
-					// DO super pixel !
-					resultContent = write_jpeg_file(superPixel, w / 2, h / 2, 3);
-					free(superPixel);
-
-				} else {
-					resultContent = write_jpeg_file(result, w, h, 1);
-				}
-			}
-
-
+	// do histogram for each channel !
+	if (bayer.length() > 0) {
+		Histo* histoByColor[3];
+		for(int i = 0; i < 3; ++i) {
+			histoByColor[i] = new Histo();
 		}
-		fits_close_file(fptr, &status);
-	}
-	entry->allocate(resultContent.memsize + sizeof(unsigned long));
-	memcpy(entry->data(), &resultContent.memsize, sizeof(unsigned long));
-	if (resultContent.memsize) {
-		memcpy(entry->data() + sizeof(unsigned long), resultContent.data, resultContent.memsize);
+
+		for(int i = 0; i < 4; ++i) {
+			int hist = RawDataStorage::getRGBIndex(bayer[i]);
+			int offset = (i & 1) + ((i & 2) >> 1) * w;
+			histoByColor[hist]->scanBayer(data + offset, w, h);
+		}
+
+		int levels[3][3];
+		for(int i = 0; i < 3; ++i) {
+			histoByColor[i]->cumulative();
+			levels[i][0]= histoByColor[i]->getLevel(0.05);
+			levels[i][1]= histoByColor[i]->getLevel(0.5);
+			levels[i][2]= histoByColor[i]->getLevel(0.95);
+		}
+
+
+		for(int i = 0; i < 4; ++i) {
+			int offset = (i & 1) + ((i & 2) >> 1) * w;
+			int hist = RawDataStorage::getRGBIndex(bayer[i]);
+			applyScaleBayer(data + offset, w, h, levels[hist][0], levels[hist][1], levels[hist][2], result + offset);
+		}
+	} else {
+		Histo * histo = new Histo();
+		histo->scanPlane(data, w, h);
+		histo->cumulative();
+		int min = histo->getLevel(0.05);
+		int med = histo->getLevel(0.5);
+		int max = histo->getLevel(0.95);
+		fprintf(stderr, "levels are %d %d %d", min, med, max);
+		applyScale(data, w, h, min, med, max, result);
 	}
 
-	entry->produced(resultContent.memsize + sizeof(unsigned long));
+	// Let's bin 2x2
+	if (bayer.length() > 0) {
+		u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * h / 4));
+		debayer(result, w, h, superPixel);
+		// DO super pixel !
+		resultContent = write_jpeg_file(superPixel, w / 2, h / 2, 3);
+		free(superPixel);
+
+	} else {
+		resultContent = write_jpeg_file(result, w, h, 1);
+	}
 
 	write(1, resultContent.data, resultContent.memsize);
 

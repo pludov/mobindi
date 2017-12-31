@@ -12,6 +12,7 @@
 // mark it ready
 namespace SharedCache {
 	const int MAX_MESSAGE_SIZE = 32768;
+	class Entry;
 
 	template<class M> class ChildPtr {
 		M*ptr;
@@ -66,21 +67,25 @@ namespace SharedCache {
 
 	namespace Messages {
 
-		struct FitsContent {
+		struct RawContent {
 			std::string path;
+
+			void produce(Entry * entry);
 		};
 
-		void to_json(nlohmann::json&j, const FitsContent & i);
-		void from_json(const nlohmann::json& j, FitsContent & p);
+		void to_json(nlohmann::json&j, const RawContent & i);
+		void from_json(const nlohmann::json& j, RawContent & p);
 
 		struct ContentRequest {
-			ChildPtr<FitsContent> fitsContent;
+			ChildPtr<RawContent> fitsContent;
 
 			std::string uniqKey() const
 			{
 				nlohmann::json debug = *this;
 				return debug.dump(0);
 			}
+
+			void produce(Entry * entry);
 		};
 
 		void to_json(nlohmann::json&j, const ContentRequest & i);
@@ -150,6 +155,7 @@ namespace SharedCache {
 	class Cache;
 	class Entry {
 		friend class Cache;
+		friend class SharedCacheServer;
 		std::string path;
 		bool wasReady;
 		Cache * cache;
@@ -159,11 +165,12 @@ namespace SharedCache {
 		int fd;
 
 		Entry(Cache * cache, const Messages::ContentResult & result);
+		Entry(Cache * cache, const Messages::WorkResponse & tobuild);
 		void open();
 	public:
 
 		bool ready() const;
-		void produced(uint32_t size);
+		void produced();
 		void release();
 
 		void allocate(unsigned long int size);
@@ -173,6 +180,8 @@ namespace SharedCache {
 		const std::string & getPath() const {
 			return path;
 		}
+
+		Cache * server() const;
 	};
 
 	class Cache {
