@@ -264,7 +264,7 @@ wss.on('connection', function connection(ws) {
 });
 
 
-app.use(cgi('fitsviewer/fitsviewer.cgi',  { nph: true }));
+app.use(cgi('fitsviewer/fitsviewer.cgi',  { nph: true, killOnDisconnect: true }));
 
 var port = parseInt(process.env.PORT || '8080');
 app.set('port', port);
