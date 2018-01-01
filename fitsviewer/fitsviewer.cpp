@@ -58,19 +58,9 @@ void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
 	}
 }
 
-struct JpegContent {
-	unsigned char * data;
-	unsigned long memsize;
-
-	JpegContent() {
-		data = nullptr;
-		memsize = 0;
-	}
-};
-
-JpegContent write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
+void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
 {
-	struct JpegContent result;
+
 	  /* This struct contains the JPEG compression parameters and pointers to
 	   * working space (which is allocated as needed by the JPEG library).
 	   * It is possible to have several such structures, representing multiple
@@ -88,6 +78,7 @@ JpegContent write_jpeg_file(u_int8_t * grey, int width, int height, int channels
 	   */
 	  struct jpeg_error_mgr jerr;
 	  /* More stuff */
+	  FILE * outfile;		/* target file */
 	  JSAMPROW row_pointer[32];	/* pointer to JSAMPLE row[s] */
 	  int row_stride;		/* physical row width in image buffer */
 
@@ -110,7 +101,7 @@ JpegContent write_jpeg_file(u_int8_t * grey, int width, int height, int channels
 	   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that
 	   * requires it in order to write binary files.
 	   */
-	  jpeg_mem_dest(&cinfo, &result.data, &result.memsize);
+	  jpeg_stdio_dest(&cinfo, stdout);
 
 	  /* Step 3: set parameters for compression */
 
@@ -163,14 +154,14 @@ JpegContent write_jpeg_file(u_int8_t * grey, int width, int height, int channels
 
 	  jpeg_finish_compress(&cinfo);
 	  /* After finish_compress, we can close the output file. */
+	  fclose(outfile);
 
 	  /* Step 7: release JPEG compression object */
 
 	  /* This is an important step since it will release a good deal of memory. */
 	  jpeg_destroy_compress(&cinfo);
-	  cerr << "jpeg write done: " << result.memsize << "\n";
+
 	  /* And we're done! */
-	  return result;
 }
 
 void write_png_file(u_int8_t * grey, int width, int height)
@@ -314,7 +305,6 @@ int main (int argc, char ** argv) {
 		exit(1);
 	}
 
-	JpegContent resultContent;
 	RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
 	HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
 
@@ -362,13 +352,12 @@ int main (int argc, char ** argv) {
 		u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * h / 4));
 		debayer(result, w, h, superPixel);
 		// DO super pixel !
-		resultContent = write_jpeg_file(superPixel, w / 2, h / 2, 3);
+		write_jpeg_file(superPixel, w / 2, h / 2, 3);
 		free(superPixel);
 
 	} else {
-		resultContent = write_jpeg_file(result, w, h, 1);
+		write_jpeg_file(result, w, h, 1);
 	}
-	write(1, resultContent.data, resultContent.memsize);
 
 	delete [] result;
 
