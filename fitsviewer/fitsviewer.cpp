@@ -4,7 +4,8 @@
 
 #include <cgicc/CgiDefs.h>
 #include <cgicc/Cgicc.h>
-#include <cgicc/HTTPHTMLHeader.h>
+#include <cgicc/HTTPResponseHeader.h>
+#include <cgicc/HTTPContentHeader.h>
 #include <cgicc/HTMLClasses.h>
 
 #include <png.h>
@@ -39,32 +40,6 @@ using namespace std;
 using namespace cgicc;
 
 using nlohmann::json;
-
-namespace IPC {
-	struct ImageDetails {
-		int width, height;
-		std::string bayer;
-		int min, max;
-	};
-
-	void to_json(json&j, const ImageDetails & i)
-	{
-		j = json();
-		j["width"] = i.width;
-		j["height"] = i.height;
-		j["bayer"] = i.bayer;
-		j["min"] = i.min;
-		j["max"] = i.max;
-	}
-
-	void from_json(const json& j, ImageDetails & p) {
-        p.width = j.at("width").get<int>();
-        p.height = j.at("height").get<int>();
-        p.bayer = j.at("bayer").get<string>();
-        p.min = j.at("min").get<int>();
-        p.max = j.at("max").get<int>();
-    }
-}
 
 void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
 {
@@ -304,12 +279,6 @@ int main (int argc, char ** argv) {
 	// 128Mo cache
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
-
-	IPC::ImageDetails img = { 320, 200, "RGGB", 0, 32767 };
-	json j = img;
-	cerr << j;
-
-
 	string path;
 
 	form_iterator fi = formData.getElement("path");
@@ -323,10 +292,6 @@ int main (int argc, char ** argv) {
 
 
 
-//		cout << "HTTP/1.1 200 OK\r\n";
-	cout << "Content-type: image/jpeg\r\n\r\n";
-
-
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
 //	path = arg;
 
@@ -336,7 +301,7 @@ int main (int argc, char ** argv) {
 
 	SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
 	if (aduPlane->hasError()) {
-		// FIXME: how to return 500 ?
+		cgicc::HTTPResponseHeader header("HTTP/1.1", 500, aduPlane->getErrorDetails().c_str());
 		exit(1);
 	}
 
@@ -345,7 +310,7 @@ int main (int argc, char ** argv) {
 	contentRequest.histogram->source.path = path;
 	SharedCache::EntryRef histogram(cache->getEntry(contentRequest));
 	if (histogram->hasError()) {
-		// FIXME: how to return 500 ?
+		cgicc::HTTPResponseHeader header("HTTP/1.1", 500, histogram->getErrorDetails().c_str());
 		exit(1);
 	}
 
@@ -388,6 +353,9 @@ int main (int argc, char ** argv) {
 		applyScale(data, w, h, min, med, max, result);
 	}
 	histogram->release();
+	cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+	header.addHeader("Content-Type", "image/jpeg");
+	cout << header;
 
 	// Let's bin 2x2
 	if (bayer.length() > 0) {
