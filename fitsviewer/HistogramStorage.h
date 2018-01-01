@@ -49,6 +49,7 @@ struct HistogramStorage {
 
 	void init(int w, int h, int channelCount, uint16_t * min, uint16_t * max)
 	{
+		this->channelCount = channelCount;
 		for(int i = 0; i < channelCount; ++i) {
 			HistogramChannelData * ch = channel(i);
 			ch->min = min[i];
