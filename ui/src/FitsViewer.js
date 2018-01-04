@@ -1,12 +1,14 @@
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
 import $ from 'jquery';
+import './FitsViewer.css'
 
 const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
 
 class ContextMenu extends PureComponent {
     
     render() {
+        // FIXME: ensure that the menu does not go outside
         var css = {
             left: this.props.x,
             top: this.props.y,
@@ -14,8 +16,29 @@ class ContextMenu extends PureComponent {
         }
         console.log('x = ', this.props.x, 'y = ', this.props.y);
         return(
-            <div style={css}>Coucou !</div>);
+            <div className="ImageContextMenu" style={css}>
+                <div className="Item" onClick={this.props.displaySetting}>Coucou !</div>
+            </div>);
     }
+}
+
+class LevelBar extends PureComponent {
+    render() {
+        return (
+            <div className="ImageBarSetting">Settings !</div>
+        );
+    }
+/*
+    top: 224.967px;
+    position: absolute;
+    width: 2em;
+    border: 1px solid #606060;
+    bottom: 0.2em;
+    top: 0.2em;
+    right: 0.2em;
+    background: repeating-linear-gradient(-0deg, grey, transparent 0.5em, transparent 0.5em, grey 1em);
+*/
+
 }
 
 class JQImageDisplay {
@@ -53,9 +76,21 @@ class JQImageDisplay {
 
         // While the bestFit is active (cleared by moves)
         this.atBestFit = true;
+
+        this.menuTimer = null;
+
     }
 
+    cancelMenuTimer() {
+        if (this.menuTimer !== null) {
+            clearTimeout(this.menuTimer);
+            this.menuTimer =  null;
+        }
+    }
+
+
     dispose() {
+        this.cancelMenuTimer();
         for(var event of jqBindedEvents) {
             var func = event.replace(/-/,'');
             this.child.off(event, this[func]);
@@ -105,10 +140,23 @@ class JQImageDisplay {
                 y: touches[i].pageY
             }
         }
+
+        // Start a timer
+        this.cancelMenuTimer();
+        var activeTouches = Object.keys(this.touches);
+        if (activeTouches.length == 1) {
+            var where = this.touches[activeTouches[0]];
+            where = {x: where.x, y: where.y};
+            var self = this;
+            this.menuTimer = setTimeout(function() {
+                self.contextMenuAt(where.x, where.y);
+            }, 400);
+        }
     }
 
     touchend(e) {
         e.preventDefault();
+        this.cancelMenuTimer();
         var touches = e.originalEvent.changedTouches;
         for (var i = 0; i < touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
@@ -128,6 +176,7 @@ class JQImageDisplay {
 
     touchmove(e) {
         e.preventDefault();
+        this.cancelMenuTimer();
         var touches = e.originalEvent.changedTouches;
         var newTouches = {};
         for (var i = 0; i<touches.length; i++) {
@@ -258,12 +307,17 @@ class JQImageDisplay {
     }
 
 
-    contextmenu(e) {
+    contextMenuAt(pageX, pageY)
+    {
         var offset = this.child.offset();
-        var x = e.pageX - offset.left;
-        var y = e.pageY - offset.top;
-        e.preventDefault();
+        var x = pageX - offset.left;
+        var y = pageY - offset.top;
         this.contextMenuCb(x, y);
+    }
+
+    contextmenu(e) {
+        e.preventDefault();
+        this.contextMenuAt(e.pageX, e.pageY);
     }
 
     click(e) {
@@ -448,7 +502,12 @@ class FitsViewer extends PureComponent {
     constructor(props) {
         super(props);
         this.uid = uid++;
-        this.state = {};
+        this.state = {
+            contextmenu: null,
+            histogramView: null
+        };
+
+        this.displaySetting = this.displaySetting.bind(this);
     }
 
     componentDidUpdate(prevProps) {
@@ -471,17 +530,32 @@ class FitsViewer extends PureComponent {
         this.setState({contextmenu:{x:x, y:y}});
     }
 
+    displaySetting(which) {
+        this.setState({contextmenu: null, histogramView: (this.state.histogramView !== null ? null : true)});
+    }
+
     render() {
         var contextMenu;
-        if (this.state.contextmenu !== undefined) {
-            contextMenu = <ContextMenu x={this.state.contextmenu.x} y={this.state.contextmenu.y}/>
+        if (this.state.contextmenu !== null) {
+            contextMenu = <ContextMenu x={this.state.contextmenu.x} y={this.state.contextmenu.y}
+                            displaySetting={this.displaySetting}
+            />
         } else {
             contextMenu = null;
+        }
+        var histogramView;
+        if (this.state.histogramView !== null) {
+            histogramView = <LevelBar ></LevelBar>;
+        } else {
+            histogramView = null;
         }
         return(
             <div className='FitsViewOverlayContainer'>
                 <div className='FitsView' ref={el => this.el = el}/>
                 <div className='FitsViewLoading'/>
+                <div className='FitsSettingsOverlay'>
+                    {histogramView}
+                </div>
                 {contextMenu}
             </div>);
     }

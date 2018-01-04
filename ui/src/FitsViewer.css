@@ -1,0 +1,19 @@
+.ImageContextMenu {
+    position: absolute;
+
+}
+
+.FitsSettingsOverlay {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    right: 0px;
+    pointer-events: none;
+}
+
+div.ImageContextMenu div.Item {
+    color: black;
+    border: 0.1em solid #404060;
+    background: rgba(192,192,192,0.7);
+    cursor: pointer;
+}
