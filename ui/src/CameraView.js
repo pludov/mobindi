@@ -12,8 +12,8 @@ import './CameraView.css'
 
 
 const CameraSelector = connect((store)=> ({
-            active: store.backend.camera.selectedDevice,
-            availables: store.backend.camera.availableDevices
+            active: store.backend && store.backend.camera ? store.backend.camera.selectedDevice : undefined,
+            availables: store.backend && store.backend.camera ? store.backend.camera.availableDevices : []
 }))(PromiseSelector);
 
 class ShootBton extends PureComponent {

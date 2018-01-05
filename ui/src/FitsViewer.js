@@ -72,6 +72,7 @@ class JQImageDisplay {
     constructor(elt, contextMenuCb) {
         this.currentImg = undefined;
         this.loadingImg = undefined;
+        this.loadingToDisplay = false;
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
         elt.css('display', 'block');
@@ -125,6 +126,10 @@ class JQImageDisplay {
     abortLoading() {
         if (this.loadingImg != undefined) {
             this.loadingImg.src = null;
+            if (this.loadingToDisplay) {
+                this.loadingImg.parentNode.removeChild(this.loadingImg);
+                this.loadingToDisplay = false;
+            }
             this.loadingImg = null;
             this.child.removeClass('Loading');
         }
@@ -149,6 +154,22 @@ class JQImageDisplay {
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
+
+        // Do exposed loading if possible (display image while it is loading)
+        // FIXME: only for image of the same geo ?
+        // FIXME: some browser  flickers to black. whitelist browser ?
+        if (this.currentImg != undefined) {
+            this.loadingToDisplay = true;
+            $(this.loadingImg).css('position', 'absolute');
+            $(this.loadingImg).css("width", $(this.currentImg).css("width"));
+            $(this.loadingImg).css("height", $(this.currentImg).css("height"));
+            $(this.loadingImg).css('top', $(this.currentImg).css("top"));
+            $(this.loadingImg).css('left', $(this.currentImg).css("left"));
+            this.child.append(this.loadingImg);
+        } else {
+            this.loadingToDisplay = false;
+        }
+
         this.child.addClass('Loading');
         this.child.removeClass('Error');
     }
@@ -401,6 +422,13 @@ class JQImageDisplay {
             $(this.currentImg).css("height", e.h + 'px');
             $(this.currentImg).css('top', e.y + 'px');
             $(this.currentImg).css('left', e.x + 'px');
+
+            if(this.loadingToDisplay) {
+                $(this.loadingImg).css("width", e.w + 'px');
+                $(this.loadingImg).css("height", e.h + 'px');
+                $(this.loadingImg).css('top', e.y + 'px');
+                $(this.loadingImg).css('left', e.x + 'px');
+            }
         }
         this.currentImagePos = e;
     }

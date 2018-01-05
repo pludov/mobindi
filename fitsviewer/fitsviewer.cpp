@@ -120,9 +120,11 @@ void write_jpeg_file(u_int8_t * grey, int width, int height, int channels)
 	  /* Now you can set any non-default parameters you wish to.
 	   * Here we just illustrate the use of quality (quantization table) scaling:
 	   */
-	  jpeg_set_quality(&cinfo, 90, TRUE /* limit to baseline-JPEG values */);
+	  jpeg_set_quality(&cinfo, 90, FALSE /* don't limit to baseline-JPEG values */);
+	  jpeg_simple_progression(&cinfo);
 
 	  /* Step 4: Start compressor */
+	//  cinfo.progressive_mode = TRUE;
 
 	  /* TRUE ensures that we will write a complete interchange-JPEG file.
 	   * Pass TRUE unless you are very sure of what you're doing.
