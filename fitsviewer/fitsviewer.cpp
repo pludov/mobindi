@@ -224,6 +224,9 @@ void write_png_file(u_int8_t * grey, int width, int height)
 
 void applyScale(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
 {
+	if (max < min) {
+		max = min;
+	}
 	int nbpix = w * h;
 	for(int i = 0; i < nbpix; ++i) {
 		int v = data[i];
@@ -240,6 +243,9 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 {
 	h /= 2;
 	w /= 2;
+	if (max < min) {
+		max = min;
+	}
 	while(h > 0) {
 		int tx = w;
 		while(tx > 0) {
@@ -263,7 +269,19 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 	}
 }
 
-
+double parseFormFloat(Cgicc & formData, const std::string & name, double defaultValue)
+{
+	std::string value = formData(name);
+	if (value == "") {
+		return defaultValue;
+	}
+	try {
+		return stod(value);
+	} catch (const std::logic_error& ia) {
+		std::cerr << "Invalid argument: " << ia.what() << '\n';
+		return defaultValue;
+	}
+}
 
 int main (int argc, char ** argv) {
 	Cgicc formData;
@@ -281,6 +299,8 @@ int main (int argc, char ** argv) {
 		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
 
+	double low = parseFormFloat(formData, "low", 0.05);
+	double high = parseFormFloat(formData, "high", 0.95);
 
 
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
@@ -322,9 +342,9 @@ int main (int argc, char ** argv) {
 		int levels[3][3];
 		for(int i = 0; i < 3; ++i) {
 			auto channelStorage = histogramStorage->channel(i);
-			levels[i][0]= channelStorage->getLevel(0.05);
-			levels[i][1]= channelStorage->getLevel(0.5);
-			levels[i][2]= channelStorage->getLevel(0.95);
+			levels[i][0]= channelStorage->getLevel(low);
+			levels[i][1]= channelStorage->getLevel((low + high) / 2);
+			levels[i][2]= channelStorage->getLevel(high);
 		}
 
 
@@ -336,9 +356,9 @@ int main (int argc, char ** argv) {
 	} else {
 		auto channelStorage = histogramStorage->channel(0);
 
-		int min = channelStorage->getLevel(0.05);
-		int med = channelStorage->getLevel(0.5);
-		int max = channelStorage->getLevel(0.95);
+		int min = channelStorage->getLevel(low);
+		int med = channelStorage->getLevel((low + high) / 2);
+		int max = channelStorage->getLevel(high);
 		fprintf(stderr, "levels are %d %d %d", min, med, max);
 		applyScale(data, w, h, min, med, max, result);
 	}

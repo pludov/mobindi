@@ -5,9 +5,10 @@
 
 .FitsSettingsOverlay {
     position: absolute;
-    top: 0px;
-    bottom: 0px;
+    left: 0px;
     right: 0px;
+    bottom: 0px;
+    height: auto;
     pointer-events: none;
 }
 
@@ -16,4 +17,27 @@ div.ImageContextMenu div.Item {
     border: 0.1em solid #404060;
     background: rgba(192,192,192,0.7);
     cursor: pointer;
+}
+
+
+div.ImageBarSetting {
+    width: 100%; /* Full-width */
+    height: auto; /* Specified height */
+    background: #d3d3d3; /* Grey background */
+    outline: none; /* Remove outline */
+    opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+    -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+    transition: opacity .2s;
+    pointer-events: all;
+}
+
+div.ImageBarContainer {
+    position: relative;
+}
+
+div.ImageBarSetting input {
+    border: 0px;
+    width: 100%;
+    margin: 0px;
+    padding: 0px;
 }

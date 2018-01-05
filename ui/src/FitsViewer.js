@@ -6,7 +6,17 @@ import './FitsViewer.css'
 const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
 
 class ContextMenu extends PureComponent {
-    
+    constructor(props) {
+        super(props);
+        this.showLow = this.showLow.bind(this);
+        this.showMedium = this.showMedium.bind(this);
+        this.showHigh = this.showHigh.bind(this);
+    }
+
+    showLow() { this.props.displaySetting('low'); }
+    showMedium() { this.props.displaySetting('medium'); }
+    showHigh() { this.props.displaySetting('high'); }
+
     render() {
         // FIXME: ensure that the menu does not go outside
         var css = {
@@ -17,15 +27,29 @@ class ContextMenu extends PureComponent {
         console.log('x = ', this.props.x, 'y = ', this.props.y);
         return(
             <div className="ImageContextMenu" style={css}>
-                <div className="Item" onClick={this.props.displaySetting}>Coucou !</div>
+                <div className="Item" onClick={this.showLow}>Low level</div>
+                <div className="Item" onClick={this.showMedium}>Median</div>
+                <div className="Item" onClick={this.showHigh}>High level</div>
             </div>);
     }
 }
 
 class LevelBar extends PureComponent {
+    constructor(props) {
+        super(props);
+        this.sendUpdate = this.sendUpdate.bind(this);
+    }
+    sendUpdate(v) {
+        console.log('changing to ', v.target.valueAsNumber);
+        this.props.onChange(this.props.property, v.target.valueAsNumber);
+    }
     render() {
         return (
-            <div className="ImageBarSetting">Settings !</div>
+            <div className="ImageBarSetting">
+                <div className="ImageBarContainer">
+                    <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate}/>
+                </div>
+            </div>
         );
     }
 /*
@@ -455,6 +479,7 @@ class JQImageDisplay {
 
     loaded(newSrc, newImage, result) {
         if (newImage !== this.loadingImg) {
+            console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
             return;
         }
 
@@ -504,20 +529,35 @@ class FitsViewer extends PureComponent {
         this.uid = uid++;
         this.state = {
             contextmenu: null,
-            histogramView: null
+            histogramView: null,
+            low: 0.3,
+            high: 0.9,
+            medium: 0.5
         };
 
         this.displaySetting = this.displaySetting.bind(this);
+        this.updateHisto = this.updateHisto.bind(this);
+    }
+
+    computeSrc()
+    {
+        var str = "" + this.props.src;
+        if (str.indexOf('?') != -1) {
+            str += "&";
+        } else {
+            str += "?";
+        }
+        return str + 'low=' + this.state.low + '&high=' + this.state.high;
     }
 
     componentDidUpdate(prevProps) {
-        this.ImageDisplay.setSrc(this.props.src);
+        this.ImageDisplay.setSrc(this.computeSrc());
     }
 
     componentDidMount() {
         this.$el = $(this.el);
         this.ImageDisplay = new JQImageDisplay(this.$el, this.openContextMenu.bind(this));
-        this.ImageDisplay.setSrc(this.props.src);
+        this.ImageDisplay.setSrc(this.computeSrc());
     }
 
     componentWillUnmount() {
@@ -531,10 +571,18 @@ class FitsViewer extends PureComponent {
     }
 
     displaySetting(which) {
-        this.setState({contextmenu: null, histogramView: (this.state.histogramView !== null ? null : true)});
+        this.setState({contextmenu: null, histogramView: (this.state.histogramView == which ? null : which)});
     }
 
+    updateHisto(which, v) {
+        var setting = {[which]: v};
+        this.setState(setting);
+        this.ImageDisplay.setSrc(this.computeSrc());
+    }
+
+
     render() {
+        console.log('state is ', this.state);
         var contextMenu;
         if (this.state.contextmenu !== null) {
             contextMenu = <ContextMenu x={this.state.contextmenu.x} y={this.state.contextmenu.y}
@@ -545,7 +593,7 @@ class FitsViewer extends PureComponent {
         }
         var histogramView;
         if (this.state.histogramView !== null) {
-            histogramView = <LevelBar ></LevelBar>;
+            histogramView = <LevelBar property={this.state.histogramView} onChange={this.updateHisto} value={this.state[this.state.histogramView]}></LevelBar>;
         } else {
             histogramView = null;
         }
