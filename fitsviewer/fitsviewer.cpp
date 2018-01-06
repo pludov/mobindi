@@ -363,6 +363,7 @@ int main (int argc, char ** argv) {
 	fflush(stdout);
 	int nbpix = w * h;
 
+	int stripHeight = 32;
 	// do histogram for each channel !
 	if (bayer.length() > 0) {
 		int levels[3][3];
@@ -372,14 +373,15 @@ int main (int argc, char ** argv) {
 			levels[i][1]= channelStorage->getLevel((low + high) / 2);
 			levels[i][2]= channelStorage->getLevel(high);
 		}
+		stripHeight *= 2;
 
-		u_int8_t * result = new u_int8_t[w * 32];
-		u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * 32 / 4));
+		u_int8_t * result = new u_int8_t[w * stripHeight];
+		u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * stripHeight / 4));
 
 		int basey = 0;
 		while(basey < h) {
 			int yleft = h - basey;
-			if (yleft > 32) yleft = 32;
+			if (yleft > stripHeight) yleft = stripHeight;
 
 			for(int i = 0; i < 4; ++i) {
 				int bayerOffset = (i & 1) + ((i & 2) >> 1) * w;
@@ -390,8 +392,8 @@ int main (int argc, char ** argv) {
 			debayer(result, w, yleft, superPixel);
 
 			writer.writeLines(superPixel, yleft / 2);
-
-			basey += 32;
+			fflush(stdout);
+			basey += stripHeight;
 		}
 
 		delete [] result;
@@ -404,16 +406,16 @@ int main (int argc, char ** argv) {
 		int max = channelStorage->getLevel(high);
 		fprintf(stderr, "levels are %d %d %d", min, med, max);
 
-		u_int8_t * result = new u_int8_t[w * 32];
+		u_int8_t * result = new u_int8_t[w * stripHeight];
 
 		int basey = 0;
 		while(basey < h) {
 			int yleft = h - basey;
-			if (yleft > 32) yleft = 32;
+			if (yleft > stripHeight) yleft = stripHeight;
 			applyScale(data + basey * w, w, yleft, min, med, max, result);
 			writer.writeLines(result, yleft);
 
-			basey += 32;
+			basey += stripHeight;
 		}
 		delete(result);
 	}
