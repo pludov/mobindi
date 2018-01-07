@@ -155,12 +155,11 @@ var {reducer, storeManager } = function() {
 const enhancer = compose(
     persistState(undefined, {
             slicer: (paths)=> (state) => {
-                console.log('WTF slicing');
                 var rslt = Object.assign({}, state);
                 delete rslt.backend;
                 delete rslt.backendStatus;
                 delete rslt.backendError;
-                console.log("WTF slicing result is " + JSON.stringify(rslt));
+                // console.log("WTF slicing result is " + JSON.stringify(rslt));
                 return rslt;
             }
         })

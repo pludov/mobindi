@@ -84,6 +84,12 @@ class JQImageDisplay {
         // The path (without cgi settings)
         this.currentImgPath = undefined;
 
+        this.currentDetails = undefined;
+        this.currentDetailsPath = undefined;
+        
+        this.loadingDetailsAjax = undefined;
+        this.loadingDetailsPath = undefined;
+
         this.loadingImg = undefined;
         // The path (without cgi settings)
         this.loadingImgSrc = undefined;
@@ -112,7 +118,7 @@ class JQImageDisplay {
 
         this.touches = {};
 
-        this.currentImageSize = {x: -1, y: -1};
+        this.currentImageSize = {width: -1, height: -1};
         this.currentImagePos = {x:0, y:0, w:0, h:0};
 
         // While the bestFit is active (cleared by moves)
@@ -143,6 +149,17 @@ class JQImageDisplay {
         }
         this.child.empty();
     }
+
+    abortDetailsLoading()
+    {
+        if (this.loadingDetailsAjax != undefined) {
+            var toCancel = this.loadingDetailsAjax;
+            this.loadingDetailsAjax = undefined;
+            this.loadingDetailsPath = undefined;
+            toCancel.abort();
+        }
+    }
+
 
     abortLoading() {
         if (this.loadingImg != undefined) {
@@ -178,7 +195,23 @@ class JQImageDisplay {
     {
         var str = "" + path;
         if (path) {
-            str = 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(path);
+            var bin = 16;
+            if (this.currentImagePos.w > 0 && this.currentImagePos.h > 0
+                 && this.currentImageSize.width  > -1 && this.currentImageSize.height > -1)
+            {
+                bin = Math.floor(Math.min(
+                            this.currentImageSize.width / this.currentImagePos.w,
+                            this.currentImageSize.height / this.currentImagePos.h
+                        ));
+            }
+
+            // lower this to a 2^power
+            bin = Math.floor(Math.log2(bin));
+            if (bin < 0) {
+                bin = 0;
+            }
+
+            str = 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&path=' + encodeURIComponent(path);
             str += '&low=' + this.levels.low;
             str += '&high=' + this.levels.high;
         } else {
@@ -196,9 +229,12 @@ class JQImageDisplay {
         if (params !== undefined && 'levels' in params) {
             this.levels = params.levels;
         }
-
-        var newSrc = this.computeSrc(path);
+        // FIXME: c'est ici qu'il faut continuer:
+        // il faut assurer qu'on charge la taille avant, que computeurl dépende de la taille
+        // et implementer le downsampling coté serveur
+        // et revoir le témoin de chargement
         if (this.loadingImg !== undefined && this.loadingImgPath == path) {
+            var newSrc = this.computeSrc(path);
             if (this.loadingImgSrc == newSrc) {
                 // Already loading... Just wait...
                 this.nextLoadingImgSrc = undefined;
@@ -208,8 +244,74 @@ class JQImageDisplay {
             }
         } else {
             this.nextLoadingImgSrc = undefined;
-            if (path != this.currentImagePath)
-            this.setSrc(path, newSrc);
+            if (this.currentImgPath != path) {
+                if (!this.setDetails(path)) {
+                    // Stop loading for previous path
+                    this.abortLoading();
+                } else {
+                    // Ready for new url. go
+                    var newSrc = this.computeSrc(path);
+                    this.setSrc(path, newSrc);
+                }
+            } else {
+                // Ready for new url. go
+                // Don't go back...
+                this.abortDetailsLoading();
+                var newSrc = this.computeSrc(path);
+                this.setSrc(path, newSrc);
+            }
+        }
+    }
+
+    // True if ready, false otherwise
+    setDetails(path)
+    {
+        var self = this;
+        if (this.currentDetailsPath == path) {
+            this.abortDetailsLoading();
+            return true;
+        }
+
+        if ((this.loadingDetailsAjax !== undefined) && this.loadingDetailsPath == path) {
+            return false;
+        }
+
+        this.abortDetailsLoading();
+
+        // Start an ajax load of the new path
+        this.loadingDetailsPath = path;
+        this.loadingDetailsAjax = $.ajax({
+            url: 'fitsviewer/fitsviewer.cgi?size=true&path=' + encodeURIComponent(path),
+            dataType: 'json',
+            error: function(e) {
+                console.log('size query had error', e);
+                self.gotDetails(path, null);
+            },
+            success: function(d) {
+                console.log('Size is ', d);
+                self.gotDetails(path, d);
+            },
+            timeout: 30000
+        });
+
+        return false;
+    }
+
+    gotDetails(path, rslt)
+    {
+        // FIXME: ajax request can be reordered (right path with the wrong request, is it important ?)
+        if (path != this.loadingDetailsPath) {
+            console.log('Ignore late size result');
+            return;
+        }
+        this.currentDetailsPath = this.loadingDetailsPath;
+        this.currentDetails = rslt;
+        this.loadingDetailsPath = undefined;
+        this.loadingDetailsAjax = undefined;
+        if (rslt !== null) {
+            this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath));
+        } else {
+            this.setSrc(this.curentDetailsPath, "#blank");
         }
     }
 
@@ -286,13 +388,13 @@ class JQImageDisplay {
         this.child.empty();
 
         if (this.currentImg !== undefined) {
-            this.currentImageSize = {x: newImage.naturalWidth, y: newImage.naturalHeight};
+            this.currentImageSize = this.currentDetails;
             
             $(this.currentImg).css('position', 'relative');
 
             this.child.append(this.currentImg);
 
-            if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
+            if (previousImg == undefined || previousSize.width != this.currentImageSize.width || previousSize.height != this.currentImageSize.height) {
                 this.bestFit();
             } else {
                 $(this.currentImg).css('top', $(previousImg).css('top'));
@@ -598,6 +700,19 @@ class JQImageDisplay {
             }
         }
         this.setRawCurrentImagePos(e);
+
+        // Adjust the bin
+        if (this.loadingDetailsPath == undefined) {
+            // No path change. Make sure the path is the latest
+            var path;
+            if (this.loadingImgPath != undefined) {
+                path = this.loadingImgPath;
+            } else {
+                path = this.currentImgPath;
+            }
+            var newSrc = this.computeSrc(path);
+            this.setSrc(path, newSrc);
+        }
     }
 
     getBestFit() {
@@ -605,28 +720,28 @@ class JQImageDisplay {
     }
 
     getBestFitForSize(imageSize) {
-        var viewSize = { x: this.child.width(), y: this.child.height()};
+        var viewSize = { width: this.child.width(), height: this.child.height()};
 
-        if (imageSize.x == 0
-            || imageSize.y == 0
-            || viewSize.x == 0
-            || viewSize.y == 0)
+        if (imageSize.width == 0
+            || imageSize.height == 0
+            || viewSize.width == 0
+            || viewSize.height == 0)
         {
             // Don't bother
-            return {x: 0, y:0, w: viewSize.x, h: viewSize.y};
+            return {x: 0, y:0, w: viewSize.width, h: viewSize.height};
 
         }
         // If image is larger than view
         // imageSize.x / imageSize.y > viewSize.x / viewSize.y
         // imageSize.x * viewSize.y > viewSize.x * imageSize.y
-        else if (imageSize.x * viewSize.y > viewSize.x * imageSize.y) {
+        else if (imageSize.width * viewSize.height > viewSize.width * imageSize.height) {
             // scale for width and adjust height
-            var heightInClient = viewSize.x * imageSize.y / imageSize.x;
-            return {x: 0, y:(viewSize.y - heightInClient) / 2, w: viewSize.x, h: heightInClient};
+            var heightInClient = viewSize.width * imageSize.height / imageSize.width;
+            return {x: 0, y:(viewSize.height - heightInClient) / 2, w: viewSize.width, h: heightInClient};
         } else {
             // Scale for height and adjust width
-            var widthInClient = viewSize.y * imageSize.x / imageSize.y;
-            return {x: ((viewSize.x - widthInClient) / 2), y:0, w: widthInClient, h: viewSize.y};
+            var widthInClient = viewSize.height * imageSize.width / imageSize.height;
+            return {x: ((viewSize.width - widthInClient) / 2), y:0, w: widthInClient, h: viewSize.height};
         }
     }
 
