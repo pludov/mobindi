@@ -165,14 +165,15 @@ class JQImageDisplay {
 
     computeSrc(path)
     {
-        // FIXME: fitsviewer here
         var str = "" + path;
-        if (str.indexOf('?') != -1) {
-            str += "&";
+        if (path) {
+            str = 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(path);
+            str += '&low=' + this.levels.low;
+            str += '&high=' + this.levels.high;
         } else {
-            str += "?";
+            str = "#blank";
         }
-        return str + 'low=' + this.levels.low + '&high=' + this.levels.high;
+        return str;
     }
 
     emitStateChange()

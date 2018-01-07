@@ -22,7 +22,7 @@ class SequenceImageDetail extends PureComponent {
                     <FitsViewerInContext 
                             contextKey="default"
                             app={this.props.app}
-                            src={this.props.url === null ? '#blank' : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(this.props.url)}
+                            src={this.props.url}
                         />
                 </div>
             </div>

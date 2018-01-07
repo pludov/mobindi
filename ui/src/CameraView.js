@@ -138,7 +138,7 @@ class CameraView extends PureComponent {
     }
 
     setPhoto(rslt) {
-        this.setState({url : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(rslt.path)});
+        this.setState({url : rslt.path});
     }
 
     connect() {
