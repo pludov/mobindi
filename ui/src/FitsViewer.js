@@ -208,6 +208,7 @@ class JQImageDisplay {
             }
         } else {
             this.nextLoadingImgSrc = undefined;
+            if (path != this.currentImagePath)
             this.setSrc(path, newSrc);
         }
     }
@@ -219,6 +220,7 @@ class JQImageDisplay {
         }
     }
 
+    
     setSrc(path, src) {
         var self = this;
         if (this.currentImgSrc == src) {
@@ -611,6 +613,7 @@ class JQImageDisplay {
         this.loadingImg = undefined;
         this.currentImg = result ? newImage : undefined;
         this.currentImgSrc = newSrc;
+        this.currentImgPath = this.loadingImgPath;
         this.child.empty();
 
         if (this.currentImg !== undefined) {
