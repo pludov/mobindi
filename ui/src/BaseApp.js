@@ -1,4 +1,5 @@
 import { notifier } from './Store';
+import { update } from './shared/Obj'
 
 /**
  * Created by ludovic on 25/07/17.
@@ -8,6 +9,7 @@ class BaseApp {
     constructor(storeManager, appId) {
         this.storeManager = storeManager;
         this.appId = appId;
+        this.setViewerState = this.bindStoreFunction(this.setViewerState, "setViewerState");
     }
 
     declareActions(obj) {
@@ -38,6 +40,27 @@ class BaseApp {
             method: method,
             args: args
         });
+    }
+
+    setViewerState($state, context, viewSettings) {
+        console.log('WTF: save context ' , context, ' parameters to ', viewSettings);
+        var result = update($state, {
+            $mergedeep: {
+                viewSettings: {
+                    [context]: viewSettings
+                }
+            }
+        });
+        return result;
+    }
+
+    getViewerState(store, context)
+    {
+        try {
+            return store.viewSettings[context];
+        }catch(error) {
+            return undefined;
+        }
     }
 
     // Send a request to any server side app.

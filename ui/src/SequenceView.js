@@ -8,7 +8,7 @@ import PromiseSelector from './PromiseSelector';
 import * as Promises from './shared/Promises';
 import Table from './Table';
 import { atPath } from './shared/JsonPath';
-import FitsViewer from './FitsViewer';
+import FitsViewerInContext from './FitsViewerInContext';
 import './SequenceView.css';
 import SequenceEditDialog from './SequenceEditDialog';
 
@@ -19,7 +19,11 @@ class SequenceImageDetail extends PureComponent {
         return <div className="AspectRatio43ContainerOut">
             <div className="AspectRatio43ContainerIn">
                 <div className="AspectRatio43 FitsViewer FitsViewContainer">
-                    <FitsViewer src={this.props.url === null ? '#blank' : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(this.props.url)}/>
+                    <FitsViewerInContext 
+                            contextKey="default"
+                            app={this.props.app}
+                            src={this.props.url === null ? '#blank' : 'fitsviewer/fitsviewer.cgi?path=' + encodeURIComponent(this.props.url)}
+                        />
                 </div>
             </div>
         </div>;
@@ -46,7 +50,8 @@ class SequenceImageDetail extends PureComponent {
 SequenceImageDetail = connect(SequenceImageDetail.mapStateToProps)(SequenceImageDetail);
 
 SequenceImageDetail.propTypes = {
-    currentPath: PropTypes.string.isRequired
+    currentPath: PropTypes.string.isRequired,
+    app: PropTypes.any.isRequired
 }
 
 const SequenceSelector = connect((store, ownProps)=> ({
@@ -169,6 +174,7 @@ class SequenceView extends PureComponent {
             <SequenceImageDetail
                 currentPath='$.sequence.currentImage'
                 detailPath='$.backend.camera.images.byuuid'
+                app={this.props.app}
             />
             <Table statePath="$.sequenceView.list"
                 fields={{

@@ -1,6 +1,8 @@
 import React, { Component, PureComponent} from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import $ from 'jquery';
+import Obj from './shared/Obj.js';
 import './FitsViewer.css'
 
 const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
@@ -69,12 +71,19 @@ class JQImageDisplay {
 
 
 
-    constructor(elt, contextMenuCb) {
+    constructor(elt, contextMenuCb, onViewSettingsChangeCb) {
         this.currentImg = undefined;
+        // The path (without cgi settings)
+        this.currentImgPath = undefined;
+
         this.loadingImg = undefined;
+        // The path (without cgi settings)
+        this.loadingImgSrc = undefined;
+        this.loadingImgPath = undefined;
         this.loadingToDisplay = false;
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
+        this.onViewSettingsChangeCb = onViewSettingsChangeCb;
         elt.css('display', 'block');
         elt.css('width', '100%');
         elt.css('height', '100%');
@@ -96,14 +105,16 @@ class JQImageDisplay {
         this.currentImageSize = {x: -1, y: -1};
         this.currentImagePos = {x:0, y:0, w:0, h:0};
 
-        // Contains the coordonates of the center, and the distance (in image pixel) of the closer view border
-        this.coords = {x: 0, y: 0, dstToBorder: 0, bestFit: 1};
-
         // While the bestFit is active (cleared by moves)
         this.atBestFit = true;
 
         this.menuTimer = null;
 
+        this.levels = {
+            low: 0.05,
+            medium: 0.5,
+            high: 0.95
+        };
     }
 
     cancelMenuTimer() {
@@ -125,17 +136,58 @@ class JQImageDisplay {
 
     abortLoading() {
         if (this.loadingImg != undefined) {
-            this.loadingImg.src = null;
+            this.loadingImg.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=;';
             if (this.loadingToDisplay) {
                 this.loadingImg.parentNode.removeChild(this.loadingImg);
                 this.loadingToDisplay = false;
             }
             this.loadingImg = null;
+            this.loadingImgPath = undefined;
+            this.loadingImgSrc = undefined;
             this.child.removeClass('Loading');
         }
     }
+    
+    getFullState()
+    {
+        return {
+            levels: Obj.deepCopy(this.levels)
+        }
+    }
 
-    setSrc(src) {
+    changeLevels(f)
+    {
+        if (!f(this.levels)) {
+            return false;
+        }
+        this.emitStateChange();
+    }
+
+    computeSrc(path)
+    {
+        // FIXME: fitsviewer here
+        var str = "" + path;
+        if (str.indexOf('?') != -1) {
+            str += "&";
+        } else {
+            str += "?";
+        }
+        return str + 'low=' + this.levels.low + '&high=' + this.levels.high;
+    }
+
+    emitStateChange()
+    {
+        this.onViewSettingsChangeCb(this.getFullState());
+    }
+
+    setFullState(path, params) {
+        if (params !== undefined && 'levels' in params) {
+            this.levels = params.levels;
+        }
+        this.setSrc(path, this.computeSrc(path));
+    }
+
+    setSrc(path, src) {
         var self = this;
         if (this.currentImgSrc == src) {
             this.abortLoading();
@@ -154,11 +206,12 @@ class JQImageDisplay {
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
+        this.loadingImgPath = path;
 
         // Do exposed loading if possible (display image while it is loading)
         // FIXME: only for image of the same geo ?
         // FIXME: some browser  flickers to black. whitelist browser ?
-        if (this.currentImg != undefined) {
+        if (this.currentImg != undefined && this.currentImgPath == this.loadingImgPath) {
             this.loadingToDisplay = true;
             $(this.loadingImg).css('position', 'absolute');
             $(this.loadingImg).css("width", $(this.currentImg).css("width"));
@@ -557,35 +610,21 @@ class FitsViewer extends PureComponent {
         this.uid = uid++;
         this.state = {
             contextmenu: null,
-            histogramView: null,
-            low: 0.3,
-            high: 0.9,
-            medium: 0.5
+            histogramView: null
         };
 
         this.displaySetting = this.displaySetting.bind(this);
         this.updateHisto = this.updateHisto.bind(this);
     }
 
-    computeSrc()
-    {
-        var str = "" + this.props.src;
-        if (str.indexOf('?') != -1) {
-            str += "&";
-        } else {
-            str += "?";
-        }
-        return str + 'low=' + this.state.low + '&high=' + this.state.high;
-    }
-
     componentDidUpdate(prevProps) {
-        this.ImageDisplay.setSrc(this.computeSrc());
+        this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
     }
 
     componentDidMount() {
         this.$el = $(this.el);
-        this.ImageDisplay = new JQImageDisplay(this.$el, this.openContextMenu.bind(this));
-        this.ImageDisplay.setSrc(this.computeSrc());
+        this.ImageDisplay = new JQImageDisplay(this.$el, this.openContextMenu.bind(this), this.onViewSettingsChange.bind(this));
+        this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
     }
 
     componentWillUnmount() {
@@ -598,14 +637,37 @@ class FitsViewer extends PureComponent {
         this.setState({contextmenu:{x:x, y:y}});
     }
 
+    onViewSettingsChange(state)
+    {
+        this.props.onViewSettingsChange(state);
+    }
+
     displaySetting(which) {
         this.setState({contextmenu: null, histogramView: (this.state.histogramView == which ? null : which)});
     }
 
+    getViewSettingsCopy()
+    {
+        var propValue = this.props.viewSettings;
+        if (propValue == undefined) {
+            propValue = {};
+        }
+        propValue = Obj.deepCopy(propValue);
+        if (!('levels' in propValue)) {
+            propValue.levels = {};
+        }
+        if (!('low' in propValue.levels)) propValue.levels.low = 0.05;
+        if (!('medium' in propValue.levels)) propValue.levels.medium = 0.5;
+        if (!('high' in propValue.levels)) propValue.levels.high = 0.95;
+
+        return propValue;
+    }
+
     updateHisto(which, v) {
-        var setting = {[which]: v};
-        this.setState(setting);
-        this.ImageDisplay.setSrc(this.computeSrc());
+        var newViewSettings = this.getViewSettingsCopy();
+        newViewSettings.levels[which] = v;
+        
+        this.props.onViewSettingsChange(newViewSettings);
     }
 
 
@@ -621,7 +683,8 @@ class FitsViewer extends PureComponent {
         }
         var histogramView;
         if (this.state.histogramView !== null) {
-            histogramView = <LevelBar property={this.state.histogramView} onChange={this.updateHisto} value={this.state[this.state.histogramView]}></LevelBar>;
+            var viewSettings = this.getViewSettingsCopy();
+            histogramView = <LevelBar property={this.state.histogramView} onChange={this.updateHisto} value={viewSettings.levels[this.state.histogramView]}></LevelBar>;
         } else {
             histogramView = null;
         }
@@ -636,6 +699,12 @@ class FitsViewer extends PureComponent {
             </div>);
     }
 
+}
+
+FitsViewer.propTypes = {
+    src: PropTypes.string.isRequired,
+    viewSettings: PropTypes.any,
+    onViewSettingsChange: PropTypes.func.isRequired
 }
 
 // connect(mapStateToProps)(

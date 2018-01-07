@@ -4,7 +4,7 @@ import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 
 import { atPath } from './shared/JsonPath';
-import FitsViewer from './FitsViewer';
+import FitsViewerInContext from './FitsViewerInContext';
 import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
@@ -128,7 +128,7 @@ class CameraView extends PureComponent {
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <div className="FitsViewer FitsViewContainer">
-                <FitsViewer src={this.state.url}/>
+                <FitsViewerInContext contextKey="default" src={this.state.url} app={this.props.app}/>
             </div>
             <ShootBton
                     activePath="$.backend.camera.selectedDevice"
