@@ -1,7 +1,8 @@
 #include <iostream>
 #include <unistd.h>
 #include <cstdint>
-
+#include <stdio.h>
+#include <sys/uio.h>
 #include <cgicc/CgiDefs.h>
 #include <cgicc/Cgicc.h>
 #include <cgicc/HTTPResponseHeader.h>
@@ -58,6 +59,97 @@ void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
 	}
 }
 
+struct own_jpeg_destination_mgr : public jpeg_destination_mgr {
+	uint8_t * buffer;
+	size_t buffSze;
+public:
+	own_jpeg_destination_mgr() {
+		init_destination = &static_init_destination;
+		empty_output_buffer = &static_empty_output_buffer;
+		term_destination = &static_term_destination;
+		buffSze = 65536;
+		buffer = (uint8_t*)malloc(buffSze);
+	}
+
+	~own_jpeg_destination_mgr() {
+		free(buffer);
+	}
+
+	void reset()
+	{
+		next_output_byte = buffer;
+		free_in_buffer = buffSze;
+	}
+
+	void writeBuff(size_t length)
+	{
+		int wanted, got;
+		if (length == 0) {
+			const char * text = "0\r\n\r\n";
+			wanted = strlen(text);
+			got = write(1, text, wanted);
+		} else {
+			char separator[64];
+			int sepLength = snprintf(separator, 64, "%lx\r\n", length);
+
+			struct iovec vecs[3];
+			vecs[0].iov_base = separator;
+			vecs[0].iov_len = sepLength;
+			vecs[1].iov_base = buffer;
+			vecs[1].iov_len = length;
+			vecs[2].iov_base = separator + sepLength - 2;
+			vecs[2].iov_len = 2;
+
+			wanted = vecs[0].iov_len + length + 2;
+
+			got = writev(1, vecs, 3);
+		}
+		if (got == -1) {
+			perror("write");
+			exit(0);
+		}
+		if (got < wanted) {
+			exit(0);
+		}
+	}
+
+	void flush()
+	{
+		size_t length = next_output_byte - buffer;
+		if (length) {
+			writeBuff(length);
+			reset();
+		}
+	}
+
+	void memberInit() {
+		reset();
+	}
+
+	void memberOutputBuffer() {
+		writeBuff(buffSze);
+		reset();
+	}
+
+	void memberTermDestination() {
+		flush();
+		writeBuff(0);
+	}
+
+	static void static_init_destination(j_compress_ptr cinfo)
+	{
+		((own_jpeg_destination_mgr*)cinfo->dest)->memberInit();
+	}
+	static boolean static_empty_output_buffer(j_compress_ptr cinfo)
+	{
+		((own_jpeg_destination_mgr*)cinfo->dest)->memberOutputBuffer();
+	}
+	static void static_term_destination(j_compress_ptr cinfo)
+	{
+		((own_jpeg_destination_mgr*)cinfo->dest)->memberTermDestination();
+	}
+};
+
 
 class JpegWriter
 {
@@ -80,6 +172,7 @@ class JpegWriter
 	 * struct, to avoid dangling-pointer problems.
 	 */
 	struct jpeg_error_mgr jerr;
+	own_jpeg_destination_mgr destMgr;
 public:
 	JpegWriter(int w, int h, int channels)
 	{
@@ -110,8 +203,7 @@ public:
 		   * VERY IMPORTANT: use "b" option to fopen() if you are on a machine that
 		   * requires it in order to write binary files.
 		   */
-		  jpeg_stdio_dest(&cinfo, stdout);
-
+		  cinfo.dest = &destMgr;
 		  /* Step 3: set parameters for compression */
 
 		  /* First we supply a description of the input image.
@@ -140,6 +232,8 @@ public:
 		   * Pass TRUE unless you are very sure of what you're doing.
 		   */
 		  jpeg_start_compress(&cinfo, TRUE);
+
+		  destMgr.flush();
 	}
 
 	void writeLines(uint8_t * grey, int height) {
@@ -316,6 +410,7 @@ int main (int argc, char ** argv) {
 	} else {
 		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
+	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 
 	double low = parseFormFloat(formData, "low", 0.05);
 	double high = parseFormFloat(formData, "high", 0.95);
@@ -356,6 +451,8 @@ int main (int argc, char ** argv) {
 
 	cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
 	header.addHeader("Content-Type", "image/jpeg");
+	header.addHeader("Transfer-Encoding", "chunked");
+	header.addHeader("connection", "close");
 	cout << header;
 
 	JpegWriter writer(w / (color ? 2 : 1), h / (color ? 2 : 1), color > 0 ? 3 : 1);
