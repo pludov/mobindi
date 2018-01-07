@@ -40,16 +40,24 @@ class LevelBar extends PureComponent {
     constructor(props) {
         super(props);
         this.sendUpdate = this.sendUpdate.bind(this);
+        this.finishMove = this.finishMove.bind(this);
     }
     sendUpdate(v) {
         console.log('changing to ', v.target.valueAsNumber);
         this.props.onChange(this.props.property, v.target.valueAsNumber);
     }
+    
+    finishMove(v) {
+        if (this.props.onFinishMove) {
+            this.props.onFinishMove();
+        }
+    }
+
     render() {
         return (
             <div className="ImageBarSetting">
                 <div className="ImageBarContainer">
-                    <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate}/>
+                    <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate} onMouseUp={this.finishMove}/>
                 </div>
             </div>
         );
@@ -81,6 +89,8 @@ class JQImageDisplay {
         this.loadingImgSrc = undefined;
         this.loadingImgPath = undefined;
         this.loadingToDisplay = false;
+        this.nextLoadingImgSrc = undefined;
+        
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
         this.onViewSettingsChangeCb = onViewSettingsChangeCb;
@@ -144,6 +154,7 @@ class JQImageDisplay {
             this.loadingImg = null;
             this.loadingImgPath = undefined;
             this.loadingImgSrc = undefined;
+            this.nextLoadingImgSrc = undefined;
             this.child.removeClass('Loading');
         }
     }
@@ -185,7 +196,27 @@ class JQImageDisplay {
         if (params !== undefined && 'levels' in params) {
             this.levels = params.levels;
         }
-        this.setSrc(path, this.computeSrc(path));
+
+        var newSrc = this.computeSrc(path);
+        if (this.loadingImg !== undefined && this.loadingImgPath == path) {
+            if (this.loadingImgSrc == newSrc) {
+                // Already loading... Just wait...
+                this.nextLoadingImgSrc = undefined;
+            } else {
+                // Enqueue the loading
+                this.nextLoadingImgSrc = newSrc;
+            }
+        } else {
+            this.nextLoadingImgSrc = undefined;
+            this.setSrc(path, newSrc);
+        }
+    }
+
+    flushView()
+    {
+        if (this.loadingImg !== undefined && this.nextLoadingImgSrc !== undefined) {
+            this.setSrc(this.loadingImgPath, this.nextLoadingImgSrc);
+        }
     }
 
     setSrc(path, src) {
@@ -598,6 +629,12 @@ class JQImageDisplay {
                 $(this.currentImg).css('height', $(previousImg).css('height'));
             }
         }
+
+        if (this.nextLoadingImgSrc !== undefined) {
+            var todo = this.nextLoadingImgSrc;
+            this.nextLoadingImgSrc = undefined;
+            this.setSrc(this.currentImgPath, todo);
+        }
     }
 
 
@@ -671,7 +708,11 @@ class FitsViewer extends PureComponent {
         this.props.onViewSettingsChange(newViewSettings);
     }
 
-
+    flushView() {
+        if (this.ImageDisplay !== undefined) {
+            this.ImageDisplay.flushView();
+        }
+    }
     render() {
         console.log('state is ', this.state);
         var contextMenu;
@@ -685,7 +726,11 @@ class FitsViewer extends PureComponent {
         var histogramView;
         if (this.state.histogramView !== null) {
             var viewSettings = this.getViewSettingsCopy();
-            histogramView = <LevelBar property={this.state.histogramView} onChange={this.updateHisto} value={viewSettings.levels[this.state.histogramView]}></LevelBar>;
+            histogramView = <LevelBar 
+                    property={this.state.histogramView} 
+                    onChange={this.updateHisto} 
+                    onFinishMove={this.flushView}
+                    value={viewSettings.levels[this.state.histogramView]}/>;
         } else {
             histogramView = null;
         }
