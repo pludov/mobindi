@@ -261,6 +261,53 @@ class JQImageDisplay {
         this.child.removeClass('Error');
     }
 
+    loaded(newSrc, newImage, result) {
+        if (newImage !== this.loadingImg) {
+            console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
+            return;
+        }
+
+        this.child.removeClass('Loading');
+        if (result) {
+            this.child.addClass('Success');
+        } else {
+            this.child.addClass('Error');
+        }
+
+        var previousSize = this.currentImageSize;
+
+        var previousImg = this.currentImg;
+        var previousImgSrc = this.currentImgSrc;
+
+        this.loadingImg = undefined;
+        this.currentImg = result ? newImage : undefined;
+        this.currentImgSrc = newSrc;
+        this.currentImgPath = this.loadingImgPath;
+        this.child.empty();
+
+        if (this.currentImg !== undefined) {
+            this.currentImageSize = {x: newImage.naturalWidth, y: newImage.naturalHeight};
+            
+            $(this.currentImg).css('position', 'relative');
+
+            this.child.append(this.currentImg);
+
+            if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
+                this.bestFit();
+            } else {
+                $(this.currentImg).css('top', $(previousImg).css('top'));
+                $(this.currentImg).css('left', $(previousImg).css('left'));
+                $(this.currentImg).css('width', $(previousImg).css('width'));
+                $(this.currentImg).css('height', $(previousImg).css('height'));
+            }
+        }
+
+        if (this.nextLoadingImgSrc !== undefined) {
+            var todo = this.nextLoadingImgSrc;
+            this.nextLoadingImgSrc = undefined;
+            this.setSrc(this.currentImgPath, todo);
+        }
+    }
 
     touchstart(e) {
         e.preventDefault();
@@ -589,58 +636,6 @@ class JQImageDisplay {
         this.setRawCurrentImagePos(this.getBestFit());
         this.atBestFit = true;
     }
-
-
-
-    loaded(newSrc, newImage, result) {
-        if (newImage !== this.loadingImg) {
-            console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
-            return;
-        }
-
-        this.child.removeClass('Loading');
-        if (result) {
-            this.child.addClass('Success');
-        } else {
-            this.child.addClass('Error');
-        }
-
-        var previousSize = this.currentImageSize;
-
-        var previousImg = this.currentImg;
-        var previousImgSrc = this.currentImgSrc;
-
-        this.loadingImg = undefined;
-        this.currentImg = result ? newImage : undefined;
-        this.currentImgSrc = newSrc;
-        this.currentImgPath = this.loadingImgPath;
-        this.child.empty();
-
-        if (this.currentImg !== undefined) {
-            this.currentImageSize = {x: newImage.naturalWidth, y: newImage.naturalHeight};
-            
-            $(this.currentImg).css('position', 'relative');
-
-            this.child.append(this.currentImg);
-
-            if (previousImg == undefined || previousSize.x != this.currentImageSize.x || previousSize.y != this.currentImageSize.y) {
-                this.bestFit();
-            } else {
-                $(this.currentImg).css('top', $(previousImg).css('top'));
-                $(this.currentImg).css('left', $(previousImg).css('left'));
-                $(this.currentImg).css('width', $(previousImg).css('width'));
-                $(this.currentImg).css('height', $(previousImg).css('height'));
-            }
-        }
-
-        if (this.nextLoadingImgSrc !== undefined) {
-            var todo = this.nextLoadingImgSrc;
-            this.nextLoadingImgSrc = undefined;
-            this.setSrc(this.currentImgPath, todo);
-        }
-    }
-
-
 }
 
 var uid = 0;
