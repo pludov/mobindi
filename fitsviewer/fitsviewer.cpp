@@ -42,6 +42,11 @@ using namespace cgicc;
 
 using nlohmann::json;
 
+static bool disableHttp = false;
+static bool disableOutput = false;
+
+
+
 void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
 {
 
@@ -67,7 +72,7 @@ public:
 		init_destination = &static_init_destination;
 		empty_output_buffer = &static_empty_output_buffer;
 		term_destination = &static_term_destination;
-		buffSze = 65536;
+		buffSze = 16384;
 		buffer = (uint8_t*)malloc(buffSze);
 	}
 
@@ -85,6 +90,9 @@ public:
 	{
 		int wanted, got;
 		if (length == 0) {
+			if (disableHttp) {
+				return;
+			}
 			const char * text = "0\r\n\r\n";
 			wanted = strlen(text);
 			got = write(1, text, wanted);
@@ -100,7 +108,15 @@ public:
 			vecs[2].iov_base = separator + sepLength - 2;
 			vecs[2].iov_len = 2;
 
+
 			wanted = vecs[0].iov_len + length + 2;
+
+			if (disableHttp) {
+				wanted -= vecs[0].iov_len;
+				vecs[0].iov_len = 0;
+				wanted -= vecs[2].iov_len;
+				vecs[2].iov_len = 0;
+			}
 
 			got = writev(1, vecs, 3);
 		}
@@ -184,6 +200,8 @@ public:
 
 	void start()
 	{
+		if (disableOutput) return;
+
 		  /* Step 1: allocate and initialize JPEG compression object */
 
 		  /* We have to set up the error handler first, in case the initialization
@@ -238,6 +256,8 @@ public:
 	}
 
 	void writeLines(uint8_t * grey, int height) {
+		if (disableOutput) return;
+
 		JSAMPROW row_pointer[32];	/* pointer to JSAMPLE row[s] */
 		int row_stride;		/* physical row width in image buffer */
 
@@ -265,6 +285,8 @@ public:
 
 	void finish()
 	{
+		if (disableOutput) return;
+
 		/* Step 6: Finish compression */
 		jpeg_finish_compress(&cinfo);
 
@@ -353,6 +375,331 @@ void applyScale(u_int16_t * data, int w, int h, int min, int med, int max, u_int
 	}
 }
 
+#define PREPARE_SCALE(suffix)	{if (max##suffix <= min##suffix) max##suffix = min##suffix + 1;}
+#define SETVALUE(offset, suffix)	{ if (v##suffix > max##suffix) v##suffix = max##suffix; v##suffix -= min##suffix; if (v##suffix < 0) v##suffix = 0; v##suffix = v##suffix * 255 / (max##suffix - min##suffix);result[offset]=v##suffix; }
+
+static int binDiv(int width, int bin)
+{
+	if (!bin) return width;
+	int rslt = width >> bin;
+	if ((rslt << bin) < width) {
+		rslt++;
+	}
+	return rslt;
+}
+
+static int32_t rectSum(uint16_t * data, int w, int h, int sx, int sy)
+{
+	int32_t result = 0;
+	while(sy > 0) {
+		for(int i = 0; i < sx; ++i)
+			result += data[i];
+		data += w;
+		sy--;
+	}
+	return result;
+}
+
+static void rectSumBayer(uint16_t * data, int w, int h, int sx, int sy,
+		int16_t offset_r, int16_t second_r,
+		int16_t offset_g, int16_t second_g,
+		int16_t offset_b, int16_t second_b,
+		int32_t & r, int32_t & g, int32_t & b)
+{
+	r = 0;
+	g = 0;
+	b = 0;
+
+	int32_t result = 0;
+	while(sy > 0) {
+		for(int i = 0; i < sx; i += 2)
+		{
+			r += data[i + offset_r];
+			if (second_r != -1) r += data[i + second_r];
+			g += data[i + offset_g];
+			if (second_g != -1) g += data[i + second_g];
+			b += data[i + offset_b];
+			if (second_b != -1) b += data[i + second_b];
+		}
+		data += 2*w;
+		sy-=2;
+	}
+}
+
+static void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int sy,
+		int32_t & r, int32_t & g, int32_t & b)
+{
+	r = 0;
+	g = 0;
+	b = 0;
+
+	int32_t result = 0;
+	while(sy > 0) {
+		for(int i = 0; i < sx; i += 2)
+		{
+			r += data[i];
+			g += data[i + 1];
+			g += data[i + w];
+			b += data[i + w + 1];
+		}
+		data += 2*w;
+		sy-=2;
+	}
+}
+
+void applyScaleBin2(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
+{
+	PREPARE_SCALE();
+	int i = 0;
+	for(int by = 0; by < h; by += 2)
+	{
+		for(int bx = 0; bx < w; bx += 2)
+		{
+			int32_t v = data[bx] + data[bx + 1] + data[w + bx] + data[w + bx + 1];
+
+			v /= 4;
+			SETVALUE(0,);
+			result++;
+		}
+		data += w * 2;
+	}
+}
+
+void applyScaleBinAny(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result, int bin)
+{
+	int binStep = 1 << bin;
+	PREPARE_SCALE();
+	for(int by = 0; by < h; by += binStep)
+	{
+		bool shortY = by + binStep >= h;
+
+		int sy = shortY ? h - by : binStep;
+
+		for(int bx = 0; bx < w; bx += binStep)
+		{
+			bool shortX = bx + binStep >= w;
+
+			int sx = shortX ? w - bx : binStep;
+			int32_t v = rectSum(data + bx, w, h, sx, sy);
+			if (shortX || shortY) {
+				v /= (sx * sy);
+			} else {
+				v = v >> (bin+bin);
+			}
+			SETVALUE(0,);
+			result++;
+		}
+		data += w * binStep;
+	}
+}
+
+// data, w, h
+// result, de taille w/bin, h/bin
+void applyScaleBin(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result, int bin)
+{
+	if (bin == 1 && ((w % 2) == 0) && ((h % 2) == 0)) {
+		applyScaleBin2(data, w, h, min, med, max, result);
+	} else {
+		applyScaleBinAny(data, w, h, min, med, max, result, bin);
+	}
+}
+
+inline void applyScaleBinBayerAny(u_int16_t * data, int w, int h,
+				int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
+				int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
+				int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+				u_int8_t * result, int bin)
+{
+	int binStep = 1 << bin;
+	PREPARE_SCALE(_r);
+	PREPARE_SCALE(_g);
+	PREPARE_SCALE(_b);
+	for(int by = 0; by < h; by += binStep)
+	{
+		bool shortY = by + binStep >= h;
+
+		int sy = shortY ? h - by : binStep;
+
+		for(int bx = 0; bx < w; bx += binStep)
+		{
+			bool shortX = bx + binStep >= w;
+
+			int sx = shortX ? w - bx : binStep;
+			int32_t v_r, v_g, v_b;
+			rectSumBayer(data + bx, w, h, sx, sy,
+					offset_r, second_r,
+					offset_g, second_g,
+					offset_b, second_b,
+					v_r, v_g, v_b);
+
+			if (shortX || shortY) {
+				v_r /= (binDiv(sx, 1) * binDiv(sy,1));
+				v_g /= (binDiv(sx, 1) * binDiv(sy,1));
+				v_b /= (binDiv(sx, 1) * binDiv(sy,1));
+			} else {
+				v_r = v_r >> (2 * bin - 2 + (second_r != -1 ? 1 : 0));
+				v_g = v_g >> (2 * bin - 2 + (second_g != -1 ? 1 : 0));
+				v_b = v_b >> (2 * bin - 2 + (second_b != -1 ? 1 : 0));
+			}
+
+			SETVALUE(0,_r);
+			SETVALUE(1,_g);
+			SETVALUE(2,_b);
+			result+=3;
+		}
+		data += w * binStep;
+	}
+}
+
+inline void applyScaleBinBayerRGGBAny(u_int16_t * data, int w, int h,
+				int min_r, int med_r, int max_r,
+				int min_g, int med_g, int max_g,
+				int min_b, int med_b, int max_b,
+				u_int8_t * result, int bin)
+{
+	int binStep = 1 << bin;
+
+	PREPARE_SCALE(_r);
+	PREPARE_SCALE(_g);
+	PREPARE_SCALE(_b);
+	for(int by = 0; by < h; by += binStep)
+	{
+		bool shortY = by + binStep >= h;
+
+		int sy = shortY ? h - by : binStep;
+
+		for(int bx = 0; bx < w; bx += binStep)
+		{
+			bool shortX = bx + binStep >= w;
+
+			int sx = shortX ? w - bx : binStep;
+			int32_t v_r, v_g, v_b;
+			rectSumBayerRGGB(data + bx, w, h, sx, sy,
+					v_r, v_g, v_b);
+
+			if (shortX || shortY) {
+				v_r /= (binDiv(sx, 1) * binDiv(sy,1));
+				v_g /= (binDiv(sx, 1) * binDiv(sy,1) * 2);
+				v_b /= (binDiv(sx, 1) * binDiv(sy,1));
+			} else {
+				v_r = v_r >> (2 * bin - 2);
+				v_g = v_g >> (2 * bin - 2 + 1);
+				v_b = v_b >> (2 * bin - 2);
+			}
+
+			SETVALUE(0,_r);
+			SETVALUE(1,_g);
+			SETVALUE(2,_b);
+			result+=3;
+		}
+		data += w * binStep;
+	}
+}
+inline void applyScaleBinBayer2(u_int16_t * data, int w, int h,
+		int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
+		int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
+		int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+		u_int8_t * result)
+{
+	PREPARE_SCALE(_r);
+	PREPARE_SCALE(_g);
+	PREPARE_SCALE(_b);
+	for(int by = 0; by < h; by += 2)
+	{
+		for(int bx = 0; bx < w; bx += 2)
+		{
+			{
+				int32_t v_r = data[bx + offset_r];
+				if (second_r != -1) {
+					v_r = data[bx + second_r];
+				}
+				SETVALUE(0,_r);
+			}
+
+			{
+				int32_t v_g = data[bx + offset_g];
+				if (second_g != -1) {
+					v_g = data[bx + second_g];
+				}
+				SETVALUE(1,_g);
+			}
+
+			{
+				int32_t v_b = data[bx + offset_b];
+				if (second_b != -1) {
+					v_b = data[bx + second_b];
+				}
+				SETVALUE(2,_b);
+			}
+			result+=3;
+		}
+		data += w * 2;
+	}
+}
+
+
+void applyScaleBinBayerRGGB2(u_int16_t * data, int w, int h,
+		int min_r, int med_r, int max_r,
+		int min_g, int med_g, int max_g,
+		int min_b, int med_b, int max_b,
+		u_int8_t * result)
+{
+	PREPARE_SCALE(_r);
+	PREPARE_SCALE(_g);
+	PREPARE_SCALE(_b);
+	for(int by = 0; by < h; by += 2)
+	{
+		for(int bx = 0; bx < w; bx += 2)
+		{
+			{
+				int32_t v_r = data[bx];
+				SETVALUE(0,_r);
+			}
+
+			{
+				int32_t v_g = (data[bx + 1] + data[bx + w]) / 2;
+				SETVALUE(1,_g);
+			}
+
+			{
+				int32_t v_b = data[bx + w + 1];
+				SETVALUE(2,_b);
+			}
+			result+=3;
+		}
+		data += w * 2;
+	}
+}
+void applyScaleBinBayer(u_int16_t * data, int w, int h,
+						int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
+						int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
+						int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+						u_int8_t * result, int bin)
+{
+	if (bin == 1) {
+		applyScaleBinBayer2(data, w, h,
+								min_r, med_r, max_r, offset_r, second_r,
+								min_g, med_g, max_g, offset_g, second_g,
+								min_b, med_b, max_b, offset_b, second_b,
+								result);
+	} else {
+		if (offset_r == 0 && offset_g == 1 && second_g == w && offset_b == w + 1) {
+			applyScaleBinBayerRGGBAny(data, w, h,
+				min_r, med_r, max_r,
+				min_g, med_g, max_g,
+				min_b, med_b, max_b,
+				result, bin);
+		} else {
+			applyScaleBinBayerAny(data, w, h,
+				min_r, med_r, max_r, offset_r, second_r,
+				min_g, med_g, max_g, offset_g, second_g,
+				min_b, med_b, max_b, offset_b, second_b,
+				result, bin);
+		}
+	}
+}
+
+
 void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
 {
 	h /= 2;
@@ -397,6 +744,85 @@ double parseFormFloat(Cgicc & formData, const std::string & name, double default
 	}
 }
 
+static void removeArgs(int & argc, char ** argv, int at, int count)
+{
+	int pos = at;
+	while(pos + count < argc) {
+		argv[pos] = argv[pos + count];
+		pos++;
+	}
+	argc -= count;
+}
+
+static bool findArg(int & argc, char ** argv, const char * wanted)
+{
+	for(int i = 1; i < argc; ++i)
+	{
+		if (!strcmp(argv[i], wanted)) {
+			removeArgs(argc, argv, i, 1);
+			return true;
+		}
+	}
+	return false;
+}
+
+class ImageDesc {
+public:
+	int width, height;
+	bool color;
+};
+
+void to_json(nlohmann::json&j, const ImageDesc & i) {
+	j = nlohmann::json::object();
+	j["width"] = i.width;
+	j["height"] = i.height;
+	j["color"] = i.color;
+}
+
+
+
+void sendHttpHeader(const cgicc::HTTPResponseHeader & header)
+{
+	if (!disableHttp) {
+		cout << header;
+	}
+}
+
+
+static void findBayerOffset(const std::string & bayerStr, char which, int8_t & offset, int8_t & second)
+{
+	const char * bayer = bayerStr.c_str();
+	int p = 0;
+	while((bayer[p]) && (bayer[p] != which)) {
+		p++;
+	}
+	if (!bayer[p]) {
+		offset = 0;
+		second = -1;
+		return;
+	}
+	offset = p;
+	p++;
+	while((bayer[p]) && (bayer[p] != which)) {
+		p++;
+	}
+	if (!bayer[p]) {
+		second = -1;
+	} else {
+		second = p;
+	}
+}
+
+static int16_t bayerOffset(int8_t bayer, int w)
+{
+	if (bayer == -1) return -1;
+	if (bayer < 2) {
+		return bayer;
+	} else {
+		return bayer + w - 2;
+	}
+}
+
 int main (int argc, char ** argv) {
 	Cgicc formData;
 	// 128Mo cache
@@ -404,7 +830,21 @@ int main (int argc, char ** argv) {
 
 	string path;
 
-	form_iterator fi = formData.getElement("path");
+	// This is a power of two of the actual bin (0 => 1x1)
+	int bin = 0;
+
+	bool wantSize = findArg(argc, argv, "--size");
+	disableHttp = findArg(argc, argv, "--no-http");
+	disableOutput = findArg(argc, argv, "--no-output");
+	bool forceGreyscale = findArg(argc, argv, "--force-greyscale");
+
+	form_iterator fi;
+	fi = formData.getElement("size");
+	if ((!fi->isEmpty()) && (fi != (*formData).end()) && (**fi == "true")) {
+		wantSize = true;
+	}
+
+	fi = formData.getElement("path");
 	if( !fi->isEmpty() && fi != (*formData).end()) {
 		path =  **fi;
 	} else if (argc > 1) {
@@ -414,8 +854,16 @@ int main (int argc, char ** argv) {
 	}
 //	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 
-	double low = parseFormFloat(formData, "low", 0.05);
-	double high = parseFormFloat(formData, "high", 0.95);
+	fi = formData.getElement("bin");
+	if ((!fi->isEmpty()) && (fi != (*formData).end())) {
+		bin = stod(**fi);
+		if (bin < 0) {
+			bin = 0;
+		}
+		if (bin > 8) {
+			bin = 8;
+		}
+	}
 
 
 //	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
@@ -427,20 +875,39 @@ int main (int argc, char ** argv) {
 
 	SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
 	if (aduPlane->hasError()) {
-		cgicc::HTTPResponseHeader header("HTTP/1.1", 500, aduPlane->getErrorDetails().c_str());
+		sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, aduPlane->getErrorDetails().c_str()));
 		exit(1);
 	}
+	RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
+
+	if (wantSize) {
+		cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+		header.addHeader("Content-Type", "application/json");
+		header.addHeader("connection", "close");
+		sendHttpHeader(header);
+
+		ImageDesc desc;
+		desc.width = storage->w;
+		desc.height = storage->h;
+		desc.color = storage->hasColors();
+
+		nlohmann::json j = desc;
+		cout << j.dump() << "\n";
+		exit(0);
+	}
+
+	double low = parseFormFloat(formData, "low", 0.05);
+	double high = parseFormFloat(formData, "high", 0.95);
 
 	contentRequest.fitsContent.clear();
 	contentRequest.histogram.build();
 	contentRequest.histogram->source.path = path;
 	SharedCache::EntryRef histogram(cache->getEntry(contentRequest));
 	if (histogram->hasError()) {
-		cgicc::HTTPResponseHeader header("HTTP/1.1", 500, histogram->getErrorDetails().c_str());
+		sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, histogram->getErrorDetails().c_str()));
 		exit(1);
 	}
 
-	RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
 	HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
 
 	int w = storage->w;
@@ -449,22 +916,29 @@ int main (int argc, char ** argv) {
 
 	uint16_t * data = storage->data;
 
-	bool color = bayer.length() > 0;
+	bool color = forceGreyscale ? false : bayer.length() > 0;
+
 
 	cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
 	header.addHeader("Content-Type", "image/jpeg");
 	header.addHeader("Transfer-Encoding", "chunked");
 	header.addHeader("connection", "close");
-	cout << header;
+	sendHttpHeader(header);
 
-	JpegWriter writer(w / (color ? 2 : 1), h / (color ? 2 : 1), color > 0 ? 3 : 1);
+
+	if (color) {
+		// Bin 1 (aka debayer) not supported.
+		if (bin < 1) {
+			bin = 1;
+		}
+	}
+
+	JpegWriter writer(binDiv(w, bin), binDiv(h, bin), color > 0 ? 3 : 1);
 	writer.start();
-	fflush(stdout);
-	int nbpix = w * h;
 
-	int stripHeight = 32;
+	int stripHeight = 32 << bin;
 	// do histogram for each channel !
-	if (bayer.length() > 0) {
+	if (color) {
 		int levels[3][3];
 		for(int i = 0; i < 3; ++i) {
 			auto channelStorage = histogramStorage->channel(i);
@@ -472,53 +946,71 @@ int main (int argc, char ** argv) {
 			levels[i][1]= channelStorage->getLevel((low + high) / 2);
 			levels[i][2]= channelStorage->getLevel(high);
 		}
-		stripHeight *= 2;
 
-		u_int8_t * result = new u_int8_t[w * stripHeight];
-		u_int8_t * superPixel = (u_int8_t*)malloc(3 * (w * stripHeight / 4));
+		u_int8_t * result = new u_int8_t[3 * binDiv(w, bin) * (stripHeight >> bin)];
 
 		int basey = 0;
 		while(basey < h) {
 			int yleft = h - basey;
 			if (yleft > stripHeight) yleft = stripHeight;
 
-			for(int i = 0; i < 4; ++i) {
-				int bayerOffset = (i & 1) + ((i & 2) >> 1) * w;
-				int hist = RawDataStorage::getRGBIndex(bayer[i]);
-				applyScaleBayer(data + basey * w + bayerOffset, w, yleft, levels[hist][0], levels[hist][1], levels[hist][2], result + bayerOffset);
-			}
 
-			debayer(result, w, yleft, superPixel);
+			// Do: R, G, B
+			int8_t offset_r, second_r;
+			int8_t offset_g, second_g;
+			int8_t offset_b, second_b;
+			findBayerOffset(bayer, 'R', offset_r, second_r);
+			findBayerOffset(bayer, 'G', offset_g, second_g);
+			findBayerOffset(bayer, 'B', offset_b, second_b);
+			applyScaleBinBayer(data + basey * w, w, yleft,
+					levels[0][0], levels[0][1], levels[0][2], bayerOffset(offset_r, w), bayerOffset(second_r, w),
+					levels[1][0], levels[1][1], levels[1][2], bayerOffset(offset_g, w), bayerOffset(second_g, w),
+					levels[2][0], levels[2][1], levels[2][2], bayerOffset(offset_b, w), bayerOffset(second_b, w),
+					result,
+					bin);
 
-			writer.writeLines(superPixel, yleft / 2);
+
+//			for(int i = 0; i < 4; ++i) {
+//				int bayerOffset = (i & 1) + ((i & 2) >> 1) * w;
+//				int hist = RawDataStorage::getRGBIndex(bayer[i]);
+//				applyScaleBayer(data + basey * w + bayerOffset, w, yleft, levels[hist][0], levels[hist][1], levels[hist][2], result + bayerOffset);
+//			}
+
+			// debayer(result, w, yleft, superPixel);
+
+			writer.writeLines(result, binDiv(yleft, bin));
 			fflush(stdout);
 			basey += stripHeight;
 		}
 
 		delete [] result;
-		free(superPixel);
 	} else {
 		auto channelStorage = histogramStorage->channel(0);
 
 		int min = channelStorage->getLevel(low);
 		int med = channelStorage->getLevel((low + high) / 2);
 		int max = channelStorage->getLevel(high);
-		fprintf(stderr, "levels are %d %d %d", min, med, max);
 
-		u_int8_t * result = new u_int8_t[w * stripHeight];
+		u_int8_t * result = new u_int8_t[binDiv(w, bin) * (stripHeight >> bin)];
 
+		// faire le bin !
 		int basey = 0;
 		while(basey < h) {
-			int yleft = h - basey;
+			int yleft = (h - basey);
 			if (yleft > stripHeight) yleft = stripHeight;
-			applyScale(data + basey * w, w, yleft, min, med, max, result);
-			writer.writeLines(result, yleft);
+			if (bin > 0) {
+				applyScaleBin(data + basey * w, w, yleft, min, med, max, result, bin);
+			} else {
+				applyScale(data + basey * w, w, yleft, min, med, max, result);
+			}
+			writer.writeLines(result, binDiv(yleft, bin));
 
 			basey += stripHeight;
 		}
 		delete(result);
 	}
 	writer.finish();
+
 	histogram->release();
 	return 0;
 }
