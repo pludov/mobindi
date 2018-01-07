@@ -336,17 +336,18 @@ void write_png_file(u_int8_t * grey, int width, int height)
 
 void applyScale(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
 {
-	if (max < min) {
-		max = min;
+	if (max <= min) {
+		max = min + 1;
 	}
 	int nbpix = w * h;
+
 	for(int i = 0; i < nbpix; ++i) {
 		int v = data[i];
 		if (v > max) v = max;
 		v -= min;
 		if (v < 0) v = 0;
 
-		v = v * 256 / (max - min + 1);
+		v = v * 255 / (max - min);
 		result[i] = v;
 	}
 }
@@ -355,8 +356,8 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 {
 	h /= 2;
 	w /= 2;
-	if (max < min) {
-		max = min;
+	if (max <= min) {
+		max = min + 1;
 	}
 	while(h > 0) {
 		int tx = w;
@@ -367,7 +368,7 @@ void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, 
 			v -= min;
 			if (v < 0) v = 0;
 
-			v = v * 256 / (max - min + 1);
+			v = v * 255 / (max - min);
 			(*result) = v;
 			result+= 2;
 			tx--;
