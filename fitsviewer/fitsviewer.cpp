@@ -223,6 +223,7 @@ public:
 		   */
 
 		  jpeg_set_quality(&cinfo, 90, TRUE /* limit to baseline-JPEG values */);
+		  cinfo.dct_method = JDCT_IFAST;
 
 		  // For progressive, use: jpeg_simple_progression(&cinfo);
 		  // But in that case, the compression will not be streamed.
