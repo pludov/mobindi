@@ -410,7 +410,7 @@ int main (int argc, char ** argv) {
 	} else {
 		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 	}
-	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
+//	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 
 	double low = parseFormFloat(formData, "low", 0.05);
 	double high = parseFormFloat(formData, "high", 0.95);
