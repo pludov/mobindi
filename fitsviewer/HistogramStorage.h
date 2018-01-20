@@ -59,6 +59,9 @@ struct HistogramStorage {
 
 	HistogramChannelData * channel(int ch)
 	{
+		if (ch >= channelCount) {
+			ch = channelCount - 1;
+		}
 		int currentId = 0;
 		char * ptr = datas;
 		HistogramChannelData * current = (HistogramChannelData*)ptr;

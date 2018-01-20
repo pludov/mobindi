@@ -213,6 +213,7 @@ class JQImageDisplay {
 
             str = 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&path=' + encodeURIComponent(path);
             str += '&low=' + this.levels.low;
+            str += '&med=' + this.levels.medium;
             str += '&high=' + this.levels.high;
         } else {
             str = "#blank";

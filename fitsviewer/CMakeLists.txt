@@ -21,6 +21,7 @@ set(SRCS
 	Messages.cpp
 	RawContent.cpp
 	Histogram.cpp
+	LookupTable.cpp
     )
 
 add_executable(fitsviewer.cgi ${SRCS})

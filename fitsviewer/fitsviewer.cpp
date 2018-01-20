@@ -36,6 +36,7 @@
 #include "SharedCache.h"
 #include "RawDataStorage.h"
 #include "HistogramStorage.h"
+#include "LookupTable.h"
 
 using namespace std;
 using namespace cgicc;
@@ -46,23 +47,6 @@ static bool disableHttp = false;
 static bool disableOutput = false;
 
 
-
-void debayer(u_int8_t * data, int width, int height, u_int8_t * target)
-{
-
-	for(int y = 0; y < height; y += 2)
-	{
-		for(int x = 0; x < width; x += 2)
-		{
-			target[0] = data[0];
-			target[1] = (((int)data[1]) + data[width]) / 2;
-			target[2] = data[width + 1];
-			target += 3;
-			data+= 2;
-		}
-		data += width;
-	}
-}
 
 struct own_jpeg_destination_mgr : public jpeg_destination_mgr {
 	uint8_t * buffer;
@@ -357,28 +341,16 @@ void write_png_file(u_int8_t * grey, int width, int height)
         fclose(fp);
 }
 
-void applyScale(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
+static inline void applyScale(u_int16_t * data, int w, int h, const LookupTable & table, u_int8_t * result)
 {
-	if (max <= min) {
-		max = min + 1;
-	}
 	int nbpix = w * h;
 
 	for(int i = 0; i < nbpix; ++i) {
-		int v = data[i];
-		if (v > max) v = max;
-		v -= min;
-		if (v < 0) v = 0;
-
-		v = v * 255 / (max - min);
-		result[i] = v;
+		result[i] = table.fastGet(data[i]);
 	}
 }
 
-#define PREPARE_SCALE(suffix)	{if (max##suffix <= min##suffix) max##suffix = min##suffix + 1;}
-#define SETVALUE(offset, suffix)	{ if (v##suffix > max##suffix) v##suffix = max##suffix; v##suffix -= min##suffix; if (v##suffix < 0) v##suffix = 0; v##suffix = v##suffix * 255 / (max##suffix - min##suffix);result[offset]=v##suffix; }
-
-static int binDiv(int width, int bin)
+static inline int binDiv(int width, int bin)
 {
 	if (!bin) return width;
 	int rslt = width >> bin;
@@ -388,22 +360,22 @@ static int binDiv(int width, int bin)
 	return rslt;
 }
 
-static int32_t rectSum(uint16_t * data, int w, int h, int sx, int sy)
+static inline int32_t rectSum(uint16_t * data, int w, int h, int sx, int sy, const LookupTable & table)
 {
 	int32_t result = 0;
 	while(sy > 0) {
 		for(int i = 0; i < sx; ++i)
-			result += data[i];
+			result += table.fastGet(data[i]);
 		data += w;
 		sy--;
 	}
 	return result;
 }
 
-static void rectSumBayer(uint16_t * data, int w, int h, int sx, int sy,
-		int16_t offset_r, int16_t second_r,
-		int16_t offset_g, int16_t second_g,
-		int16_t offset_b, int16_t second_b,
+static inline void rectSumBayer(uint16_t * data, int w, int h, int sx, int sy,
+		const LookupTable & table_r, int16_t offset_r, int16_t second_r,
+		const LookupTable & table_g, int16_t offset_g, int16_t second_g,
+		const LookupTable & table_b, int16_t offset_b, int16_t second_b,
 		int32_t & r, int32_t & g, int32_t & b)
 {
 	r = 0;
@@ -414,19 +386,22 @@ static void rectSumBayer(uint16_t * data, int w, int h, int sx, int sy,
 	while(sy > 0) {
 		for(int i = 0; i < sx; i += 2)
 		{
-			r += data[i + offset_r];
-			if (second_r != -1) r += data[i + second_r];
-			g += data[i + offset_g];
-			if (second_g != -1) g += data[i + second_g];
-			b += data[i + offset_b];
-			if (second_b != -1) b += data[i + second_b];
+			r += table_r.fastGet(data[i + offset_r]);
+			if (second_r != -1) r += table_r.fastGet(data[i + second_r]);
+			g += table_g.fastGet(data[i + offset_g]);
+			if (second_g != -1) g += table_g.fastGet(data[i + second_g]);
+			b += table_b.fastGet(data[i + offset_b]);
+			if (second_b != -1) b += table_b.fastGet(data[i + second_b]);
 		}
 		data += 2*w;
 		sy-=2;
 	}
 }
 
-static void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int sy,
+static inline void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int sy,
+		const LookupTable & table_r,
+		const LookupTable & table_g,
+		const LookupTable & table_b,
 		int32_t & r, int32_t & g, int32_t & b)
 {
 	r = 0;
@@ -437,38 +412,38 @@ static void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int sy,
 	while(sy > 0) {
 		for(int i = 0; i < sx; i += 2)
 		{
-			r += data[i];
-			g += data[i + 1];
-			g += data[i + w];
-			b += data[i + w + 1];
+			r += table_r.fastGet(data[i]);
+			g += table_g.fastGet(data[i + 1]);
+			g += table_g.fastGet(data[i + w]);
+			b += table_b.fastGet(data[i + w + 1]);
 		}
 		data += 2*w;
 		sy-=2;
 	}
 }
 
-void applyScaleBin2(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
+static inline void applyScaleBin2(u_int16_t * data, int w, int h, const LookupTable & lookupTable, u_int8_t * result)
 {
-	PREPARE_SCALE();
 	int i = 0;
 	for(int by = 0; by < h; by += 2)
 	{
 		for(int bx = 0; bx < w; bx += 2)
 		{
-			int32_t v = data[bx] + data[bx + 1] + data[w + bx] + data[w + bx + 1];
-
+			int16_t v = lookupTable.fastGet(data[bx]);
+			v += lookupTable.fastGet(data[bx + 1]);
+			v += lookupTable.fastGet(data[bx + w]);
+			v += lookupTable.fastGet(data[bx + w + 1]);
 			v /= 4;
-			SETVALUE(0,);
+			*result = v;
 			result++;
 		}
 		data += w * 2;
 	}
 }
 
-void applyScaleBinAny(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result, int bin)
+static inline void applyScaleBinAny(u_int16_t * data, int w, int h, const LookupTable & lookupTable, u_int8_t * result, int bin)
 {
 	int binStep = 1 << bin;
-	PREPARE_SCALE();
 	for(int by = 0; by < h; by += binStep)
 	{
 		bool shortY = by + binStep >= h;
@@ -480,13 +455,13 @@ void applyScaleBinAny(u_int16_t * data, int w, int h, int min, int med, int max,
 			bool shortX = bx + binStep >= w;
 
 			int sx = shortX ? w - bx : binStep;
-			int32_t v = rectSum(data + bx, w, h, sx, sy);
+			int32_t v = rectSum(data + bx, w, h, sx, sy, lookupTable);
 			if (shortX || shortY) {
 				v /= (sx * sy);
 			} else {
 				v = v >> (bin+bin);
 			}
-			SETVALUE(0,);
+			*result = v;
 			result++;
 		}
 		data += w * binStep;
@@ -495,25 +470,22 @@ void applyScaleBinAny(u_int16_t * data, int w, int h, int min, int med, int max,
 
 // data, w, h
 // result, de taille w/bin, h/bin
-void applyScaleBin(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result, int bin)
+static inline void applyScaleBin(u_int16_t * data, int w, int h, const LookupTable & lookupTable, u_int8_t * result, int bin)
 {
 	if (bin == 1 && ((w % 2) == 0) && ((h % 2) == 0)) {
-		applyScaleBin2(data, w, h, min, med, max, result);
+		applyScaleBin2(data, w, h, lookupTable, result);
 	} else {
-		applyScaleBinAny(data, w, h, min, med, max, result, bin);
+		applyScaleBinAny(data, w, h, lookupTable, result, bin);
 	}
 }
 
-inline void applyScaleBinBayerAny(u_int16_t * data, int w, int h,
-				int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
-				int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
-				int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+static inline void applyScaleBinBayerAny(u_int16_t * data, int w, int h,
+				const LookupTable & table_r, int16_t offset_r, int16_t second_r,
+				const LookupTable & table_g, int16_t offset_g, int16_t second_g,
+				const LookupTable & table_b, int16_t offset_b, int16_t second_b,
 				u_int8_t * result, int bin)
 {
 	int binStep = 1 << bin;
-	PREPARE_SCALE(_r);
-	PREPARE_SCALE(_g);
-	PREPARE_SCALE(_b);
 	for(int by = 0; by < h; by += binStep)
 	{
 		bool shortY = by + binStep >= h;
@@ -527,9 +499,9 @@ inline void applyScaleBinBayerAny(u_int16_t * data, int w, int h,
 			int sx = shortX ? w - bx : binStep;
 			int32_t v_r, v_g, v_b;
 			rectSumBayer(data + bx, w, h, sx, sy,
-					offset_r, second_r,
-					offset_g, second_g,
-					offset_b, second_b,
+					table_r, offset_r, second_r,
+					table_g, offset_g, second_g,
+					table_b, offset_b, second_b,
 					v_r, v_g, v_b);
 
 			if (shortX || shortY) {
@@ -541,27 +513,23 @@ inline void applyScaleBinBayerAny(u_int16_t * data, int w, int h,
 				v_g = v_g >> (2 * bin - 2 + (second_g != -1 ? 1 : 0));
 				v_b = v_b >> (2 * bin - 2 + (second_b != -1 ? 1 : 0));
 			}
-
-			SETVALUE(0,_r);
-			SETVALUE(1,_g);
-			SETVALUE(2,_b);
+			result[0] = v_r;
+			result[1] = v_g;
+			result[2] = v_b;
 			result+=3;
 		}
 		data += w * binStep;
 	}
 }
 
-inline void applyScaleBinBayerRGGBAny(u_int16_t * data, int w, int h,
-				int min_r, int med_r, int max_r,
-				int min_g, int med_g, int max_g,
-				int min_b, int med_b, int max_b,
+static inline void applyScaleBinBayerRGGBAny(u_int16_t * data, int w, int h,
+				const LookupTable & table_r,
+				const LookupTable & table_g,
+				const LookupTable & table_b,
 				u_int8_t * result, int bin)
 {
 	int binStep = 1 << bin;
 
-	PREPARE_SCALE(_r);
-	PREPARE_SCALE(_g);
-	PREPARE_SCALE(_b);
 	for(int by = 0; by < h; by += binStep)
 	{
 		bool shortY = by + binStep >= h;
@@ -575,6 +543,9 @@ inline void applyScaleBinBayerRGGBAny(u_int16_t * data, int w, int h,
 			int sx = shortX ? w - bx : binStep;
 			int32_t v_r, v_g, v_b;
 			rectSumBayerRGGB(data + bx, w, h, sx, sy,
+					table_r,
+					table_g,
+					table_b,
 					v_r, v_g, v_b);
 
 			if (shortX || shortY) {
@@ -587,49 +558,50 @@ inline void applyScaleBinBayerRGGBAny(u_int16_t * data, int w, int h,
 				v_b = v_b >> (2 * bin - 2);
 			}
 
-			SETVALUE(0,_r);
-			SETVALUE(1,_g);
-			SETVALUE(2,_b);
+			result[0] = v_r;
+			result[1] = v_g;
+			result[2] = v_b;
 			result+=3;
 		}
 		data += w * binStep;
 	}
 }
-inline void applyScaleBinBayer2(u_int16_t * data, int w, int h,
-		int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
-		int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
-		int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+
+static inline void applyScaleBinBayer2(u_int16_t * data, int w, int h,
+		const LookupTable & table_r, int16_t offset_r, int16_t second_r,
+		const LookupTable & table_g, int16_t offset_g, int16_t second_g,
+		const LookupTable & table_b, int16_t offset_b, int16_t second_b,
 		u_int8_t * result)
 {
-	PREPARE_SCALE(_r);
-	PREPARE_SCALE(_g);
-	PREPARE_SCALE(_b);
 	for(int by = 0; by < h; by += 2)
 	{
 		for(int bx = 0; bx < w; bx += 2)
 		{
 			{
-				int32_t v_r = data[bx + offset_r];
+				int32_t v_r = table_r.fastGet(data[bx + offset_r]);
 				if (second_r != -1) {
-					v_r = data[bx + second_r];
+					v_r += table_r.fastGet(data[bx + second_r]);
+					v_r = v_r / 2;
 				}
-				SETVALUE(0,_r);
+				result[0] = v_r;
 			}
 
 			{
-				int32_t v_g = data[bx + offset_g];
+				int32_t v_g = table_g.fastGet(data[bx + offset_g]);
 				if (second_g != -1) {
-					v_g = data[bx + second_g];
+					v_g += table_g.fastGet(data[bx + second_g]);
+					v_g = v_g / 2;
 				}
-				SETVALUE(1,_g);
+				result[1] = v_g;
 			}
 
 			{
-				int32_t v_b = data[bx + offset_b];
+				int32_t v_b = table_b.fastGet(data[bx + offset_b]);
 				if (second_b != -1) {
-					v_b = data[bx + second_b];
+					v_b += table_b.fastGet(data[bx + second_b]);
+					v_b = v_b / 2;
 				}
-				SETVALUE(2,_b);
+				result[2] = v_b;
 			}
 			result+=3;
 		}
@@ -638,99 +610,36 @@ inline void applyScaleBinBayer2(u_int16_t * data, int w, int h,
 }
 
 
-void applyScaleBinBayerRGGB2(u_int16_t * data, int w, int h,
-		int min_r, int med_r, int max_r,
-		int min_g, int med_g, int max_g,
-		int min_b, int med_b, int max_b,
-		u_int8_t * result)
-{
-	PREPARE_SCALE(_r);
-	PREPARE_SCALE(_g);
-	PREPARE_SCALE(_b);
-	for(int by = 0; by < h; by += 2)
-	{
-		for(int bx = 0; bx < w; bx += 2)
-		{
-			{
-				int32_t v_r = data[bx];
-				SETVALUE(0,_r);
-			}
-
-			{
-				int32_t v_g = (data[bx + 1] + data[bx + w]) / 2;
-				SETVALUE(1,_g);
-			}
-
-			{
-				int32_t v_b = data[bx + w + 1];
-				SETVALUE(2,_b);
-			}
-			result+=3;
-		}
-		data += w * 2;
-	}
-}
-void applyScaleBinBayer(u_int16_t * data, int w, int h,
-						int min_r, int med_r, int max_r, int16_t offset_r, int16_t second_r,
-						int min_g, int med_g, int max_g, int16_t offset_g, int16_t second_g,
-						int min_b, int med_b, int max_b, int16_t offset_b, int16_t second_b,
+static inline void applyScaleBinBayer(u_int16_t * data, int w, int h,
+						const LookupTable & table_r, int16_t offset_r, int16_t second_r,
+						const LookupTable & table_g, int16_t offset_g, int16_t second_g,
+						const LookupTable & table_b, int16_t offset_b, int16_t second_b,
 						u_int8_t * result, int bin)
 {
 	if (bin == 1) {
 		applyScaleBinBayer2(data, w, h,
-								min_r, med_r, max_r, offset_r, second_r,
-								min_g, med_g, max_g, offset_g, second_g,
-								min_b, med_b, max_b, offset_b, second_b,
+								table_r, offset_r, second_r,
+								table_g, offset_g, second_g,
+								table_b, offset_b, second_b,
 								result);
 	} else {
 		if (offset_r == 0 && offset_g == 1 && second_g == w && offset_b == w + 1) {
 			applyScaleBinBayerRGGBAny(data, w, h,
-				min_r, med_r, max_r,
-				min_g, med_g, max_g,
-				min_b, med_b, max_b,
+				table_r,
+				table_g,
+				table_b,
 				result, bin);
 		} else {
 			applyScaleBinBayerAny(data, w, h,
-				min_r, med_r, max_r, offset_r, second_r,
-				min_g, med_g, max_g, offset_g, second_g,
-				min_b, med_b, max_b, offset_b, second_b,
+				table_r, offset_r, second_r,
+				table_g, offset_g, second_g,
+				table_b, offset_b, second_b,
 				result, bin);
 		}
 	}
 }
 
-
-void applyScaleBayer(u_int16_t * data, int w, int h, int min, int med, int max, u_int8_t * result)
-{
-	h /= 2;
-	w /= 2;
-	if (max <= min) {
-		max = min + 1;
-	}
-	while(h > 0) {
-		int tx = w;
-		while(tx > 0) {
-			int v = (*data);
-			data += 2;
-			if (v > max) v = max;
-			v -= min;
-			if (v < 0) v = 0;
-
-			v = v * 255 / (max - min);
-			(*result) = v;
-			result+= 2;
-			tx--;
-		}
-		// Skip a line
-		result += w;
-		result += w;
-		data += w;
-		data += w;
-		h--;
-	}
-}
-
-double parseFormFloat(Cgicc & formData, const std::string & name, double defaultValue)
+static double parseFormFloat(Cgicc & formData, const std::string & name, double defaultValue)
 {
 	std::string value = formData(name);
 	if (value == "") {
@@ -866,8 +775,6 @@ int main (int argc, char ** argv) {
 	}
 
 
-//	const char * arg = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-03-28_013.fits";
-//	path = arg;
 
 	SharedCache::Messages::ContentRequest contentRequest;
 	contentRequest.fitsContent = new SharedCache::Messages::RawContent();
@@ -897,6 +804,7 @@ int main (int argc, char ** argv) {
 	}
 
 	double low = parseFormFloat(formData, "low", 0.05);
+	double med = parseFormFloat(formData, "med", 0.5);
 	double high = parseFormFloat(formData, "high", 0.95);
 
 	contentRequest.fitsContent.clear();
@@ -943,11 +851,17 @@ int main (int argc, char ** argv) {
 		for(int i = 0; i < 3; ++i) {
 			auto channelStorage = histogramStorage->channel(i);
 			levels[i][0]= channelStorage->getLevel(low);
-			levels[i][1]= channelStorage->getLevel((low + high) / 2);
 			levels[i][2]= channelStorage->getLevel(high);
+			levels[i][1]= round(levels[i][0] + (levels[i][2] - levels[i][0]) * med);
 		}
-
+		std::cerr << "Levels are " << levels[0][0]  << " " << levels[0][1]<< " " << levels[0][2] << "\n";
+		std::cerr << "Levels are " << levels[1][0]  << " " << levels[1][1]<< " " << levels[1][2] << "\n";
+		std::cerr << "Levels are " << levels[2][0]  << " " << levels[2][1]<< " " << levels[2][2] << "\n";
 		u_int8_t * result = new u_int8_t[3 * binDiv(w, bin) * (stripHeight >> bin)];
+
+		LookupTable table_r(levels[0][0], levels[0][1], levels[0][2]);
+		LookupTable table_g(levels[1][0], levels[1][1], levels[1][2]);
+		LookupTable table_b(levels[2][0], levels[2][1], levels[2][2]);
 
 		int basey = 0;
 		while(basey < h) {
@@ -963,20 +877,12 @@ int main (int argc, char ** argv) {
 			findBayerOffset(bayer, 'G', offset_g, second_g);
 			findBayerOffset(bayer, 'B', offset_b, second_b);
 			applyScaleBinBayer(data + basey * w, w, yleft,
-					levels[0][0], levels[0][1], levels[0][2], bayerOffset(offset_r, w), bayerOffset(second_r, w),
-					levels[1][0], levels[1][1], levels[1][2], bayerOffset(offset_g, w), bayerOffset(second_g, w),
-					levels[2][0], levels[2][1], levels[2][2], bayerOffset(offset_b, w), bayerOffset(second_b, w),
+					table_r, bayerOffset(offset_r, w), bayerOffset(second_r, w),
+					table_g, bayerOffset(offset_g, w), bayerOffset(second_g, w),
+					table_b, bayerOffset(offset_b, w), bayerOffset(second_b, w),
 					result,
 					bin);
 
-
-//			for(int i = 0; i < 4; ++i) {
-//				int bayerOffset = (i & 1) + ((i & 2) >> 1) * w;
-//				int hist = RawDataStorage::getRGBIndex(bayer[i]);
-//				applyScaleBayer(data + basey * w + bayerOffset, w, yleft, levels[hist][0], levels[hist][1], levels[hist][2], result + bayerOffset);
-//			}
-
-			// debayer(result, w, yleft, superPixel);
 
 			writer.writeLines(result, binDiv(yleft, bin));
 			fflush(stdout);
@@ -987,9 +893,10 @@ int main (int argc, char ** argv) {
 	} else {
 		auto channelStorage = histogramStorage->channel(0);
 
-		int min = channelStorage->getLevel(low);
-		int med = channelStorage->getLevel((low + high) / 2);
-		int max = channelStorage->getLevel(high);
+		int lowAdu = channelStorage->getLevel(low);
+		int highAdu = channelStorage->getLevel(high);
+		int medAdu = round(lowAdu + (highAdu - lowAdu) * med);
+		LookupTable lookupTable(lowAdu, medAdu, highAdu);
 
 		u_int8_t * result = new u_int8_t[binDiv(w, bin) * (stripHeight >> bin)];
 
@@ -999,9 +906,9 @@ int main (int argc, char ** argv) {
 			int yleft = (h - basey);
 			if (yleft > stripHeight) yleft = stripHeight;
 			if (bin > 0) {
-				applyScaleBin(data + basey * w, w, yleft, min, med, max, result, bin);
+				applyScaleBin(data + basey * w, w, yleft, lookupTable, result, bin);
 			} else {
-				applyScale(data + basey * w, w, yleft, min, med, max, result);
+				applyScale(data + basey * w, w, yleft, lookupTable, result);
 			}
 			writer.writeLines(result, binDiv(yleft, bin));
 
