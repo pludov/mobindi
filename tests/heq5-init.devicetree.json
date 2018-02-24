@@ -1,0 +1,3161 @@
+{
+  "HEQ5": {
+    "CONNECTION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "CONNECTION",
+      "$label": "Connection",
+      "$group": "Main Control",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "CONNECT": {
+          "$name": "CONNECT",
+          "$label": "Connect",
+          "$_": "On"
+        },
+        "DISCONNECT": {
+          "$name": "DISCONNECT",
+          "$label": "Disconnect",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "CONNECT",
+        "DISCONNECT"
+      ],
+      "$rev": 52
+    },
+    "DRIVER_INFO": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "DRIVER_INFO",
+      "$label": "Driver Info",
+      "$group": "Connection",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Text",
+      "childs": {
+        "DRIVER_NAME": {
+          "$name": "DRIVER_NAME",
+          "$label": "Name",
+          "$_": "EQMod Mount"
+        },
+        "DRIVER_EXEC": {
+          "$name": "DRIVER_EXEC",
+          "$label": "Exec",
+          "$_": "indi_eqmod_telescope"
+        },
+        "DRIVER_VERSION": {
+          "$name": "DRIVER_VERSION",
+          "$label": "Version",
+          "$_": "0.3"
+        },
+        "DRIVER_INTERFACE": {
+          "$name": "DRIVER_INTERFACE",
+          "$label": "Interface",
+          "$_": "5"
+        }
+      },
+      "childNames": [
+        "DRIVER_NAME",
+        "DRIVER_EXEC",
+        "DRIVER_VERSION",
+        "DRIVER_INTERFACE"
+      ],
+      "$rev": 2
+    },
+    "ALIGNMENT_POINT_MANDATORY_NUMBERS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINT_MANDATORY_NUMBERS",
+      "$label": "Mandatory sync point numeric fields",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Number",
+      "childs": {
+        "ALIGNMENT_POINT_ENTRY_OBSERVATION_JULIAN_DATE": {
+          "$name": "ALIGNMENT_POINT_ENTRY_OBSERVATION_JULIAN_DATE",
+          "$label": "Observation Julian date",
+          "$format": "%g",
+          "$min": "0",
+          "$max": "60000",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNMENT_POINT_ENTRY_RA": {
+          "$name": "ALIGNMENT_POINT_ENTRY_RA",
+          "$label": "Right Ascension (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        " ALIGNMENT_POINT_ENTRY_DEC": {
+          "$name": " ALIGNMENT_POINT_ENTRY_DEC",
+          "$label": "Declination (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNMENT_POINT_ENTRY_VECTOR_X": {
+          "$name": "ALIGNMENT_POINT_ENTRY_VECTOR_X",
+          "$label": "Telescope direction vector x",
+          "$format": "%g",
+          "$min": "-3.4028234663852885981e+38",
+          "$max": "3.4028234663852885981e+38",
+          "$step": "0",
+          "$_": "0"
+        },
+        " ALIGNMENT_POINT_ENTRY_VECTOR_Y": {
+          "$name": " ALIGNMENT_POINT_ENTRY_VECTOR_Y",
+          "$label": "Telescope direction vector y",
+          "$format": "%g",
+          "$min": "-3.4028234663852885981e+38",
+          "$max": "3.4028234663852885981e+38",
+          "$step": "0",
+          "$_": "0"
+        },
+        " ALIGNMENT_POINT_ENTRY_VECTOR_Z": {
+          "$name": " ALIGNMENT_POINT_ENTRY_VECTOR_Z",
+          "$label": "Telescope direction vector z",
+          "$format": "%g",
+          "$min": "-3.4028234663852885981e+38",
+          "$max": "3.4028234663852885981e+38",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT_POINT_ENTRY_OBSERVATION_JULIAN_DATE",
+        "ALIGNMENT_POINT_ENTRY_RA",
+        " ALIGNMENT_POINT_ENTRY_DEC",
+        "ALIGNMENT_POINT_ENTRY_VECTOR_X",
+        " ALIGNMENT_POINT_ENTRY_VECTOR_Y",
+        " ALIGNMENT_POINT_ENTRY_VECTOR_Z"
+      ],
+      "$rev": 3
+    },
+    "ALIGNMENT_POINT_OPTIONAL_BINARY_BLOB": {
+      "$$": "defBLOBVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINT_OPTIONAL_BINARY_BLOB",
+      "$label": "Optional sync point binary data",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$_": "",
+      "$type": "BLOB",
+      "childs": {},
+      "childNames": [],
+      "$rev": 4
+    },
+    "ALIGNMENT_POINTSET_SIZE": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINTSET_SIZE",
+      "$label": "Current Set",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Number",
+      "childs": {
+        "ALIGNMENT_POINTSET_SIZE": {
+          "$name": "ALIGNMENT_POINTSET_SIZE",
+          "$label": "Size",
+          "$format": "%g",
+          "$min": "0",
+          "$max": "100000",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT_POINTSET_SIZE"
+      ],
+      "$rev": 5
+    },
+    "ALIGNMENT_POINTSET_CURRENT_ENTRY": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINTSET_CURRENT_ENTRY",
+      "$label": "Current Set",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Number",
+      "childs": {
+        "ALIGNMENT_POINTSET_CURRENT_ENTRY": {
+          "$name": "ALIGNMENT_POINTSET_CURRENT_ENTRY",
+          "$label": "Pointer",
+          "$format": "%g",
+          "$min": "0",
+          "$max": "100000",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT_POINTSET_CURRENT_ENTRY"
+      ],
+      "$rev": 6
+    },
+    "ALIGNMENT_POINTSET_ACTION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINTSET_ACTION",
+      "$label": "Action to take",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "APPEND": {
+          "$name": "APPEND",
+          "$label": "Add entries at end of set",
+          "$_": "On"
+        },
+        "INSERT": {
+          "$name": "INSERT",
+          "$label": "Insert entries at current index",
+          "$_": "Off"
+        },
+        "EDIT": {
+          "$name": "EDIT",
+          "$label": "Overwrite entry at current index",
+          "$_": "Off"
+        },
+        "DELETE": {
+          "$name": "DELETE",
+          "$label": "Delete entry at current index",
+          "$_": "Off"
+        },
+        "CLEAR": {
+          "$name": "CLEAR",
+          "$label": "Delete all the entries in the set",
+          "$_": "Off"
+        },
+        "READ": {
+          "$name": "READ",
+          "$label": "Read the entry at the current pointer",
+          "$_": "Off"
+        },
+        "READ INCREMENT": {
+          "$name": "READ INCREMENT",
+          "$label": "Increment the pointer before reading the entry",
+          "$_": "Off"
+        },
+        "LOAD DATABASE": {
+          "$name": "LOAD DATABASE",
+          "$label": "Load the alignment database from local storage",
+          "$_": "Off"
+        },
+        "SAVE DATABASE": {
+          "$name": "SAVE DATABASE",
+          "$label": "Save the alignment database to local storage",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "APPEND",
+        "INSERT",
+        "EDIT",
+        "DELETE",
+        "CLEAR",
+        "READ",
+        "READ INCREMENT",
+        "LOAD DATABASE",
+        "SAVE DATABASE"
+      ],
+      "$rev": 7
+    },
+    "ALIGNMENT_POINTSET_COMMIT": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_POINTSET_COMMIT",
+      "$label": "Execute the action",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "ALIGNMENT_POINTSET_COMMIT": {
+          "$name": "ALIGNMENT_POINTSET_COMMIT",
+          "$label": "OK",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT_POINTSET_COMMIT"
+      ],
+      "$rev": 8
+    },
+    "ALIGNMENT_SUBSYSTEM_MATH_PLUGINS": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_SUBSYSTEM_MATH_PLUGINS",
+      "$label": "Math Plugins",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "INBUILT_MATH_PLUGIN": {
+          "$name": "INBUILT_MATH_PLUGIN",
+          "$label": "Inbuilt Math Plugin",
+          "$_": "On"
+        },
+        "SVD Math Plugin": {
+          "$name": "SVD Math Plugin",
+          "$label": "SVD Math Plugin",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "INBUILT_MATH_PLUGIN",
+        "SVD Math Plugin"
+      ],
+      "$rev": 9
+    },
+    "ALIGNMENT_SUBSYSTEM_MATH_PLUGIN_INITIALISE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_SUBSYSTEM_MATH_PLUGIN_INITIALISE",
+      "$label": "(Re)Initialise Plugin",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "ALIGNMENT_SUBSYSTEM_MATH_PLUGIN_INITIALISE": {
+          "$name": "ALIGNMENT_SUBSYSTEM_MATH_PLUGIN_INITIALISE",
+          "$label": "OK",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT_SUBSYSTEM_MATH_PLUGIN_INITIALISE"
+      ],
+      "$rev": 10
+    },
+    "ALIGNMENT_SUBSYSTEM_ACTIVE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMENT_SUBSYSTEM_ACTIVE",
+      "$label": "Activate alignment subsystem",
+      "$group": "Alignment",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "ALIGNMENT SUBSYSTEM ACTIVE": {
+          "$name": "ALIGNMENT SUBSYSTEM ACTIVE",
+          "$label": "Alignment Subsystem Active",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "ALIGNMENT SUBSYSTEM ACTIVE"
+      ],
+      "$rev": 11
+    },
+    "DEBUG": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DEBUG",
+      "$label": "Debug",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:43:15",
+      "$type": "Switch",
+      "childs": {
+        "ENABLE": {
+          "$name": "ENABLE",
+          "$label": "Enable",
+          "$_": "On"
+        },
+        "DISABLE": {
+          "$name": "DISABLE",
+          "$label": "Disable",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ENABLE",
+        "DISABLE"
+      ],
+      "$rev": 36
+    },
+    "SIMULATION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "SIMULATION",
+      "$label": "Simulation",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "ENABLE": {
+          "$name": "ENABLE",
+          "$label": "Enable",
+          "$_": "Off"
+        },
+        "DISABLE": {
+          "$name": "DISABLE",
+          "$label": "Disable",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "ENABLE",
+        "DISABLE"
+      ],
+      "$rev": 13
+    },
+    "CONFIG_PROCESS": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "CONFIG_PROCESS",
+      "$label": "Configuration",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:43:11",
+      "$type": "Switch",
+      "childs": {
+        "CONFIG_LOAD": {
+          "$name": "CONFIG_LOAD",
+          "$label": "Load",
+          "$_": "Off"
+        },
+        "CONFIG_SAVE": {
+          "$name": "CONFIG_SAVE",
+          "$label": "Save",
+          "$_": "Off"
+        },
+        "CONFIG_DEFAULT": {
+          "$name": "CONFIG_DEFAULT",
+          "$label": "Default",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "CONFIG_LOAD",
+        "CONFIG_SAVE",
+        "CONFIG_DEFAULT"
+      ],
+      "$rev": 31
+    },
+    "CONNECTION_MODE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "CONNECTION_MODE",
+      "$label": "Connection Mode",
+      "$group": "Connection",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "CONNECTION_SERIAL": {
+          "$name": "CONNECTION_SERIAL",
+          "$label": "Serial",
+          "$_": "On"
+        },
+        "CONNECTION_TCP": {
+          "$name": "CONNECTION_TCP",
+          "$label": "Ethernet",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "CONNECTION_SERIAL",
+        "CONNECTION_TCP"
+      ],
+      "$rev": 15
+    },
+    "DEVICE_PORT": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "DEVICE_PORT",
+      "$label": "Ports",
+      "$group": "Connection",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:10",
+      "$type": "Text",
+      "childs": {
+        "PORT": {
+          "$name": "PORT",
+          "$label": "Port",
+          "$_": "/dev/ttyS3"
+        }
+      },
+      "childNames": [
+        "PORT"
+      ],
+      "$rev": 49
+    },
+    "DEVICE_BAUD_RATE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DEVICE_BAUD_RATE",
+      "$label": "Baud Rate",
+      "$group": "Connection",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "9600": {
+          "$name": "9600",
+          "$label": "9600",
+          "$_": "On"
+        },
+        "19200": {
+          "$name": "19200",
+          "$label": "19200",
+          "$_": "Off"
+        },
+        "38400": {
+          "$name": "38400",
+          "$label": "38400",
+          "$_": "Off"
+        },
+        "57600": {
+          "$name": "57600",
+          "$label": "57600",
+          "$_": "Off"
+        },
+        "115200": {
+          "$name": "115200",
+          "$label": "115200",
+          "$_": "Off"
+        },
+        "230400": {
+          "$name": "230400",
+          "$label": "230400",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "9600",
+        "19200",
+        "38400",
+        "57600",
+        "115200",
+        "230400"
+      ],
+      "$rev": 17
+    },
+    "DEVICE_AUTO_SEARCH": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DEVICE_AUTO_SEARCH",
+      "$label": "Auto Search",
+      "$group": "Connection",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "ENABLED": {
+          "$name": "ENABLED",
+          "$label": "Enabled",
+          "$_": "On"
+        },
+        "DISABLED": {
+          "$name": "DISABLED",
+          "$label": "Disabled",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ENABLED",
+        "DISABLED"
+      ],
+      "$rev": 18
+    },
+    "DEVICE_PORT_SCAN": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DEVICE_PORT_SCAN",
+      "$label": "Refresh",
+      "$group": "Connection",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "Scan Ports": {
+          "$name": "Scan Ports",
+          "$label": "Scan Ports",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "Scan Ports"
+      ],
+      "$rev": 19
+    },
+    "ACTIVE_DEVICES": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "ACTIVE_DEVICES",
+      "$label": "Snoop devices",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Text",
+      "childs": {
+        "ACTIVE_GPS": {
+          "$name": "ACTIVE_GPS",
+          "$label": "GPS",
+          "$_": "GPS Simulator"
+        },
+        "ACTIVE_DOME": {
+          "$name": "ACTIVE_DOME",
+          "$label": "DOME",
+          "$_": "Dome Simulator"
+        }
+      },
+      "childNames": [
+        "ACTIVE_GPS",
+        "ACTIVE_DOME"
+      ],
+      "$rev": 24
+    },
+    "DOME_POLICY": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DOME_POLICY",
+      "$label": "Dome parking policy",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:42:27",
+      "$type": "Switch",
+      "childs": {
+        "NO_ACTION": {
+          "$name": "NO_ACTION",
+          "$label": "Ignore dome",
+          "$_": "On"
+        },
+        "LOCK_PARKING": {
+          "$name": "LOCK_PARKING",
+          "$label": "Dome locks",
+          "$_": "Off"
+        },
+        "FORCE_CLOSE": {
+          "$name": "FORCE_CLOSE",
+          "$label": "Dome parks",
+          "$_": "Off"
+        },
+        "LOCK_AND_FORCE": {
+          "$name": "LOCK_AND_FORCE",
+          "$label": "Both",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "NO_ACTION",
+        "LOCK_PARKING",
+        "FORCE_CLOSE",
+        "LOCK_AND_FORCE"
+      ],
+      "$rev": 25
+    },
+    "TELESCOPE_INFO": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_INFO",
+      "$label": "Scope Properties",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:43:40",
+      "$type": "Number",
+      "childs": {
+        "TELESCOPE_APERTURE": {
+          "$name": "TELESCOPE_APERTURE",
+          "$label": "Aperture (mm)",
+          "$format": "%g",
+          "$min": "10",
+          "$max": "5000",
+          "$step": "0",
+          "$_": "80"
+        },
+        "TELESCOPE_FOCAL_LENGTH": {
+          "$name": "TELESCOPE_FOCAL_LENGTH",
+          "$label": "Focal Length (mm)",
+          "$format": "%g",
+          "$min": "10",
+          "$max": "10000",
+          "$step": "0",
+          "$_": "0"
+        },
+        "GUIDER_APERTURE": {
+          "$name": "GUIDER_APERTURE",
+          "$label": "Guider Aperture (mm)",
+          "$format": "%g",
+          "$min": "10",
+          "$max": "5000",
+          "$step": "0",
+          "$_": "0"
+        },
+        "GUIDER_FOCAL_LENGTH": {
+          "$name": "GUIDER_FOCAL_LENGTH",
+          "$label": "Guider Focal Length (mm)",
+          "$format": "%g",
+          "$min": "10",
+          "$max": "10000",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "TELESCOPE_APERTURE",
+        "TELESCOPE_FOCAL_LENGTH",
+        "GUIDER_APERTURE",
+        "GUIDER_FOCAL_LENGTH"
+      ],
+      "$rev": 41
+    },
+    "SCOPE_CONFIG_NAME": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "SCOPE_CONFIG_NAME",
+      "$label": "Scope Name",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Text",
+      "childs": {
+        "SCOPE_CONFIG_NAME": {
+          "$name": "SCOPE_CONFIG_NAME",
+          "$label": "Config Name"
+        }
+      },
+      "childNames": [
+        "SCOPE_CONFIG_NAME"
+      ],
+      "$rev": 69
+    },
+    "DEBUG_LEVEL": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "DEBUG_LEVEL",
+      "$label": "Debug Levels",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AnyOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:43:15",
+      "$type": "Switch",
+      "childs": {
+        "DBG_ERROR": {
+          "$name": "DBG_ERROR",
+          "$label": "Errors",
+          "$_": "On"
+        },
+        "DBG_WARNING": {
+          "$name": "DBG_WARNING",
+          "$label": "Warnings",
+          "$_": "On"
+        },
+        "DBG_SESSION": {
+          "$name": "DBG_SESSION",
+          "$label": "Messages",
+          "$_": "On"
+        },
+        "DBG_DEBUG": {
+          "$name": "DBG_DEBUG",
+          "$label": "Driver Debug",
+          "$_": "Off"
+        },
+        "DBG_EXTRA_1": {
+          "$name": "DBG_EXTRA_1",
+          "$label": "Alignment Subsystem",
+          "$_": "Off"
+        },
+        "DBG_EXTRA_2": {
+          "$name": "DBG_EXTRA_2",
+          "$label": "Scope Status",
+          "$_": "Off"
+        },
+        "DBG_EXTRA_3": {
+          "$name": "DBG_EXTRA_3",
+          "$label": "Serial Port",
+          "$_": "Off"
+        },
+        "DBG_EXTRA_4": {
+          "$name": "DBG_EXTRA_4",
+          "$label": "Verbose Mount",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "DBG_ERROR",
+        "DBG_WARNING",
+        "DBG_SESSION",
+        "DBG_DEBUG",
+        "DBG_EXTRA_1",
+        "DBG_EXTRA_2",
+        "DBG_EXTRA_3",
+        "DBG_EXTRA_4"
+      ],
+      "$rev": 33
+    },
+    "LOGGING_LEVEL": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "LOGGING_LEVEL",
+      "$label": "Logging Levels",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AnyOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:43:15",
+      "$type": "Switch",
+      "childs": {
+        "LOG_ERROR": {
+          "$name": "LOG_ERROR",
+          "$label": "Errors",
+          "$_": "On"
+        },
+        "LOG_WARNING": {
+          "$name": "LOG_WARNING",
+          "$label": "Warnings",
+          "$_": "On"
+        },
+        "LOG_SESSION": {
+          "$name": "LOG_SESSION",
+          "$label": "Messages",
+          "$_": "On"
+        },
+        "LOG_DEBUG": {
+          "$name": "LOG_DEBUG",
+          "$label": "Driver Debug",
+          "$_": "Off"
+        },
+        "LOG_EXTRA_1": {
+          "$name": "LOG_EXTRA_1",
+          "$label": "Alignment Subsystem",
+          "$_": "Off"
+        },
+        "LOG_EXTRA_2": {
+          "$name": "LOG_EXTRA_2",
+          "$label": "Scope Status",
+          "$_": "Off"
+        },
+        "LOG_EXTRA_3": {
+          "$name": "LOG_EXTRA_3",
+          "$label": "Serial Port",
+          "$_": "Off"
+        },
+        "LOG_EXTRA_4": {
+          "$name": "LOG_EXTRA_4",
+          "$label": "Verbose Mount",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "LOG_ERROR",
+        "LOG_WARNING",
+        "LOG_SESSION",
+        "LOG_DEBUG",
+        "LOG_EXTRA_1",
+        "LOG_EXTRA_2",
+        "LOG_EXTRA_3",
+        "LOG_EXTRA_4"
+      ],
+      "$rev": 34
+    },
+    "LOG_OUTPUT": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "LOG_OUTPUT",
+      "$label": "Log Output",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$rule": "AnyOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:43:21",
+      "$type": "Switch",
+      "childs": {
+        "CLIENT_DEBUG": {
+          "$name": "CLIENT_DEBUG",
+          "$label": "To Client",
+          "$_": "On"
+        },
+        "FILE_DEBUG": {
+          "$name": "FILE_DEBUG",
+          "$label": "To Log File",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "CLIENT_DEBUG",
+        "FILE_DEBUG"
+      ],
+      "$rev": 38
+    },
+    "ON_COORD_SET": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ON_COORD_SET",
+      "$label": "On Set",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "TRACK": {
+          "$name": "TRACK",
+          "$label": "Track",
+          "$_": "On"
+        },
+        "SLEW": {
+          "$name": "SLEW",
+          "$label": "Slew",
+          "$_": "Off"
+        },
+        "SYNC": {
+          "$name": "SYNC",
+          "$label": "Sync",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "TRACK",
+        "SLEW",
+        "SYNC"
+      ],
+      "$rev": 53
+    },
+    "EQUATORIAL_EOD_COORD": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "EQUATORIAL_EOD_COORD",
+      "$label": "Eq. Coordinates",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "RA": {
+          "$name": "RA",
+          "$label": "RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "1.0492580478056687809"
+        },
+        "DEC": {
+          "$name": "DEC",
+          "$label": "DEC (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "90"
+        }
+      },
+      "childNames": [
+        "RA",
+        "DEC"
+      ],
+      "$rev": 137
+    },
+    "TELESCOPE_ABORT_MOTION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_ABORT_MOTION",
+      "$label": "Abort Motion",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ABORT": {
+          "$name": "ABORT",
+          "$label": "Abort",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ABORT"
+      ],
+      "$rev": 55
+    },
+    "TELESCOPE_TRACK_MODE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TRACK_MODE",
+      "$label": "Track Mode",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "TRACK_SIDEREAL": {
+          "$name": "TRACK_SIDEREAL",
+          "$label": "Sidereal",
+          "$_": "On"
+        },
+        "TRACK_SOLAR": {
+          "$name": "TRACK_SOLAR",
+          "$label": "Solar",
+          "$_": "Off"
+        },
+        "TRACK_LUNAR": {
+          "$name": "TRACK_LUNAR",
+          "$label": "Lunar",
+          "$_": "Off"
+        },
+        "TRACK_CUSTOM": {
+          "$name": "TRACK_CUSTOM",
+          "$label": "Custom",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "TRACK_SIDEREAL",
+        "TRACK_SOLAR",
+        "TRACK_LUNAR",
+        "TRACK_CUSTOM"
+      ],
+      "$rev": 56
+    },
+    "TELESCOPE_TRACK_STATE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TRACK_STATE",
+      "$label": "Tracking",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "TRACK_ON": {
+          "$name": "TRACK_ON",
+          "$label": "On",
+          "$_": "Off"
+        },
+        "TRACK_OFF": {
+          "$name": "TRACK_OFF",
+          "$label": "Off",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "TRACK_ON",
+        "TRACK_OFF"
+      ],
+      "$rev": 57
+    },
+    "TELESCOPE_TRACK_RATE": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TRACK_RATE",
+      "$label": "Track Rates",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "TRACK_RATE_RA": {
+          "$name": "TRACK_RATE_RA",
+          "$label": "RA (arcsecs/s)",
+          "$format": "%.6f",
+          "$min": "-16384",
+          "$max": "16384",
+          "$step": "9.9999999999999995475e-07",
+          "$_": "15.04106717867020393"
+        },
+        "TRACK_RATE_DE": {
+          "$name": "TRACK_RATE_DE",
+          "$label": "DE (arcsecs/s)",
+          "$format": "%.6f",
+          "$min": "-16384",
+          "$max": "16384",
+          "$step": "9.9999999999999995475e-07",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "TRACK_RATE_RA",
+        "TRACK_RATE_DE"
+      ],
+      "$rev": 58
+    },
+    "TELESCOPE_MOTION_NS": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_MOTION_NS",
+      "$label": "Motion N/S",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "MOTION_NORTH": {
+          "$name": "MOTION_NORTH",
+          "$label": "North",
+          "$_": "Off"
+        },
+        "MOTION_SOUTH": {
+          "$name": "MOTION_SOUTH",
+          "$label": "South",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "MOTION_NORTH",
+        "MOTION_SOUTH"
+      ],
+      "$rev": 59
+    },
+    "TELESCOPE_MOTION_WE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_MOTION_WE",
+      "$label": "Motion W/E",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "MOTION_WEST": {
+          "$name": "MOTION_WEST",
+          "$label": "West",
+          "$_": "Off"
+        },
+        "MOTION_EAST": {
+          "$name": "MOTION_EAST",
+          "$label": "East",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "MOTION_WEST",
+        "MOTION_EAST"
+      ],
+      "$rev": 60
+    },
+    "TELESCOPE_SLEW_RATE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_SLEW_RATE",
+      "$label": "Slew Rate",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "SLEW_GUIDE": {
+          "$name": "SLEW_GUIDE",
+          "$label": "1x",
+          "$_": "Off"
+        },
+        "2x": {
+          "$name": "2x",
+          "$label": "2x",
+          "$_": "Off"
+        },
+        "SLEW_CENTERING": {
+          "$name": "SLEW_CENTERING",
+          "$label": "4x",
+          "$_": "Off"
+        },
+        "4x": {
+          "$name": "4x",
+          "$label": "8x",
+          "$_": "Off"
+        },
+        "SLEW_FIND": {
+          "$name": "SLEW_FIND",
+          "$label": "32x",
+          "$_": "Off"
+        },
+        "6x": {
+          "$name": "6x",
+          "$label": "64x",
+          "$_": "On"
+        },
+        "7x": {
+          "$name": "7x",
+          "$label": "128x",
+          "$_": "Off"
+        },
+        "8x": {
+          "$name": "8x",
+          "$label": "600x",
+          "$_": "Off"
+        },
+        "9x": {
+          "$name": "9x",
+          "$label": "700x",
+          "$_": "Off"
+        },
+        "SLEW_MAX": {
+          "$name": "SLEW_MAX",
+          "$label": "800x",
+          "$_": "Off"
+        },
+        "SLEWCUSTOM": {
+          "$name": "SLEWCUSTOM",
+          "$label": "Custom",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "SLEW_GUIDE",
+        "2x",
+        "SLEW_CENTERING",
+        "4x",
+        "SLEW_FIND",
+        "6x",
+        "7x",
+        "8x",
+        "9x",
+        "SLEW_MAX",
+        "SLEWCUSTOM"
+      ],
+      "$rev": 61
+    },
+    "TARGET_EOD_COORD": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TARGET_EOD_COORD",
+      "$label": "Slew Target",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "RA": {
+          "$name": "RA",
+          "$label": "RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "DEC": {
+          "$name": "DEC",
+          "$label": "DEC (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "RA",
+        "DEC"
+      ],
+      "$rev": 62
+    },
+    "TIME_UTC": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "TIME_UTC",
+      "$label": "UTC",
+      "$group": "Site Management",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Text",
+      "childs": {
+        "UTC": {
+          "$name": "UTC",
+          "$label": "UTC Time",
+          "$_": "2018-02-24T08:46:13"
+        },
+        "OFFSET": {
+          "$name": "OFFSET",
+          "$label": "UTC Offset",
+          "$_": ""
+        }
+      },
+      "childNames": [
+        "UTC",
+        "OFFSET"
+      ],
+      "$rev": 134
+    },
+    "GEOGRAPHIC_COORD": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "GEOGRAPHIC_COORD",
+      "$label": "Scope Location",
+      "$group": "Site Management",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "LAT": {
+          "$name": "LAT",
+          "$label": "Lat (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        },
+        "LONG": {
+          "$name": "LONG",
+          "$label": "Lon (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "360",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ELEV": {
+          "$name": "ELEV",
+          "$label": "Elevation (m)",
+          "$format": "%g",
+          "$min": "-200",
+          "$max": "10000",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "LAT",
+        "LONG",
+        "ELEV"
+      ],
+      "$rev": 64
+    },
+    "TELESCOPE_PARK": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_PARK",
+      "$label": "Parking",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "PARK": {
+          "$name": "PARK",
+          "$label": "Park",
+          "$_": "Off"
+        },
+        "UNPARK": {
+          "$name": "UNPARK",
+          "$label": "UnPark",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "PARK",
+        "UNPARK"
+      ],
+      "$rev": 105
+    },
+    "TELESCOPE_PARK_POSITION": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_PARK_POSITION",
+      "$label": "Park Position",
+      "$group": "Site Management",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "PARK_RA": {
+          "$name": "PARK_RA",
+          "$label": "RA Encoder",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "8388608"
+        },
+        "PARK_DEC": {
+          "$name": "PARK_DEC",
+          "$label": "DEC Encoder",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "10644608"
+        }
+      },
+      "childNames": [
+        "PARK_RA",
+        "PARK_DEC"
+      ],
+      "$rev": 107
+    },
+    "TELESCOPE_PARK_OPTION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_PARK_OPTION",
+      "$label": "Park Options",
+      "$group": "Site Management",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AtMostOne",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "PARK_CURRENT": {
+          "$name": "PARK_CURRENT",
+          "$label": "Current",
+          "$_": "Off"
+        },
+        "PARK_DEFAULT": {
+          "$name": "PARK_DEFAULT",
+          "$label": "Default",
+          "$_": "Off"
+        },
+        "PARK_WRITE_DATA": {
+          "$name": "PARK_WRITE_DATA",
+          "$label": "Write Data",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "PARK_CURRENT",
+        "PARK_DEFAULT",
+        "PARK_WRITE_DATA"
+      ],
+      "$rev": 67
+    },
+    "TELESCOPE_PIER_SIDE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_PIER_SIDE",
+      "$label": "Pier Side",
+      "$group": "Main Control",
+      "$state": "Ok",
+      "$perm": "ro",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "PIER_WEST": {
+          "$name": "PIER_WEST",
+          "$label": "West (pointing east)",
+          "$_": "On"
+        },
+        "PIER_EAST": {
+          "$name": "PIER_EAST",
+          "$label": "East (pointing west)",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "PIER_WEST",
+        "PIER_EAST"
+      ],
+      "$rev": 135
+    },
+    "APPLY_SCOPE_CONFIG": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "APPLY_SCOPE_CONFIG",
+      "$label": "Scope Configs",
+      "$group": "Options",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "SCOPE_CONFIG1": {
+          "$name": "SCOPE_CONFIG1",
+          "$label": "Config #1",
+          "$_": "On"
+        },
+        "SCOPE_CONFIG2": {
+          "$name": "SCOPE_CONFIG2",
+          "$label": "Config #2",
+          "$_": "Off"
+        },
+        "SCOPE_CONFIG3": {
+          "$name": "SCOPE_CONFIG3",
+          "$label": "Config #3",
+          "$_": "Off"
+        },
+        "SCOPE_CONFIG4": {
+          "$name": "SCOPE_CONFIG4",
+          "$label": "Config #4",
+          "$_": "Off"
+        },
+        "SCOPE_CONFIG5": {
+          "$name": "SCOPE_CONFIG5",
+          "$label": "Config #5",
+          "$_": "Off"
+        },
+        "SCOPE_CONFIG6": {
+          "$name": "SCOPE_CONFIG6",
+          "$label": "Config #6",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "SCOPE_CONFIG1",
+        "SCOPE_CONFIG2",
+        "SCOPE_CONFIG3",
+        "SCOPE_CONFIG4",
+        "SCOPE_CONFIG5",
+        "SCOPE_CONFIG6"
+      ],
+      "$rev": 70
+    },
+    "USEJOYSTICK": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "USEJOYSTICK",
+      "$label": "Joystick",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ENABLE": {
+          "$name": "ENABLE",
+          "$label": "Enable",
+          "$_": "Off"
+        },
+        "DISABLE": {
+          "$name": "DISABLE",
+          "$label": "Disable",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "ENABLE",
+        "DISABLE"
+      ],
+      "$rev": 71
+    },
+    "TELESCOPE_TIMED_GUIDE_NS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TIMED_GUIDE_NS",
+      "$label": "Guide N/S",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "TIMED_GUIDE_N": {
+          "$name": "TIMED_GUIDE_N",
+          "$label": "North (ms)",
+          "$format": "%.f",
+          "$min": "0",
+          "$max": "60000",
+          "$step": "100",
+          "$_": "0"
+        },
+        "TIMED_GUIDE_S": {
+          "$name": "TIMED_GUIDE_S",
+          "$label": "South (ms)",
+          "$format": "%.f",
+          "$min": "0",
+          "$max": "60000",
+          "$step": "100",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "TIMED_GUIDE_N",
+        "TIMED_GUIDE_S"
+      ],
+      "$rev": 72
+    },
+    "TELESCOPE_TIMED_GUIDE_WE": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TIMED_GUIDE_WE",
+      "$label": "Guide E/W",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "60",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "TIMED_GUIDE_W": {
+          "$name": "TIMED_GUIDE_W",
+          "$label": "West (ms)",
+          "$format": "%.f",
+          "$min": "0",
+          "$max": "60000",
+          "$step": "100",
+          "$_": "0"
+        },
+        "TIMED_GUIDE_E": {
+          "$name": "TIMED_GUIDE_E",
+          "$label": "East (ms)",
+          "$format": "%.f",
+          "$min": "0",
+          "$max": "60000",
+          "$step": "100",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "TIMED_GUIDE_W",
+        "TIMED_GUIDE_E"
+      ],
+      "$rev": 73
+    },
+    "SLEWSPEEDS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "SLEWSPEEDS",
+      "$label": "Custom Speeds",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "RASLEW": {
+          "$name": "RASLEW",
+          "$label": "RA Slew",
+          "$format": "%3.2fx",
+          "$min": "0.050000000000000002776",
+          "$max": "800",
+          "$step": "0.050000000000000002776",
+          "$_": "64"
+        },
+        "DESLEW": {
+          "$name": "DESLEW",
+          "$label": "DE Slew",
+          "$format": "%3.2fx",
+          "$min": "0.050000000000000002776",
+          "$max": "800",
+          "$step": "0.050000000000000002776",
+          "$_": "64"
+        }
+      },
+      "childNames": [
+        "RASLEW",
+        "DESLEW"
+      ],
+      "$rev": 74
+    },
+    "GUIDE_RATE": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "GUIDE_RATE",
+      "$label": "Guiding Rate",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "GUIDE_RATE_WE": {
+          "$name": "GUIDE_RATE_WE",
+          "$label": "W/E Rate",
+          "$format": "%1.1f",
+          "$min": "0",
+          "$max": "1",
+          "$step": "0.10000000000000000555",
+          "$_": "0.2999999999999999889"
+        },
+        "GUIDE_RATE_NS": {
+          "$name": "GUIDE_RATE_NS",
+          "$label": "N/S Rate",
+          "$format": "%1.1f",
+          "$min": "0",
+          "$max": "1",
+          "$step": "0.10000000000000000555",
+          "$_": "0.2999999999999999889"
+        }
+      },
+      "childNames": [
+        "GUIDE_RATE_WE",
+        "GUIDE_RATE_NS"
+      ],
+      "$rev": 75
+    },
+    "MOUNTINFORMATION": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "MOUNTINFORMATION",
+      "$label": "Mount Information",
+      "$group": "Firmware",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Text",
+      "childs": {
+        "MOUNT_TYPE": {
+          "$name": "MOUNT_TYPE",
+          "$label": "Mount Type",
+          "$_": "HEQ5"
+        },
+        "MOTOR_CONTROLLER": {
+          "$name": "MOTOR_CONTROLLER",
+          "$label": "Firmware Version",
+          "$_": "0108"
+        }
+      },
+      "childNames": [
+        "MOUNT_TYPE",
+        "MOTOR_CONTROLLER"
+      ],
+      "$rev": 98
+    },
+    "STEPPERS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "STEPPERS",
+      "$label": "Stepper/Gear",
+      "$group": "Firmware",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "RASteps360": {
+          "$name": "RASteps360",
+          "$label": "RA Steps (Total)",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "9024000"
+        },
+        "DESteps360": {
+          "$name": "DESteps360",
+          "$label": "DE Steps (Total)",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "9024000"
+        },
+        "RAStepsWorm": {
+          "$name": "RAStepsWorm",
+          "$label": "RA IT Freq.",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "64935"
+        },
+        "DEStepsWorm": {
+          "$name": "DEStepsWorm",
+          "$label": "DE IT Freq.",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "64935"
+        },
+        "RAHighspeedRatio": {
+          "$name": "RAHighspeedRatio",
+          "$label": "RA Highspeed ratio",
+          "$format": "%.0f",
+          "$min": "1",
+          "$max": "256",
+          "$step": "1",
+          "$_": "16"
+        },
+        "DEHighspeedRatio": {
+          "$name": "DEHighspeedRatio",
+          "$label": "DE Highspeed ratio",
+          "$format": "%.0f",
+          "$min": "1",
+          "$max": "256",
+          "$step": "1",
+          "$_": "16"
+        }
+      },
+      "childNames": [
+        "RASteps360",
+        "DESteps360",
+        "RAStepsWorm",
+        "DEStepsWorm",
+        "RAHighspeedRatio",
+        "DEHighspeedRatio"
+      ],
+      "$rev": 100
+    },
+    "CURRENTSTEPPERS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "CURRENTSTEPPERS",
+      "$label": "Stepper Position",
+      "$group": "Motor Status",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "RAStepsCurrent": {
+          "$name": "RAStepsCurrent",
+          "$label": "RA Steps",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "8388608"
+        },
+        "DEStepsCurrent": {
+          "$name": "DEStepsCurrent",
+          "$label": "DE Steps",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "10644608"
+        }
+      },
+      "childNames": [
+        "RAStepsCurrent",
+        "DEStepsCurrent"
+      ],
+      "$rev": 139
+    },
+    "PERIODS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "PERIODS",
+      "$label": "Worm Periods",
+      "$group": "Motor Status",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "RAPERIOD": {
+          "$name": "RAPERIOD",
+          "$label": "RA Period",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "256"
+        },
+        "DEPERIOD": {
+          "$name": "DEPERIOD",
+          "$label": "DE Period",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "256"
+        }
+      },
+      "childNames": [
+        "RAPERIOD",
+        "DEPERIOD"
+      ],
+      "$rev": 79
+    },
+    "JULIAN": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "JULIAN",
+      "$label": "JD",
+      "$group": "Site Management",
+      "$state": "Ok",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "JULIANDATE": {
+          "$name": "JULIANDATE",
+          "$label": "Julian Date",
+          "$format": "%8.8f",
+          "$min": "0",
+          "$max": "9999999999",
+          "$step": "9.999999999999999395e-12",
+          "$_": "2458173.8654380501248"
+        }
+      },
+      "childNames": [
+        "JULIANDATE"
+      ],
+      "$rev": 133
+    },
+    "TIME_LST": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "TIME_LST",
+      "$label": "LST",
+      "$group": "Site Management",
+      "$state": "Ok",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "LST": {
+          "$name": "LST",
+          "$label": "Local Sidereal Time",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "9.9999999999999997989e-13",
+          "$_": "19.049258047805668781"
+        }
+      },
+      "childNames": [
+        "LST"
+      ],
+      "$rev": 132
+    },
+    "RASTATUS": {
+      "$$": "defLightVector",
+      "$device": "HEQ5",
+      "$name": "RASTATUS",
+      "$label": "RA Motor Status",
+      "$group": "Motor Status",
+      "$state": "Idle",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Light",
+      "childs": {
+        "RAInitialized": {
+          "$name": "RAInitialized",
+          "$label": "Initialized",
+          "$_": "Ok"
+        },
+        "RARunning": {
+          "$name": "RARunning",
+          "$label": "Running",
+          "$_": "Busy"
+        },
+        "RAGoto": {
+          "$name": "RAGoto",
+          "$label": "Slew/Goto",
+          "$_": "Busy"
+        },
+        "RAForward": {
+          "$name": "RAForward",
+          "$label": "Backward/Forward",
+          "$_": "Ok"
+        },
+        "RAHighspeed": {
+          "$name": "RAHighspeed",
+          "$label": "Lowspeed/Highspeed",
+          "$_": "Busy"
+        }
+      },
+      "childNames": [
+        "RAInitialized",
+        "RARunning",
+        "RAGoto",
+        "RAForward",
+        "RAHighspeed"
+      ],
+      "$rev": 140,
+      "$timeout": 0
+    },
+    "DESTATUS": {
+      "$$": "defLightVector",
+      "$device": "HEQ5",
+      "$name": "DESTATUS",
+      "$label": "DE Motor Status",
+      "$group": "Motor Status",
+      "$state": "Idle",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Light",
+      "childs": {
+        "DEInitialized": {
+          "$name": "DEInitialized",
+          "$label": "Initialized",
+          "$_": "Alert"
+        },
+        "DERunning": {
+          "$name": "DERunning",
+          "$label": "Running",
+          "$_": "Idle"
+        },
+        "DEGoto": {
+          "$name": "DEGoto",
+          "$label": "Slew/Goto",
+          "$_": "Idle"
+        },
+        "DEForward": {
+          "$name": "DEForward",
+          "$label": "Backward/Forward",
+          "$_": "Idle"
+        },
+        "DEHighspeed": {
+          "$name": "DEHighspeed",
+          "$label": "Lowspeed/Highspeed",
+          "$_": "Idle"
+        }
+      },
+      "childNames": [
+        "DEInitialized",
+        "DERunning",
+        "DEGoto",
+        "DEForward",
+        "DEHighspeed"
+      ],
+      "$rev": 83
+    },
+    "HEMISPHERE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HEMISPHERE",
+      "$label": "Hemisphere",
+      "$group": "Site Management",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "NORTH": {
+          "$name": "NORTH",
+          "$label": "North",
+          "$_": "On"
+        },
+        "SOUTH": {
+          "$name": "SOUTH",
+          "$label": "South",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "NORTH",
+        "SOUTH"
+      ],
+      "$rev": 108
+    },
+    "HORIZONTAL_COORD": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONTAL_COORD",
+      "$label": "Hor. Coordinates",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "ALT": {
+          "$name": "ALT",
+          "$label": "Altitude",
+          "$format": "%10.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "1.9710571066658664457e-19"
+        },
+        "AZ": {
+          "$name": "AZ",
+          "$label": "Azimuth",
+          "$format": "%10.6m",
+          "$min": "0",
+          "$max": "360",
+          "$step": "0",
+          "$_": "360"
+        }
+      },
+      "childNames": [
+        "ALT",
+        "AZ"
+      ],
+      "$rev": 138
+    },
+    "REVERSEDEC": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "REVERSEDEC",
+      "$label": "Reverse DEC",
+      "$group": "Main Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ENABLE": {
+          "$name": "ENABLE",
+          "$label": "Enable",
+          "$_": "Off"
+        },
+        "DISABLE": {
+          "$name": "DISABLE",
+          "$label": "Disable",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "ENABLE",
+        "DISABLE"
+      ],
+      "$rev": 86
+    },
+    "STANDARDSYNC": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "STANDARDSYNC",
+      "$label": "Delta",
+      "$group": "Sync",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "STANDARDSYNC_RA": {
+          "$name": "STANDARDSYNC_RA",
+          "$label": "Delta RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "STANDARDSYNC_DE": {
+          "$name": "STANDARDSYNC_DE",
+          "$label": "Delta DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "STANDARDSYNC_RA",
+        "STANDARDSYNC_DE"
+      ],
+      "$rev": 87
+    },
+    "STANDARDSYNCPOINT": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "STANDARDSYNCPOINT",
+      "$label": "Sync Data",
+      "$group": "Sync",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "STANDARDSYNCPOINT_JD": {
+          "$name": "STANDARDSYNCPOINT_JD",
+          "$label": "Sync Date",
+          "$format": "%08.8f",
+          "$min": "0",
+          "$max": "9999999999",
+          "$step": "0",
+          "$_": "0"
+        },
+        "STANDARDSYNCPOINT_SYNCTIME": {
+          "$name": "STANDARDSYNCPOINT_SYNCTIME",
+          "$label": "Sync LST",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "9.9999999999999997989e-13",
+          "$_": "0"
+        },
+        "STANDARDSYNCPOINT_CELESTIAL_RA": {
+          "$name": "STANDARDSYNCPOINT_CELESTIAL_RA",
+          "$label": "Celestial RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "STANDARDSYNCPOINT_CELESTIAL_DE": {
+          "$name": "STANDARDSYNCPOINT_CELESTIAL_DE",
+          "$label": "Celestial DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        },
+        "STANDARDSYNCPOINT_TELESCOPE_RA": {
+          "$name": "STANDARDSYNCPOINT_TELESCOPE_RA",
+          "$label": "Telescope RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "STANDARDSYNCPOINT_TELESCOPE_DE": {
+          "$name": "STANDARDSYNCPOINT_TELESCOPE_DE",
+          "$label": "Telescope DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "STANDARDSYNCPOINT_JD",
+        "STANDARDSYNCPOINT_SYNCTIME",
+        "STANDARDSYNCPOINT_CELESTIAL_RA",
+        "STANDARDSYNCPOINT_CELESTIAL_DE",
+        "STANDARDSYNCPOINT_TELESCOPE_RA",
+        "STANDARDSYNCPOINT_TELESCOPE_DE"
+      ],
+      "$rev": 88
+    },
+    "SYNCPOLARALIGN": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "SYNCPOLARALIGN",
+      "$label": "Polar Align",
+      "$group": "Sync",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "SYNCPOLARALIGN_ALT": {
+          "$name": "SYNCPOLARALIGN_ALT",
+          "$label": "Est. Mount Alt.",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        },
+        "SYNCPOLARALIGN_AZ": {
+          "$name": "SYNCPOLARALIGN_AZ",
+          "$label": "Est. Mount AZ.",
+          "$format": "%10.6m",
+          "$min": "0",
+          "$max": "360",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "SYNCPOLARALIGN_ALT",
+        "SYNCPOLARALIGN_AZ"
+      ],
+      "$rev": 89
+    },
+    "SYNCMANAGE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "SYNCMANAGE",
+      "$label": "Manage Sync",
+      "$group": "Sync",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "SYNCCLEARDELTA": {
+          "$name": "SYNCCLEARDELTA",
+          "$label": "Clear Sync Delta",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "SYNCCLEARDELTA"
+      ],
+      "$rev": 90
+    },
+    "BACKLASH": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "BACKLASH",
+      "$label": "Backlash",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Number",
+      "childs": {
+        "BACKLASHRA": {
+          "$name": "BACKLASHRA",
+          "$label": "RA Backlash (microsteps)",
+          "$format": "%.0f",
+          "$min": "10",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "1"
+        },
+        "BACKLASHDE": {
+          "$name": "BACKLASHDE",
+          "$label": "DE Backlash (microsteps)",
+          "$format": "%.0f",
+          "$min": "10",
+          "$max": "16777215",
+          "$step": "1",
+          "$_": "1"
+        }
+      },
+      "childNames": [
+        "BACKLASHRA",
+        "BACKLASHDE"
+      ],
+      "$rev": 91
+    },
+    "USEBACKLASH": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "USEBACKLASH",
+      "$label": "Use Backlash",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AnyOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "USEBACKLASHRA": {
+          "$name": "USEBACKLASHRA",
+          "$label": "RA",
+          "$_": "Off"
+        },
+        "USEBACKLASHDE": {
+          "$name": "USEBACKLASHDE",
+          "$label": "DE",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "USEBACKLASHRA",
+        "USEBACKLASHDE"
+      ],
+      "$rev": 92
+    },
+    "TELESCOPE_TRACK_DEFAULT": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "TELESCOPE_TRACK_DEFAULT",
+      "$label": "Track Default",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "TRACK_SIDEREAL": {
+          "$name": "TRACK_SIDEREAL",
+          "$label": "Sidereal",
+          "$_": "On"
+        },
+        "TRACK_LUNAR": {
+          "$name": "TRACK_LUNAR",
+          "$label": "Lunar",
+          "$_": "Off"
+        },
+        "TRACK_SOLAR": {
+          "$name": "TRACK_SOLAR",
+          "$label": "Solar",
+          "$_": "Off"
+        },
+        "TRACK_CUSTOM": {
+          "$name": "TRACK_CUSTOM",
+          "$label": "Custom",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "TRACK_SIDEREAL",
+        "TRACK_LUNAR",
+        "TRACK_SOLAR",
+        "TRACK_CUSTOM"
+      ],
+      "$rev": 93
+    },
+    "ST4_GUIDE_RATE_NS": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ST4_GUIDE_RATE_NS",
+      "$label": "ST4 Rate N/S",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ST4_RATE_NS_0": {
+          "$name": "ST4_RATE_NS_0",
+          "$label": "1.00x",
+          "$_": "Off"
+        },
+        "ST4_RATE_NS_1": {
+          "$name": "ST4_RATE_NS_1",
+          "$label": "0.75x",
+          "$_": "Off"
+        },
+        "ST4_RATE_NS_2": {
+          "$name": "ST4_RATE_NS_2",
+          "$label": "0.50x",
+          "$_": "On"
+        },
+        "ST4_RATE_NS_3": {
+          "$name": "ST4_RATE_NS_3",
+          "$label": "0.25x",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ST4_RATE_NS_0",
+        "ST4_RATE_NS_1",
+        "ST4_RATE_NS_2",
+        "ST4_RATE_NS_3"
+      ],
+      "$rev": 94
+    },
+    "ST4_GUIDE_RATE_WE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ST4_GUIDE_RATE_WE",
+      "$label": "ST4 Rate W/E",
+      "$group": "Motion Control",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ST4_RATE_WE_0": {
+          "$name": "ST4_RATE_WE_0",
+          "$label": "1.00x",
+          "$_": "Off"
+        },
+        "ST4_RATE_WE_1": {
+          "$name": "ST4_RATE_WE_1",
+          "$label": "0.75x",
+          "$_": "Off"
+        },
+        "ST4_RATE_WE_2": {
+          "$name": "ST4_RATE_WE_2",
+          "$label": "0.50x",
+          "$_": "On"
+        },
+        "ST4_RATE_WE_3": {
+          "$name": "ST4_RATE_WE_3",
+          "$label": "0.25x",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ST4_RATE_WE_0",
+        "ST4_RATE_WE_1",
+        "ST4_RATE_WE_2",
+        "ST4_RATE_WE_3"
+      ],
+      "$rev": 95
+    },
+    "ALIGN_METHOD": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGN_METHOD",
+      "$label": "Align Method",
+      "$group": "Options",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ALIGN_METHOD_EQMOD": {
+          "$name": "ALIGN_METHOD_EQMOD",
+          "$label": "EQMod Align",
+          "$_": "On"
+        },
+        "ALIGN_METHOD_SUBSYSTEM": {
+          "$name": "ALIGN_METHOD_SUBSYSTEM",
+          "$label": "Alignment Subsystem",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ALIGN_METHOD_EQMOD",
+        "ALIGN_METHOD_SUBSYSTEM"
+      ],
+      "$rev": 96
+    },
+    "ALIGNSYNCMODE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNSYNCMODE",
+      "$label": "Sync. Mode",
+      "$group": "Sync",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:12",
+      "$type": "Switch",
+      "childs": {
+        "ALIGNSTANDARDSYNC": {
+          "$name": "ALIGNSTANDARDSYNC",
+          "$label": "Standard Sync",
+          "$_": "Off"
+        },
+        "ALIGNAPPENDSYNC": {
+          "$name": "ALIGNAPPENDSYNC",
+          "$label": "Add point on Sync",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "ALIGNSTANDARDSYNC",
+        "ALIGNAPPENDSYNC"
+      ],
+      "$rev": 97
+    },
+    "ALIGNDATAFILE": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNDATAFILE",
+      "$label": "Data File",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Text",
+      "childs": {
+        "ALIGNDATAFILENAME": {
+          "$name": "ALIGNDATAFILENAME",
+          "$label": "Name",
+          "$_": "~/.indi/AlignData.xml"
+        }
+      },
+      "childNames": [
+        "ALIGNDATAFILENAME"
+      ],
+      "$rev": 109
+    },
+    "ALIGNDATA": {
+      "$$": "defBLOBVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNDATA",
+      "$label": "Align Data",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$_": "",
+      "$type": "BLOB",
+      "childs": {},
+      "childNames": [],
+      "$rev": 110
+    },
+    "ALIGNPOINT": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNPOINT",
+      "$label": "Alignment Point",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "ALIGNPOINT_JD": {
+          "$name": "ALIGNPOINT_JD",
+          "$label": "Sync Date",
+          "$format": "%08.8f",
+          "$min": "0",
+          "$max": "9999999999",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNPOINT_SYNCTIME": {
+          "$name": "ALIGNPOINT_SYNCTIME",
+          "$label": "Sync LST",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "9.9999999999999997989e-13",
+          "$_": "0"
+        },
+        "ALIGNPOINT_CELESTIAL_RA": {
+          "$name": "ALIGNPOINT_CELESTIAL_RA",
+          "$label": "Celestial RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNPOINT_CELESTIAL_DE": {
+          "$name": "ALIGNPOINT_CELESTIAL_DE",
+          "$label": "Celestial DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNPOINT_TELESCOPE_RA": {
+          "$name": "ALIGNPOINT_TELESCOPE_RA",
+          "$label": "Telescope RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "0"
+        },
+        "ALIGNPOINT_TELESCOPE_DE": {
+          "$name": "ALIGNPOINT_TELESCOPE_DE",
+          "$label": "Telescope DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "ALIGNPOINT_JD",
+        "ALIGNPOINT_SYNCTIME",
+        "ALIGNPOINT_CELESTIAL_RA",
+        "ALIGNPOINT_CELESTIAL_DE",
+        "ALIGNPOINT_TELESCOPE_RA",
+        "ALIGNPOINT_TELESCOPE_DE"
+      ],
+      "$rev": 111
+    },
+    "ALIGNLIST": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNLIST",
+      "$label": "Manage List",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "ALIGNLISTADD": {
+          "$name": "ALIGNLISTADD",
+          "$label": "Add point",
+          "$_": "Off"
+        },
+        "ALIGNLISTCLEAR": {
+          "$name": "ALIGNLISTCLEAR",
+          "$label": "Clear List",
+          "$_": "Off"
+        },
+        "ALIGNWRITEFILE": {
+          "$name": "ALIGNWRITEFILE",
+          "$label": "Write File",
+          "$_": "Off"
+        },
+        "ALIGNLOADFILE": {
+          "$name": "ALIGNLOADFILE",
+          "$label": "Load File",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "ALIGNLISTADD",
+        "ALIGNLISTCLEAR",
+        "ALIGNWRITEFILE",
+        "ALIGNLOADFILE"
+      ],
+      "$rev": 112
+    },
+    "ALIGNTELESCOPECOORDS": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNTELESCOPECOORDS",
+      "$label": "Telescope Coords",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "ALIGNTELESCOPE_RA": {
+          "$name": "ALIGNTELESCOPE_RA",
+          "$label": "Telescope RA (hh:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "24",
+          "$step": "0",
+          "$_": "1.0492580478056687809"
+        },
+        "ALIGNTELESCOPE_DE": {
+          "$name": "ALIGNTELESCOPE_DE",
+          "$label": "Telescope DE (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "90"
+        }
+      },
+      "childNames": [
+        "ALIGNTELESCOPE_RA",
+        "ALIGNTELESCOPE_DE"
+      ],
+      "$rev": 136
+    },
+    "ALIGNCOUNT": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNCOUNT",
+      "$label": "Number of",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "ALIGNCOUNT_POINTS": {
+          "$name": "ALIGNCOUNT_POINTS",
+          "$label": "Points",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "10000",
+          "$step": "1",
+          "$_": "0"
+        },
+        "ALIGNCOUNT_TRIANGLES": {
+          "$name": "ALIGNCOUNT_TRIANGLES",
+          "$label": "Triangles",
+          "$format": "%.0f",
+          "$min": "0",
+          "$max": "1000000",
+          "$step": "1",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "ALIGNCOUNT_POINTS",
+        "ALIGNCOUNT_TRIANGLES"
+      ],
+      "$rev": 114
+    },
+    "ALIGNMODE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "ALIGNMODE",
+      "$label": "Alignment Mode",
+      "$group": "Align",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "NOALIGN": {
+          "$name": "NOALIGN",
+          "$label": "No Alignment",
+          "$_": "Off"
+        },
+        "ALIGNNEAREST": {
+          "$name": "ALIGNNEAREST",
+          "$label": "Nearest Point",
+          "$_": "Off"
+        },
+        "ALIGNNSTAR": {
+          "$name": "ALIGNNSTAR",
+          "$label": "N-Star",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "NOALIGN",
+        "ALIGNNEAREST",
+        "ALIGNNSTAR"
+      ],
+      "$rev": 115
+    },
+    "HORIZONLIMITSDATAFILE": {
+      "$$": "defTextVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSDATAFILE",
+      "$label": "Horizon File",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Text",
+      "childs": {
+        "HORIZONLIMITSFILENAME": {
+          "$name": "HORIZONLIMITSFILENAME",
+          "$label": "Name",
+          "$_": "~/.indi/HorizonData.txt"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSFILENAME"
+      ],
+      "$rev": 117
+    },
+    "HORIZONLIMITSDATAFITS": {
+      "$$": "defBLOBVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSDATAFITS",
+      "$label": "Display",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "ro",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$_": "",
+      "$type": "BLOB",
+      "childs": {},
+      "childNames": [],
+      "$rev": 118
+    },
+    "HORIZONLIMITSPOINT": {
+      "$$": "defNumberVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSPOINT",
+      "$label": "Horizon Point",
+      "$group": "Horizon",
+      "$state": "Ok",
+      "$perm": "rw",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Number",
+      "childs": {
+        "HORIZONLIMITS_POINT_AZ": {
+          "$name": "HORIZONLIMITS_POINT_AZ",
+          "$label": "Azimuth (dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "0",
+          "$max": "360",
+          "$step": "0",
+          "$_": "0"
+        },
+        "HORIZONLIMITS_POINT_ALT": {
+          "$name": "HORIZONLIMITS_POINT_ALT",
+          "$label": "Altitude(dd:mm:ss)",
+          "$format": "%010.6m",
+          "$min": "-90",
+          "$max": "90",
+          "$step": "0",
+          "$_": "0"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITS_POINT_AZ",
+        "HORIZONLIMITS_POINT_ALT"
+      ],
+      "$rev": 125
+    },
+    "HORIZONLIMITSTRAVERSE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSTRAVERSE",
+      "$label": "Traversal",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "HORIZONLIMITSLISTFIRST": {
+          "$name": "HORIZONLIMITSLISTFIRST",
+          "$label": "First",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLISTPREV": {
+          "$name": "HORIZONLIMITSLISTPREV",
+          "$label": "Prev.",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLISTNEXT": {
+          "$name": "HORIZONLIMITSLISTNEXT",
+          "$label": "Next",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLISTLAST": {
+          "$name": "HORIZONLIMITSLISTLAST",
+          "$label": "Last",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSLISTFIRST",
+        "HORIZONLIMITSLISTPREV",
+        "HORIZONLIMITSLISTNEXT",
+        "HORIZONLIMITSLISTLAST"
+      ],
+      "$rev": 120
+    },
+    "HORIZONLIMITSMANAGE": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSMANAGE",
+      "$label": "Manage",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "HORIZONLIMITSLISTADDCURRENT": {
+          "$name": "HORIZONLIMITSLISTADDCURRENT",
+          "$label": "Add Current Scope Az/Alt",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLISTDELETE": {
+          "$name": "HORIZONLIMITSLISTDELETE",
+          "$label": "Delete Point",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLISTCLEAR": {
+          "$name": "HORIZONLIMITSLISTCLEAR",
+          "$label": "Clear List",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSLISTADDCURRENT",
+        "HORIZONLIMITSLISTDELETE",
+        "HORIZONLIMITSLISTCLEAR"
+      ],
+      "$rev": 121
+    },
+    "HORIZONLIMITSFILEOPERATION": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSFILEOPERATION",
+      "$label": "Operation",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "HORIZONLIMITSWRITEFILE": {
+          "$name": "HORIZONLIMITSWRITEFILE",
+          "$label": "Write File",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLOADFILE": {
+          "$name": "HORIZONLIMITSLOADFILE",
+          "$label": "Load File",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSWRITEFILE",
+        "HORIZONLIMITSLOADFILE"
+      ],
+      "$rev": 122
+    },
+    "HORIZONLIMITSONLIMIT": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSONLIMIT",
+      "$label": "On Limit",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "AnyOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "HORIZONLIMITSONLIMITTRACK": {
+          "$name": "HORIZONLIMITSONLIMITTRACK",
+          "$label": "Abort Tracking",
+          "$_": "On"
+        },
+        "HORIZONLIMITSONLIMITSLEW": {
+          "$name": "HORIZONLIMITSONLIMITSLEW",
+          "$label": "Abort Slewing",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSONLIMITGOTO": {
+          "$name": "HORIZONLIMITSONLIMITGOTO",
+          "$label": "Abort Goto",
+          "$_": "Off"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSONLIMITTRACK",
+        "HORIZONLIMITSONLIMITSLEW",
+        "HORIZONLIMITSONLIMITGOTO"
+      ],
+      "$rev": 123
+    },
+    "HORIZONLIMITSLIMITGOTO": {
+      "$$": "defSwitchVector",
+      "$device": "HEQ5",
+      "$name": "HORIZONLIMITSLIMITGOTO",
+      "$label": "Limit Goto",
+      "$group": "Horizon",
+      "$state": "Idle",
+      "$perm": "rw",
+      "$rule": "OneOfMany",
+      "$timeout": "0",
+      "$timestamp": "2018-02-24T08:46:13",
+      "$type": "Switch",
+      "childs": {
+        "HORIZONLIMITSLIMITGOTODISABLE": {
+          "$name": "HORIZONLIMITSLIMITGOTODISABLE",
+          "$label": "Disable",
+          "$_": "Off"
+        },
+        "HORIZONLIMITSLIMITGOTOENABLE": {
+          "$name": "HORIZONLIMITSLIMITGOTOENABLE",
+          "$label": "Enable",
+          "$_": "On"
+        }
+      },
+      "childNames": [
+        "HORIZONLIMITSLIMITGOTODISABLE",
+        "HORIZONLIMITSLIMITGOTOENABLE"
+      ],
+      "$rev": 124
+    }
+  }
+}

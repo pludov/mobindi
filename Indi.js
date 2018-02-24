@@ -522,7 +522,7 @@ class IndiConnection {
 
             var prop = dev[message.$name];
             prop.$state = message.$state;
-            prop.$timeout = message.$timeout;
+            prop.$timeout = has(message, '$timeout') ? message.$timeout : 0;
             prop.$timestamp = message.$timestamp;
             prop.$rev = globalRevisionId;
             if (message.$message != undefined) {
