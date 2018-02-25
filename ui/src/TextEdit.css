@@ -6,6 +6,7 @@
     width: auto !important;
     margin: 0.5vw;
     white-space: pre;
+    min-height: 1.0em;
 }
 
 

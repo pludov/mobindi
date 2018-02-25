@@ -55,19 +55,20 @@ class IndiManagerApp extends BaseApp {
         return update($state, u);
     }
 
+    // Returns a promise that needs start
     restartDriver(driver) {
-        this.serverRequest({
+        return this.serverRequest({
             method: 'restartDriver',
             driver: driver
-        }).start();
-
+        });
     }
 
+    // Returns a promise that needs start
     rqtSwitchProperty(desc) {
-        this.serverRequest({
+        return this.serverRequest({
             method: 'setProperty',
             data: desc
-        }).start();
+        });
     }
 }
 

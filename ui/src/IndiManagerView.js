@@ -10,6 +10,8 @@ import "./Collapsible.css";
 import Led from "./Led";
 import TextEdit from "./TextEdit.js";
 import "./IndiManagerView.css";
+import Icons from "./Icons.js"
+import IconButton from "./IconButton.js";
 
 // Return a function that will call the given function with the given args
 function closure() {
@@ -95,7 +97,7 @@ class IndiDriverControlButton extends PureComponent {
     render() {
         if (this.props.configured) {
             return <input type='button'
-                            onClick={() => this.props.app.restartDriver(this.props.current)}
+                            onClick={() => this.props.app.restartDriver(this.props.current).start()}
                             value='Restart'/>
         }
         return null;
@@ -157,7 +159,7 @@ class IndiSelectorPropertyView extends PureComponent {
                 vec: self.props.vec,
                 children: [
                     {name: e.target.value, value: 'On'}
-                ]})
+                ]}).start();
         }}>{options}</select>;
     }
 
@@ -283,7 +285,7 @@ class IndiPropertyView extends PureComponent {
                 str += xlatPattern;
                 return str;
             }
-
+            return value;
         } else {
             return value;
         }
@@ -367,7 +369,10 @@ class IndiPropertyView extends PureComponent {
                     className={"IndiSwitchButton IndiSwitchButton" + this.props.value}
                     value={label}
                     onClick={(e) => {
-                        self.props.onChange(self.props.value == 'On' ? 'Off' : 'On')
+                        self.props.onChange(
+                            self.props.prop,
+                            true,
+                            self.props.value == 'On' ? 'Off' : 'On')
                     }}
                 />
 
@@ -377,13 +382,21 @@ class IndiPropertyView extends PureComponent {
                         type="checkbox"
                         checked={this.props.value == 'On'}
                         onChange={(e) => {
-                            self.props.onChange(e.target.checked ? 'On' : 'Off')
+                            self.props.onChange(
+                                self.props.prop,
+                                true, // Could be false as well... Depends on driver
+                                e.target.checked ? 'On' : 'Off');
                         }}
                     ></input>
                     {label}</div>
             }
         } else if (this.props.vecPerm != 'ro') {
-            return <div className="IndiProperty">{label}: <TextEdit value={this.renderValue(this.props.value)} onChange={(e)=> {self.props.onChange(self.parseValue(e))}}/></div>;
+            return <div className="IndiProperty">
+                        {label}: 
+                        <TextEdit 
+                            value={this.renderValue(this.props.value)} 
+                            onChange={(e)=> {self.props.onChange(self.props.prop, false, self.parseValue(e))}}/>
+                    </div>;
         } else {
             return <div className="IndiProperty">{label}: {this.renderValue(this.props.value)}</div>
         }
@@ -416,6 +429,89 @@ IndiPropertyView = connect(IndiPropertyView.mapStateToProps)(IndiPropertyView);
 
 /** Render a vector, depending on its type and access rules */
 class IndiVectorView extends PureComponent {
+    constructor(props) {
+        super(props);
+        this.state = {
+            pendingChange: false
+        };
+        this.pushMultiValue = this.pushMultiValue.bind(this);
+        this.changeCallback = this.changeCallback.bind(this);
+        this.cancelPendingChanges = this.cancelPendingChanges.bind(this);
+    }
+
+    pendingChangesIds() {
+        var rslt = [];
+        for(var o of Object.keys(this.state)) {
+            if (o.startsWith("forced_")) {
+                var id = o.substring(7);
+                rslt.push(id);
+            }
+        }
+        return rslt;
+    }
+
+
+    cancelPendingChanges() {
+        var newState = {};
+        for(var id of this.pendingChangesIds()) {
+            newState["forced_" + id] = undefined;
+        }
+        newState.pendingChange = false;
+        this.setState(newState);
+    }
+
+    doneRequest(request) {
+        this.cancelPendingChanges();
+    }
+
+    pushMultiValue() {
+        var self = this;
+        var req = {
+            dev: this.props.dev,
+            vec: this.props.vec,
+            children: []
+        };
+        var newState = {};
+        for(var o of Object.keys(this.state)) {
+            if (o.startsWith("forced_")) {
+                var id = o.substring(7);
+                var value = this.state[o];
+                newState[o] = undefined;
+                req.children.push({name: id, value: value});
+            }
+        }
+
+        this.setState(newState);
+        
+        this.props.app.rqtSwitchProperty(req)
+            .then(()=>{self.doneRequest(req)})
+            .start();
+    }
+
+    changeCallback(id, immediate, value) {
+        var self = this;
+
+        if ((!immediate) && self.props.childs.length > 1) {
+            // Do nothing for now
+            self.setState({
+                ["forced_" + id]: value,
+                pendingChange: true
+            });
+        } else {
+            // Direct push of the value
+            var request = {
+                dev: self.props.dev,
+                vec: self.props.vec,
+                children: [
+                    {name: id, value: value}
+                ]
+            };
+            self.props.app.rqtSwitchProperty(request)
+                .then(()=>{self.doneRequest(request)})
+                .start();
+        }
+    }
+
     // props: app
     // props: dev
     // props: vec
@@ -433,30 +529,32 @@ class IndiVectorView extends PureComponent {
                 </IndiSelectorPropertyView>
             </div>;
         } else if (this.props.childs.length > 0) {
-
-            function changeCallbackForId(id) {
-                if (self.props.childs.length > 1 && false) {
-
-                } else {
-                    return (value) => {
-                        // Direct push of the value
-                        self.props.app.rqtSwitchProperty({
-                            dev: self.props.dev,
-                            vec: self.props.vec,
-                            children: [
-                                {name: id, value: value}
-                            ]
-                        })
-                    }
-                }
-            }
-
-            content = this.props.childs.map((id) => <IndiPropertyView app={self.props.app} dev={self.props.dev}
-                                                                      showVecLabel={this.props.childs.length == 1}
-                                                                      onChange={changeCallbackForId(id)}
-                                                                      vec={self.props.vec} prop={id} key={'child_' + id}/>);
+            content = this.props.childs.map(
+                (id) => <IndiPropertyView app={self.props.app} dev={self.props.dev}
+                                showVecLabel={this.props.childs.length == 1}
+                                onChange={this.changeCallback}
+                                vec={self.props.vec} prop={id} key={'child_' + id}
+                                forcedValue={self.state["forced_" + id]}/>);
             if (this.props.childs.length > 1) {
-                content.splice(0, 0, <div key='$$$title$$$' className="IndiVectorTitle">{this.props.label}</div>);
+                content.splice(0, 0, 
+                        <div
+                            key='$$$title$$$' 
+                            className="IndiVectorTitle">
+                                {this.props.label}
+                                {this.props.perm == 'ro' ? null :
+                                    <IconButton 
+                                        src={Icons.dialogOk} 
+                                        onClick={this.pushMultiValue}
+                                        visible={self.state.pendingChange}/>
+                                }
+                                {this.props.perm == 'ro' ? null :
+                                    <IconButton
+                                        src={Icons.dialogCancel}
+                                        onClick={this.cancelPendingChanges}
+                                        visible={self.state.pendingChange}/>
+                                }
+                        </div>
+                        );
             }
         } else {
             content = <div className="IndiProperty">{this.props.label}></div>;
