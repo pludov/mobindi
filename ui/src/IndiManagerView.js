@@ -60,6 +60,7 @@ class IndiDriverSelector extends Component {
             for(var o of Object.keys(backend.deviceTree).sort()) {
                 if (o === currentDevice) currentDeviceFound = true;
                 deviceSelectorOptions.push(o);
+                found[o] = 1;
             }
         }
 
