@@ -11,4 +11,9 @@ function getDeviceDesc(store, device)
     
 }
 
-export {getDeviceDesc};
+function timestampToDate(timestamp)
+{
+    return new Date(timestamp + "Z");
+}
+
+export {getDeviceDesc, timestampToDate};

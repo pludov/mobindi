@@ -229,6 +229,7 @@ class IndiConnection {
         this.queue = [];
         this.deviceTree = {};
         this.listeners = [];
+        this.messageListeners = [];
         this.dead = false;
     }
 
@@ -365,6 +366,34 @@ class IndiConnection {
         );
     }
 
+    dispatchMessage(m)
+    {
+        for(var i = 0; i < this.messageListeners.length; ++i)
+        {
+            try {
+                this.messageListeners[i](m);
+            } catch(e) {
+                console.error("Messagelistener", e);
+            }
+        }
+    }
+
+    addMessageListener(m)
+    {
+        this.messageListeners.push(m);
+    }
+
+    removeMessageListener(m)
+    {
+        for(var i = 0; i < this.messageListeners.length; ++i)
+        {
+            if (this.messageListeners[i] === m) {
+                this.messageListeners.splice(i, 1);
+                break;
+            }
+        }
+    }
+
     addListener(f)
     {
         this.listeners.push(f);
@@ -467,6 +496,10 @@ class IndiConnection {
     }
 
     onMessage(message) {
+        if (message.$$.match(/^message$/)) {
+            this.dispatchMessage(message);
+            return;
+        }
         globalRevisionId++;
         if (message.$$.match(/^def.*Vector$/)) {
             var childsProps = message.$$.replace(/Vector$/, '');

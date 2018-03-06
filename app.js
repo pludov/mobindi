@@ -78,6 +78,10 @@ appState.apps= {
     sequence: {
         enabled: true,
         position: 4
+    },
+    messages: {
+        enabled: true,
+        position: 5
     }
 };
 

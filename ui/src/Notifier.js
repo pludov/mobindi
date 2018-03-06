@@ -293,7 +293,7 @@ class Notifier {
                 console.log('Websocket: received : ' + JSON.stringify(event.data, null, 2));
                 var data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
-                    console.log('Websocket: welcomed');
+                    console.log('Websocket: welcomed', data);
                     self.resetHandshakeStatus(true, data.clientId);
                     var previousServerId = self.ServerId;
                     self.serverId = data.serverId;

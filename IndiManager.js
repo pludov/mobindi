@@ -44,13 +44,18 @@ class IndiManager {
             // connecting, connected, error
             status: "connecting",
             deviceTree: {},
+            // Messages by uids
+            messages: {
+                byUid: {}
+            },
             // Maps indi drivers to group
             driverToGroup: {},
             configuration: {}
         }
 
         this.currentStatus = this.appStateManager.getTarget().indiManager;
-
+        this.lastMessageSerial = undefined;
+        this.lastMessageStamp = undefined;
         new ConfigStore(appStateManager, 'indi', ['indiManager', 'configuration'], {
             driverPath: '/usr/share/indi/',
             indiServer: {
@@ -83,6 +88,34 @@ class IndiManager {
         this.lifeCycle.start();
 
         this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+    }
+
+    nextMessageUid() {
+        var now = new Date().getTime();
+        var serial = 0;
+        if (this.lastMessageStamp !== undefined) {
+            if (this.lastMessageStamp > now) {
+                // Don't go backward
+                now = this.lastMessageStamp;
+            }
+            if (this.lastMessageStamp == now) {
+                serial = this.lastMessageSerial + 1;
+            } else {
+                serial = 0;
+            }
+        } else {
+            serial = 0;
+        }
+        this.lastMessageStamp = now;
+        this.lastMessageSerial = serial;
+
+        serial = serial.toString(16);
+        // Ensure lexicographical order of serial
+        var prefix = '';
+        for(var i = 1; i < serial.length; ++i) {
+            prefix += 'Z';
+        }
+        return new Date(now).toISOString() + ":" + prefix + serial;
     }
 
     readDrivers()
@@ -164,7 +197,12 @@ class IndiManager {
 
                         indiConnection.connect('127.0.0.1');
                         indiConnection.addListener(listener);
-
+                        indiConnection.addMessageListener(function(msg) {
+                            var msgUid = self.nextMessageUid();
+                            console.log('Received message : ', JSON.stringify(msg));
+                            self.addMessage(msg);
+                            self.cleanupMessages();
+                        });
                         next.done(indiConnection.wait(()=>{
                             console.log('socket is ' + indiConnection.socket);
                             return indiConnection.socket == undefined;
@@ -182,6 +220,26 @@ class IndiManager {
                 )
             )
         );
+    }
+
+    addMessage(m)
+    {
+        var msgUid = this.nextMessageUid();
+        m.uid = msgUid;
+        this.currentStatus.messages.byUid[msgUid] = m;
+        this.cleanupMessages();
+    }
+
+    cleanupMessages()
+    {
+        var maxMessages = 100;
+        var keys = Object.keys(this.currentStatus.messages.byUid);
+        if (keys.length > maxMessages) {
+            keys.sort();
+            for(var i = 0; i < keys.length - maxMessages; ++i) {
+                delete this.currentStatus.messages.byUid[i];
+            }
+        }
     }
 
     getValidConnection()

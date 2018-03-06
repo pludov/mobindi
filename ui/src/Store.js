@@ -26,7 +26,8 @@ const initialState =  {
         apps: {}
     },
     indiManager: {},
-    currentApp: null
+    currentApp: null,
+    appNotifications: {}
 };
 
 const actions = {};

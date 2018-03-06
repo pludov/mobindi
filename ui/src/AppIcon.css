@@ -7,6 +7,10 @@
     border-top-right-radius: 2.5vw;
     border-bottom: 0px;
     cursor: pointer;
+    position: relative;
+}
+
+.AppStatusBar .Application img {
     filter: grayscale(100%);
 }
 
@@ -17,6 +21,9 @@
     background: black;
     border-bottom: 0px;
     cursor: inherit;
+}
+
+.AppStatusBar .Application.Active img{
     filter: inherit;
 }
 
@@ -32,4 +39,18 @@
 
 .AppStatusBar .Application img {
     width: 100%;
+}
+
+.AppStatusBar .Application .Notification {
+    bottom: 0.5em;
+    display: block;
+    position: absolute;
+    right: 0.05em;
+    font-weight: bold;
+    font-size: 0.83em;
+    font-family: "Helvetica Narrow","Arial Narrow",Tahoma,Arial,Helvetica,sans-serif;
+}
+
+.Notification_Warning {
+    color: #ff8080;
 }
