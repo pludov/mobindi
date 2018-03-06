@@ -9,18 +9,45 @@ function isObject(item) {
 }
 
 function mergeDeep(target, source) {
-    let output = Object.assign({}, target);
+    var output = target;
+    var forked = false;
     if (isObject(target) && isObject(source)) {
         Object.keys(source).forEach(key => {
-            if (isObject(source[key])) {
-                if (!hasKey(target, key))
-                    Object.assign(output, { [key]: source[key] });
-                else
-                    output[key] = mergeDeep(target[key], source[key]);
+            var sourceValue = source[key];
+            if (isObject(sourceValue)) {
+                if (!hasKey(target, key)) {
+                    if (!forked) {
+                        forked = true;
+                        output = Object.assign({}, output);
+                    }
+                    output[key] = deepCopy(sourceValue);
+
+                } else {
+                    var oldValue = target[key];
+                    var newValue = mergeDeep(oldValue, sourceValue);
+                    if (oldValue !== newValue) {
+                        if (!forked) {
+                            forked = true;
+                            output = Object.assign({}, output);
+                        }
+                        output[key] = newValue;
+                    }
+                }
             } else {
-                Object.assign(output, { [key]: source[key] });
+                var oldValue = target[key];
+                var newValue = deepCopy(sourceValue);
+                if (oldValue !== newValue) {
+                    if (!forked) {
+                        forked = true;
+                        output = Object.assign({}, output);
+                    }
+                    output[key] = newValue;
+                }
             }
         });
+    } else {
+        // Don't merge array
+        output = deepCopy(source);
     }
     return output;
 }
