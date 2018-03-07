@@ -22,38 +22,40 @@ class MessageAppSynchronizer {
                 return state;
             }
 
+            if (newByUid !== undefined) {
 
-            var uids = Object.keys(newByUid).sort();
-            var current = uids.length ? uids[uids.length - 1] : undefined;
-            if (newApp) {
-                state = update(state, {$mergedeep: {
-                    lastMessage: current,
-                    lastMessageDisplayed: current,
-                    appNotifications:
-                    {
-                        messages: undefined
-                    }
-                }});
-            } else {
-                var warning;
-                if (state.lastMessageDisplayed === state.lastMessage) {
-                    warning = undefined;
+                var uids = Object.keys(newByUid).sort();
+                var current = uids.length ? uids[uids.length - 1] : undefined;
+                if (newApp) {
+                    state = update(state, {$mergedeep: {
+                        lastMessage: current,
+                        lastMessageDisplayed: current,
+                        appNotifications:
+                        {
+                            messages: undefined
+                        }
+                    }});
                 } else {
-                    // Count unread messages.
-                    var previousId = state.lastMessageDisplayed;
-                    var previousPos = uids.indexOf(previousId);
-                    warning = {
-                        text: "(" + (previousPos == -1 ? uids.length : uids.length - previousPos - 1) + ")",
-                        className: "Warning"
+                    var warning;
+                    if (state.lastMessageDisplayed === state.lastMessage) {
+                        warning = undefined;
+                    } else {
+                        // Count unread messages.
+                        var previousId = state.lastMessageDisplayed;
+                        var previousPos = uids.indexOf(previousId);
+                        warning = {
+                            text: "(" + (previousPos == -1 ? uids.length : uids.length - previousPos - 1) + ")",
+                            className: "Warning"
+                        }
                     }
+                    state = update(state, {$mergedeep: {
+                        lastMessage: current,
+                        appNotifications:
+                        {
+                            messages: warning
+                        }
+                    }});
                 }
-                state = update(state, {$mergedeep: {
-                    lastMessage: current,
-                    appNotifications:
-                    {
-                        messages: warning
-                    }
-                }});
             }
 
             self.currentApp = newApp;
