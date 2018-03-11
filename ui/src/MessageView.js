@@ -14,8 +14,15 @@ class Item extends PureComponent {
     }
 
     render() {
+        var device;
+        if (this.props.data.$device) {
+            device=<span className="MessageItemDevice">{this.props.data.$device}</span>;
+        } else {
+            device = null;
+        }
         return <div className="MessageItem">
             <span className="MessageItemDate">{timestampToDate(this.props.data.$timestamp).toLocaleTimeString()}</span>
+            {device}
             <span className="MessageItemMessage">{this.props.data.$message}</span>
         </div>;
     }

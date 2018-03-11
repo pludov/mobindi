@@ -14,7 +14,15 @@
 }
 
 .MessageItemDate {
-    margin-right: 0.5em;
+    margin-right: 0.2em;
     color: #b0b0b0;
     font-style: italic;
+    font-size: 0.85em;
+}
+
+.MessageItemDevice {
+    margin-right: 0.2em;
+    color: #c9a0a0;
+    font-style: italic;
+    font-size: 0.85em;
 }
