@@ -23,42 +23,96 @@ class IndiNewProperty
         this.key = key;
         this.params = params;
         this.context = context;
-        this.parameterValue = undefined;
-        this.last = {value: undefined};
+        this.last = [];
     }
 
-    getProperty(newState) {
+    getProperties(newState) {
         if (newState.indiManager === undefined) return undefined;
         var device = newState.indiManager.deviceTree[this.params.device];
         if (device === undefined) return undefined;
         var vector = device[this.params.vector];
         if (vector === undefined) return undefined;
-        var property = vector.childs[this.params.property];
-        if (property === undefined) return undefined;
-        return property;
+        if (Array.isArray(this.params.property)) {
+            var result = [];
+            for(var i = 0; i < this.params.property.length; ++i)
+            {
+                var property = vector.childs[this.params.property[i]];
+                if (property === undefined) return undefined;
+                result[i] = property;
+            }
+            return result;
+        } else {
+            var property = vector.childs[this.params.property];
+            if (property === undefined) return undefined;
+            return [property];
+        }
     }
 
     getCurrentValue(newState)
     {
-        var prop = this.getProperty(newState);
-        if (prop === undefined) return {};
-        return {value: prop.$_};
+        var prop = this.getProperties(newState);
+        if (prop === undefined) return [];
+        var result = [];
+        for(var i = 0 ; i < prop.length; ++i) {
+            result[i] = prop[i].$_;
+        }
+        return result;
     }
 
-    action(newState, oldValue, newValue) {
+    getTargetProperty(i)
+    {
+        if (Array.isArray(this.params.property)) {
+            return this.params.property[i];
+        } else if (i == 0) {
+            return this.params.property;
+        } else {
+            throw new Error("Wrong trigger properties");
+        }
+    }
+
+    getTargetValue(i)
+    {
+        if (Array.isArray(this.params.property)) {
+            if (!Array.isArray(this.params.value)) {
+                throw new Error("Array/simple mismatch for trigger properties");
+            }
+            return this.params.value[i];
+        } else if (i == 0) {
+            if (Array.isArray(this.params.value)) {
+                throw new Error("Array/simple mismatch for trigger properties");
+            }
+            return this.params.value;
+        } else {
+            throw new Error("Wrong trigger properties");
+        }
+    }
+
+    action(newState, oldValues, newValues) {
         var self = this;
-        if (oldValue.value === undefined && newValue.value != this.params.value) {
-            this.context.indiManager.setParam(
-                this.params.device,
-                this.params.vector,
-                { [this.params.property]: this.params.value}
-            ).onError((e)=>{console.log('Trigger ' + self.key + ' failed', e);}).start();
+        if (oldValues.length == 0) {
+            var toSet = {};
+            var changeRequired = false;
+            for(var i = 0 ; i < newValues.length; ++i) {
+                var targetValue = this.getTargetValue(i);
+                if (targetValue !== newValues[i]) {
+                    changeRequired = true;
+                    toSet[this.getTargetProperty(i)] = targetValue;
+                }
+            }
+            if (changeRequired) {
+                this.context.indiManager.setParam(
+                    this.params.device,
+                    this.params.vector,
+                    toSet
+                ).onError((e)=>{console.log('Trigger ' + self.key + ' failed', e);}).start();
+            }
         }
     }
 
     check(newState)
     {
         var newValue = this.getCurrentValue(newState);
+        console.log('trigger:' + this.key + "=> " + JSON.stringify(newValue));
         if (!Obj.deepEqual(this.last, newValue)) {
             console.log('Activating trigger:' + this.key);
             
@@ -94,6 +148,13 @@ class TriggerExecuter
                 vector:'CONNECTION',
                 property: 'CONNECT',
                 value: 'On'
+            },
+            "gps_autoset_lat": {
+                "desc": "Push local coordinates to Mount",
+                "device":   "Mount",
+                "vector":   "GEOGRAPHIC_COORD",
+                "property": ["LONG", "LAT"],
+                "value":    ["1.4", "48.0833"]
             }
         });
         
