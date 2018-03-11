@@ -46,12 +46,13 @@ class IndiNewProperty
     }
 
     action(newState, oldValue, newValue) {
+        var self = this;
         if (oldValue.value === undefined && newValue.value != this.params.value) {
             this.context.indiManager.setParam(
                 this.params.device,
                 this.params.vector,
                 { [this.params.property]: this.params.value}
-            ).start();
+            ).onError((e)=>{console.log('Trigger ' + self.key + ' failed', e);}).start();
         }
     }
 

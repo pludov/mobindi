@@ -22,7 +22,7 @@ const {IndiManager} = require('./IndiManager');
 const {Camera} = require('./Camera');
 
 const JsonProxy = require('./JsonProxy');
-
+const TriggerExecuter = require('./TriggerExecuter');
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
@@ -95,6 +95,13 @@ phd = new Phd(app, appStateManager);
 indiManager = new IndiManager(app, appStateManager);
 
 camera = new Camera(app, appStateManager, indiManager);
+
+new TriggerExecuter(appStateManager,
+    {
+        phd: phd,
+        indiManager: indiManager,
+        camera: camera
+    });
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
