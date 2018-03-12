@@ -16,7 +16,7 @@
     "immutability-helper": "^2.3.0",
     "jquery": "^3.2.1",
     "jsonpath": "^0.2.12",
-    "moment": "^2.18.1",
+    "moment": "^2.21.0",
     "prop-types": "^15.5.10",
     "react": "^15.6.1",
     "react-chartjs-2": "^2.5.5",
