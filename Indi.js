@@ -496,11 +496,11 @@ class IndiConnection {
     }
 
     onMessage(message) {
+        globalRevisionId++;
         if (message.$$.match(/^message$/)) {
             this.dispatchMessage(message);
             return;
         }
-        globalRevisionId++;
         if (message.$$.match(/^def.*Vector$/)) {
             var childsProps = message.$$.replace(/Vector$/, '');
 
