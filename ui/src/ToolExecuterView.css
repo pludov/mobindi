@@ -1,0 +1,31 @@
+.ToolView {
+    display: flex;
+    flex-direction: column;
+
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow-y: scroll;
+}
+
+.ToolItem {
+    border: 0.4vw solid #404040;
+}
+
+.ToolTitle {
+    margin-right: 0.2em;
+}
+.ToolItemConfirm {
+    text-align: right;
+    color: #c9a0a0;
+    font-style: italic;
+}
+.ToolItemConfirm input {
+    margin-left: 1.2em;
+    margin-right: 1.2em;
+}
+
+.ToolItemError {
+    color: #c93030;
+    font-family:  "Lucida Console", Monaco, monospace;
+    font-size: 0.75em;
+}

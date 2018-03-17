@@ -23,6 +23,7 @@ const {Camera} = require('./Camera');
 
 const JsonProxy = require('./JsonProxy');
 const TriggerExecuter = require('./TriggerExecuter');
+const ToolExecuter = require('./ToolExecuter');
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
@@ -79,9 +80,13 @@ appState.apps= {
         enabled: true,
         position: 4
     },
-    messages: {
+    toolExecuter: {
         enabled: true,
         position: 5
+    },
+    messages: {
+        enabled: true,
+        position: 6
     }
 };
 
@@ -89,6 +94,7 @@ appState.apps= {
 var phd;
 var indiManager;
 var camera;
+var toolExecuter;
 
 phd = new Phd(app, appStateManager);
 
@@ -97,6 +103,13 @@ indiManager = new IndiManager(app, appStateManager);
 camera = new Camera(app, appStateManager, indiManager);
 
 new TriggerExecuter(appStateManager,
+    {
+        phd: phd,
+        indiManager: indiManager,
+        camera: camera
+    });
+
+toolExecuter = new ToolExecuter(appStateManager,
     {
         phd: phd,
         indiManager: indiManager,
@@ -246,6 +259,9 @@ wss.on('connection', function connection(ws) {
                         break;
                     case 'camera':
                         targetObj = camera;
+                        break;
+                    case 'toolExecuter':
+                        targetObj = toolExecuter;
                         break;
                     default:
                         request.onError('invalid target');

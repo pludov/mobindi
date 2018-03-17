@@ -10,6 +10,7 @@ import IndiManagerApp from './IndiManagerApp';
 import CameraApp from './CameraApp';
 import SequenceApp from './SequenceApp';
 import MessageApp from './MessageApp';
+import ToolExecuterApp from './ToolExecuterApp';
 
 import { BackendStatus } from './Store';
 
@@ -63,6 +64,7 @@ class App extends Component {
             new SequenceApp(this.storeManager),
             new PhdApp(this.storeManager),
             new IndiManagerApp(this.storeManager),
+            new ToolExecuterApp(this.storeManager),
             new MessageApp(this.storeManager)
         ];
 
