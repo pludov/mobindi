@@ -13,20 +13,26 @@ class ToolExecuter
 
     constructor(jsonProxy, context) {
         this.jsonProxy = jsonProxy;
-        this.tools = {};
+        this.instanciatedTools = {};
         this.context = context;
         jsonProxy.getTarget().toolExecuter = {
             tools: {}
         };
         this.config = jsonProxy.getTarget().toolExecuter.tools;
 
-        jsonProxy.addSynchronizer(['toolExecuter'/*, 'triggers'*/],
+        jsonProxy.addSynchronizer(['toolExecuter', 'tools'],
             this.syncTools.bind(this),
             true);
 
         new ConfigStore(jsonProxy, 'toolExecuter', ['toolExecuter', 'tools'], {
 
         }, {
+            "welcome": {
+                "desc": "Announce the startup of mobindi - not accessible through UI",
+                "cmd": ["touch", "/tmp/mobindi.started" ],
+                "hidden": true,
+                "trigger":"atstart"
+            },
             "led_off": {
                 "desc":'Turn lights off',
                 "cmd": ["sudo", "-n", "/opt/local/lights.sh", "off"]
@@ -56,28 +62,50 @@ class ToolExecuter
         return result;
     }
 
+    initTool(id, params)
+    {
+        var result = ({
+            id: id,
+            params: params
+        })
+        if (params.trigger === "atstart") {
+            this.startTool(result)
+                .onError((e)=>console.log('Autostart task error : ' + result.params.id, e))
+                .onCancel(()=>console.log('Autostart task canceled : ' + result.params.id))
+                .start();
+        }
+        return result;
+    }
+
+    // Given a tool object, returns a promise for its execution
+    startTool(tool) {
+        console.log('Will start ' + JSON.stringify(tool.params.cmd));
+        return new SystemPromises.Exec(tool.params.cmd);
+    }
+
     syncTools()
     {
-        /*console.log('Syncing triggers');
+        // At least a trigger def was updated.
+
         for(var ikey of Object.keys(this.config))
         {
             var wantedParams = this.config[ikey];
-            if (!Obj.hasKey(this.instanciatedTriggers, ikey)) {
-                this.instanciatedTriggers[ikey] = this.createTrigger(ikey, Obj.deepCopy(wantedParams));
+            if (!Obj.hasKey(this.instanciatedTools, ikey)) {
+                this.instanciatedTools[ikey] = this.initTool(ikey, Obj.deepCopy(wantedParams));
             } else {
-                var existing = this.instanciatedTriggers[ikey];
+                var existing = this.instanciatedTools[ikey];
                 if (!Obj.deepEqual(existing.params, wantedParams)) {
-                    this.instanciatedTriggers[ikey] = this.createTrigger(ikey, Obj.deepCopy(wantedParams));
+                    this.instanciatedTools[ikey] = this.initTool(ikey, Obj.deepCopy(wantedParams));
                 }
             }
         }
 
-        for(var ikey of Object.keys(this.instanciatedTriggers))
+        for(var ikey of Object.keys(this.instanciatedTools))
         {
             if (!Obj.hasKey(this.config, ikey)) {
-                delete this.instanciatedTriggers[ikey];
+                delete this.instanciatedTools[ikey];
             }
-        }*/
+        }
     }
 
     $api_startTool(message, progress)
@@ -86,15 +114,16 @@ class ToolExecuter
         return new Promises.Builder(() =>
         {
             var which = message.uid;
+            console.log('Request to start tool', JSON.stringify(which));
             if (!which) {
                 throw new Error("Invalid id");
             }
-            if (Obj.hasKey(self.config[which])) {
+            if (!Obj.hasKey(self.instanciatedTools, which)) {
                 throw new Error("Unknown id");
             }
-            var cmd = self.config[which].cmd;
-            console.log('Starting ' + JSON.stringify(cmd));
-            return new SystemPromises.Exec(cmd);
+
+            var toStart = self.instanciatedTools[which];
+            return self.startTool(toStart);
         });
     }
 };

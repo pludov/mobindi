@@ -107,7 +107,7 @@ class ToolsList extends PureComponent {
 
     render() {
         var toolsUids = Object.keys(this.props.tools).sort();
-        var content = toolsUids.map((uid)=><ToolDisplay key={uid} uid={uid} app={this.props.app}/>);
+        var content = toolsUids.map((uid)=>(this.props.tools[uid].hidden ? null : <ToolDisplay key={uid} uid={uid} app={this.props.app}/>));
         return <div>{content}</div>;
     }
 
