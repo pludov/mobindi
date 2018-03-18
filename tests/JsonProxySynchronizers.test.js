@@ -1,3 +1,4 @@
+const Obj = require('../Obj.js');
 
 // Helper function
 function TestContext(assert, changeTracker, numberOfCall) {
@@ -15,7 +16,7 @@ function TestContext(assert, changeTracker, numberOfCall) {
     }
     this.checkEmptyPath = checkEmptyPath.bind(this);
 
-    var previousNumberOfCall = {};
+    var previousNumberOfCall = Obj.deepCopy(numberOfCall);
 
     function checkCallNumber(delta) {
         for (var k of Object.keys(delta)) {
@@ -324,6 +325,40 @@ test("Two level wildcard synchronizer with removal", function(assert) {
     ctx.checkCallbackCount(listener, 0);
 });
 
+test("Two listeners", function(assert) {
+    var changeTracker = new JsonProxy();
+    var root = changeTracker.getTarget();
+    
+    var numberOfCall = {total: 0, childs: 0, second: 0};
+    
+    var ctx = new TestContext(assert, changeTracker, numberOfCall);
+    
+    root.child1 = {child2: {}};
+
+    changeTracker.addSynchronizer(['child1','child2'], function () {
+        numberOfCall.total++;
+        numberOfCall.childs += (Object.keys(root.child1.child2)).length;
+    }, true);
+
+    changeTracker.addSynchronizer(['child1','child2'], function () {
+        numberOfCall.second++;
+    }, false);
+
+    console.log('numberOfCall', JSON.stringify(numberOfCall, null, 2));
+
+    ctx.checkCallNumber({total: 0, childs: 0, second: 0});
+    
+    ctx.performFlush('Initial flush');
+    
+    ctx.checkCallNumber({total: 1, childs: 0, second: 1});
+
+    root.child1.child2.truc= 1;
+    root.child1.child2.bidule= 2;
+
+    ctx.performFlush('Second flush');
+    
+    ctx.checkCallNumber({total: 1, childs: 2, second: 1});
+});
 
 // A synchronizer should not be called when multiple change occurs
 test("Collapse multiple change ", function(assert) {

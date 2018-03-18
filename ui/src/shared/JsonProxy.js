@@ -183,11 +183,14 @@ class SynchronizerTrigger {
             this.minChildSerial = -1;
             this.minSerial = -1;
         } else if (content !== undefined) {
-            this.minChildSerial = content.childSerial;
-            this.minSerial = content.serial;
+            if (this.minChildSerial === undefined) {
+                this.minChildSerial = content.childSerial;
+            }
+            if (this.minSerial === undefined) {
+                this.minSerial = content.serial;
+            }
         } else {
-            this.minChildSerial = undefined;
-            this.minSerial = undefined;
+            // Don't need to touch existing registration (for existing callback)
         }
     }
 
