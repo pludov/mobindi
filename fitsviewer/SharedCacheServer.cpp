@@ -138,12 +138,27 @@ void SharedCacheServer::init() {
 	if (p == 0) {
 		std::cerr << "Server started\n";
 		signal (SIGHUP, SIG_IGN);
-		/*
-		chdir("/");
+
+		int nullFdw = open("/dev/null", O_WRONLY);
+		if (nullFdw == -1)  {
+			perror("/dev/null");
+		} else {
+			dup2(nullFdw, 1);
+			dup2(nullFdw, 2);
+			close(nullFdw);
+		}
+
+		int nullFdr = open("/dev/null", O_RDONLY);
+		if (nullFdr == -1)  {
+			perror("/dev/null");
+		} else {
+			dup2(nullFdr, 0);
+			close(nullFdr);
+		}
+		if (chdir("/") == -1) {
+			perror("/dev/null");
+		}
 		setsid();
-		close(0);
-		close(1);
-		close(2);*/
 
 		try {
 			server();

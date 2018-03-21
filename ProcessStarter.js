@@ -36,8 +36,9 @@ class ProcessStarter {
             var child = child_process.spawn(exe, [], {
                 env: env,
                 detached: true,
-                stderr: "inherit",
-                stdout: "inherit"
+                stdin: "ignore",
+                stderr: "ignore",
+                stdout: "ignore"
             });
             child.on('error', (err)=> {
                 console.warn("Process " + this.exe + " error : " + err);
