@@ -183,10 +183,7 @@ class IndiServerStarter {
                         todo.result = true;
                     }
                     var fifopath = self.actualFifoPath();
-                    var writeStream = fs.createWriteStream(fifopath);
-                    var drained = false;
 
-                    var fileDesc = undefined;
                     function shellEscape(str)
                     {
                         return "'" + str.replace(/'/g, "'\"'\"'") + "'";
