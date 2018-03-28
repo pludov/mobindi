@@ -5,9 +5,11 @@ const Promises = require('./Promises');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
 const uuid = require('node-uuid');
+const TraceError = require('trace-error');
+
 
 class Camera {
-    constructor(app, appStateManager, indiManager) {
+    constructor(app, appStateManager, context) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
             status: "idle",
@@ -110,10 +112,13 @@ class Camera {
                 }
             }
         });
+        // Ensure no sequence is running on start
+
         // Device => promise
         this.shootPromises = {};
         this.currentStatus = this.appStateManager.getTarget().camera;
-        this.indiManager = indiManager;
+        this.context = context;
+        this.indiManager = context.indiManager;
 
         this.imageIdGenerator = new IdGenerator();
         this.previousImages = {};
@@ -121,7 +126,8 @@ class Camera {
         this.currentSequenceUuid = undefined;
         this.currentSequencePromise = undefined;
 
-
+        this.pauseRunningSequences();
+        
         // Update available camera
         this.appStateManager.addSynchronizer(
             [
@@ -455,6 +461,18 @@ class Camera {
         });
     }
 
+    pauseRunningSequences()
+    {
+        for(var k of Object.keys(this.currentStatus.sequences.byuuid))
+        {
+            var seq = this.currentStatus.sequences.byuuid[k];
+            if (seq.status == "running") {
+                console.log('Sequence ' + k + ' was interrupted by process shutdown');
+                seq.status ="paused";
+            }
+        }
+    }
+
     startSequence(uuid) {
         var self = this;
         function getSequence() {
@@ -502,8 +520,17 @@ class Camera {
                     delete settings.count;
                     delete settings.done;
 
+                    var ditheringStep;
+                    if (step.dither) {
+                        // FIXME: no dithering for first shoot of sequence
+                        console.log('Dithering required : ', Object.keys(self.context));
+                        ditheringStep = self.context.phd.dither();
+                    } else {
+                        ditheringStep = new Promises.Immediate(()=>{});
+                    }
 
                     return new Promises.Chain(
+                        ditheringStep,
                         self.shoot(sequence.camera, ()=>(settings)),
                         new Promises.Immediate((e)=> {
                             step.done++;
@@ -545,7 +572,9 @@ class Camera {
                 var seq = self.currentStatus.sequences.byuuid[key];
                 seq.status = s;
                 if (e) {
-                    if (e instanceof Error) {
+                    if (e instanceof TraceError) {
+                        seq.errorMessage = "" + e.messages();
+                    } else if (e instanceof Error) {
                         seq.errorMessage = e.message;
                     } else {
                         seq.errorMessage = "" + e;

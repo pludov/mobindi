@@ -96,25 +96,18 @@ var indiManager;
 var camera;
 var toolExecuter;
 
-phd = new Phd(app, appStateManager);
+var context = {
+};
 
-indiManager = new IndiManager(app, appStateManager);
+context.phd = new Phd(app, appStateManager);
 
-camera = new Camera(app, appStateManager, indiManager);
+context.indiManager = new IndiManager(app, appStateManager);
 
-new TriggerExecuter(appStateManager,
-    {
-        phd: phd,
-        indiManager: indiManager,
-        camera: camera
-    });
+context.camera = new Camera(app, appStateManager, context);
 
-toolExecuter = new ToolExecuter(appStateManager,
-    {
-        phd: phd,
-        indiManager: indiManager,
-        camera: camera
-    });
+context.triggerExecuter = new TriggerExecuter(appStateManager, context);
+
+context.toolExecuter = new ToolExecuter(appStateManager, context);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {
@@ -246,26 +239,14 @@ wss.on('connection', function connection(ws) {
 
 
             try {
-                // FIXME: remove that hard coded duplicate code
                 if (!message.details) throw "missing details property";
                 var target = message.details.target;
                 var targetObj = undefined;
-                switch(target) {
-                    case 'phd':
-                        targetObj= phd;
-                        break;
-                    case 'indiManager':
-                        targetObj = indiManager;
-                        break;
-                    case 'camera':
-                        targetObj = camera;
-                        break;
-                    case 'toolExecuter':
-                        targetObj = toolExecuter;
-                        break;
-                    default:
-                        request.onError('invalid target');
-                        return;
+                if (Object.prototype.hasOwnProperty.call(context, target)) {
+                    targetObj = context[target];
+                } else {
+                    request.onError('invalid target');
+                    return;
                 }
 
                 request.promise = targetObj['$api_' + message.details.method](message.details);

@@ -114,6 +114,16 @@ class SequenceStepEdit extends PureComponent {
                     value={this.props.details.count == null ? "" : this.props.details.count}
                     onChange={(e)=> {Utils.promiseToState(this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'count', value: parseInt(e)}), this)}}/>
             </div>
+            <div className="IndiProperty">
+                Dither:
+                <input
+                        type="checkbox"
+                        checked={this.props.details.dither? true : false}
+                        onChange={(e) =>
+                            {Utils.promiseToState(this.props.app.updateSequenceParam(this.props.sequenceUid,
+                                            {sequenceStepUid: this.props.sequenceStepUid, param: 'dither', value: e.target.checked? 1 : 0}), this)}}
+                                />
+            </div>
             {!this.props.allowRemove ? null :
                 <input 
                     type="button" 

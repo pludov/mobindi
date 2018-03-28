@@ -253,7 +253,7 @@ class Chain extends Cancelable {
             });
 
             child.onError(function(e) {
-                next.error(new TraceError("Step " + current + " failed - " + e, e));
+                next.error(e);
             });
 
             child.onCancel(function(f) {

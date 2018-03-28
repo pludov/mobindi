@@ -1,6 +1,7 @@
 'use strict';
 
 const net = require('net');
+const Obj = require('./Obj.js');
 const Promises = require('./Promises');
 const ConfigStore = require('./ConfigStore');
 const ProcessStarter = require('./ProcessStarter');
@@ -18,10 +19,14 @@ class Phd {
 
             connected: false,
 
-            AppState: "NotConnected"
+            AppState: "NotConnected",
+
+            // null until known
+            settling: null
         }
 
         this.pendingRequests = {};
+        this.eventListeners = {};
 
         this.currentStatus = this.appStateManager.getTarget().phd;
         this.currentStatus.guideSteps = {};
@@ -96,11 +101,14 @@ class Phd {
                             var oldPendingRequests = self.pendingRequests;
                             self.pendingRequests = {};
                             for(var k in oldPendingRequests) {
-                                oldPendingRequests[k].error('PHD disconnected');
+                                oldPendingRequests[k].error({message: 'PHD disconnected'});
                             }
 
                             self.currentStatus.star = null;
                             self.currentStatus.AppState = "NotConnected";
+                            self.currentStatus.settling = null;
+
+                            self.signalListeners();
 
                             if (next.isActive()) {
                                 next.done();
@@ -191,6 +199,15 @@ class Phd {
         this.currentStatus.RADECDistancePeak = calcPeak(maxs[2], count);
     }
 
+    signalListeners() {
+        for(var k of Object.keys(this.eventListeners)) {
+            if (Obj.hasKey(this.eventListeners, k)) {
+                this.eventListeners[k].test();
+            }
+        }
+    }
+
+
     flushClientData()
     {
         var self = this;
@@ -219,7 +236,20 @@ class Phd {
                             self.currentStatus.connected = true;
                             self.currentStatus.AppState = event.State;
                             self.currentStatus.star = null;
+                            self.currentStatus.settling = null;
                             console.log('Initial status:' + self.currentStatus.AppState);
+                            break;
+                        case "SettleBegin":
+                        case "Settling":
+                            self.currentStatus.settling = {running: true};
+                            break;
+                        case "SettleDone":
+                            var newStatus = {running: false, status: event.Status == 0};
+                            if ('Error' in event) {
+                                newStatus.error = event.Error;
+                            }
+                            console.log('PHD : settledone => ', JSON.stringify(newStatus));
+                            self.currentStatus.settling = newStatus;
                             break;
                         default:
                             if (event.Event in eventToStatus) {
@@ -233,8 +263,10 @@ class Phd {
                                         self.updateStepsStats();
                                     }
                                     console.log('New status:' + self.currentStatus.AppState);
+                                    if (newStatus != 'Guiding' && newStatus != 'LostLock') {
+                                        self.currentStatus.settling = null;
+                                    }
                                 }
-
                             }
                     };
                     if (event.Event == "GuideStep") {
@@ -242,6 +274,10 @@ class Phd {
                             SNR: event.SNR,
                             StarMass: event.StarMass
                         };
+                        // Settling is sent just before GuideStep. So not settling
+                        if (self.currentStatus.settling === null) {
+                            self.currentStatus.settling = {running: false};
+                        }
 
 
                         var simpleEvent = Object.assign({}, event);
@@ -257,6 +293,8 @@ class Phd {
                         self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
                         self.updateStepsStats();
                     }
+
+                    self.signalListeners();
                 } else if ("jsonrpc" in event) {
                     var id = event.id;
                     if (Object.prototype.hasOwnProperty.call(self.pendingRequests, id)) {
@@ -286,18 +324,78 @@ class Phd {
         next();
     }
 
+    wait(condition) {
+        var self = this;
+        var promise;
+        var uid;
+
+        function unregister() {
+            if (uid !== undefined) {
+                delete self.eventListeners[uid];
+                uid = undefined;
+                return true;
+            }
+            return false;
+        }
+
+        function init(next, arg) {
+            if (self.client == undefined) {
+                throw "PHD not connected";
+            }
+            uid = "" + self.reqId++;
+            self.eventListeners[uid] = {
+                test: function() {
+                    var rslt;
+                    try {
+                        rslt = condition();
+                    } catch(error) {
+                        next.error(error);
+                        return;
+                    }
+
+                    if (rslt) {
+                        unregister();
+                        next.done();
+                    }
+                }
+            };
+            next.setCancelFunc(()=>{
+                if (unregister()) {
+                    next.cancel();
+                }
+            });
+        }
+        var promise = new Promises.Cancelable(init);
+        promise.onError(unregister);
+        promise.onCancel(unregister);
+        promise.then(unregister);
+
+        return promise;
+    }
 
     // Return a promise that send the order (generator) and waits for a result
     // Not cancelable
     sendOrder(dataProvider) {
         var self = this;
+        var promise;
+        var uid;
 
-        return new Promises.Cancelable((next, arg) => {
+        function unregister() {
+            if (uid !== undefined) {
+                delete self.pendingRequests[uid];
+                uid = undefined;
+                return true;
+            }
+            return false;
+        }
+
+        function init(next, arg)
+        {
             if (self.client == undefined) {
                 throw "PHD not connected";
             }
 
-            var uid = this.reqId++;
+            uid = "" + (self.reqId++);
 
             var order = Object.assign({}, dataProvider(arg));
             order.id = uid;
@@ -310,10 +408,65 @@ class Phd {
                     next.done(rslt);
                 },
                 error: function(err) {
-                    next.error(err);
+                    if (err.message) {
+                        next.error(order.method + ": " +err.message);
+                    } else {
+                        next.error(order.method + " failed");
+                    }
                 }
             }
-        });
+            next.setCancelFunc(()=>{
+                if (unregister()) {
+                    next.cancel();
+                }
+            });
+        }
+
+        promise = new Promises.Cancelable(init);
+        promise.onError(unregister);
+        return promise;
+    }
+
+    dither() {
+
+        // Il faut attendre un settledone
+        var self = this;
+        return new Promises.Chain(
+            this.sendOrder(() =>({
+                method: "dither",
+                params:[
+                    1,/* ammount */
+                    false, /* ra only */
+                    {
+                        pixels: 1.5,
+                        time:   10,
+                        timeout: 60
+                    }
+                ]
+            })),
+            this.wait(() =>{
+                if (!self.currentStatus.connected) {
+                    throw new Error("PHD disconnected during settle");
+                }
+                if (self.currentStatus.settling != null) {
+                    if (self.currentStatus.settling.running) {
+                        // Not done now
+                        return false;
+                    }
+                    if (self.currentStatus.settling.status) {
+                        // Sucess
+                        return true;
+                    }
+                    if ('error 'in self.currentStatus.settling) {
+                        throw new Error("Dithering failed: " + self.currentStatus.settling.error);
+                    }
+                    throw new Error("Dithering failed");
+                }
+                // Not settling ?
+                console.log("PHD: not settling after dither ?");
+                return false;
+            })
+        );
     }
 
     $api_connect(data, progress) {
