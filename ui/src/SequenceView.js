@@ -7,6 +7,7 @@ import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
 import * as Promises from './shared/Promises';
 import Table from './Table';
+import StatusLabel from './StatusLabel';
 import { atPath } from './shared/JsonPath';
 import FitsViewerInContext from './FitsViewerInContext';
 import './SequenceView.css';
@@ -97,19 +98,20 @@ class SequenceControler extends PureComponent {
                     break;
             }
         }
+
+        var statusStr = !this.props.current
+                ? ("")
+                : (
+                    this.props.current.status == 'error'
+                    ? this.props.current.errorMessage
+                    :  this.props.current.status);
         return(<div>
             <div className='messageContainer'>
-                    <div className='messageTitle'>Status:</div>
-                    <div className='messageContent'>
-                        <span className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} 
-                            key='status'>{!this.props.current
-                                            ? ("")
-                                            : (
-                                                this.props.current.status == 'error'
-                                                 ? this.props.current.errorMessage
-                                                 :  this.props.current.status
-                                            )}
-                        </span>
+                    <div className='messageTitle' key="title">Status:</div>
+                    <div className='messageContent' key="status">
+                        <StatusLabel
+                                text={statusStr}
+                                className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} />
                     </div>
             </div>
             <input

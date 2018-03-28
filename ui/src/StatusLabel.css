@@ -1,0 +1,11 @@
+.StatusLabel {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    -webkit-overflow-scrolling: 'touch';
+}
+
+.StatusLabelWithDetails {
+    display: block;
+    overflow-x: auto;
+    text-overflow: unset;
+}
