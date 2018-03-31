@@ -207,6 +207,15 @@ class Phd {
         }
     }
 
+    pushStep(simpleEvent) {
+        console.log('Push step: ' + simpleEvent);
+        this.stepId++;
+        if (this.stepId > 400) {
+            delete this.steps[this.stepIdToUid(this.stepId - 400)];
+        }
+        this.steps[this.stepIdToUid(this.stepId)] = simpleEvent;
+        this.updateStepsStats();
+    }
 
     flushClientData()
     {
@@ -269,6 +278,12 @@ class Phd {
                                 }
                             }
                     };
+                    if ((event.Event == "Paused") || (event.Event == "LoopingExposuresStopped")) {
+                        // Push an empty step, to cause interruption in the guiding graph
+                        self.pushStep({
+                            Timestamp: event.Timestamp
+                        });
+                    }
                     if (event.Event == "GuideStep") {
                         self.currentStatus.star = {
                             SNR: event.SNR,
@@ -286,12 +301,7 @@ class Phd {
                         delete simpleEvent.Inst;
                         delete simpleEvent.Mount;
 
-                        self.stepId++;
-                        if (self.stepId > 400) {
-                            delete self.steps[self.stepIdToUid(self.stepId - 400)];
-                        }
-                        self.steps[self.stepIdToUid(self.stepId)] = simpleEvent;
-                        self.updateStepsStats();
+                        self.pushStep(simpleEvent);
                     }
 
                     self.signalListeners();
