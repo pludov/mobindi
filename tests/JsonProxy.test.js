@@ -451,5 +451,18 @@ test("Streaming replication", function(assert) {
     previousData = checkConst(data);
 
 
+    STEP = "prop mutate to boolean";
+
+    root.b.coucou = true;
+    patches = changeTracker.diff(serial);
+    assert.deepEqual(patches, {update: {b: { update: { coucou : true}}}}, "Patch for " + STEP);
+    assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+    data = applyDiff(data, patches);
+    assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+    assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+    previousData = checkConst(data);
+
 });
 

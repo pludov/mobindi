@@ -900,7 +900,7 @@ function applyDiff(from, diff) {
     if (diff === undefined) {
         return from;
     }
-    if (typeof diff == 'number' || typeof diff == 'string' || diff === null) {
+    if (typeof diff == 'number' || typeof diff == 'string' || typeof diff == 'boolean' || diff === null) {
         return diff;
     }
     var updateProps = undefined;
