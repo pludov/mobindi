@@ -47,7 +47,21 @@ class PhdView extends Component {
         var chartData= {
             datasets: []
         };
-        const props = [{prop: 'RADistanceRaw', color:'#ff0000'}, {prop:'DECDistanceRaw', color:'#0000ff'}];
+        const props = [
+            {prop: 'RADistanceRaw', color:'#ff0000'},
+            {prop:'DECDistanceRaw', color:'#0000ff'},
+            {prop: 'settling', color: '#808080',
+                    yAxisID: 'settling',
+                    backgroundColor: 'rgb(60,100,1)',
+                    borderColor: 'rgba(0,0,0,0)',
+                    borderWidth: 0,
+                    pointRadius: 0,
+                    fill: true,
+                    stepped: false,
+                    label: 'Settle',
+                    flipFlop: true
+                }
+            ];
 
         var minMoment, maxMoment;
 
@@ -64,14 +78,21 @@ class PhdView extends Component {
                 showLines: false,
                 data: []
             }
-            var rawDatas = this.props.phd.guideSteps;
+            for(var o of Object.keys(propDef)) {
+                if ((o == "prop" || o == "color")) continue;
+                data[o] = propDef[o];
+            }
 
+            var rawDatas = this.props.phd.guideSteps;
+            var flipFlop = propDef.flipFlop;
+            var previous = undefined;
             if (rawDatas) {
                 var keys = Array.from(Object.keys(rawDatas)).sort();
+                var prev = undefined;
                 for (var i =0; i < keys.length; ++i) {
                     var uid = keys[i];
                     var entry = rawDatas[uid];
-
+                    
                     var ts = entry.Timestamp;
                     if (minMoment == undefined) {
                         minMoment = ts;
@@ -80,11 +101,15 @@ class PhdView extends Component {
                         maxMoment = ts;
                     }
 
-                    if (prop in entry) {
-                        data.data.push({x:ts, y:entry[prop]});
-                    } else {
-                        data.data.push({x:ts, y:null});
+                    var value = prop in entry ? entry[prop] : null;
+                    if (flipFlop) {
+                        if ((previous !== undefined) && (previous === value)) {
+                            continue;
+                        }
+                        data.data.push({x:ts, y:previous});
+                        previous = value;
                     }
+                    data.data.push({x:ts, y:value});
                 }
             }
             chartData.datasets.push(data);
@@ -93,14 +118,27 @@ class PhdView extends Component {
         var chartOptions= {
 
             scales: {
-                yAxes: [{
+                yAxes: [
+                {
+                    id: 'default',
                     type: 'linear',
                     ticks: {
                         beginAtZero: true,
                         min: -1.0,
                         max: 1.0
                     }
-                }],
+                },
+                {
+                    id: 'settling',
+                    type: 'linear',
+                    display: false,
+                    ticks: {
+                        beginAtZero: true,
+                        min: 0,
+                        max: 1.0
+                    }
+                }
+                ],
                 xAxes: [{
                     id: 'time',
                     type: 'time',

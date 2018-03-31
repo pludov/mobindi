@@ -281,7 +281,8 @@ class Phd {
                     if ((event.Event == "Paused") || (event.Event == "LoopingExposuresStopped")) {
                         // Push an empty step, to cause interruption in the guiding graph
                         self.pushStep({
-                            Timestamp: event.Timestamp
+                            Timestamp: event.Timestamp,
+                            settling: false
                         });
                     }
                     if (event.Event == "GuideStep") {
@@ -300,7 +301,7 @@ class Phd {
                         delete simpleEvent.Host;
                         delete simpleEvent.Inst;
                         delete simpleEvent.Mount;
-
+                        simpleEvent.settling = self.currentStatus.settling.running;
                         self.pushStep(simpleEvent);
                     }
 
