@@ -8,23 +8,22 @@ const TraceError = require('trace-error');
 function noop() {};
 
 /**
- * CancelablePromise exports
+ * CancelablePromise exports following methods
  *
  *      start(arg) start the promise (may call callback directly).
- *              once started, exactly either onError, onCanceled callbacks will be called called
+ *              once started, exactly either onDone, onError, onCanceled callbacks will be called
  *              start may be re-called later-on (promise reuse)
- *
- *      cancel(func) ask for cancelation. Cancelation may not occur at all
  *
  *      then(func(rslt)) make func called when promise realises
  *      onError(func(e)) make func called when promise fails
  *      onCancel(func()) make func called when promise is aborted using
  *
- * Constructor expects two functions:
- *      doStart(next, arg)
- *      doCancel(next)
+ *      cancel(func) ask for cancelation. Cancelation may not occur at all
  *
- *      next allow to report progress:
+ * Constructor expects one functions:
+ *      doStart(next, arg)
+ *
+ *      doStart is called with "next" object, that allow to report progress:
  *          next.done(result)   must be called once (error, cancel and done are exclusive)
  *          next.error(e)       must be called once (error, cancel and done are exclusive)
  *          next.cancel()       must be called once, only if next.cancelationPending() is true (error, cancel and done are exclusive)
@@ -33,10 +32,8 @@ function noop() {};
  *          next.cancelationPending() time to call next.cancel() ?
  */
 class Cancelable {
-    // FIXME: do cancel should be set by doStart.
-    constructor(doStart, initialDoCancel) {
-        // Allow for no cancel function (does nothing)
-        if (initialDoCancel == undefined || initialDoCancel == null) initialDoCancel = noop;
+
+    constructor(doStart) {
         var self = this;
         var onDoneList = [];
         var onErrorList = [];
