@@ -27,6 +27,22 @@ using namespace cgicc;
 using nlohmann::json;
 
 
+class StarCandidate {
+	friend class MultiStarFinder;
+
+	std::shared_ptr<vector<int>> area;
+
+	double weight, cx, cy;
+	double stddev;
+public:
+	StarCandidate(const std::shared_ptr<vector<int>> & area,
+					double weight, double stddev,
+					double cx, double cy)
+		: area(area), weight(weight), cx(cx), cy(cy), stddev(stddev)
+	{
+	}
+};
+
 
 class MultiStarFinder {
 	RawDataStorage * content;
@@ -77,12 +93,95 @@ public:
 					notBlack.set(x, y, 1);
 				}
 
+		BitMask tmp(notBlack);
 		notBlack.erode();
 		notBlack.erode();
 		notBlack.grow();
 		notBlack.grow();
 
-		notBlack.calcConnexityGroups();
+		// Ensuite, chaque zone de connexité représente une étoile potentielle.
+		//  - on les trie par energie
+		//  - on les parcours
+		//  - si le nombre d'étoiles autours de la zone considérée est inferieur à la moyenne, considérer la zone
+		auto zones = notBlack.calcConnexityGroups();
+
+		// Taille maxi d'une étoile (32 x 32)
+		int maxSurface = 2048;
+		double maxStddev = 8;
+
+		std::vector<std::shared_ptr<StarCandidate>> stars;
+		for(auto zone : zones)
+		{
+			if (zone->size() > maxSurface) {
+				continue;
+			}
+
+			int adusum = 0;
+			double xmoy = 0;
+			double ymoy = 0;
+			for(int i = 0; i < zone->size(); i += 2)
+			{
+				int x = (*zone)[i];
+				int y = (*zone)[i + 1];
+
+				int v = content->getAdu(x, y);
+				v -= limitByChannel[getChannelId(x, y)];
+				if (v < 0) {
+					continue;
+				}
+				// FIXME : retirer le black et l'estimation du fond !
+				xmoy += v * x;
+				ymoy += v * y;
+				adusum += v;
+			}
+
+			if (adusum == 0) {
+				continue;
+			}
+			xmoy /= adusum;
+			ymoy /= adusum;
+
+			double stddevVal = 0;
+
+			for(int i = 0; i < zone->size(); i += 2)
+			{
+				int x = (*zone)[i];
+				int y = (*zone)[i + 1];
+
+				int v = content->getAdu(x, y);
+				v -= limitByChannel[getChannelId(x, y)];
+
+				if (v < 0) {
+					continue;
+				}
+
+				// FIXME : retirer le black et l'estimation du fond !
+
+				double dst  = (x - xmoy) * (x - xmoy) + (y - ymoy) * (y - ymoy);
+				stddevVal += v * dst;
+			}
+
+			stddevVal /= adusum;
+
+			if (stddevVal > maxStddev * maxStddev) {
+				continue;
+			}
+			auto candidate = std::make_shared<StarCandidate>(zone,
+						adusum, sqrt(stddevVal),
+						xmoy, ymoy);
+
+			stars.push_back(candidate);
+		}
+
+		std::sort(stars.begin(), stars.end(),
+				[](const shared_ptr<StarCandidate> & a, const shared_ptr<StarCandidate> & b) -> bool {
+					return a->weight > b->weight;
+				});
+
+		for(const auto & star : stars)
+		{
+			cout << star->weight << " at " << star->cx << "  " << star->cy << "\n" ;
+		}
 	}
 
 };

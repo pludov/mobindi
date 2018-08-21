@@ -15,6 +15,9 @@ struct RawDataStorage {
 	void setSize(int w, int h);
 	void setBayer(const std::string & bayer);
 
+	uint16_t getAdu(int x, int y) {
+		return data[x + y * w];
+	}
 
 	static long int requiredStorage(int w, int h);
 
