@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
+#include <memory>
+
 class BitMask;
 
 class CGroupComputer {
@@ -22,7 +24,7 @@ class CGroupComputer {
 	void proceed();
 
 	int findActualGroup(int grp);
-	std::vector<std::vector<int>> result();
+	std::vector<std::shared_ptr<std::vector<int>>> result();
 };
 
 class BitMask {
@@ -164,7 +166,7 @@ public:
 		doOr(orMask.content);
 	}
 
-	std::vector<std::vector<int>> calcConnexityGroups() const
+	std::vector<std::shared_ptr<std::vector<int>>> calcConnexityGroups() const
 	{
 		CGroupComputer c(*this);
 		c.proceed();

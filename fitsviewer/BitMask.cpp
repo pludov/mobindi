@@ -19,7 +19,6 @@ int CGroupComputer::newGroup() {
 	groupSize.push_back(0);
 	finalVector.push_back(result);
 	groupCount++;
-	cerr << "#" << result << ": groupCount++=" << groupCount << "\n";
 	return result;
 }
 
@@ -37,7 +36,6 @@ int CGroupComputer::mergeGroups(int a, int b)
 	groupSize[a] += groupSize[b];
 	groupSize[b] = 0;
 	groupCount--;
-	cerr << "#" << (groupSize.size() - 1) << ": groupCount--=" << groupCount << "\n";
 	return a;
 }
 
@@ -74,8 +72,8 @@ int CGroupComputer::findActualGroup(int grp) {
 	return finalVector[grp];
 }
 
-std::vector<std::vector<int>> CGroupComputer::result() {
-	std::vector<std::vector<int>> rslt;
+std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
+	std::vector<shared_ptr<std::vector<int>>> rslt;
 	cerr << "group count" << groupCount << "\n";
 	rslt.reserve(groupCount);
 	int groupId = 0;
@@ -83,9 +81,8 @@ std::vector<std::vector<int>> CGroupComputer::result() {
 	{
 		if (groupSize[i]) {
 			finalVector[i] = groupId;
-			cerr << "group " << groupId << ":" << groupSize[i] << "\n";
-            rslt.push_back(std::vector<int>());
-			rslt[groupId].reserve(2 * groupSize[i]);
+            rslt.push_back(std::make_shared<std::vector<int>>());
+			rslt[groupId]->reserve(2 * groupSize[i]);
 			groupId++;
 		}
 	}
@@ -104,8 +101,8 @@ std::vector<std::vector<int>> CGroupComputer::result() {
 				int off = bm.offset(x, y);
 				int vecId = connexityByPix[off];
 				vecId = finalVector[vecId];
-				rslt[vecId].push_back(x);
-				rslt[vecId].push_back(y);
+				rslt[vecId]->push_back(x);
+				rslt[vecId]->push_back(y);
 			}
     return rslt;
 }

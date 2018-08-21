@@ -7,6 +7,17 @@ std::vector<typename std::common_type<Args...>::type> mkv(Args&&... args) {
     return {args...};
 }
 
+template<typename plop>
+std::vector<plop> flatten(const std::vector<std::shared_ptr<plop>> & from)
+{
+    std::vector<plop> result;
+    result.reserve(from.size());
+    for(int i = 0; i < from.size(); ++i)
+    {
+        result.push_back(plop(*(from[i])));
+    }
+    return result;
+}
 
 static int cmpCouple(int x0, int y0, int x1, int y1)
 {
@@ -61,7 +72,7 @@ TEST_CASE( "BitMask representation is ok", "[BitMask]" ) {
         REQUIRE(bitmask.get(5,3) == false);
         REQUIRE(bitmask.isClear(5,3) == true);
         REQUIRE(bitmask.get(7,0) == false);
-        REQUIRE(bitmask.calcConnexityGroups() == std::vector<std::vector<int>>());
+        REQUIRE(flatten(bitmask.calcConnexityGroups()) == std::vector<std::vector<int>>());
 
     }
 
@@ -80,7 +91,7 @@ TEST_CASE( "BitMask representation is ok", "[BitMask]" ) {
                     "        \n"
                     "        \n"
                     "        \n");
-        REQUIRE(bitmask.calcConnexityGroups() == mkv(mkv(5,2)));
+        REQUIRE(flatten(bitmask.calcConnexityGroups()) == mkv(mkv(5,2)));
         SECTION("erose single bit") {
             bitmask.erode();
             REQUIRE(bitmask.isEmpty() == true);
@@ -96,13 +107,13 @@ TEST_CASE( "BitMask representation is ok", "[BitMask]" ) {
                     "        \n"
                     "        \n"
                     "        \n");
-            REQUIRE(bitmask.calcConnexityGroups() == mkv(mkv(5,1,4,2,5,2,6,2,5,3)));
+            REQUIRE(flatten(bitmask.calcConnexityGroups()) == mkv(mkv(5,1,4,2,5,2,6,2,5,3)));
         }
     }
     SECTION("complex connexity") {
         auto points = mkv(0,0,0,1,1,1,1,2,2,2,3,2,3,1,4,1,4,0);
         for(int i = 0; i < points.size(); i += 2) {
-            bitmask.set(points[i],points[i + 1], 1);
+            bitmask.set(points[i], points[i + 1], 1);
         }
 
         REQUIRE(bitmask.toString() ==
@@ -114,7 +125,7 @@ TEST_CASE( "BitMask representation is ok", "[BitMask]" ) {
                     "        \n"
                     "        \n"
                     "        \n");
-        REQUIRE(bitmask.calcConnexityGroups() == mkv(sortPointsXY(points)));
+        REQUIRE(flatten(bitmask.calcConnexityGroups()) == mkv(sortPointsXY(points)));
     }
 
 }
