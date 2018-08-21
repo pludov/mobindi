@@ -122,6 +122,36 @@ u_int32_t HistogramChannelData::getLevel(double v) const{
 	return findFirstWithAtLeast(wantedCount);
 }
 
+double HistogramChannelData::getMoy(int minAdu, int maxAdu)
+{
+	uint64_t result = 0;
+	uint64_t aduSum = 0;
+	for(int i = minAdu; i < maxAdu; ++i)
+	{
+		long c = this->atAdu(i);
+		result += i * c;
+		aduSum += c;
+	}
+	
+	return result * 1.0 / aduSum;
+}
+
+
+double HistogramChannelData::getStdDev(int minAdu, int maxAdu)
+{
+	double moy = getMoy(minAdu, maxAdu);
+	double avgdst = 0;
+	long adusum = 0;
+	for(int i = minAdu; i < maxAdu; ++i)
+	{
+		int c = this->atAdu(i);
+		avgdst += c * (i - moy) * (i - moy);
+		adusum += c;
+	}
+	return sqrt(avgdst / adusum);
+}
+
+
 void SharedCache::Messages::Histogram::produce(Entry * entry)
 {
 	ContentRequest sourceRequest;

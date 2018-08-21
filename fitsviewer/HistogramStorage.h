@@ -14,6 +14,18 @@ struct HistogramChannelData {
 		return 0;
 	}
 
+	uint32_t cumulatedAtAdu(uint16_t value) {
+		if (value < min) return 0;
+		if (value > max) return 0;
+		return data[value - min];
+	}
+	uint32_t atAdu(uint16_t value) {
+		if (value <= min) {
+			return cumulatedAtAdu(value);
+		}
+		return cumulatedAtAdu(value) - cumulatedAtAdu(value - 1);
+	}
+
 	/* ==== functions for productions ==== */
 	void scanBayer(uint16_t * data, int w, int h);
 	void scanPlane(uint16_t * data, int w, int h);
@@ -26,6 +38,8 @@ struct HistogramChannelData {
 	uint32_t findFirstWithAtLeast(uint32_t wantedCount) const;
 	uint32_t getLevel(double v) const;
 
+	double getMoy(int minAdu, int maxAdu);
+	double getStdDev(int minAdu, int maxAdu);
 };
 
 struct HistogramStorage {
