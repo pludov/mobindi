@@ -9,7 +9,7 @@ static int testedSize[] = {1, 2, 4, 8, 15, 16, 31, 32, 33, 63, 64, 65, 127, 128,
 TEST_CASE( "Bitset storage", "[FixedSizeBitSet.cpp]" ) {
     for(int i = 0; testedSize[i]; ++i) {
         int size = testedSize[i];
-        SECTION("bit width: " + size) {
+        SECTION("bit width: " + std::to_string(size)) {
             FixedSizeBitSet bitSet(size);
 
             REQUIRE(bitSet.getCardinality() == 0);
@@ -73,7 +73,7 @@ static bool bitsetMatchFunc(const FixedSizeBitSet & b, std::function<bool (int)>
 TEST_CASE( "Bitset operators", "[FixedSizeBitSet.cpp") {
     for(int i = 0; testedSize[i]; ++i) {
         int size = testedSize[i];
-        SECTION("bit width: " + size) {
+        SECTION("bit width: " + std::to_string(size)) {
             FixedSizeBitSet v1(size);
             FixedSizeBitSet v2(size);
 
@@ -100,20 +100,16 @@ TEST_CASE( "Bitset operators", "[FixedSizeBitSet.cpp") {
             for(int j = 0; j <= i; ++j) {
                 int shift = testedSize[j] - 1;
 
-                SECTION("shift left of " + shift) {
-                    FixedSizeBitSet * shifted = v1.shift(shift);
+                SECTION("shift left of " + std::to_string(shift)) {
+                    FixedSizeBitSet shifted = v1.shift(shift);
 
-                    REQUIRE(bitsetMatchFunc(*shifted, [size, shift](int i)->bool{return i - shift > 0 ? b1(i - shift) : false;}));
-
-                    delete shifted;
+                    REQUIRE(bitsetMatchFunc(shifted, [size, shift](int i)->bool{return i - shift > 0 ? b1(i - shift) : false;}));
                 };
 
-                SECTION("shift right of " + shift) {
-                    FixedSizeBitSet * shifted = v1.shift(-shift);
+                SECTION("shift right of " + std::to_string(shift)) {
+                    FixedSizeBitSet shifted = v1.shift(-shift);
 
-                    REQUIRE(bitsetMatchFunc(*shifted, [size, shift](int i)->bool{return i + shift < size ? b1(i + shift) : false;}));
-
-                    delete shifted;
+                    REQUIRE(bitsetMatchFunc(shifted, [size, shift](int i)->bool{return i + shift < size ? b1(i + shift) : false;}));
                 };
 
             }

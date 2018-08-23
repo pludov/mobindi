@@ -58,6 +58,13 @@ static int numberOfBitSet(uint64_t value)
 }
 
 
+FixedSizeBitSet::FixedSizeBitSet(FixedSizeBitSet && move) : 
+    length(move.length), 
+    words(move.words),
+    cardinality(move.cardinality)
+{
+    move.words = nullptr;
+}
 
 FixedSizeBitSet::FixedSizeBitSet(int length) : length(length){
     this->words = new uint64_t[wordsLength()];
@@ -73,46 +80,15 @@ FixedSizeBitSet::FixedSizeBitSet(const FixedSizeBitSet & copy)
     this->cardinality = copy.cardinality;
 }
 
+FixedSizeBitSet::~FixedSizeBitSet() {
+    if (words != nullptr) {
+        delete [] words;
+    }
+}
+
+
 int FixedSizeBitSet::wordsLength() const {
     return getLongCount(length);
-}
-
-bool FixedSizeBitSet::get(int offset) const
-{
-    assert(offset >= 0 && offset < length);
-    int pos = offset >> 6;
-    uint64_t bit = ((uint64_t)1) << (offset & 63);
-    return (words[pos] & bit) != 0;
-}
-	
-void FixedSizeBitSet::set(int offset)
-{
-    set(offset, true);
-}
-	
-void FixedSizeBitSet::clear(int offset)
-{
-    set(offset, false);
-}
-
-void FixedSizeBitSet::set(int offset, bool b)
-{
-    assert(offset >= 0 && offset < length);
-    int pos = offset >> 6;
-    uint64_t bit = ((uint64_t)1) << (offset & 63);
-    
-    uint64_t l = words[pos];
-    
-    bool current = (l & bit) != 0;
-    if (current == b) return;
-    if (b) {
-        l |= bit;
-        if (cardinality != -1) cardinality ++;
-    } else {
-        l &= ~bit;
-        if (cardinality != -1) cardinality --;
-    }
-    words[pos] = l;
 }
 
 int FixedSizeBitSet::nextSetBit(int fromIndex) const {
@@ -165,7 +141,7 @@ int FixedSizeBitSet::nextClearBit(int fromIndex) const {
     }
 }
 
-const FixedSizeBitSet & FixedSizeBitSet::operator &=(const FixedSizeBitSet & other)
+FixedSizeBitSet & FixedSizeBitSet::operator &=(const FixedSizeBitSet & other)
 {
     if (other.length != this->length) throw std::invalid_argument("and between different sets");
     for(int i = 0; i < wordsLength(); ++i)
@@ -173,9 +149,10 @@ const FixedSizeBitSet & FixedSizeBitSet::operator &=(const FixedSizeBitSet & oth
         words[i] &= other.words[i];
     }
     this->cardinality = -1;
+    return *this;
 }
 
-const FixedSizeBitSet & FixedSizeBitSet::operator |=(const FixedSizeBitSet & other)
+FixedSizeBitSet & FixedSizeBitSet::operator |=(const FixedSizeBitSet & other)
 {
     if (other.length != this->length) throw std::invalid_argument("or between different sets");
     for(int i = 0; i < wordsLength(); ++i)
@@ -183,9 +160,10 @@ const FixedSizeBitSet & FixedSizeBitSet::operator |=(const FixedSizeBitSet & oth
         words[i] |= other.words[i];
     }
     this->cardinality = -1;
+    return *this;
 }
 
-const FixedSizeBitSet & FixedSizeBitSet::operator ^=(const FixedSizeBitSet & other)
+FixedSizeBitSet & FixedSizeBitSet::operator ^=(const FixedSizeBitSet & other)
 {
     if (other.length != this->length) throw std::invalid_argument("or between different sets");
     for(int i = 0; i < wordsLength(); ++i)
@@ -193,12 +171,13 @@ const FixedSizeBitSet & FixedSizeBitSet::operator ^=(const FixedSizeBitSet & oth
         words[i] ^= other.words[i];
     }
     this->cardinality = -1;
+    return *this;
 }
 
-FixedSizeBitSet * FixedSizeBitSet::shift(int amount) const
+FixedSizeBitSet FixedSizeBitSet::shift(int amount) const
 {
-    if (amount == 0) return new FixedSizeBitSet(*this);
-    FixedSizeBitSet * result = new FixedSizeBitSet(this->length);
+    if (amount == 0) return *this;
+    FixedSizeBitSet result(this->length);
     if (amount > 0)
     {
         int wordOffset = amount >> 6;
@@ -208,16 +187,16 @@ FixedSizeBitSet * FixedSizeBitSet::shift(int amount) const
             for(int i = 0; i + wordOffset < wordsLength(); ++i)
             {
                 // Chaque mot va dans deux partie
-                result->words[i + wordOffset] = this->words[i] << bitShift;
+                result.words[i + wordOffset] = this->words[i] << bitShift;
             }
             for(int i = 0; i + wordOffset + 1 < wordsLength(); ++i)
             {
-                result->words[i + wordOffset + 1] |= this->words[i] >> (64 - bitShift);
+                result.words[i + wordOffset + 1] |= this->words[i] >> (64 - bitShift);
             }
         } else {
             for(int i = 0; i + wordOffset < wordsLength(); ++i)
             {
-                result->words[i + wordOffset] = this->words[i];
+                result.words[i + wordOffset] = this->words[i];
             }
         }
     } else {
@@ -228,22 +207,47 @@ FixedSizeBitSet * FixedSizeBitSet::shift(int amount) const
         if (bitShift != 0) {
             for(int i = 0; i + wordOffset < wordsLength(); ++i)
             {
-                result->words[i] = this->words[i + wordOffset] >> bitShift;
+                result.words[i] = this->words[i + wordOffset] >> bitShift;
             }
             
             for(int i = 0; i + wordOffset + 1 < wordsLength(); ++i)
             {
-                result->words[i] |= this->words[i + wordOffset + 1] << (64 - bitShift);
+                result.words[i] |= this->words[i + wordOffset + 1] << (64 - bitShift);
             }
         } else {
             for(int i = 0; i + wordOffset < wordsLength(); ++i)
             {
-                result->words[i] = this->words[i + wordOffset];
+                result.words[i] = this->words[i + wordOffset];
             }
         }
+        return result;
     }
     
     return result;
+}
+
+void FixedSizeBitSet::set() {
+    set(true);
+}
+
+void FixedSizeBitSet::clear() {
+    set(false);
+}
+
+void FixedSizeBitSet::set(bool v)
+{
+    uint64_t mask = 0;
+    if (v) { mask = ~mask; }
+
+    for(int i = 0; i < wordsLength(); ++i)
+    {
+        words[i] = mask;
+    }
+
+    if ((length & 63) != 0) {
+        int bitsToKeep = (length & 63);
+        words[wordsLength() - 1] &= ~(WORD_MASK << bitsToKeep);
+    }
 }
 
 

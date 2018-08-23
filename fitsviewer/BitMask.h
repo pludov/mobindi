@@ -6,6 +6,8 @@
 #include <iostream>
 #include <memory>
 
+#include "FixedSizeBitSet.h"
+
 class BitMask;
 
 class CGroupComputer {
@@ -32,41 +34,11 @@ class BitMask {
 
 	int sx, sy;
 	int x0, y0, x1, y1;
-	std::vector<uint32_t> content;
+	FixedSizeBitSet content;
 
 	int offset(int x, int y) const
 	{
 		return x - x0 + (y - y0) * sx;
-	}
-
-
-	static int storage(int size)
-	{
-		if ((size & 31) == 0) {
-			return size / 32;
-		}
-		return 1 + size / 32;
-	}
-
-	void bitOffset(int x, int y, int & off, uint32_t & mask) const
-	{
-		off = offset(x, y);
-		mask = ((uint32_t)1) << (off & 31);
-		off = off >> 5;
-	}
-
-	void doAnd(const std::vector<uint32_t> & o)
-	{
-		for(int i = 0; i < content.size(); ++i) {
-			content[i] &= o[i];
-		}
-	}
-
-	void doOr(const std::vector<uint32_t> & o)
-	{
-		for(int i = 0; i < content.size(); ++i) {
-			content[i] |= o[i];
-		}
 	}
 
 public:
@@ -74,7 +46,7 @@ public:
 		:
 		sx(_x1 - _x0 + 1),
 		sy(_y1 - _y0 + 1),
-		content(storage(sx * sy)),
+		content(sx * sy),
 		x0(_x0),
 		y0(_y0),
 		x1(_x1),
@@ -82,32 +54,21 @@ public:
 	{
 	}
 
-	void fill(int v)
+	void fill(bool v)
 	{
-		uint32_t motif = v ? 0xffffffff : 0;
-		for(int i =0; i < content.size(); ++i) {
-			content[i] = motif;
-		}
+		content.set(v);
 	}
 
-	void set(int x, int y, int v)
+	void set(int x, int y, bool v)
 	{
 		int off;
 		uint32_t mask;
-		bitOffset(x, y, off, mask);
-		if (v) {
-			content[off] |= mask;
-		} else {
-			content[off] &= ~mask;
-		}
+		content.set(offset(x, y), v);
 	}
 
 
 	bool get(int x, int y) const {
-		int off;
-		uint32_t mask;
-		bitOffset(x, y, off, mask);
-		return (content[off] & mask);
+		return content.get(offset(x, y));
 	}
 
 	bool isClear(int x, int y) const {
@@ -115,16 +76,32 @@ public:
 	}
 
     bool isEmpty() const {
-        for(int i = 0; i < content.size(); ++i) {
-            if (content[i]) return false;
-        }
-        return true;
+		return content.getCardinality() == 0;
     }
+
+	FixedSizeBitSet eraseCol(FixedSizeBitSet result, int x) {
+		for(int y = 0; y < sy; ++y) {
+			result.clear(x + sx * y);
+		}
+		return result;
+	}
 
 	// Tous les pixels qui ont au moins un voisin 0
 	void erode() {
 		if (x1 - x0 > 2 && y1 - y0 > 2) {
-			BitMask toZero(x0, y0, x1, y1);
+			FixedSizeBitSet zeroes(content);
+			zeroes.invert();
+
+			FixedSizeBitSet zeroesNeighboors(eraseCol(zeroes.shift(-1), sx - 1));
+			zeroesNeighboors |= eraseCol(zeroes.shift(1), 0);
+			zeroesNeighboors |= zeroes.shift(-sx);
+			zeroesNeighboors |= zeroes.shift(sx);
+
+			zeroesNeighboors.invert();
+
+			content &= zeroesNeighboors;
+
+/*			BitMask toZero(x0, y0, x1, y1);
 			toZero.fill(1);
 
 			for(int y = y0 + 1; y <= y1 - 1; ++y)
@@ -133,7 +110,7 @@ public:
 						toZero.set(x, y, 0);
 					}
 
-			doAnd(toZero.content);
+			doAnd(toZero.content);*/
 		}
 
 		// Les bords disparaissent à tous les coups
@@ -162,8 +139,8 @@ public:
 				{
 					orMask.set(x, y, 1);
 				}
-                
-		doOr(orMask.content);
+
+		content |= orMask.content;
 	}
 
 	std::vector<std::shared_ptr<std::vector<int>>> calcConnexityGroups() const
