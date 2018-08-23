@@ -14,6 +14,12 @@ struct HistogramChannelData {
 		return 0;
 	}
 
+	void clear() {
+		for(int i = 0; i < max - min + 1; ++i) {
+			data[i] = 0;
+		}
+	}
+
 	uint32_t cumulatedAtAdu(uint16_t value) {
 		if (value < min) return 0;
 		if (value > max) return 0;
@@ -27,12 +33,12 @@ struct HistogramChannelData {
 	}
 
 	/* ==== functions for productions ==== */
-	void scanBayer(uint16_t * data, int w, int h);
-	void scanPlane(uint16_t * data, int w, int h);
+	void scanBayer(const uint16_t * data, int w, int interline, int h);
+	void scanPlane(const uint16_t * data, int w, int interline, int h);
 	// value for an adu X will be the count of adu of value up to X. This is the default form
 	void cumulative();
-	static void scanBayerMinMax(uint16_t * data, int w, int h, uint16_t & min, uint16_t & max);
-	static void scanPlaneMinMax(uint16_t * data, int w, int h, uint16_t & min, uint16_t & max);
+	static void scanBayerMinMax(const uint16_t * data, int w, int interline, int h, uint16_t & min, uint16_t & max);
+	static void scanPlaneMinMax(const uint16_t * data, int w, int interline, int h, uint16_t & min, uint16_t & max);
 
 	/* ==== functions for usage ==== */
 	uint32_t findFirstWithAtLeast(uint32_t wantedCount) const;
@@ -40,6 +46,7 @@ struct HistogramChannelData {
 
 	double getMoy(int minAdu, int maxAdu);
 	double getStdDev(int minAdu, int maxAdu);
+
 };
 
 struct HistogramStorage {
@@ -47,7 +54,9 @@ struct HistogramStorage {
 
 	char datas[0];
 
-	static long int requiredStorage(int w, int h, int channelCount, uint16_t * min, uint16_t * max)
+	static HistogramStorage* build(const RawDataStorage *rcs, int x0, int y0, int x1, int y1, std::function<void* (long int)> allocator);
+
+	static long int requiredStorage(int channelCount, uint16_t * min, uint16_t * max)
 	{
 		long int size = 0;
 		size += sizeof(HistogramStorage);
@@ -61,13 +70,15 @@ struct HistogramStorage {
 		return size;
 	}
 
-	void init(int w, int h, int channelCount, uint16_t * min, uint16_t * max)
+	void init(int channelCount, uint16_t * min, uint16_t * max)
 	{
 		this->channelCount = channelCount;
 		for(int i = 0; i < channelCount; ++i) {
 			HistogramChannelData * ch = channel(i);
+			ch->pixcount = 0;
 			ch->min = min[i];
 			ch->max = max[i];
+			ch->clear();
 		}
 	}
 

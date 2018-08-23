@@ -8,7 +8,7 @@
 #include "HistogramStorage.h"
 
 
-void HistogramChannelData::scanPlane(u_int16_t * data, int w, int h)
+void HistogramChannelData::scanPlane(const u_int16_t * data, int interline, int w, int h)
 {
 	pixcount += w*h;
 	while(h > 0) {
@@ -18,12 +18,13 @@ void HistogramChannelData::scanPlane(u_int16_t * data, int w, int h)
 			data++;
 			tw--;
 		}
+		data += interline - w;
 		h--;
 	}
 }
 
 // w and h must be even
-void HistogramChannelData::scanBayer(u_int16_t * data, int w, int h)
+void HistogramChannelData::scanBayer(const u_int16_t * data, int w, int interline, int h)
 {
 	pixcount += w * h / 4;
 	int th = h / 2;
@@ -41,12 +42,12 @@ void HistogramChannelData::scanBayer(u_int16_t * data, int w, int h)
 			data += 2;
 			tw--;
 		}
-		data += w / 2;
+		data += interline - w / 2;
 		th--;
 	}
 }
 
-void HistogramChannelData::scanPlaneMinMax(u_int16_t * data, int w, int h, u_int16_t & min, u_int16_t & max)
+void HistogramChannelData::scanPlaneMinMax(const u_int16_t * data, int w, int interline, int h, u_int16_t & min, u_int16_t & max)
 {
 	while(h > 0) {
 		int tw = w;
@@ -57,12 +58,13 @@ void HistogramChannelData::scanPlaneMinMax(u_int16_t * data, int w, int h, u_int
 			data++;
 			tw--;
 		}
+		data += interline - w;
 		h--;
 	}
 }
 
 // w and h must be even
-void HistogramChannelData::scanBayerMinMax(u_int16_t * data, int w, int h, u_int16_t & min, u_int16_t & max)
+void HistogramChannelData::scanBayerMinMax(const u_int16_t * data, int w, int interline, int h, u_int16_t & min, u_int16_t & max)
 {
 	int th = h / 2;
 	while(th > 0) {
@@ -74,7 +76,7 @@ void HistogramChannelData::scanBayerMinMax(u_int16_t * data, int w, int h, u_int
 			data += 2;
 			tw--;
 		}
-		data += w / 2;
+		data += interline - w / 2;
 		th--;
 	}
 }
@@ -163,9 +165,70 @@ void SharedCache::Messages::Histogram::produce(Entry * entry)
 	}
 
 	RawDataStorage *rcs = (RawDataStorage*)sourceEntry->data();
+
+	HistogramStorage::build(rcs, 0, 0, rcs->w - 1, rcs->h - 1, [&entry](long int size){
+		entry->allocate(size);
+		return entry->data();
+	});
+}
+
+// Adjust x to the min x>=x0 such as x & 1 = xOffset
+static int toNextBayer(int x, int xOffset)
+{
+	int nvx = (x & ~1) + xOffset;
+	if (nvx < x) nvx += 2;
+	assert((nvx & 1) == xOffset);
+	assert((nvx >= x));
+	assert((nvx - 2 < x));
+	return nvx;
+}
+
+// Adjust x to the max x<=x0 such as x & 1 = xOffset
+static int toLastBayer(int x, int xOffset)
+{
+	int nvx = (x & ~1) + xOffset;
+	if (nvx > x) nvx -= 2;
+	assert((nvx & 1) == xOffset);
+	assert((nvx <= x));
+	assert((nvx + 2 > x));
+	return nvx;
+}
+
+static bool bayerWindow(int interline, int x0, int y0, int x1, int y1, int xOffset, int yOffset, int & offset, int & w, int & h)
+{
+	// Adjust y0 to next next y that is y >= y & ~1 + xOffset
+	x0 = toNextBayer(x0, xOffset);
+	y0 = toNextBayer(y0, yOffset);
+	x1 = toLastBayer(x1, xOffset);
+	y1 = toLastBayer(y1, yOffset);
+	
+	if (x1 < x0 || y1 < y0) {
+		return false;
+	}
+
+	w = x1 - x0 + 2;
+	h = y1 - y0 + 2;
+	offset = interline * y0 + x0;
+
+	return true;
+
+}
+
+static bool flatWindow(int interline, int x0, int y0, int x1, int y1, int & offset, int & w, int & h)
+{
+	w = x1 - x0 + 1;
+	h = y1 - y0 + 1;
+	offset = interline * y0 + x0;
+	return true;
+}
+
+HistogramStorage * HistogramStorage::build(
+						const RawDataStorage *rcs,
+						int x0, int y0, int x1, int y1,
+						std::function<void* (long int)> allocator) {
 	std::string bayer = rcs->getBayer();
-	int w = rcs->w;
-	int h = rcs->h;
+	// int w = rcs->w;
+	// int h = rcs->h;
 
 	uint16_t min[3] = {65535,65535,65535}, max[3] = {0,0,0};
 	int channelCount;
@@ -174,31 +237,43 @@ void SharedCache::Messages::Histogram::produce(Entry * entry)
 	if (rcs->hasColors()) {
 		channelCount = 3;
 		for(int i = 0; i < 4; ++i) {
-			int hist = RawDataStorage::getRGBIndex(bayer[i]);
-			int offset = (i & 1) + ((i & 2) >> 1) * w;
-			HistogramChannelData::scanBayerMinMax(rcs->data + offset, w, h, min[hist], max[hist]);
-			std::cerr << "bounds for " << hist << " are "<< min[hist] <<" => " << max[hist] << "\n";
+			int offset, w, h;
+			if (bayerWindow(rcs->w, x0, y0, x1, y1, i & 1, (i & 2) >> 1, offset, w, h))
+			{
+				int hist = RawDataStorage::getRGBIndex(bayer[i]);
+				HistogramChannelData::scanBayerMinMax(rcs->data + offset, w, rcs->w, h, min[hist], max[hist]);
+			}
+
 		}
 
 	} else {
-		HistogramChannelData::scanPlaneMinMax(rcs->data, w, h, min[0], max[0]);
 		channelCount = 1;
-
+		int offset, w, h;
+		if (flatWindow(rcs->w, x0, y0, x1, y1, offset, w, h)) {
+			HistogramChannelData::scanPlaneMinMax(rcs->data + offset, w, rcs->w, h, min[0], max[0]);
+		}
 	}
-	long int size = HistogramStorage::requiredStorage(w, h, channelCount, min, max);
-	entry->allocate(size);
-	HistogramStorage * hs = (HistogramStorage *)entry->data();
-	hs->init(w, h, channelCount, min, max);
+	long int size = HistogramStorage::requiredStorage(channelCount, min, max);
+	
+	HistogramStorage * hs = (HistogramStorage *)allocator(size);
+	hs->init(channelCount, min, max);
 	if (rcs->hasColors()) {
 		for(int i = 0; i < 4; ++i) {
-			int hist = RawDataStorage::getRGBIndex(bayer[i]);
-			int offset = (i & 1) + ((i & 2) >> 1) * w;
-			hs->channel(hist)->scanBayer(rcs->data + offset, w, h);
+			int offset, w, h;
+			if (bayerWindow(rcs->w, x0, y0, x1, y1, i & 1, (i & 2) >> 1, offset, w, h))
+			{
+				int hist = RawDataStorage::getRGBIndex(bayer[i]);
+				hs->channel(hist)->scanBayer(rcs->data + offset, w, rcs->w, h);
+			}
 		}
 	} else {
-		hs->channel(0)->scanPlane(rcs->data, w, h);
+		int offset, w, h;
+		if (flatWindow(rcs->w, x0, y0, x1, y1, offset, w, h)) {
+			hs->channel(0)->scanPlane(rcs->data + offset, w, rcs->w, h);
+		}
 	}
 	for(int i = 0; i < channelCount; ++i) {
 		hs->channel(i)->cumulative();
 	}
+	return hs;
 }

@@ -20,6 +20,8 @@
 #include "HistogramStorage.h"
 #include "LookupTable.h"
 #include "BitMask.h"
+#include "ChannelMode.h"
+#include "StarFinder.h"
 
 using namespace std;
 using namespace cgicc;
@@ -45,30 +47,31 @@ public:
 
 
 class MultiStarFinder {
+	friend class StarFinder;
 	RawDataStorage * content;
 	HistogramStorage * histogram;
-	int channelCount;
+	const ChannelMode channelMode;
 public:
 
 	MultiStarFinder(RawDataStorage * content, HistogramStorage * histogram)
+		: channelMode(content->hasColors() ? 4 : 1)
 	{
 		this->content = content;
 		this->histogram = histogram;
-		this->channelCount = content->hasColors() ? 4 : 1;
 	}
 
 	int getChannelId(int x, int y)
 	{
-		if (channelCount == 1) return 0;
+		if (channelMode.channelCount == 1) return 0;
 		return (x & 1) + (y & 1);
 	}
 
 	void proceed() {
-		int blackLevelByChannel[channelCount];
-		int blackStddevByChannel[channelCount];
+		int blackLevelByChannel[channelMode.channelCount];
+		int blackStddevByChannel[channelMode.channelCount];
 		
 
-		for(int channel = 0; channel < channelCount; ++channel)
+		for(int channel = 0; channel < channelMode.channelCount; ++channel)
 		{
 			HistogramChannelData * channelHistogram = histogram->channel(channel);
 			int black = channelHistogram->getLevel(0.6);;
@@ -77,8 +80,8 @@ public:
 		}
 
 
-		int limitByChannel[channelCount];
-		for(int i = 0; i < channelCount; ++i)
+		int limitByChannel[channelMode.channelCount];
+		for(int i = 0; i < channelMode.channelCount; ++i)
 		{
 			limitByChannel[i] = blackStddevByChannel[i] + blackLevelByChannel[i];
 
@@ -178,9 +181,13 @@ public:
 					return a->weight > b->weight;
 				});
 
+		int cpt = 0;
 		for(const auto & star : stars)
 		{
 			cout << star->weight << " at " << star->cx << "  " << star->cy << "\n" ;
+			StarFinder sf(content, channelMode, star->cx, star->cy, 25);
+			sf.perform();
+		
 		}
 	}
 

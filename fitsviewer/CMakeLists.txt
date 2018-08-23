@@ -22,8 +22,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(SRCS
+  FixedSizeBitSet.cpp
 	SharedCache.cpp
 	SharedCacheServer.cpp
+  ChannelMode.cpp
+  StarFinder.cpp
 	Messages.cpp
 	RawContent.cpp
 	Histogram.cpp
