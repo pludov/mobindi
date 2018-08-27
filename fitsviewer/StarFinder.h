@@ -23,20 +23,29 @@ class StarFinder {
 
 	const RawDataStorage* content;
 	const ChannelMode channelMode;
-
+	const BitMask * excludeMask;
 	const int x, y;
 	const int windowRadius;
-
+	BitMask star;
 public:
 
 	StarFinder(const RawDataStorage * content, ChannelMode channelMode, int x, int y, int windowRadius) :
 		content(content), channelMode(channelMode),
 		x(x), y(y),
-		windowRadius(windowRadius)
+		windowRadius(windowRadius),
+		excludeMask(nullptr)
 	{
 	}
 
 	bool perform(StarFindResult & details);
+
+	void setExcludeMask(const BitMask * bm) {
+		excludeMask = bm;
+	}
+
+	const BitMask & getStarMask() const {
+		return star;
+	}
 };
 
 #endif

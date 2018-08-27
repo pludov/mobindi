@@ -63,144 +63,148 @@ bool StarFinder::perform(StarFindResult & result) {
                     maxAduY = y;
                     maxRelAdu = adu;
                 }
+                notBlack.set(x, y, 1);
             }
-            notBlack.set(x, y, 1);
         }
 
-    // FIXME
-    // notBlack.substract(excludeMask);
+    if (excludeMask != nullptr) {
+        notBlack.substract(*excludeMask);
+    }
 
     BitMask notBlackEroded(notBlack);
     notBlackEroded.erode();
     notBlackEroded.grow();
-    // FIXME: notBlackEroded.substract(excludeMask);
+    if (excludeMask != nullptr) {
+        notBlackEroded.substract(*excludeMask);
+    }
 
     if (!notBlackEroded.get(maxAduX, maxAduY)) {
         // Rien trouvé
         return false;
     }
 
-//     // On marque le centre
-//     BitMask star(x0, y0, x1, y1);
-//     star.set(maxAduX, maxAduY, 1);
-//     star.grow(notBlackEroded);
+    // On marque le centre
+    star = BitMask(x0, y0, x1, y1);
+    star.set(maxAduX, maxAduY, 1);
+    star.grow(notBlackEroded);
 
-//     star.grow();
-//     star.substract(excludeMask);
-//     star.grow();
-//     star.substract(excludeMask);
-//     star.grow();
-//     star.substract(excludeMask);
+    star.grow();
+    if (excludeMask != nullptr) star.substract(*excludeMask);
+    star.grow();
+    if (excludeMask != nullptr) star.substract(*excludeMask);
+    star.grow();
+    if (excludeMask != nullptr) star.substract(*excludeMask);
     
-//     int64_t xSum = 0;
-//     int64_t ySum = 0;
-//     int64_t aduSum = 0;
+    int64_t xSum = 0;
+    int64_t ySum = 0;
+    int64_t aduSum = 0;
     
-//     for(Point xy = star.nextPixel(Point::none); xy != Point::none; xy = star.nextPixel(xy))
-//     {
-//         int x = xy.x;
-//         int y = xy.y;
+    for(BitMaskIterator it = star.iterator(); it.next();)
+    {
+        int x = it.x();
+        int y = it.y();
 
-//         int channelId = channelMode.getChannelId(x, y);
-//         int adu = content->getAdu(x, y);
-//         // en cas d'utilisation de black, on fait en sorte de garder saturé les pixels saturés
+        int channelId = channelMode.getChannelId(x, y);
+        int adu = content->getAdu(x, y);
+        // en cas d'utilisation de black, on fait en sorte de garder saturé les pixels saturés
 
-//         int black = blackLevelByChannel[channelId];
-//         if (adu <= black) continue;
-//         adu -= black;
-// /*        this->aduSumByChannel[channelId] += adu;
-//         if (adu > this->aduMaxByChannel[channelId]) {
-//             this->aduMaxByChannel[channelId] = adu;
-//         }*/
+        int black = blackLevelByChannel[channelId];
+        if (adu <= black) continue;
+        adu -= black;
+/*        this->aduSumByChannel[channelId] += adu;
+        if (adu > this->aduMaxByChannel[channelId]) {
+            this->aduMaxByChannel[channelId] = adu;
+        }*/
 
-//         xSum += x * adu;
-//         ySum += y * adu;
-//         aduSum += adu;
-//     }
+        xSum += x * adu;
+        ySum += y * adu;
+        aduSum += adu;
+    }
 
-//     if (aduSum <= 0) {
-//         return false;
-//     }
+    if (aduSum <= 0) {
+        return false;
+    }
 
 
 
-//     double picX = xSum * 1.0 / aduSum;
-//     double picY = ySum * 1.0 / aduSum;
+    double picX = xSum * 1.0 / aduSum;
+    double picY = ySum * 1.0 / aduSum;
 
-//     double maxAngle = 0, minAngle = 0;
-//     double maxFwhm = 0, minFwhm = 0;
-//     double fwhmSum = 0;
-//     int stepCount = 128;
-//     for(int step = 0; step < stepCount; ++step)
-//     {
-//         double angle = step * M_PI / stepCount;
+    double maxAngle = 0, minAngle = 0;
+    double maxFwhm = 0, minFwhm = 0;
+    double fwhmSum = 0;
+    int stepCount = 128;
+    for(int step = 0; step < stepCount; ++step)
+    {
+        double angle = step * M_PI / stepCount;
     
-//         double cs = cos(angle);
-//         double sn = sin(angle);
+        double cs = cos(angle);
+        double sn = sin(angle);
         
-//         double sumDstSquare = 0;
-//         double sumDstSquareDivider = 0;
+        double sumDstSquare = 0;
+        double sumDstSquareDivider = 0;
     
-//         // MedianCalculator medianCalculator = new MedianCalculator();
+        // MedianCalculator medianCalculator = new MedianCalculator();
         
-//         // on veut le x moyen tel que :
-//         //    Centerx = somme(x.adu) / somme(adu)
-//         // Et après l'écart type:
-//         //    Stddev = somme(adu.(x - centerx)) / somme(adu)
-//         for(Point xy = star.nextPixel(Point::none); xy != Point::none; xy = star.nextPixel(xy)) {
-//             int x = xy.x;
-//             int y = xy.y;
+        // on veut le x moyen tel que :
+        //    Centerx = somme(x.adu) / somme(adu)
+        // Et après l'écart type:
+        //    Stddev = somme(adu.(x - centerx)) / somme(adu)
+        for(BitMaskIterator it = star.iterator(); it.next();)
+        {
+            int x = it.x();
+            int y = it.y();
 
-//             int adu = content->getAdu(x, y);
-//             int black = blackLevelByChannel[channelMode.getChannelId(x, y)];
+            int adu = content->getAdu(x, y);
+            int black = blackLevelByChannel[channelMode.getChannelId(x, y)];
 
-//             if (adu <= black) continue;
-//             adu -= black;
+            if (adu <= black) continue;
+            adu -= black;
 
-//             double dx = (x - 2 * picX);
-//             double dy = (y - 2 * picY);
-//             double dst = cs * dx + sn * dy;
+            double dx = (x - picX);
+            double dy = (y - picY);
+            double dst = cs * dx + sn * dy;
 
-// //					double dst = cs * (x - 2 * picX) * cs * (x - 2 * picX) +
-// //							sn * (y - 2 * picY) * sn * (y - 2 * picY);
+//					double dst = cs * (x - 2 * picX) * cs * (x - 2 * picX) +
+//							sn * (y - 2 * picY) * sn * (y - 2 * picY);
 
-//             // medianCalculator.addEntry(adu, dst);
-//             double adus = adu;
-//             sumDstSquare += adus * dst * dst;
-//             sumDstSquareDivider += adus;
-//         }
+            // medianCalculator.addEntry(adu, dst);
+            double adus = adu;
+            sumDstSquare += adus * dst * dst;
+            sumDstSquareDivider += adus;
+        }
 
-//         double stddev = sqrt(sumDstSquare / sumDstSquareDivider);
-//         // double meandev = Math.sqrt(medianCalculator.getMedian());
-//         // logger.info("found stddev = " + stddev + "  meandev = " + meandev);
-//         double fwhm = 2.35 * stddev;
+        double stddev = sqrt(sumDstSquare / sumDstSquareDivider);
+        // double meandev = Math.sqrt(medianCalculator.getMedian());
+        // logger.info("found stddev = " + stddev + "  meandev = " + meandev);
+        double fwhm = 2.35 * stddev;
 
-//         if (step == 0 || fwhm > maxFwhm)
-//         {
-//             maxFwhm = fwhm;
-//             maxAngle = angle;
-//         }
+        if (step == 0 || fwhm > maxFwhm)
+        {
+            maxFwhm = fwhm;
+            maxAngle = angle;
+        }
 
-//         if (step == 0 || fwhm < minFwhm)
-//         {
-//             minFwhm = fwhm;
-//             minAngle = angle;
-//         }
+        if (step == 0 || fwhm < minFwhm)
+        {
+            minFwhm = fwhm;
+            minAngle = angle;
+        }
 
-//         fwhmSum += fwhm;
-//     }
+        fwhmSum += fwhm;
+    }
 
-//     result.x = picX;
-//     result.y = picY;
-//     result.fwhm = fwhmSum / stepCount;
-//     result.stddev = result.fwhm / 2.35;
+    result.x = picX;
+    result.y = picY;
+    result.fwhm = fwhmSum / stepCount;
+    result.stddev = result.fwhm / 2.35;
 
-//     result.maxFwhm = maxFwhm;
-//     result.maxStddev = maxFwhm / 2.35;
-//     result.maxFwhmAngle = maxAngle;
-//     result.minFwhm = minFwhm;
-//     result.minStddev = minFwhm / 2.35;
-//     result.minFwhmAngle = minAngle;
+    result.maxFwhm = maxFwhm;
+    result.maxStddev = maxFwhm / 2.35;
+    result.maxFwhmAngle = maxAngle;
+    result.minFwhm = minFwhm;
+    result.minStddev = minFwhm / 2.35;
+    result.minFwhmAngle = minAngle;
 
-    return false;
+    return true;
 }

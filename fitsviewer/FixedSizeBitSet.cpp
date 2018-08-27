@@ -83,7 +83,21 @@ FixedSizeBitSet::FixedSizeBitSet(const FixedSizeBitSet & copy)
 FixedSizeBitSet::~FixedSizeBitSet() {
     if (words != nullptr) {
         delete [] words;
+        words = nullptr;
     }
+}
+
+FixedSizeBitSet & FixedSizeBitSet::operator=(const FixedSizeBitSet & other)
+{
+    if (words != nullptr) {
+        delete [] words;
+        words = nullptr;
+    }
+    length = other.length;
+    words = other.words;
+    cardinality = other.cardinality;
+    this->words = new uint64_t[wordsLength()];
+    memcpy(this->words, other.words, sizeof(uint64_t) * wordsLength());
 }
 
 
@@ -173,6 +187,18 @@ FixedSizeBitSet & FixedSizeBitSet::operator ^=(const FixedSizeBitSet & other)
     this->cardinality = -1;
     return *this;
 }
+
+FixedSizeBitSet & FixedSizeBitSet::operator -=(const FixedSizeBitSet & other)
+{
+    if (other.length != this->length) throw std::invalid_argument("or between different sets");
+    for(int i = 0; i < wordsLength(); ++i)
+    {
+        words[i] &= ~other.words[i];
+    }
+    this->cardinality = -1;
+    return *this;
+}
+
 
 FixedSizeBitSet FixedSizeBitSet::shift(int amount) const
 {

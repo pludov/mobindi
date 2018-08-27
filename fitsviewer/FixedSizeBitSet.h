@@ -17,6 +17,8 @@ public:
     FixedSizeBitSet(FixedSizeBitSet && move);
     ~FixedSizeBitSet();
 	
+    FixedSizeBitSet & operator=(const FixedSizeBitSet & other);
+
 	bool get(int offset) const
     {
         assert(offset >= 0 && offset < length);
@@ -60,7 +62,8 @@ public:
 	FixedSizeBitSet & operator &=(const FixedSizeBitSet & other);
     FixedSizeBitSet & operator |=(const FixedSizeBitSet & other);
     FixedSizeBitSet & operator ^=(const FixedSizeBitSet & other);
-    
+    FixedSizeBitSet & operator -=(const FixedSizeBitSet & other);
+
     //FixedSizeBitSet * shift(int amount) const;
 	FixedSizeBitSet shift(int amount) const;
 	

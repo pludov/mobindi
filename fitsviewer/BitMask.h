@@ -9,6 +9,7 @@
 #include "FixedSizeBitSet.h"
 
 class BitMask;
+class BitMaskIterator;
 
 class CGroupComputer {
 	friend class BitMask;
@@ -30,6 +31,7 @@ class CGroupComputer {
 };
 
 class BitMask {
+	friend class BitMaskIterator;
 	friend class CGroupComputer;
 
 	int sx, sy;
@@ -42,6 +44,15 @@ class BitMask {
 	}
 
 public:
+	BitMask(): content(1) {
+		sx = 1;
+		sy = 1;
+		x0 = 0;
+		y0 = 0;
+		x1 = 0;
+		y1 = 0;
+	}
+
 	BitMask(int _x0, int _y0, int _x1, int _y1)
 		:
 		sx(_x1 - _x0 + 1),
@@ -53,6 +64,8 @@ public:
 		y1(_y1)
 	{
 	}
+
+	BitMask & operator=(const BitMask & other);
 
 	void fill(bool v)
 	{
@@ -66,6 +79,8 @@ public:
 		content.set(offset(x, y), v);
 	}
 
+
+	BitMaskIterator iterator() const;
 
 	bool get(int x, int y) const {
 		return content.get(offset(x, y));
@@ -143,6 +158,37 @@ public:
 		content |= orMask.content;
 	}
 
+	void substract(const BitMask & from)
+	{
+		if (from.x0 == x0 && from.x1 == x1 && from.y0 == y0 && from.y1 == y1) {
+			// Same size.
+			content -= from.content;
+			return;
+		}
+		// calculer le recouvrement
+		// faire un nand
+		int tx0 = x0;
+		int tx1 = x1;
+		int ty0 = y0;
+		int ty1 = y1;
+		if (tx0 < from.x0) tx0 = from.x0;
+		if (ty0 < from.y0) ty0 = from.y0;
+		if (tx1 > from.x1) tx1 = from.x1;
+		if (ty1 > from.y1) ty1 = from.y1;
+		
+		for(int y = ty0; y <= ty1; ++y)
+			for(int x = tx0; x <= tx1; ++x) {
+				if (from.get(x, y)) {
+					set(x, y, false);
+				}
+			}
+	}
+
+
+	void grow(const BitMask & from);
+	void erode(const BitMask & mask);
+	void morph(const BitMask & mast, bool isGrow);
+
 	std::vector<std::shared_ptr<std::vector<int>>> calcConnexityGroups() const
 	{
 		CGroupComputer c(*this);
@@ -150,22 +196,38 @@ public:
 		return c.result();
 	}
 
-    std::string toString() const
-    {
-        std::string result;
-        for(int y = y0; y <= y1; ++y) {
-            for(int x = x0; x <= x1; ++x) {
-                if (get(x, y)) {
-                    result += 'x';
-                } else {
-                    result += ' ';
-                }
-            }
-            result += "\n";
-        }
-        return result;
-    }
+    std::string toString() const;
 };
 
+
+class BitMaskIterator {
+	friend class BitMask;
+	const BitMask & bm;
+	int offset;
+	BitMaskIterator(const BitMask & bm);
+public:
+	bool next()
+	{
+		if (offset < -1) {
+			return false;
+		}
+		offset = bm.content.nextSetBit(offset + 1);
+		if (offset == -1) {
+			offset = -1;
+			return false;
+		}
+		return true;
+	}
+
+	int x() const
+	{
+		return bm.x0 + offset % bm.sx;
+	}
+
+	int y() const
+	{
+		return bm.y0 + offset / bm.sx;
+	}
+};
 
 #endif

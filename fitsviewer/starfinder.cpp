@@ -66,10 +66,9 @@ public:
 		return (x & 1) + (y & 1);
 	}
 
-	void proceed() {
+	std::vector<StarFindResult> proceed(int maxCount) {
 		int blackLevelByChannel[channelMode.channelCount];
 		int blackStddevByChannel[channelMode.channelCount];
-		
 
 		for(int channel = 0; channel < channelMode.channelCount; ++channel)
 		{
@@ -87,7 +86,6 @@ public:
 
 			cerr << "channel " << i << " black at " << blackLevelByChannel[i] << " limit at " << limitByChannel[i] <<"\n";
 		}
-
 		BitMask notBlack(0, 0, content->w - 1, content->h - 1);
 		int ptr = 0;
 		for(int y = 0; y < content->h; ++y)
@@ -182,13 +180,47 @@ public:
 				});
 
 		int cpt = 0;
+		BitMask checkedArea(0, 0, content->w - 1, content->h - 1);
+
+		int left = maxCount;
+		std::vector<StarFindResult> resultVec;
+		resultVec.reserve(maxCount);
 		for(const auto & star : stars)
 		{
 			cout << star->weight << " at " << star->cx << "  " << star->cy << "\n" ;
 			StarFinder sf(content, channelMode, star->cx, star->cy, 25);
-			sf.perform();
-		
+			sf.setExcludeMask(&checkedArea);
+			StarFindResult result;
+			if (sf.perform(result)) {
+				cout << result.x << "\t" << result.y << "\t=> " << result.fwhm << "\n";
+				resultVec.push_back(result);
+				maxCount--;
+				if (maxCount <= 0) {
+					break;
+				}
+			}
 		}
+
+		std::vector<double> fwhm;
+		for(int i = 0; i < resultVec.size(); ++i) {
+			fwhm.push_back(resultVec[i].fwhm);
+		}
+		std::sort(fwhm.begin(), fwhm.end(),
+				[](double a, double b) -> bool {
+					return a > b;
+				});
+		int fwhmCpt = 0;
+		double fwhmSum = 0;
+		for(int i = (int)ceil(fwhm.size() * 0.2); i < (int)floor(fwhm.size() * 0.8); ++i)
+		{
+			fwhmCpt++;
+			fwhmSum += fwhm[i];
+		}
+		if (fwhmCpt > 0) {
+			cerr << "Median FWHM : " << (fwhmSum / fwhmCpt) << "\n";
+		}
+
+		return resultVec;
 	}
 
 };
@@ -201,7 +233,7 @@ int main (int argc, char ** argv) {
 
 	SharedCache::Messages::ContentRequest contentRequest;
 	contentRequest.fitsContent = new SharedCache::Messages::RawContent();
-	contentRequest.fitsContent->path = "/home/ludovic/Astronomie/Photos/2018/2018-08-10/IMAGE_116.fits";
+	contentRequest.fitsContent->path = "/home/ludovic/Astronomie/Photos/2018/2018-08-10/IMAGE_115.fits";
 
 	SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
 	if (aduPlane->hasError()) {
@@ -221,5 +253,5 @@ int main (int argc, char ** argv) {
 
 
 	MultiStarFinder msf(contentStorage, histogramStorage);
-	msf.proceed();
+	msf.proceed(200);
 }

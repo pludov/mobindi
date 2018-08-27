@@ -4,6 +4,97 @@
 
 using namespace std;
 
+void BitMask::grow(const BitMask & mask)
+{
+	morph(mask, true);
+}
+
+void BitMask::erode(const BitMask & mask)
+{
+	morph(mask, false);
+}
+
+void BitMask::morph(const BitMask & mask, bool isGrow)
+{
+	int dirx[] = {-1, 1, 0, 0};
+	int diry[] = {0, 0, -1, 1};
+
+	bool updated;
+	
+	
+	do {
+		updated = false;
+		
+		BitMask added(this->x0, this->y0, this->x1, this->y1);
+		for(int y = y0; y <= y1; ++y)
+			for(int x = x0; x <= x1; ++x)
+			{
+				if (get(x, y) == isGrow) {
+					for(int spread = 0; spread < 4; ++spread)
+					{
+						int nvx = x  + dirx[spread];
+						int nvy = y  + diry[spread];
+						
+						if (nvx < x0 || nvx > x1) continue;
+						if (nvy < y0 || nvy > y1) continue;
+						
+						if (get(nvx, nvy) == isGrow) continue;
+						if (!mask.get(nvx, nvy)) continue;
+						added.set(nvx, nvy, true);
+						updated = true;
+					}
+				}
+			}
+		
+		if (updated) {
+			if (isGrow) {
+				this->content|=added.content;
+			} else {
+				added.content.invert();
+				this->content&=added.content;
+			}
+		}
+
+	} while(updated);
+}
+
+BitMask & BitMask::operator=(const BitMask & other)
+{
+	sx = other.sx;
+	sy = other.sy;
+	x0 = other.x0;
+	y0 = other.y0;
+	x1 = other.x1;
+	y1 = other.y1;
+	content = other.content;
+	return *this;
+}
+
+
+std::string BitMask::toString() const
+{
+	std::string result;
+	for(int y = y0; y <= y1; ++y) {
+		for(int x = x0; x <= x1; ++x) {
+			if (get(x, y)) {
+				result += 'x';
+			} else {
+				result += ' ';
+			}
+		}
+		result += "\n";
+	}
+	return result;
+}
+
+BitMaskIterator BitMask::iterator() const {
+	return BitMaskIterator(*this);
+}
+
+BitMaskIterator::BitMaskIterator(const BitMask & bm) : bm(bm), offset(-1)
+{}
+
+
 
 CGroupComputer::CGroupComputer(const BitMask & _bm):
 	bm(_bm),
