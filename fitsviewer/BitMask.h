@@ -115,46 +115,18 @@ public:
 			zeroesNeighboors.invert();
 
 			content &= zeroesNeighboors;
-
-/*			BitMask toZero(x0, y0, x1, y1);
-			toZero.fill(1);
-
-			for(int y = y0 + 1; y <= y1 - 1; ++y)
-				for(int x = x0 + 1; x <= x1 - 1; ++x)
-					if (get(x, y) && isClear(x-1, y) && isClear(x +1 ,y) && isClear(x, y-1) && isClear(x, y + 1)) {
-						toZero.set(x, y, 0);
-					}
-
-			doAnd(toZero.content);*/
-		}
-
-		// Les bords disparaissent à tous les coups
-		for(int x = x0; x <= x1; ++x) {
-			set(x, y0, 0);
-			set(x, y1, 0);
-		}
-
-		for(int y = y0 + 1; y <= y1 - 1; ++y) {
-			set(x0, y, 0);
-			set(x1, y, 0);
+		} else {
+			content.clear();
 		}
 	}
 
 	// Tous les pixels qui ont au moins un voisin 1 deviennent 1
 	void grow() {
 		BitMask orMask(x0, y0, x1, y1);
-		for(int y = y0; y <= y1; ++y)
-			for(int x = x0; x <= x1; ++x)
-				if (isClear(x, y) &&
-					(
-						(x > x0 && get(x-1, y))
-						|| (x < x1 && get(x + 1, y))
-						|| (y > y0 && get(x, y - 1))
-						|| (y < y1 && get(x, y + 1))))
-				{
-					orMask.set(x, y, 1);
-				}
-
+		orMask.content |= eraseCol(content.shift(-1), sx - 1);
+		orMask.content |= eraseCol(content.shift(1), 0);
+		orMask.content |= content.shift(-sx);
+		orMask.content |= content.shift(sx);
 		content |= orMask.content;
 	}
 
