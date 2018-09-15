@@ -69,14 +69,18 @@ class Camera {
 
         new ConfigStore(appStateManager, 'camera', ['camera', 'configuration'], {
             fakeImagePath: null,
-            fakeImages: null
+            fakeImages: null,
+            defaultImagePath: process.env.HOME,
+            defaultImagePrefix: 'IMAGE_XXX'
         }, {
             fakeImagePath: "/home/ludovic/Astronomie/home/photos/2015/2015-08-09/photos/2015-08-09/",
             fakeImages: [
                     "Single_Bin1x1_1s_2015-08-09_23-40-17.fit",  "Single_Bin1x1_1s_2015-08-09_23-44-44.fit",  "Single_Bin1x1_30s_2015-08-09_23-47-04.fit",  "Single_Bin2x2_2s_2015-08-09_23-28-37.fit",      "Single_M27_Bin1x1_2s_2015-08-10_03-40-12.fit",
                     "Single_Bin1x1_1s_2015-08-09_23-41-16.fit",  "Single_Bin1x1_30s_2015-08-09_23-42-37.fit",  "Single_Bin1x1_5s_2015-08-09_23-41-47.fit",   "Single_Bin2x2_2s_2015-08-09_23-29-41.fit",      "Single_M27_G_Bin1x1_2s_2015-08-10_03-46-49.fit",
                     "Single_Bin1x1_1s_2015-08-09_23-44-21.fit",  "Single_Bin1x1_30s_2015-08-09_23-45-37.fit",  "Single_Bin2x2_2s_2015-08-09_23-27-56.fit",   "Single_M27_Bin1x1_1s_2015-08-10_03-39-51.fit"
-            ]
+            ],
+            defaultImagePath: process.env.HOME,
+            defaultImagePrefix: 'IMAGE_XXX'
         });
 
         new ConfigStore(appStateManager, 'sequences', ['camera', 'sequences'], {
@@ -519,6 +523,7 @@ class Camera {
                     settings = Object.assign(settings, step);
                     delete settings.count;
                     delete settings.done;
+                    settings.prefix = settings.title + '-' + step.type + '-' + (step.done + 1);
 
                     var ditheringStep;
                     if (step.dither) {
@@ -627,7 +632,9 @@ class Camera {
                 console.log('Shoot settings:' + JSON.stringify(settings, null, 2));
                 self.currentStatus.currentShoots[device] = Object.assign({
                     status: 'init',
-                    managed: true
+                    managed: true,
+                    path: self.currentStatus.configuration.defaultImagePath || process.env.HOME,
+                    prefix: self.currentStatus.configuration.defaultImagePrefix || 'IMAGE_XXX'
                 }, settings);
                 self.shootPromises[device] = result;
                 currentShootSettings = self.currentStatus.currentShoots[device];
@@ -669,6 +676,21 @@ class Camera {
                     }
                 )
             ),
+            this.indiManager.setParam(device, 'UPLOAD_SETTINGS',
+                    (vec)=> {
+                        const ret = {};
+
+                        if (vec.getPropertyValueIfExists('UPLOAD_DIR') !== currentShootSettings.path
+                            || vec.getPropertyValueIfExists('UPLOAD_PREFIX') !== currentShootSettings.prefix)
+                        {
+                            return {
+                                UPLOAD_DIR: currentShootSettings.path,
+                                UPLOAD_PREFIX: currentShootSettings.prefix
+                            }
+                        } else {
+                            return {}
+                        }
+                    }),
             // Set the upload mode to at least upload_client
             this.indiManager.setParam(device, 'UPLOAD_MODE',
                     (vec) => {
@@ -698,6 +720,7 @@ class Camera {
                 expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exposure }]);
 
                 var cancelFunction = () => {
+                    // FIXME: we must wait, otherwise a new shoot can begin while these are still occuring.
                     var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");
                     expVector.setValues([{name: 'ABORT', value: 'On'}]);
                     var uploadModeVector = connection.getDevice(device).getVector("UPLOAD_MODE");
