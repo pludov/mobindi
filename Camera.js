@@ -700,6 +700,8 @@ class Camera {
                 var cancelFunction = () => {
                     var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");
                     expVector.setValues([{name: 'ABORT', value: 'On'}]);
+                    var uploadModeVector = connection.getDevice(device).getVector("UPLOAD_MODE");
+                    uploadModeVector.setValues([{name: 'UPLOAD_CLIENT', Value: 'On'}]);
                 }
                 // Make this uninterruptible
                 return new Promises.Cancelator(cancelFunction, connection.wait(function() {
@@ -723,6 +725,19 @@ class Camera {
                     return (value == "0");
                 }));
             }),
+
+            // Remove UPLOAD_MODE
+            this.indiManager.setParam(device, 'UPLOAD_MODE',
+                    (vec) => {
+                        if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
+                            console.log('set back upload_client\n');
+                            return {
+                                UPLOAD_CLIENT: 'On'
+                            }
+                        } else {
+                            return ({});
+                        }
+                    }),
 
             new Promises.Immediate(function() {
                 if (ccdFilePathInitRevId === connection.getDevice(device).getVector("CCD_FILE_PATH").getRev())
