@@ -77,15 +77,18 @@ class SequenceControler extends PureComponent {
         var clickable = {
             start: false,
             stop: false,
-            edit: false
+            edit: false,
+            drop: false
         }
         if (this.props.current) {
             clickable.edit = true;
+            clickable.drop = true;
         }
         if (this.props.current && !this.state.runningPromise) {
             switch(this.props.current.status) {
                 case 'running':
                     clickable.stop = true;
+                    clickable.drop = false;
                     break;
                 case 'done':
                     break;
@@ -125,6 +128,7 @@ class SequenceControler extends PureComponent {
                 onClick={(e)=>Utils.promiseToState(this.props.app.stopSequence(this.props.uuid), this)}
             />
             <input type='button' disabled={!clickable.edit} value='edit' onClick={()=>this.props.app.editCurrentSequence()}/>
+            <input type='button' disabled={!clickable.drop} value='drop' onClick={(e)=>Utils.promiseToState(this.props.app.dropSequence(this.props.uuid), this)}/>
         </div>);
     }
 

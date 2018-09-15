@@ -12,7 +12,8 @@ class SequenceApp extends BaseApp {
         super(storeManager, "sequence");
         storeManager.addAdjuster(store=> (fork(store, ['sequence', 'currentImage'], (u)=>(u === undefined ? null : u))));
 
-        storeManager.addAdjuster(store=>(fork(store, ['sequence', 'currentEditSequence'], (u)=>(Utils.noErr(()=>store.backend.camera.sequences.byUuid[u]) === undefined ? null: u))));
+        storeManager.addAdjuster(store=>(fork(store, ['sequence', 'currentSequence'], (u)=>(Utils.noErr(()=>store.backend.camera.sequences.byuuid[u]) === undefined ? null: u))));
+        storeManager.addAdjuster(store=>(fork(store, ['sequence', 'currentSequenceEdit'], (u)=>(Utils.noErr(()=>store.backend.camera.sequences.byuuid[u]) === undefined ? null: u))));
 
         this.setCurrentImage = this.bindStoreFunction(this.setCurrentImage, "setCurrentImage");
         this.setCurrentSequence = this.bindStoreFunction(this.setCurrentSequence, "setCurrentSequence");
@@ -100,6 +101,14 @@ class SequenceApp extends BaseApp {
     stopSequence(sequenceUid) {
         return this.appServerRequest('camera', {
             method: 'stopSequence',
+            key: sequenceUid
+        });
+    }
+
+    dropSequence(sequenceUid) {
+        console.log('drop sequence');
+        return this.appServerRequest('camera', {
+            method: 'dropSequence',
             key: sequenceUid
         });
     }

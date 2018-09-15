@@ -611,6 +611,22 @@ class Camera {
         });
     }
 
+    $api_dropSequence(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to drop sequence', JSON.stringify(message));
+            var key = message.key;
+            if (self.currentSequenceUuid === key) {
+                throw new Error("Sequence " + key + " is running");
+            }
+            let i;
+            while((i = self.currentStatus.sequences.list.indexOf(key)) != -1) {
+                self.currentStatus.sequences.list.splice(i, 1);
+            }
+            delete(self.currentStatus.sequences.byuuid[key]);
+        });
+    }
+
     // Return a promise to shoot at the given camera (where)
     shoot(device, settingsProvider)
     {
