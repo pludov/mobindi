@@ -17,16 +17,12 @@ import SequenceEditDialog from './SequenceEditDialog';
 class SequenceImageDetail extends PureComponent {
 
     render() {
-        return <div className="AspectRatio43ContainerOut">
-            <div className="AspectRatio43ContainerIn">
-                <div className="AspectRatio43 FitsViewer FitsViewContainer">
+        return <div className="FitsViewer FitsViewContainer">
                     <FitsViewerInContext 
                             contextKey="default"
                             app={this.props.app}
                             src={this.props.url}
                         />
-                </div>
-            </div>
         </div>;
     }
 

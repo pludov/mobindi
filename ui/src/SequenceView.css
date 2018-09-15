@@ -1,16 +1,3 @@
-.AspectRatio43ContainerOut {
-    position: relative;
-    text-align: center;
-}
-.AspectRatio43ContainerIn {
-    position: relative;
-    max-width: 70vh;
-    margin: auto;
-}
-.AspectRatio43 {
-    padding-bottom: 75%;
-}
-
 .SequenceStepMovableBlock.sortableHelper {
     z-index: 10;
     color: #ffffff;
