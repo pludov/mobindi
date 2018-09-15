@@ -237,7 +237,7 @@ class IndiManager {
         if (keys.length > maxMessages) {
             keys.sort();
             for(var i = 0; i < keys.length - maxMessages; ++i) {
-                delete this.currentStatus.messages.byUid[i];
+                delete this.currentStatus.messages.byUid[keys[i]];
             }
         }
     }
