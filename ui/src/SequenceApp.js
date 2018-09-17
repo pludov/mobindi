@@ -113,6 +113,14 @@ class SequenceApp extends BaseApp {
         });
     }
 
+    resetSequence(sequenceUid) {
+        console.log('reset sequence');
+        return this.appServerRequest('camera', {
+            method: 'resetSequence',
+            key: sequenceUid
+        });
+    }
+
     getUi() {
         var self = this;
         return (<div className="Page" key={self.appId}>

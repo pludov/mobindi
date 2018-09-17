@@ -611,6 +611,33 @@ class Camera {
         });
     }
 
+    $api_resetSequence(message, progress) {
+        var self = this;
+        return new Promises.Immediate((e)=> {
+            console.log('Request to reset sequence', JSON.stringify(message));
+            var key = message.key;
+            if (self.currentSequenceUuid === key) {
+                throw new Error("Sequence " + key + " is running");
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(self.currentStatus.sequences.byuuid, key)) {
+                throw new Error("Sequence " + key + " not found");
+            }
+
+            const sequence = self.currentStatus.sequences.byuuid[key];
+
+            sequence.status = 'idle';
+            sequence.errorMessage = null;
+            var stepsUuid = sequence.steps.list;
+            for(var i = 0; i < stepsUuid.length; ++i)
+            {
+                var stepUuid = stepsUuid[i];
+                var step = sequence.steps.byuuid[stepUuid];
+                delete step.done;
+            }
+        });
+    }
+
     $api_dropSequence(message, progress) {
         var self = this;
         return new Promises.Immediate((e)=> {
