@@ -17,6 +17,7 @@
     "express-ws": "^3.0.0",
     "immutability-helper": "^2.3.0",
     "jsonpath": "^0.2.12",
+    "memory-streams": "^0.1.3",
     "morgan": "~1.8.1",
     "nedb": "^1.8.0",
     "node-qunit": "^1.0.0",

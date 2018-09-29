@@ -20,6 +20,7 @@ const Client = require('./Client.js');
 const {Phd} = require('./Phd');
 const {IndiManager} = require('./IndiManager');
 const {Camera} = require('./Camera');
+const {ImageProcessor} = require('./ImageProcessor');
 
 const JsonProxy = require('./JsonProxy');
 const TriggerExecuter = require('./TriggerExecuter');
@@ -108,6 +109,8 @@ context.camera = new Camera(app, appStateManager, context);
 context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 
 context.toolExecuter = new ToolExecuter(appStateManager, context);
+
+context.imageProcessor = new ImageProcessor(appStateManager, context);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {

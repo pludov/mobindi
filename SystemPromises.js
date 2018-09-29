@@ -43,6 +43,16 @@ class Exec extends Promises.Cancelable {
             var supportCancel = Promises.dynValue(self.cancelable, arg);
 
             var child = child_process.spawn(cmdArr[0], cmdArr.slice(1), opts);
+            if (opts.stdin) {
+                opts.stdin.pipe(child.stdin);
+            }
+            if (opts.stdout) {
+                child.stdout.pipe(opts.stdout);
+            }
+            if (opts.stderr) {
+                child.stderr.pipe(opts.stderr);
+            }
+            
             child.on('error', (err)=> {
                 console.warn("Process " + cmdArr[0] + " error : " + err);
             });

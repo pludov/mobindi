@@ -13,11 +13,13 @@ class ContextMenu extends PureComponent {
         this.showLow = this.showLow.bind(this);
         this.showMedium = this.showMedium.bind(this);
         this.showHigh = this.showHigh.bind(this);
+        this.showFwhm = this.showFwhm.bind(this);
     }
 
     showLow() { this.props.displaySetting('low'); }
     showMedium() { this.props.displaySetting('medium'); }
     showHigh() { this.props.displaySetting('high'); }
+    showFwhm() { this.props.displaySetting('fwhm'); }
 
     render() {
         // FIXME: ensure that the menu does not go outside
@@ -32,6 +34,7 @@ class ContextMenu extends PureComponent {
                 <div className="Item" onClick={this.showLow}>Low level</div>
                 <div className="Item" onClick={this.showMedium}>Median</div>
                 <div className="Item" onClick={this.showHigh}>High level</div>
+                <div className="Item" onClick={this.showFwhm}>FWHM</div>
             </div>);
     }
 }
@@ -754,6 +757,94 @@ class JQImageDisplay {
     }
 }
 
+class FWHMDisplayer extends PureComponent {
+    constructor(props) {
+        super(props);
+        this.state = {
+            src: null,
+            value: null,
+            loading: false
+        }
+    }
+
+    _loadData() {
+        if (this.props.src === this.state.src) {
+            return;
+        }
+        // Start a new loading.
+        // cancel the previous request
+        this._cancelLoadData();
+        this.setState({
+            src: this.props.src,
+            value: null,
+            loading: true
+        });
+        const self = this;
+
+        this.request = this.props.app.appServerRequest('imageProcessor', {
+                method: 'compute',
+                details: {"starField":{ "source": { "path":this.props.src}}}
+        }).then((e)=>{
+            let fwhmSum = 0;
+            for(let star of e) {
+                fwhmSum += star.fwhm
+            }
+            if (e.length) {
+                fwhmSum /= e.length;
+            }
+
+            const stat = fwhmSum.toFixed(2) + " - " + e.length + " stars"
+
+            this.setState({
+                value: stat,
+                loading: false
+            });
+        }).onError((e)=> {
+            this.setState({
+                value: null, 
+                loading: false
+            });
+        });
+        this.request.start();
+    }
+
+    _cancelLoadData() {
+        if (this.request !== undefined) {
+            this.request.cancel();
+            this.request = undefined;
+        }
+    }
+
+    componentWillUnmount() {
+        this._cancelLoadData();
+    }
+
+    componentDidMount() {
+        this._loadData();
+    }
+
+    componentDidUpdate(prevProps, prevState) {
+        this._loadData();
+    }
+
+    render() {
+        if (this.state.value === null) {
+            if (this.state.loading) {
+                return <div>...</div>;
+            } else {
+                return <div>N/A</div>;
+            }
+        } else {
+            return <div>{this.state.value}</div>
+        }
+    }
+}
+
+FWHMDisplayer.propTypes = {
+    src: PropTypes.string.isRequired,
+    app: PropTypes.any.isRequired
+}
+
 var uid = 0;
 
 class FitsViewer extends PureComponent {
@@ -795,7 +886,11 @@ class FitsViewer extends PureComponent {
     }
 
     displaySetting(which) {
-        this.setState({contextmenu: null, histogramView: (this.state.histogramView == which ? null : which)});
+        if (which === 'fwhm') {
+            this.setState({contextmenu: null, histogramView: null, fwhm: true});
+        } else {
+            this.setState({contextmenu: null, histogramView: (this.state.histogramView == which ? null : which), fwhm: false});
+        }
     }
 
     getViewSettingsCopy()
@@ -840,11 +935,13 @@ class FitsViewer extends PureComponent {
         var histogramView;
         if (this.state.histogramView !== null) {
             var viewSettings = this.getViewSettingsCopy();
-            histogramView = <LevelBar 
-                    property={this.state.histogramView} 
-                    onChange={this.updateHisto} 
+            histogramView = <LevelBar
+                    property={this.state.histogramView}
+                    onChange={this.updateHisto}
                     onFinishMove={this.flushView}
                     value={viewSettings.levels[this.state.histogramView]}/>;
+        } else if (this.state.fwhm) {
+            histogramView = <FWHMDisplayer src={this.props.src} app={this.props.app}/>
         } else {
             histogramView = null;
         }
@@ -864,7 +961,8 @@ class FitsViewer extends PureComponent {
 FitsViewer.propTypes = {
     src: PropTypes.string.isRequired,
     viewSettings: PropTypes.any,
-    onViewSettingsChange: PropTypes.func.isRequired
+    onViewSettingsChange: PropTypes.func.isRequired,
+    app: PropTypes.any.isRequired
 }
 
 // connect(mapStateToProps)(
