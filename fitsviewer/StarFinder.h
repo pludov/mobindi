@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 
+#include "json.hpp"
 #include "RawDataStorage.h"
 #include "BitMask.h"
 #include "ChannelMode.h"
@@ -14,9 +15,9 @@ struct StarFindResult {
 	double fwhm, stddev;
 	double maxFwhm, maxStddev, maxFwhmAngle;
 	double minFwhm, minStddev, minFwhmAngle;
-	
-	
 };
+
+void to_json(nlohmann::json&j, const StarFindResult & i);
 
 class StarFinder {
 

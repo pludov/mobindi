@@ -84,9 +84,25 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const Histogram & i);
 		void from_json(const nlohmann::json& j, Histogram & p);
 
+		struct StarField {
+			RawContent source;
+			void produce(Entry * entry);
+		};
+		void to_json(nlohmann::json&j, const Histogram & i);
+		void from_json(const nlohmann::json& j, Histogram & p);
+
+		// These queries produce json output
+		struct JsonQuery {
+			ChildPtr<StarField> starField;
+			void produce(Entry * entry);
+		};
+		void to_json(nlohmann::json&j, const JsonQuery & i);
+		void from_json(const nlohmann::json& j, JsonQuery & p);
+
 		struct ContentRequest {
 			ChildPtr<RawContent> fitsContent;
 			ChildPtr<Histogram> histogram;
+			ChildPtr<JsonQuery> jsonQuery;
 
 			std::string uniqKey() const
 			{

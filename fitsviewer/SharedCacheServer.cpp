@@ -326,11 +326,22 @@ void SharedCacheServer::workerLogic(Cache * cache)
 			work.todoResult->content->produce(entry);
 
 			entry->produced();
-		} catch(const WorkerError & e) {
+		} catch(WorkerError & e) {
 			entry->failed(e.what());
 		}
 		delete(entry);
 	}
+}
+
+void Messages::JsonQuery::produce(Entry * entry)
+{
+	if (this->starField) {
+		this->starField->produce(entry);
+		std::cerr << "Json produced!\n";
+
+		return;
+	}
+	throw WorkerError("Invalid JsonQuery");
 }
 
 void Messages::ContentRequest::produce(Entry * entry)
@@ -343,7 +354,11 @@ void Messages::ContentRequest::produce(Entry * entry)
 		this->histogram->produce(entry);
 		return;
 	}
-	throw new WorkerError("Invalid ContentRequest");
+	if (this->jsonQuery) {
+		this->jsonQuery->produce(entry);
+		return;
+	}
+	throw WorkerError("Invalid ContentRequest");
 
 }
 

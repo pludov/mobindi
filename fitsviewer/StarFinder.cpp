@@ -2,6 +2,22 @@
 
 #include "StarFinder.h"
 
+void to_json(nlohmann::json&j, const StarFindResult & i)
+{
+    j = nlohmann::json::object();
+    j["x"] = i.x;
+    j["y"] = i.y;
+    j["fwhm"] = i.fwhm;
+    j["stddev"] = i.stddev;
+    j["maxFwhm"] = i.maxFwhm;
+    j["maxStddev"] = i.maxStddev;
+    j["maxFwhmAngle"] = i.maxFwhmAngle;
+    j["minFwhm"] = i.minFwhm;
+    j["minStddev"] = i.minStddev;
+    j["minFwhmAngle"] = i.minFwhmAngle;
+}
+
+
 bool StarFinder::perform(StarFindResult & result) {
     int x0 = x - windowRadius;
     int y0 = y - windowRadius;

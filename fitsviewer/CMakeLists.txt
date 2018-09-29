@@ -35,6 +35,7 @@ set(SRCS
 	SharedCacheServer.cpp
   ChannelMode.cpp
   StarFinder.cpp
+  StarField.cpp
 	Messages.cpp
 	RawContent.cpp
 	Histogram.cpp
@@ -43,7 +44,7 @@ set(SRCS
     )
 
 add_executable(fitsviewer.cgi ${SRCS} fitsviewer.cpp)
-add_executable(starfinder.cgi ${SRCS} starfinder.cpp)
+add_executable(processor ${SRCS} processor.cpp)
 
 file(GLOB TEST_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
 
@@ -74,7 +75,7 @@ find_package(CFITSIO)
 if (CFITSIO_FOUND)
   target_include_directories(fitsviewer.cgi PUBLIC ${CFITSIO_INCLUDE_DIR})
   target_link_libraries (fitsviewer.cgi ${CFITSIO_LIBRARIES})
-  target_link_libraries (starfinder.cgi ${CFITSIO_LIBRARIES})
+  target_link_libraries (processor ${CFITSIO_LIBRARIES})
   target_link_libraries (unittests ${CFITSIO_LIBRARIES})
 else ()
   # Sinon, nous affichons un message
@@ -82,5 +83,5 @@ else ()
 endif ()
 
 target_link_libraries (fitsviewer.cgi cgicc)
-target_link_libraries (starfinder.cgi cgicc)
+target_link_libraries (processor cgicc)
 target_link_libraries (unittests cgicc)

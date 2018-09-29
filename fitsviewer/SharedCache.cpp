@@ -312,7 +312,7 @@ namespace SharedCache {
 				return;
 			}
 		}
-		throw new std::runtime_error("Failed to connect to server");
+		throw std::runtime_error("Failed to connect to server");
 	}
 
 }

@@ -23,6 +23,30 @@ namespace SharedCache {
 			p.source = j.at("source").get<RawContent>();
 		}
 
+		void to_json(nlohmann::json&j, const StarField & i)
+		{
+			j = nlohmann::json::object();
+			j["source"] = i.source;
+		}
+
+		void from_json(const nlohmann::json& j, StarField & p) {
+			p.source = j.at("source").get<RawContent>();
+		}
+
+		void to_json(nlohmann::json&j, const JsonQuery & i)
+		{
+			j = nlohmann::json::object();
+			if (i.starField) {
+				j["starField"] = *i.starField;
+			}
+		}
+
+		void from_json(const nlohmann::json& j, JsonQuery & p) {
+			if (j.find("starField") != j.end()) {
+				p.starField = new StarField(j.at("starField").get<StarField>());
+			}
+		}
+
 		void to_json(nlohmann::json&j, const ContentRequest & i)
 		{
 			j = nlohmann::json::object();
@@ -32,6 +56,9 @@ namespace SharedCache {
 			if (i.histogram) {
 				j["histogram"] = *i.histogram;
 			}
+			if (i.jsonQuery) {
+				j["jsonQuery"] = *i.jsonQuery;
+			}
 		}
 
 		void from_json(const nlohmann::json& j, ContentRequest & p) {
@@ -40,6 +67,9 @@ namespace SharedCache {
 			}
 			if (j.find("histogram") != j.end()) {
 				p.histogram = new Histogram(j.at("histogram").get<Histogram>());
+			}
+			if (j.find("jsonQuery") != j.end()) {
+				p.jsonQuery = new JsonQuery(j.at("jsonQuery").get<JsonQuery>());
 			}
 		}
 
