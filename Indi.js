@@ -495,6 +495,26 @@ class IndiConnection {
         return new Device(this, dev);
     }
 
+    getAvailableDeviceIds() {
+        return Object.keys(this.deviceTree);
+    }
+
+    getAvailableDeviceIds(requiredProps)
+    {
+        const rslt = [];
+        ext: for(let devId of Object.keys(this.deviceTree))
+        {
+            const dev = this.getDevice(devId);
+            for(let prop of requiredProps) {
+                if (!dev.getVector(prop).exists()) {
+                    continue ext;
+                }
+            }
+            rslt.push(devId);
+        }
+        return rslt;
+    }
+
     onMessage(message) {
         globalRevisionId++;
         if (message.$$.match(/^message$/)) {

@@ -7,7 +7,6 @@ const ConfigStore = require('./ConfigStore');
 const uuid = require('node-uuid');
 const TraceError = require('trace-error');
 
-
 class Camera {
     constructor(app, appStateManager, context) {
         this.appStateManager = appStateManager;
@@ -123,6 +122,7 @@ class Camera {
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.context = context;
         this.indiManager = context.indiManager;
+        this.imageProcessor = context.imageProcessor;
 
         this.imageIdGenerator = new IdGenerator();
         this.previousImages = {};
@@ -652,6 +652,75 @@ class Camera {
             }
             delete(self.currentStatus.sequences.byuuid[key]);
         });
+    }
+
+    // Adjust the focus
+    focus(shootDevice, focusSetting) {
+        var self = this;
+        let focuserId;
+
+        let firstStep, lastStep, currentStep, stepSize;
+        const amplitude = 2000;
+        const backlash = 200;
+        return new Promises.Chain(
+            new Promises.Builder(()=> {
+                // Find a focuser.
+                const connection = self.indiManager.getValidConnection();
+                const availableFocusers = connection.getAvailableDeviceIds(['ABS_FOCUS_POSITION']);
+                availableFocusers.sort();
+                if (availableFocusers.length == 0) {
+                    throw new Error("No focuser available");
+                }
+                focuserId = availableFocusers[0];
+
+                // Move to the starting point
+                const focuser = self.indiManager.getValidConnection().getDevice(focuserId);
+                const absPos = focuser.getVector('ABS_FOCUS_POSITION');
+                if (!absPos.isReadyForOrder()) {
+                    throw new Error("Focuser is not ready");
+                }
+                const start = parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"));
+                console.log('current pos is ' + start);
+                firstStep = start - amplitude;
+                lastStep = start + amplitude;
+                stepSize = 2 * amplitude / 10;
+
+                if (firstStep < 0) {
+                    firstStep = 0;
+                }
+                currentStep = firstStep;
+
+                return null;
+            }),
+            new Promises.Loop(
+                // Move to currentStep
+                new Promises.Chain(
+                    new Promises.Builder(()=> {
+                        return self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
+                            FOCUS_ABSOLUTE_POSITION: currentStep
+                        });
+                    }),
+                    
+                    new Promises.Builder(()=> {
+                        return self.shoot(shootDevice);
+                    }),
+
+                    new Promises.Builder((imagePath)=> {
+                        return self.imageProcessor.compute({
+                            "starField":{ "source": { "path": imagePath.path}}
+                        });
+                    }),
+                    // move on or stop
+                    new Promises.Immediate((starField)=> {
+                        console.log('StarField', JSON.stringify(starField, null, 2));
+                        currentStep += stepSize;
+                    })
+                ),
+                function() {
+                    return currentStep > lastStep;
+                }
+            )
+        );
     }
 
     // Return a promise to shoot at the given camera (where)

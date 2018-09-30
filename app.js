@@ -100,6 +100,8 @@ var toolExecuter;
 var context = {
 };
 
+context.imageProcessor = new ImageProcessor(appStateManager, context);
+
 context.phd = new Phd(app, appStateManager);
 
 context.indiManager = new IndiManager(app, appStateManager);
@@ -110,7 +112,6 @@ context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 
 context.toolExecuter = new ToolExecuter(appStateManager, context);
 
-context.imageProcessor = new ImageProcessor(appStateManager, context);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {

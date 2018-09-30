@@ -17,7 +17,7 @@ class ImageProcessor
         this.jsonProxy = jsonProxy;
     }
 
-    $api_compute(jsonRequest) {
+    compute(jsonRequest) {
         var self = this;
         let writableStream;
         let writableStreamDone;
@@ -46,7 +46,7 @@ class ImageProcessor
                         'pipe',
                         'inherit'
                     ],
-                    stdin: new memory_streams.ReadableStream(JSON.stringify(jsonRequest.details)),
+                    stdin: new memory_streams.ReadableStream(JSON.stringify(jsonRequest)),
                     stdout: writableStream
                 }
             })),
@@ -58,9 +58,14 @@ class ImageProcessor
                 }
             }),
             new Promises.Immediate((e)=> {
-                return JSON.parse(writableStream.toString());
+                const result = writableStream.toString();
+                return JSON.parse(result);
             })
         );
+    }
+
+    $api_compute(jsonRequest) {
+        return compute(jsonRequest.details);
     }
 }
 
