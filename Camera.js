@@ -661,6 +661,7 @@ class Camera {
         var self = this;
         var currentShootSettings;
         var ccdFilePathInitRevId;
+        let shootResult = null;
 
         var result = new Promises.Chain(
             new Promises.Immediate(() => {
@@ -791,20 +792,6 @@ class Camera {
                     return (value == "0");
                 }));
             }),
-
-            // Remove UPLOAD_MODE
-            this.indiManager.setParam(device, 'UPLOAD_MODE',
-                    (vec) => {
-                        if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
-                            console.log('set back upload_client\n');
-                            return {
-                                UPLOAD_CLIENT: 'On'
-                            }
-                        } else {
-                            return ({});
-                        }
-                    }),
-
             new Promises.Immediate(function() {
                 if (ccdFilePathInitRevId === connection.getDevice(device).getVector("CCD_FILE_PATH").getRev())
                 {
@@ -831,8 +818,24 @@ class Camera {
                     path: value,
                     device: device
                 };
+                shootResult = ({path: value});
+            }),
 
-                return ({path: value});
+            // Remove UPLOAD_MODE
+            // FIXME: this is a finally !
+            this.indiManager.setParam(device, 'UPLOAD_MODE',
+                    (vec) => {
+                        if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
+                            console.log('set back upload_client\n');
+                            return {
+                                UPLOAD_CLIENT: 'On'
+                            }
+                        } else {
+                            return ({});
+                        }
+                    }),
+            new Promises.Immediate(function() {
+                return shootResult;
             })
         );
 
