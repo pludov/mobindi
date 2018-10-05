@@ -88,8 +88,8 @@ namespace SharedCache {
 			RawContent source;
 			void produce(Entry * entry);
 		};
-		void to_json(nlohmann::json&j, const Histogram & i);
-		void from_json(const nlohmann::json& j, Histogram & p);
+		void to_json(nlohmann::json&j, const StarField & i);
+		void from_json(const nlohmann::json& j, StarField & p);
 
 		// These queries produce json output
 		struct JsonQuery {
