@@ -65,7 +65,7 @@ class ImageProcessor
     }
 
     $api_compute(jsonRequest) {
-        return compute(jsonRequest.details);
+        return this.compute(jsonRequest.details);
     }
 }
 
