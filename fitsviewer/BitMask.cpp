@@ -126,7 +126,6 @@ int CGroupComputer::mergeGroups(int a, int b)
 	finalVector[b] = a;
 	groupSize[a] += groupSize[b];
 	groupSize[b] = 0;
-	groupCount--;
 	return a;
 }
 
@@ -157,21 +156,23 @@ void CGroupComputer::proceed() {
 }
 
 int CGroupComputer::findActualGroup(int grp) {
-	while(!groupSize[grp]) {
+	while(finalVector[grp] != grp) {
 		grp = finalVector[grp];
 	}
-	return finalVector[grp];
+	return grp;
 }
 
 std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
 	std::vector<shared_ptr<std::vector<int>>> rslt;
 	cerr << "group count" << groupCount << "\n";
 	rslt.reserve(groupCount);
+
+	std::vector<int> vectorToGroup(groupSize.size());
 	int groupId = 0;
 	for(int i = 0; i < groupSize.size(); ++i)
 	{
-		if (groupSize[i]) {
-			finalVector[i] = groupId;
+		if (finalVector[i] == i) {
+			vectorToGroup[i] = groupId;
             rslt.push_back(std::make_shared<std::vector<int>>());
 			rslt[groupId]->reserve(2 * groupSize[i]);
 			groupId++;
@@ -181,8 +182,8 @@ std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
 	// FIXME: on est au pire en n² ici
 	for(int i = 0; i < groupSize.size(); ++i)
 	{
-		if (!groupSize[i]) {
-			finalVector[i] = findActualGroup(i);
+		if (finalVector[i] != i) {
+			vectorToGroup[i] = vectorToGroup[findActualGroup(i)];
 		}
 	}
 
@@ -191,9 +192,9 @@ std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
 			if (bm.get(x, y)) {
 				int off = bm.offset(x, y);
 				int vecId = connexityByPix[off];
-				vecId = finalVector[vecId];
-				rslt[vecId]->push_back(x);
-				rslt[vecId]->push_back(y);
+				int groupId = vectorToGroup[vecId];
+				rslt[groupId]->push_back(x);
+				rslt[groupId]->push_back(y);
 			}
     return rslt;
 }
