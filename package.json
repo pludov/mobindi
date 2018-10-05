@@ -22,6 +22,7 @@
     "nedb": "^1.8.0",
     "node-qunit": "^1.0.0",
     "node-uuid": "^1.4.8",
+    "regression": "^2.0.1",
     "sax": "^1.2.4",
     "serve-favicon": "~2.4.2",
     "session-file-store": "^1.0.0",

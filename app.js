@@ -20,6 +20,7 @@ const Client = require('./Client.js');
 const {Phd} = require('./Phd');
 const {IndiManager} = require('./IndiManager');
 const {Camera} = require('./Camera');
+const {Focuser} = require('./Focuser');
 const {ImageProcessor} = require('./ImageProcessor');
 
 const JsonProxy = require('./JsonProxy');
@@ -81,13 +82,17 @@ appState.apps= {
         enabled: true,
         position: 4
     },
-    toolExecuter: {
+    focuser: {
         enabled: true,
         position: 5
     },
-    messages: {
+    toolExecuter: {
         enabled: true,
         position: 6
+    },
+    messages: {
+        enabled: true,
+        position: 7
     }
 };
 
@@ -112,6 +117,7 @@ context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 
 context.toolExecuter = new ToolExecuter(appStateManager, context);
 
+context.focuser = new Focuser(app, appStateManager, context);
 
 app.use(function(req, res, next) {
     if ('jsonResult' in res) {

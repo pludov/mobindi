@@ -9,6 +9,7 @@ import PhdApp from './PhdApp';
 import IndiManagerApp from './IndiManagerApp';
 import CameraApp from './CameraApp';
 import SequenceApp from './SequenceApp';
+import FocuserApp from './FocuserApp';
 import MessageApp from './MessageApp';
 import ToolExecuterApp from './ToolExecuterApp';
 
@@ -63,6 +64,7 @@ class App extends Component {
             new CameraApp(this.storeManager),
             new SequenceApp(this.storeManager),
             new PhdApp(this.storeManager),
+            new FocuserApp(this.storeManager),
             new IndiManagerApp(this.storeManager),
             new ToolExecuterApp(this.storeManager),
             new MessageApp(this.storeManager)
