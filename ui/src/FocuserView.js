@@ -30,7 +30,8 @@ class FocuserGraph extends PureComponent {
             datasets: []
         };
         const propDefs = [
-            {prop: 'fwhm', color:'#ff0000'},
+            {prop: 'fwhm', color:'#ff0000', source: this.props.points},
+            {prop: 'fwhm', color:'#0000ff', source: this.props.predicted, hideEmpty: true, label:'prediction'}
         ];
 
         for(let propDef of propDefs)
@@ -50,20 +51,24 @@ class FocuserGraph extends PureComponent {
                 data[o] = propDef[o];
             }
         
-            var points = this.props.points;
+            var points = propDef.source;
             var previous = undefined;
             const steps = Object.keys(points).map(e=>parseFloat(e));
             steps.sort((a, b) => a - b);
             console.log('Steps ar :', steps);
             for(let step of steps)
             {
-                var value = points[step][propDef.prop];
-                data.data.push({x: step, y:value});
-            }
-            chartData.datasets.push(data);
-        }
+                const point = points[step];
 
-        console.log('charData is ', chartData);
+                if (propDef.prop in point) {
+                    var value = point[propDef.prop];
+                    data.data.push({x: step, y:value});
+                }
+            }
+            if (data.data.length || !propDef.hideEmpty) {
+                chartData.datasets.push(data);
+            }
+        }
 
         var chartOptions= {
             scales: {
@@ -112,7 +117,8 @@ class FocuserGraph extends PureComponent {
         var result = {
             firstStep: store.backend.focuser.current.firstStep,
             lastStep: store.backend.focuser.current.lastStep,
-            points: store.backend.focuser.current.points
+            points: store.backend.focuser.current.points,
+            predicted: store.backend.focuser.current.predicted
         };
         return result;
     }

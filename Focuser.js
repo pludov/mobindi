@@ -1,5 +1,6 @@
 'use strict';
 
+const PolynomialRegression = require('ml-regression-polynomial');
 const Obj = require('./Obj.js');
 const Promises = require('./Promises');
 const ConfigStore = require('./ConfigStore');
@@ -45,6 +46,8 @@ class Focuser {
                         fwhm: 2.8
                     }
                 },
+                predicted: {
+                },
                 targetStep: 3000
             }
         };
@@ -64,7 +67,8 @@ class Focuser {
             minStep: null,
             maxStep: null,
             targetStep: null,
-            points: {}
+            points: {},
+            predicted: {}
         }
     }
 
@@ -158,13 +162,13 @@ class Focuser {
                             fwhm /= starField.length;
 
                         } else {
+                            fwhm = null;
                             // Testing...
                             // if (Math.random() < 0.2) {
                             //     fwhm = null;
                             // } else {
                             //     fwhm = Math.random() * 3 + 3;
                             // }
-                            fwhm = null;
                         }
 
                         if (fwhm !== null) {
@@ -187,14 +191,20 @@ class Focuser {
                     // FIXME: move the focuser back to its original pos
                     throw new Error("Not enough data for focus");
                 }
-                const result = regression.polynomial(data, {order: 4});
+                console.log('regression with :' + JSON.stringify(data));
+                const result = new PolynomialRegression(data.map(e=>e[0]), data.map(e=>e[1]), 4);
                 // This is ugly. but works
-                const precision = 50;
+                const precision = Math.ceil(stepSize / 7);
                 let bestValue = undefined;
                 let bestPos = undefined;
                 for(let i = 0; i <= precision; ++i) {
                     const pos = firstStep + i * (lastStep - firstStep) / precision;
-                    const valueAtPos = result.predic(pos)
+                    const pred = result.predict(pos);
+                    console.log('predict: '  + JSON.stringify(pred));
+                    const valueAtPos = pred;
+                    self.currentStatus.current.predicted[pos] = {
+                        fwhm: valueAtPos
+                    };
                     if (i === 0 || bestValue > valueAtPos) {
                         bestValue = valueAtPos;
                         bestPos = pos;
@@ -210,7 +220,7 @@ class Focuser {
                             moveFocuser(()=>backlashed),
                             moveFocuser(()=>bestPos));
                 } else {
-                    return moveFocuser(bestPos);
+                    return moveFocuser(()=>bestPos);
                 }
             })
         );
