@@ -17,7 +17,9 @@ class Focuser {
             currentSettings: {
                 range: 1000,
                 steps: 5,
-                backlash: 200
+                backlash: 200,
+                targetCurrentPos: true,
+                targetPos: 10000
             },
 
             current: {
@@ -109,8 +111,12 @@ class Focuser {
                 if (!absPos.isReadyForOrder()) {
                     throw new Error("Focuser is not ready");
                 }
-                const start = parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"));
-                console.log('current pos is ' + start);
+
+                const start = this.currentStatus.currentSettings.targetCurrentPos 
+                        ? parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"))
+                        : this.currentStatus.currentSettings.targetPos;
+
+                console.log('start pos is ' + start);
                 firstStep = start - amplitude;
                 lastStep = start + amplitude;
                 stepSize = 2 * amplitude / stepCount;

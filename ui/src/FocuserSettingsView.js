@@ -28,6 +28,15 @@ class FocuserSettingsView extends PureComponent {
             <PropertyEditor.Int accessor={this.props.accessor.child("$.backlash")} min="0">
                 Backlash
             </PropertyEditor.Int>
+
+            <PropertyEditor.Bool accessor={this.props.accessor.child("$.targetCurrentPos")}>
+                Start from current pos
+            </PropertyEditor.Bool>
+            <PropertyEditor.Conditional accessor={this.props.accessor.child("$.targetCurrentPos")}>
+                <PropertyEditor.Int accessor={this.props.accessor.child("$.targetPos")} min="0">
+                    Target Pos
+                </PropertyEditor.Int>
+            </PropertyEditor.Conditional>
         </div>;
     }
 

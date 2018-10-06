@@ -8,6 +8,44 @@ import TextEdit from './TextEdit';
 import './CameraView.css'
 
 
+class Conditional extends PureComponent {
+    render() {
+        let display = this.props.value;
+        if (this.props.condition) {
+            display = this.props.condition(display);
+        }
+        return display ? null : this.props.children;
+    }
+
+    static mapStateToProps(store, ownProps) {
+        return ({
+            value: ownProps.accessor.fromStore(store, "")
+        });
+    }
+}
+
+class Bool extends PureComponent {
+    render() {
+        return <span className='cameraSetting'>
+            {this.props.children}
+            <input
+                type='checkbox'
+                checked={this.props.value}
+                onChange={(e)=>this.update(e.target.checked)}/>
+        </span>;
+    }
+
+    update(e) {
+        this.props.accessor.send(e)
+    }
+
+    static mapStateToProps(store, ownProps) {
+        return ({
+            value: ownProps.accessor.fromStore(store, "")
+        });
+    }
+}
+
 class Text extends PureComponent {
     render() {
         let value = this.props.value;
@@ -69,5 +107,15 @@ Int.propTypes = {
     min: PropTypes.int
 };
 
+Bool = connect(Bool.mapStateToProps)(Bool);
+Bool.propTypes = {
+    accessor: PropTypes.object.isRequired
+}
 
-export default { Text, Int };
+Conditional = connect(Conditional.mapStateToProps)(Conditional)
+Conditional.propTypes = {
+    accessor: PropTypes.object.isRequired,
+    condition: PropTypes.func
+}
+
+export default { Text, Int, Bool, Conditional };
