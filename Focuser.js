@@ -3,6 +3,7 @@
 const Obj = require('./Obj.js');
 const Promises = require('./Promises');
 const ConfigStore = require('./ConfigStore');
+const JsonProxy = require('./JsonProxy');
 
 class Focuser {
     constructor(app, appStateManager, context)
@@ -14,6 +15,8 @@ class Focuser {
             availableDevices: [],
 
             currentSettings: {
+                range: 1000,
+                steps: 5
             },
 
             current: {
@@ -158,7 +161,7 @@ class Focuser {
                         }
 
                         if (fwhm !== null) {
-                            data.push(currentStep, fwhm);
+                            data.push( [currentStep, fwhm ]);
                         }
 
                         self.currentStatus.current.points[currentStep] = {
@@ -204,6 +207,15 @@ class Focuser {
                 }
             })
         );
+    }
+
+    $api_updateCurrentSettings(message, progress)
+    {
+        return new Promises.Immediate(() => {
+            const newSettings = JsonProxy.applyDiff(this.currentStatus.currentSettings, message.diff);
+            // FIXME: do the checking !
+            this.currentStatus.currentSettings = newSettings;
+        });
     }
 
     $api_focus(message, progress) {

@@ -4,14 +4,24 @@ import { Line } from 'react-chartjs-2';
 import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
-
-import { atPath } from './shared/JsonPath';
-import FitsViewerInContext from './FitsViewerInContext';
+import JsonPath from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
 import './CameraView.css'
+import BackendAccessor from './utils/BackendAccessor';
+import FocuserSettingsView from './FocuserSettingsView';
 
+
+class FocuserBackendAccessor extends BackendAccessor {
+    apply(jsonDiff) {
+        console.log('Sending changes: ' , jsonDiff);
+        return notifier.sendRequest({'target': 'focuser', 
+            method: 'updateCurrentSettings',
+            diff: jsonDiff
+        }).start();
+    }
+}
 
 class FocuserGraph extends PureComponent {
 
@@ -133,6 +143,7 @@ class FocuserView extends PureComponent {
         return (
             <div className="Page">
                 <div className={'PHDAppState'}>{this.props.status}</div>
+                <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.currentSettings")}/>
                 <div className="PhdGraph_Item">
                     <div className="PhdGraph_Container">
                         <FocuserGraph/>
