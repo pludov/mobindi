@@ -948,5 +948,19 @@ function applyDiff(from, diff) {
     return from;
 }
 
+function asDiff(value)
+{
+    if (typeof value == 'number' || typeof value == 'string' || typeof value == 'boolean' || value === null) {
+        return value;
+    }
+    if (typeof value != 'object') {
+        throw new Error("Unsupported value:" + value);
+    }
+    if (Array.isArray(value)) {
+        return {newArray: value};
+    }
+    return {newObject: value};
+}
 
-module.exports = {JsonProxy, applyDiff, has};
+
+module.exports = {JsonProxy, applyDiff, has, asDiff};
