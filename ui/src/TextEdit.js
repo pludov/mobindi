@@ -54,7 +54,11 @@ class TextEdit extends PureComponent {
         if (this.state.editor != 0) {
             editor = <FullScreenEdit value={this.props.value} onDone={this.updateValue}/>;
         }
-        return <span className="TextEdit" tabIndex={0} onClick={this.openEditor}>{this.props.value}{editor}</span>
+        let v = this.props.value;
+        if (v === undefined || v === "") {
+            v = " ";
+        }
+        return <span className="TextEdit" tabIndex={0} onClick={this.openEditor}>{v}{editor}</span>
     }
 
     openEditor() {
