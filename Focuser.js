@@ -16,7 +16,8 @@ class Focuser {
 
             currentSettings: {
                 range: 1000,
-                steps: 5
+                steps: 5,
+                backlash: 200
             },
 
             current: {
@@ -79,8 +80,8 @@ class Focuser {
         let focuserId;
 
         let firstStep, lastStep, currentStep, stepId, stepSize;
-        const amplitude = 2000;
-        const backlash = 200;
+        const amplitude = this.currentStatus.currentSettings.range;
+        const stepCount = this.currentStatus.currentSettings.steps;
         const data = [];
         
         function moveFocuser(valueGenerator) {
@@ -112,7 +113,7 @@ class Focuser {
                 console.log('current pos is ' + start);
                 firstStep = start - amplitude;
                 lastStep = start + amplitude;
-                stepSize = 2 * amplitude / 10;
+                stepSize = 2 * amplitude / stepCount;
 
                 
 
@@ -194,7 +195,7 @@ class Focuser {
                     }
                 }
                 console.log('Found best position at ' + bestPos);
-                let backlashed = bestPos - backlash;
+                let backlashed = bestPos - self.currentStatus.currentSettings.backlash;
                 if (backlashed < firstStep) {
                     backlashed = firstStep;
                 }

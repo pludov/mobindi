@@ -5,61 +5,11 @@ import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import StatePropCond from './StatePropCond';
 import TextEdit from './TextEdit';
+import PropertyEditor from './PropertyEditor';
 import './CameraView.css'
 
-class FocuserRangeEditor extends PureComponent {
-    
-    render() {
-        let value = this.props.value;
-        if (value === null) {
-            value = "";
-        }
 
-        return <span className='cameraSetting'>
-            Range:
-                <TextEdit
-                    value={value}
-                    onChange={(e)=>this.props.accessor.send(parseFloat(e))}/>
-        </span>;
-    }
 
-    static mapStateToProps(store, ownProps) {
-        return ({
-            value: ownProps.accessor.fromStore(store, "")
-        });
-    }
-}
-FocuserRangeEditor = connect(FocuserRangeEditor.mapStateToProps)(FocuserRangeEditor);
-FocuserRangeEditor.propTypes = {
-    accessor: PropTypes.object.isRequired
-}
-
-class FocuserStepEditor extends PureComponent {
-    render() {
-        return <span className='cameraSetting'>
-            #step:
-                <TextEdit
-                    value={this.props.value}
-                    onChange={(e)=>{
-                        const i = parseInt(e);
-                        if (i && !isNaN(i)) {
-                            return this.props.accessor.send(i);
-                        }
-                        return null;
-                    }}/>
-        </span>;
-    }
-
-    static mapStateToProps(store, ownProps) {
-        return ({
-            value: ownProps.accessor.fromStore(store, "")
-        });
-    }
-}
-FocuserStepEditor = connect(FocuserStepEditor.mapStateToProps)(FocuserStepEditor);
-FocuserStepEditor.propTypes = {
-    accessor: PropTypes.object.isRequired
-}
 
 class FocuserSettingsView extends PureComponent {
     constructor(props) {
@@ -69,8 +19,15 @@ class FocuserSettingsView extends PureComponent {
     render() {
         // Range size
         return <div>
-            <FocuserRangeEditor accessor={this.props.accessor.child("$.range")}/>
-            <FocuserStepEditor accessor={this.props.accessor.child('$.steps')}/>
+            <PropertyEditor.Int accessor={this.props.accessor.child('$.steps')} min="3">
+                Steps#
+            </PropertyEditor.Int>
+            <PropertyEditor.Int accessor={this.props.accessor.child("$.range")} min="10">
+                Range
+            </PropertyEditor.Int>
+            <PropertyEditor.Int accessor={this.props.accessor.child("$.backlash")} min="0">
+                Backlash
+            </PropertyEditor.Int>
         </div>;
     }
 
