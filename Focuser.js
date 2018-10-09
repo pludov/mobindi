@@ -237,6 +237,7 @@ class Focuser {
                                 console.log('StarField', JSON.stringify(starField, null, 2));
                                 let fwhm;
                                 if (starField.length) {
+                                    fwhm = 0;
                                     for(let star of starField) {
                                         fwhm += star.fwhm;
                                     }
