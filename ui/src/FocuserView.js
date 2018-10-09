@@ -55,8 +55,8 @@ class FocuserGraph extends PureComponent {
         
             var points = propDef.source;
             var previous = undefined;
-            const steps = Object.keys(points).map(e=>parseFloat(e));
-            steps.sort((a, b) => a - b);
+            const steps = Object.keys(points);
+            steps.sort((a, b) => parseFloat(a) - parseFloat(b));
             console.log('Steps ar :', steps);
             for(let step of steps)
             {
@@ -64,7 +64,7 @@ class FocuserGraph extends PureComponent {
 
                 if (propDef.prop in point) {
                     var value = point[propDef.prop];
-                    data.data.push({x: step, y:value});
+                    data.data.push({x: parseFloat(step), y:value});
                 }
             }
             if (data.data.length || !propDef.hideEmpty) {
