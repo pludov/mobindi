@@ -143,7 +143,7 @@ class Focuser {
                     moveFocuser(()=>currentStep),
                     
                     new Promises.Builder(()=> {
-                        return self.camera.shoot(shootDevice);
+                        return self.camera.shoot(shootDevice, ()=>({ prefix: 'focus_ISO8601_step_' + Math.floor(currentStep) }));
                     }),
 
                     new Promises.Builder((imagePath)=> {
