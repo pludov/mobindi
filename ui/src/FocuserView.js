@@ -12,6 +12,7 @@ import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 
+import './FocuserView.css';
 
 class FocuserBackendAccessor extends BackendAccessor {
     apply(jsonDiff) {
@@ -148,7 +149,7 @@ class FocuserView extends PureComponent {
     render() {
         return (
             <div className="Page">
-                <div className={'PHDAppState'}>{this.props.status}</div>
+                <div className={'FocuserState FocuserState_' + this.props.status}>{this.props.status === 'error' ? this.props.error : this.props.status}</div>
                 <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.currentSettings")}/>
                 <div className="PhdGraph_Item">
                     <div className="PhdGraph_Container">
@@ -168,7 +169,8 @@ class FocuserView extends PureComponent {
 
     static mapStateToProps(store) {
         return {
-            status: store.backend.focuser.current.status
+            status: store.backend.focuser.current.status,
+            error: store.backend.focuser.current.error
         }
     }
 }

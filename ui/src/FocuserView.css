@@ -1,0 +1,13 @@
+.FocuserState {
+    font-weight: bold;
+    font-size: 7vw;
+    text-align: center;
+}
+
+.FocuserState_running {
+    color: lightgreen;
+}
+
+.FocuserState_error {
+    color: red;
+}
