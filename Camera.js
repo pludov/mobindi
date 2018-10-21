@@ -768,7 +768,7 @@ class Camera {
                     var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");
                     expVector.setValues([{name: 'ABORT', value: 'On'}]);
                     var uploadModeVector = connection.getDevice(device).getVector("UPLOAD_MODE");
-                    uploadModeVector.setValues([{name: 'UPLOAD_CLIENT', Value: 'On'}]);
+                    uploadModeVector.setValues([{name: 'UPLOAD_CLIENT', value: 'On'}]);
                 }
                 // Make this uninterruptible
                 return new Promises.Cancelator(cancelFunction, connection.wait(function() {
