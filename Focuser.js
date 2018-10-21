@@ -52,6 +52,7 @@ class Focuser {
             }
         };
         this.currentStatus = this.appStateManager.getTarget().focuser;
+        this.currentPromise = null;
         this.resetCurrent('idle');
         this.camera = context.camera;
         this.indiManager = context.indiManager;
@@ -238,18 +239,45 @@ class Focuser {
     $api_focus(message, progress) {
         console.log('API focus called');
         var self = this;
-        
-        return new Promises.Builder(function() {
-                // FIXME: check a promise is not already running
+
+        const result = new Promises.Builder(function() {
+                if (self.currentPromise !== null) {
+                    throw new Error("Focus already started");
+                }
+                self.currentPromise = result;
                 self.resetCurrent('running');
 
                 const ret = self.focus(self.camera.currentStatus.selectedDevice);
-                ret.then(()=>self.setCurrentStatus('done', null));
-                ret.onError((e)=>self.setCurrentStatus('error', e));
-                ret.onCancel((e)=>self.setCurrentStatus('interrupted', e));
+                ret.then(()=>{
+                    if (self.currentPromise === result) {
+                        self.currentPromise = null;
+                    }
+                    self.setCurrentStatus('done', null)
+                });
+                ret.onError((e)=>{
+                    if (self.currentPromise === result) {
+                        self.currentPromise = null;
+                    }
+                    self.setCurrentStatus('error', e);
+                });
+                ret.onCancel((e)=>{
+                    if (self.currentPromise === result) {
+                        self.currentPromise = null;
+                    }
+                    self.setCurrentStatus('interrupted', e);
+                });
                 return ret;
             });
+        return result;
 
+    }
+
+    $api_abort(message, progress) {
+        return new Promises.Immediate(() => {
+            if (this.currentPromise !== null) {
+                this.currentPromise.cancel();
+            }
+        });
     }
 }
 
