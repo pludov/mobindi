@@ -11,6 +11,7 @@ import DeviceConnectBton from './DeviceConnectBton';
 import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
+import ScrollableText from './ScrollableText';
 
 import './FocuserView.css';
 
@@ -149,7 +150,9 @@ class FocuserView extends PureComponent {
     render() {
         return (
             <div className="Page">
-                <div className={'FocuserState FocuserState_' + this.props.status}>{this.props.status === 'error' ? this.props.error : this.props.status}</div>
+                <ScrollableText className={'FocuserState FocuserState_' + this.props.status}>
+                    {this.props.status === 'error' ? this.props.error : this.props.status}
+                </ScrollableText>
                 <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.currentSettings")}/>
                 <div className="PhdGraph_Item">
                     <div className="PhdGraph_Container">

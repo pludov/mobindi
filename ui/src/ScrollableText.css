@@ -1,0 +1,25 @@
+.ScrollableText{
+    display: flex;
+    height: 1.0em;
+    align-items: baseline;
+}
+
+.ScrollableTextChild {
+    flex: 1;
+    min-width: 0;
+
+}
+.ScrollableTextChild > div {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ScrollableText:hover > .ScrollableTextChild > div{
+    overflow: unset;
+    text-overflow: clip;
+}
+
+.ScrollableText:hover > .ScrollableTextChild {
+    overflow-x: auto;
+}
