@@ -1,10 +1,12 @@
 
 
 // Generate id that are alphabetically sorted
-class IdGenerator {
-    constructor()
+export class IdGenerator {
+    private value: string;
+
+    constructor(from = "00000000")
     {
-        this.value = "00000000";
+        this.value = from;
     }
 
 
@@ -14,10 +16,9 @@ class IdGenerator {
 
     next() {
 
-        function inc(str, at)
+        function inc(str:string, at:number)
         {
             var c = str.charCodeAt(at);
-            console.log('c=', c);
             if (c >= 48 && c < 48 + 9) {
                 c++;
             } else if (c == 48 + 9) {
@@ -41,5 +42,3 @@ class IdGenerator {
         return this.value;
     }
 }
-
-module.exports = {IdGenerator}
