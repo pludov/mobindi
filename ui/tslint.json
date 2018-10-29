@@ -1,0 +1,24 @@
+{
+  "defaultSeverity": "warning",
+  "extends": ["tslint:recommended", "tslint-react", "tslint-config-prettier"],
+  "linterOptions": {
+    "exclude": [
+      "src/*.js",
+      "src/utils/*.js",
+      "src/shared/*.js",
+      "config/**/*.js",
+      "node_modules/**/*.ts",
+      "coverage/lcov-report/*.js"
+    ]
+  },
+  "jsRules": {
+    "object-literal-sort-keys": false,
+    "no-console": false,
+    "curly": false
+  },
+  "rules": {
+    "member-ordering": false,
+    "object-literal-sort-keys": false,
+    "interface-over-type-literal": false
+  }
+}
