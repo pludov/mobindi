@@ -1,39 +1,51 @@
 'use strict';
 
-const express = require('express');
-const http = require('http');
+import express from 'express';
+import http = require('http');
 // var path = require('path');
 // var favicon = require('serve-favicon');
-const logger = require('morgan');
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-const NEDB = require('nedb');
-const sha1 = require('sha1')
-const bodyParser = require('body-parser');
-const url = require('url');
-const WebSocket = require('ws');
-const uuid = require('node-uuid');
+import logger = require('morgan');
+import cookieParser = require('cookie-parser');
+import cors = require('cors');
+import NEDB = require('nedb');
+import sha1 = require('sha1')
+import bodyParser = require('body-parser');
+import url = require('url');
+import WebSocket = require('ws');
+import uuid = require('node-uuid');
 // Only for debug !
-const cgi = require('cgi');
-const Client = require('./Client.js');
+//@ts-ignore
+import cgi = require('cgi');
+//@ts-ignore
+import Client = require('./Client.js');
 
-const {Phd} = require('./Phd');
-const {IndiManager} = require('./IndiManager');
-const {Camera} = require('./Camera');
-const {Focuser} = require('./Focuser');
-const {ImageProcessor} = require('./ImageProcessor');
+//@ts-ignore
+import {Phd} from './Phd';
+//@ts-ignore
+import {IndiManager} from './IndiManager';
+//@ts-ignore
+import {Camera} from './Camera';
+//@ts-ignore
+import {Focuser} from './Focuser';
+//@ts-ignore
+import {ImageProcessor} from './ImageProcessor';
 
-const JsonProxy = require('./JsonProxy');
-const TriggerExecuter = require('./TriggerExecuter');
-const ToolExecuter = require('./ToolExecuter');
+//@ts-ignore
+import JsonProxy = require('./JsonProxy');
+//@ts-ignore
+import TriggerExecuter = require('./TriggerExecuter');
+//@ts-ignore
+import ToolExecuter = require('./ToolExecuter');
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
 const app = express();
 
 
-var session = require('express-session');
-var FileStore = require('session-file-store')(session);
+import session = require('express-session');
+import SessionFileStore = require('session-file-store')
+
+const FileStore = SessionFileStore(session);
 
 app.use(express.static('ui/build'));
 
@@ -102,7 +114,7 @@ var indiManager;
 var camera;
 var toolExecuter;
 
-var context = {
+var context:any = {
 };
 
 context.imageProcessor = new ImageProcessor(appStateManager, context);
@@ -119,7 +131,7 @@ context.toolExecuter = new ToolExecuter(appStateManager, context);
 
 context.focuser = new Focuser(app, appStateManager, context);
 
-app.use(function(req, res, next) {
+app.use(function(req, res:any, next) {
     if ('jsonResult' in res) {
         res.status(200);
         res.contentType('application/json');
@@ -144,7 +156,13 @@ var serverId = uuid.v4();
 
 
 class Request {
-    constructor(uid, fromClient) {
+    promise: any;
+    cancelRequested: any;
+    uid: any;
+    client: any;
+    finalStatus: any;
+
+    constructor(uid:string, fromClient:any) {
         this.promise = undefined;
         this.cancelRequested = false;
         this.uid = uid;
@@ -169,14 +187,14 @@ class Request {
         }
     }
 
-    dispatch(content) {
+    dispatch(content:any) {
         if (this.client == undefined) {
             return;
         }
         this.client.reply(content);
     }
 
-    onError(err) {
+    onError(err:any) {
         if (err == undefined) {
             err = null;
         } else {
@@ -194,7 +212,7 @@ class Request {
         this.dettach();
     }
 
-    success (rslt) {
+    success (rslt:any) {
         if (rslt == undefined) rslt = null;
         console.log('Request ' + this.uid + ' succeeded: ' + JSON.stringify(rslt));
         this.promise = undefined;
@@ -223,11 +241,11 @@ class Request {
 
 
 wss.on('connection', function connection(ws) {
-    var client;
+    var client : any;
 
     client = new Client(ws);
 
-    ws.on('message', function incoming(message) {
+    ws.on('message', function incoming(message : any) {
         console.log('received from ' + client.uid + ': %s', message);
 
         try {
