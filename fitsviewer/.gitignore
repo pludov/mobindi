@@ -7,3 +7,5 @@ CMakeFiles
 cmake_install.cmake
 Makefile
 fitsviewer.cgi
+processor
+unittests
