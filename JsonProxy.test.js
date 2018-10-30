@@ -428,9 +428,9 @@ describe("Json proxy", () => {
 
         STEP = "prop mutate to object";
 
-        root.b.coucou = {truc: "bidule"};
+        root.b.coucou = {truc: {machin: "bidule"}};
         patches = changeTracker.diff(serial);
-        assert.deepEqual(patches, {update: {b: { update: { coucou : { newObject: { truc: "bidule"}}}}}}, "Patch for " + STEP);
+        assert.deepEqual(patches, {update: {b: { update: { coucou : { newObject: { truc: {newObject: { machin: "bidule"}}}}}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
         data = applyDiff(data, patches);
