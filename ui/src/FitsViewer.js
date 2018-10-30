@@ -1,8 +1,9 @@
+
 import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import $ from 'jquery';
-import Obj from './shared/Obj.js';
+import * as Obj from './shared/Obj';
 import './FitsViewer.css'
 
 const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
