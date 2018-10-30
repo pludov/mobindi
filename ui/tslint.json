@@ -19,6 +19,7 @@
   "rules": {
     "member-ordering": false,
     "object-literal-sort-keys": false,
+    "object-literal-shorthand": false,
     "interface-over-type-literal": false
   }
 }

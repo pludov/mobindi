@@ -1,5 +1,5 @@
 import Promises from '../shared/Promises';
-import JsonPath from '../shared/JsonPath';
+import * as JsonPath from '../shared/JsonPath';
 import JsonProxy from '../shared/JsonProxy';
 
 

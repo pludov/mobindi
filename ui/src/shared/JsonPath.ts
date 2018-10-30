@@ -1,16 +1,16 @@
-const jp = require('jsonpath');
+import * as jp from 'jsonpath';
 
 
 // Returns the object if exactly one match
 // throws an error if more than one match
 // return undefined if none found.
 // Accept undefined as object (will return undefined)
-function atPath(object, path)
+function atPath(object:any, path:string)
 {
     if (object === undefined) {
         return undefined;
     }
-    var rslt = jp.query(object, path, 2);
+    const rslt = jp.query(object, path, 2);
     switch(rslt.length) {
         case 0:
             return undefined;
@@ -22,7 +22,7 @@ function atPath(object, path)
 }
 
 // Returns the parent object and the key (or undefined if not found)
-function atParent(object, jspath)
+function atParent(object:any, jspath:string)
 {
     const path = parentLoc(jspath);
 
@@ -36,7 +36,7 @@ function atParent(object, jspath)
     };
 }
 
-function checkSimpleSubscript(path, item)
+function checkSimpleSubscript(path:string, item:any)
 {
     if (item.scope !== 'child') {
         throw new Error("Invalid scope: " + path);
@@ -55,14 +55,14 @@ function checkSimpleSubscript(path, item)
     }
 }
 
-function checkRelative(path, item)
+function checkRelative(path:string, item:any)
 {
     if (item.expression.type !== 'root') {
         throw new Error("Malformed path: " + path);
     }
 }
 
-function parentLoc(jspath)
+function parentLoc(jspath:string)
 {
     const path = jp.parse(jspath);
     if (path.length < 2) {
@@ -78,11 +78,11 @@ function parentLoc(jspath)
     };
 }
 
-function asDirectPath(jspath)
+function asDirectPath(jspath:string)
 {
     const path = jp.parse(jspath);
     checkRelative(jspath, path[0]);
-    let ret = [];
+    const ret = [];
     for(let i = 1; i < path.length; ++i)
     {
         checkSimpleSubscript(jspath, path[i]);
@@ -91,4 +91,4 @@ function asDirectPath(jspath)
     return ret;
 }
 
-module.exports= {atPath, atParent, asDirectPath};
+export {atPath, atParent, asDirectPath};
