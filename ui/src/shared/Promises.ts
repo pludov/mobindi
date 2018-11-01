@@ -1,12 +1,25 @@
 /**
  * Created by ludovic on 20/07/17.
  */
-'use strict';
+import assert from 'assert';
 
-const TraceError = require('trace-error');
-const assert = require('assert');
+/* tslint:disable:max-classes-per-file */
 
-function noop() {};
+const noop = ()=>{};
+
+type StatusNotifier<Output> = {
+    done: (result: Output)=>(void);
+    error: (e: any)=>(void);
+    cancel: ()=>(void);
+    isActive: ()=>(boolean);
+    cancelationPending: ()=>(boolean);
+    setCancelFunc: (doCancel:()=>(void))=>(void);
+};
+
+type StartFunction<Input, Output> = (next: StatusNotifier<Output>, arg: Input) => (void);
+type ThenCallback<Output> = (result: Output)=>(void);
+type OnErrorCallback = (e: any)=>(void);
+type OnCancelCallback = ()=>(void);
 
 /**
  * CancelablePromise exports following methods
@@ -14,7 +27,6 @@ function noop() {};
  *      start(arg) start the promise (may call callback directly).
  *              once started, exactly either onDone, onError, onCanceled callbacks will be called
  *              start may be re-called later-on (promise reuse)
- *              NEVER THROWS
  *
  *      then(func(rslt)) make func called when promise realises
  *      onError(func(e)) make func called when promise fails
@@ -33,44 +45,51 @@ function noop() {};
  *          next.setCancelFunc() set the function to call for cancelation (null if not supported)
  *          next.cancelationPending() time to call next.cancel() ?
  */
-class Cancelable {
+export class Cancelable<Input, Output> {
+    public then: (cb: ThenCallback<Output>)=>Cancelable<Input, Output>;
+    public onError: (cb: OnErrorCallback)=>Cancelable<Input, Output>;
+    public onCancel: (cb: OnCancelCallback)=>Cancelable<Input, Output>;
+    
+    // Start the promise. The promise can be done before the return to the caller. Error occuring during startup will be thrown
+    public start:(i:Input)=>Cancelable<Input, Output>;
 
-    constructor(doStart) {
-        var self = this;
-        var onDoneList = [];
-        var onErrorList = [];
-        var onCanceledList = [];
+    public cancel:()=>Cancelable<Input, Output>;
 
-        var doCancel = undefined;
-        var done = false;
-        var cancelRequested = false;
+    constructor(doStart: StartFunction<Input, Output>) {
+        const self = this;
+        const onDoneList: ThenCallback<Output>[] = [];
+        const onErrorList: OnErrorCallback[] = [];
+        const onCanceledList: OnCancelCallback[] = [];
 
-        function on(arr, result)
+        let doCancel = noop;
+        let done = false;
+        let cancelRequested = false;
+
+        function on<T>(arr:((i:T)=>(void))[], result: T)
         {
-            for(var i = 0; i < arr.length; ++i)
+            for(const item of arr)
             {
-                arr[i](result);
+                item(result);
             }
             return arr.length > 0;
         }
 
-        this.then = function(f) {
+        this.then = (f) => {
             onDoneList.push(f);
             return this;
         }
 
-        this.onError = function(f) {
+        this.onError = (f) => {
             onErrorList.push(f);
             return this;
         }
 
-        this.onCancel = function(f) {
+        this.onCancel = (f) => {
             onCanceledList.push(f);
             return this;
         }
 
-        var whenDone = function(result)
-        {
+        const whenDone = (result:Output) => {
             if (done) {
                 throw new Error("Multiple call to ondone");
             }
@@ -79,14 +98,16 @@ class Cancelable {
         }
 
         // throw error if no error handler installed
-        var whenError = function(e) {
+        const whenError = (e:any) => {
             if (done) {
                 throw new Error("Multiple call to ondone");
             }
-            if (!on(onErrorList, e)) throw e;
+            if (!on(onErrorList, e)) {
+                throw e;
+            }
         }
 
-        var whenCancel = function() {
+        const whenCancel = () => {
             if (done) {
                 throw new Error("Multiple call to ondone");
             }
@@ -94,33 +115,35 @@ class Cancelable {
                 throw new Error("cancel called will no cancel was requested");
             }
             done = true;
-            on(onCanceledList);
+            on(onCanceledList, undefined);
         }
 
-        var next = {
+        const next:StatusNotifier<Output> = {
             done: whenDone,
             error: whenError,
             cancel: whenCancel,
-            isActive: function() {
+            isActive: () => {
                 return (!cancelRequested) && (!done);
             },
-            cancelationPending: function() {
+            cancelationPending: () => {
                 return cancelRequested && !done;
             },
-            setCancelFunc: function(f) {
+            setCancelFunc: (f) => {
                 doCancel = f;
             }
         }
 
-        this.start = function() {
+        this.start = (i: Input) => {
             done = false;
             doCancel = noop;
             cancelRequested = false;
             try {
-                doStart(next, arguments[0]);
+                doStart(next, i);
             } catch(e) {
                 // post-mortem error ?
-                if (done) throw e;
+                if (done) {
+                    throw e;
+                }
                 if (!done) {
                     whenError(e);
                 }
@@ -130,18 +153,20 @@ class Cancelable {
 
         // Quand cancel est appellé, on a seulement une garantie que onDone ou onCanceled va etre appellé
         // on ne sait pas lequel en fait.
-        this.cancel = function() {
+        this.cancel = () => {
             if (done || cancelRequested) {
                 return this;
             }
 
             cancelRequested = true;
-            doCancel(next);
+            doCancel();
             return this;
         }
     }
 }
 
+
+type TimeoutHandler<Input, Output>=(i:Input)=>(Output);
 /**
  * Timeout can wrap an existing promise and add a timeout
  * When the timeout elapse, the wrapped promise will get canceled; an error (onError) will be thrown by the Timeout promises
@@ -153,34 +178,35 @@ class Cancelable {
  *        finite.onError(console.warn); // => will print timedout
  *        finite.start();
  */
-class Timeout extends Cancelable {
-    constructor(delay, promise) {
-        var timedout;
-        var timeout;
-        var next;
-        var arg;
-        var self;
+export class Timeout<Input, Output> extends Cancelable<Input, Output> {
+    private catchTimeoutFunc: TimeoutHandler<Input, Output>|undefined;
+    constructor(delay: number, promise: Cancelable<Input, Output>) {
+        let timedout:boolean;
+        let timeout: NodeJS.Timeout|undefined;
+        let next: StatusNotifier<Output>;
+        let arg:Input;
+        let self:Timeout<Input, Output>;
 
         function cancelTimer() {
-            if (timeout != undefined) {
+            if (timeout !== undefined) {
                 clearTimeout(timeout);
                 timeout = undefined;
             }
         }
 
-        promise.then(function(rslt) {
+        promise.then((rslt) => {
             cancelTimer();
             next.done(rslt);
         });
-        promise.onError(function(e) {
+        promise.onError((e) => {
             cancelTimer();
             next.error(e);
         });
-        promise.onCancel(function () {
+        promise.onCancel(() => {
             // Annulé suite à l'atteinte du timer ?
             if (timedout && !next.cancelationPending()) {
                 if (self.catchTimeoutFunc !== undefined) {
-                    var rslt;
+                    let rslt;
                     try {
                         rslt = self.catchTimeoutFunc(arg);
                     } catch(e) {
@@ -196,7 +222,7 @@ class Timeout extends Cancelable {
             }
         });
 
-        super(function (n, a) {
+        super((n, a) => {
             next = n;
             arg = arg;
             n.setCancelFunc(()=> {
@@ -206,35 +232,42 @@ class Timeout extends Cancelable {
             timedout = false;
             timeout = undefined;
 
-            timeout = setTimeout(function() {
+            timeout = setTimeout(() => {
                 console.log('Timeout occured');
                 timedout = true;
                 promise.cancel();
             }, delay);
-            promise.start();
+            // fixed: argument was not passed
+            promise.start(arg);
         });
         self = this;
         this.catchTimeoutFunc = undefined;
     }
 
-    catchTimeout(func) {
+    // func will be called in case of timeout, after proper cancelation.
+    // It can either throw an error or return a valid result
+    public catchTimeout(func: TimeoutHandler<Input, Output>) {
         this.catchTimeoutFunc = func;
         return this;
     }
 }
 
+type ConcurrentItemStatus = {
+    running: boolean;
+    cancelRequested: boolean;
+    result: any|undefined;
+};
+
 // Starts all promises (or less in case of error)
 // Report the first error - wait for all childs to terminate
 // Cancel all childs in case of error
 // Return the value of all childs
-class Concurrent extends Cancelable {
-    constructor() {
-        const childs = Array.from(arguments);
-
-        let next = undefined;
-        let error = undefined;
-        let done = true;
-        let status = [];
+export class Concurrent<Input> extends Cancelable<Input, any[]> {
+    constructor(...childs : Cancelable<Input, any>[]) {
+        let next:StatusNotifier<any[]>|undefined;
+        let error:any;
+        let done:boolean = true;
+        const status:ConcurrentItemStatus[] = [];
         for(let i = 0; i < childs.length; ++i) {
             const s = {
                 running: false,
@@ -272,17 +305,17 @@ class Concurrent extends Cancelable {
         function finish() {
             done = true;
             if (error) {
-                next.error(error);
+                next!.error(error);
                 return;
             }
             
-            if (next.cancelationPending()) {
-                next.cancel();
+            if (next!.cancelationPending()) {
+                next!.cancel();
                 return;
             }
 
             const result = status.map(s=>s.result);
-            next.done(result);
+            next!.done(result);
         }
 
         function progress() {
@@ -310,7 +343,7 @@ class Concurrent extends Cancelable {
             }
         }
 
-        super(function(n, arg) {
+        super((n, arg) => {
             assert(done);
             next = n;
             // Cleanup previous state
@@ -318,7 +351,7 @@ class Concurrent extends Cancelable {
             done = false;
             for(let i = 0; i <  childs.length; ++i) {
                 status[i].running = false;
-                status[i].canceled = false;
+                status[i].cancelRequested = false;
                 status[i].result = undefined;
             }
             for(let i = 0; i <  childs.length; ++i) {
@@ -339,22 +372,21 @@ class Concurrent extends Cancelable {
     }
 }
 
-class Chain extends Cancelable {
+export class Chain<Input, Output> extends Cancelable<Input, Output> {
     constructor() {
-        var current;
-        var childs = Array.from(arguments);
-        var next;
+        let current: number;
+        const childs = Array.from(arguments);
+        let next : StatusNotifier<Output>;
 
-        function startChild(arg)
+        function startChild(arg: any)
         {
             childs[current].start(arg);
         }
 
         // Install listener once
-        for(var i = 0; i < childs.length; ++i)
+        for(const child of childs)
         {
-            var child = childs[i];
-            child.then(function(rslt) {
+            child.then((rslt:any) => {
                 current++;
                 if (current >= childs.length) {
                     next.done(rslt);
@@ -367,11 +399,11 @@ class Chain extends Cancelable {
                 }
             });
 
-            child.onError(function(e) {
+            child.onError((e:any) => {
                 next.error(e);
             });
 
-            child.onCancel(function(f) {
+            child.onCancel(() => {
                 if (next.cancelationPending()) {
                     next.cancel();
                 } else {
@@ -381,14 +413,14 @@ class Chain extends Cancelable {
         }
 
 
-        super(function(n, arg) {
+        super((n, arg) => {
             next = n;
             n.setCancelFunc(() => {
                 childs[current].cancel();
             })
             current = 0;
-            if (childs.length == 0) {
-                next.done(arg);
+            if (childs.length === 0) {
+                next.done(arg as any as Output);
                 return;
             }
             startChild(arg);
@@ -396,14 +428,14 @@ class Chain extends Cancelable {
     }
 }
 
-class Sleep extends Cancelable {
-    constructor(delay) {
-    
-        super(function (next, arg) {
-            var timeout = undefined;
-            
+export class Sleep<Arg> extends Cancelable<Arg, Arg> {
+    constructor(delay:number) {
+
+        super((next, arg) => {
+            let timeout: NodeJS.Timeout|undefined;
+
             function cancelTimer() {
-                if (timeout != undefined) {
+                if (timeout !== undefined) {
                     clearTimeout(timeout);
                     timeout = undefined;
                 }
@@ -413,7 +445,7 @@ class Sleep extends Cancelable {
                 cancelTimer();
                 next.cancel();
             });
-            timeout = setTimeout(function() {
+            timeout = setTimeout(() => {
                 timeout = undefined;
                 next.done(arg);
             }, delay);
@@ -422,10 +454,10 @@ class Sleep extends Cancelable {
 }
 
 /** This promises encapsulate a child and gives a custom way of canceling */
-class Cancelator extends Cancelable {
-    constructor(doCancel, child) {
-        var next;
-        child.then(function(rslt) {
+export class Cancelator<Input, Output> extends Cancelable<Input, Output> {
+    constructor(doCancel:()=>(void)|undefined, child: Cancelable<Input, Output>) {
+        let next : StatusNotifier<Output>;
+        child.then((rslt) => {
             if (next.cancelationPending()) {
                 next.cancel();
             } else {
@@ -434,7 +466,7 @@ class Cancelator extends Cancelable {
         });
         child.onError((e)=>next.error(e));
         child.onCancel(()=>next.cancel());
-        super(function(n, arg) {
+        super((n, arg) => {
             next = n;
             if (doCancel !== undefined) {
                 n.setCancelFunc(doCancel);
@@ -445,12 +477,12 @@ class Cancelator extends Cancelable {
 
 }
 
-class Loop extends Cancelable {
-    constructor(repeat, until)
+export class Loop<Input, Output> extends Cancelable<Input, Output> {
+    constructor(repeat: Cancelable<Input, Output>, until: (o:Output)=>boolean)
     {
-        var next;
-        var startArg;
-        repeat.then(function(rslt) {
+        let next: StatusNotifier<Output>;
+        let startArg: Input;
+        repeat.then((rslt) => {
 
             if ((!until) || !until(rslt)) {
                 if (next.cancelationPending()) {
@@ -466,7 +498,7 @@ class Loop extends Cancelable {
         repeat.onError((e)=> { next.error(e); });
         repeat.onCancel(() => { next.cancel(); });
 
-        super(function(n, arg) {
+        super((n, arg) => {
             next = n;
             startArg = arg;
             n.setCancelFunc(() => {repeat.cancel();});
@@ -475,14 +507,20 @@ class Loop extends Cancelable {
     }
 }
 
+
+type ConditionalResult<Intermediate, Output> = boolean | {
+    perform: boolean;
+    result?: Intermediate|Output;
+}
+
 // Receive the result of previous in callback argument
 // If the callback returns an object, it is expected to be:
 //  { perform: true/false, result: object }
-class Conditional extends Cancelable {
-    constructor(cond, promise)
+export class Conditional<Input, Intermediate, Output> extends Cancelable<Input, Output> {
+    constructor(cond:(i:Input)=>ConditionalResult<Intermediate, Output>, promise: Cancelable<Intermediate, Output>)
     {
-        var next;
-        promise.then(function(rslt) {
+        let next: StatusNotifier<Output>;;
+        promise.then((rslt) => {
             if (next.cancelationPending()) {
                 next.cancel();
             } else {
@@ -491,51 +529,51 @@ class Conditional extends Cancelable {
         });
         promise.onError((e)=> { next.error(e); });
         promise.onCancel(() => { next.cancel(); });
-        super(function(n, arg) {
+        super((n, arg) => {
             next = n;
-            var condResult = cond(arg);
-            if (!(typeof(condResult) == "object")) {
-                condResult={perform: condResult};
+            let condResult = cond(arg);
+            if (!(typeof(condResult) === "object")) {
+                condResult={perform: condResult as any as boolean};
             }
             if (condResult.perform) {
-                promise.start(condResult.result);
+                promise.start(condResult.result! as Intermediate);
             } else {
-                next.done(condResult.result);
+                next.done(condResult.result! as Output);
             }
         });
     }
 }
 
 /** A promise that always runs immediately */
-class Immediate extends Cancelable {
-    constructor(f) {
-        super(function(next, arg) {
+export class Immediate<Input, Output> extends Cancelable<Input, Output> {
+    constructor(f:(i:Input)=>Output) {
+        super((next, arg) => {
             next.done(f.call(null, arg));
         });
     }
 }
 
 /** Execute the promise provided by the previous step */
-class ExecutePromise extends Cancelable {
+export class ExecutePromise<Input extends Cancelable<undefined, Output>, Output> extends Cancelable<Input, Output> {
     constructor()
     {
-        var child;
-        super(function(next, arg) {
+        let child: Cancelable<any, Output> | undefined;
+        super((next, arg) => {
             child = arg;
             next.setCancelFunc(() => {
-                var c = child;
+                const c = child;
                 child = undefined;
-                c.cancel();
+                c!.cancel();
             });
             console.log('Received child: arg');
-            if (arg == undefined) {
-                next.done();
+            if (!arg) {
+                next.done(undefined as any);
                 return;
             }
             arg.then((rslt) => { next.done(rslt); });
             arg.onError((e) => { next.error(e); });
             arg.onCancel(() => { next.cancel(); });
-            arg.start();
+            arg.start(undefined);
         });
     }
 }
@@ -543,25 +581,25 @@ class ExecutePromise extends Cancelable {
 /** Build the actual promise at last moment, using provider
  * Assume that the builded promise is new and discarded thereafter. (no reusing)
  */
-class Builder extends Cancelable {
-    constructor(provider)
+export class Builder<Input, Output> extends Cancelable<Input, Output> {
+    constructor(provider:(i:Input)=>Cancelable<undefined, Output>)
     {
-        var child;
-        super(function(next, arg) {
+        let child : Cancelable<undefined, Output> | undefined;
+        super((next, arg) => {
             child = provider(arg);
-            if (child == undefined) {
-                next.done(arg);
+            if (!child) {
+                next.done(arg as any as Output);
                 return;
             }
             next.setCancelFunc(() => {
-                var c = child;
+                const c = child;
                 child = undefined;
-                c.cancel();
+                c!.cancel();
             });
             child.then((rslt) => { next.done(rslt); });
             child.onError((e) => { next.error(e); });
             child.onCancel(() => { next.cancel(); });
-            child.start();
+            child.start(undefined);
         });
     }
 }
@@ -569,7 +607,7 @@ class Builder extends Cancelable {
 
 // Recognize func and call them with arg
 // Otherwise, use value as is
-function dynValue(o, arg)
+export function dynValue(o: any, arg : any)
 {
     if (o instanceof Function) {
         return o(arg);
@@ -578,5 +616,3 @@ function dynValue(o, arg)
 
 }
 
-
-module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Concurrent, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};

@@ -1,4 +1,4 @@
-import Promises from '../shared/Promises';
+import * as Promises from '../shared/Promises';
 import * as JsonPath from '../shared/JsonPath';
 import JsonProxy from '../shared/JsonProxy';
 
