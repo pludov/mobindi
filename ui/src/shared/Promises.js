@@ -4,6 +4,7 @@
 'use strict';
 
 const TraceError = require('trace-error');
+const assert = require('assert');
 
 function noop() {};
 
@@ -13,6 +14,7 @@ function noop() {};
  *      start(arg) start the promise (may call callback directly).
  *              once started, exactly either onDone, onError, onCanceled callbacks will be called
  *              start may be re-called later-on (promise reuse)
+ *              NEVER THROWS
  *
  *      then(func(rslt)) make func called when promise realises
  *      onError(func(e)) make func called when promise fails
@@ -218,6 +220,122 @@ class Timeout extends Cancelable {
     catchTimeout(func) {
         this.catchTimeoutFunc = func;
         return this;
+    }
+}
+
+// Starts all promises (or less in case of error)
+// Report the first error - wait for all childs to terminate
+// Cancel all childs in case of error
+// Return the value of all childs
+class Concurrent extends Cancelable {
+    constructor() {
+        const childs = Array.from(arguments);
+
+        let next = undefined;
+        let error = undefined;
+        let done = true;
+        let status = [];
+        for(let i = 0; i < childs.length; ++i) {
+            const s = {
+                running: false,
+                cancelRequested: false,
+                result: undefined
+            }
+            status[i] = s;
+            childs[i].then(rslt=> {
+                s.running = false;
+                s.result = rslt;
+                progress();
+            });
+            childs[i].onError(err=> {
+                s.running = false;
+                if (error === undefined) {
+                    error = err;
+                }
+                progress();
+            });
+            childs[i].onCancel(()=> {
+                s.running = false;
+                progress();
+            });
+        }
+
+        function active() {
+            for(let i = 0; i < childs.length; ++i) {
+                if (status[i].running) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function finish() {
+            done = true;
+            if (error) {
+                next.error(error);
+                return;
+            }
+            
+            if (next.cancelationPending()) {
+                next.cancel();
+                return;
+            }
+
+            const result = status.map(s=>s.result);
+            next.done(result);
+        }
+
+        function progress() {
+            assert(!done);
+
+            if (error) {
+                // Check that every runnning childs is canceled
+                for(let i = 0; i < childs.length; ++i) {
+                    if (status[i].running && !status[i].cancelRequested) {
+                        status[i].cancelRequested = true;
+                        try {
+                            childs[i].cancel();
+                        } catch(error) {
+                            console.warn('Ignoring cancel error for ' + i, error);
+                        }
+                    }
+                }
+                if (!active()) {
+                    finish();
+                }
+            } else {
+                if (!active()) {
+                    finish();
+                }
+            }
+        }
+
+        super(function(n, arg) {
+            assert(done);
+            next = n;
+            // Cleanup previous state
+            error = undefined;
+            done = false;
+            for(let i = 0; i <  childs.length; ++i) {
+                status[i].running = false;
+                status[i].canceled = false;
+                status[i].result = undefined;
+            }
+            for(let i = 0; i <  childs.length; ++i) {
+                try {
+                    status[i].running = true;
+                    childs[i].start(arg);
+                } catch(err) {
+                    error = err;
+                    status[i].running = false;
+                    progress();
+                    return;
+                }
+                if (done) {
+                    return;
+                }
+            }
+        });
     }
 }
 
@@ -461,4 +579,4 @@ function dynValue(o, arg)
 }
 
 
-module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};
+module.exports = {Immediate, Cancelable, Cancelator, Timeout, Chain, Concurrent, Sleep, ExecutePromise, Builder, Loop, Conditional, dynValue};

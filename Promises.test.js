@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import 'mocha';
-import {Cancelable, Chain, Sleep,ExecutePromise} from './Promises';
+import {Cancelable, Concurrent, Chain, Sleep, ExecutePromise, Immediate} from './Promises';
 
 describe("Cancelable Promise", ()=> {
     it("propagates direct result", ()=> {
@@ -58,5 +58,99 @@ describe("Cancelable Promise", ()=> {
         expect(providerCalled).to.be.true;
         expect(done).to.be.true;
     });
+
+    function expectResult(promise, input, onResultErrorCanceled)
+    {
+        promise.then((rslt)=> {
+            onResultErrorCanceled(rslt, undefined, false);
+        });
+        promise.onError((err)=>{
+            onResultErrorCanceled(undefined, err, false);
+        });
+        promise.onCancel(()=>{
+            onResultErrorCanceled(undefined, undefined, true);
+        });
+
+        promise.start(input);
+        return promise;
+    }
+
+    it('Perfoms concurrently - direct', () => {
+        expectResult(
+            new Concurrent(
+                new Chain(
+                    new Sleep(1),
+                    new Immediate(()=>'a')),
+                new Chain(
+                    new Sleep(2),
+                    new Immediate(()=>'b')),
+                new Chain(
+                    new Immediate(()=>'c'))
+            ),
+            0,
+            (result, error, canceled)=> {
+                expect(error).to.be.undefined;
+                expect(canceled).to.be.false;
+                expect(result).to.deep.equal(['a', 'b', 'c'])
+            }
+        );
+    });
+
+    it('Perfoms concurrently - immediate error', () => {
+        let sthDone = false;
+        expectResult(
+            new Concurrent(
+                new Immediate(()=>{throw "erreur1"}),
+                new Immediate(()=>{sthDone = true})
+            ),
+            0,
+            (result, error, canceled)=> {
+                expect(error).to.equal("erreur1");
+                expect(sthDone).to.equal(false);
+            }
+        );
+    });
+
+    it('Perfoms concurrently - deffered error', () => {
+        let sthDone = false;
+        expectResult(
+            new Concurrent(
+                new Chain(
+                    new Sleep(1),
+                    new Immediate(()=>{throw "erreur1"})),
+                new Chain(
+                    new Sleep(2000),
+                    new Immediate(()=>{sthDone = true})),
+                new Chain(
+                    new Sleep(2000),
+                    new Immediate(()=>{sthDone = true})),
+            ),
+            0,
+            (result, error, canceled)=> {
+                expect(error).to.equal("erreur1");
+                expect(sthDone).to.equal(false);
+            }
+        );
+    });
+
+    it('Perfoms concurrently - cancel', () => {
+        let sthDone = false;
+        expectResult(
+            new Concurrent(
+                new Chain(
+                    new Sleep(1000),
+                    new Immediate(()=>{sthDone = true})),
+                new Chain(
+                    new Sleep(1000),
+                    new Immediate(()=>{sthDone = true}))
+            ),
+            0,
+            (result, error, canceled)=> {
+                expect(canceled).to.equal(true);
+                expect(sthDone).to.equal(false);
+            }
+        ).cancel();
+    });
+
 });
 
