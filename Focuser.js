@@ -53,6 +53,21 @@ class Focuser {
             }
         };
         this.currentStatus = this.appStateManager.getTarget().focuser;
+        new ConfigStore(appStateManager, 'focuser', ['focuser', 'currentSettings'], {
+                range: 1000,
+                steps: 10,
+                backlash: 200,
+                lowestFirst: false,
+                targetCurrentPos: true,
+                targetPos: 10000
+            }, {
+                range: 1000,
+                steps: 10,
+                backlash: 200,
+                lowestFirst: false,
+                targetCurrentPos: false,
+                targetPos: 40000
+            });
         this.currentPromise = null;
         this.resetCurrent('idle');
         this.camera = context.camera;
