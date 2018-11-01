@@ -29,6 +29,9 @@ class FocuserSettingsView extends PureComponent {
                 Backlash
             </PropertyEditor.Int>
 
+            <PropertyEditor.Bool accessor={this.props.accessor.child("$.lowestFirst")}>
+                Lowest first
+            </PropertyEditor.Bool>
             <PropertyEditor.Bool accessor={this.props.accessor.child("$.targetCurrentPos")}>
                 Start from current pos
             </PropertyEditor.Bool>

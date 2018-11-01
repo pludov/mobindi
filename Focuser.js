@@ -19,6 +19,7 @@ class Focuser {
                 range: 1000,
                 steps: 5,
                 backlash: 200,
+                lowestFirst: false,
                 targetCurrentPos: true,
                 targetPos: 10000
             },
@@ -86,16 +87,55 @@ class Focuser {
         var self = this;
         let focuserId;
 
-        let firstStep, lastStep, currentStep, stepId, stepSize;
+        let initialPos;
+        let lastKnownPos;
+        let firstStep, lastStep, currentStep, stepId, stepSize, moveForward;
         const amplitude = this.currentStatus.currentSettings.range;
         const stepCount = this.currentStatus.currentSettings.steps;
         const data = [];
         
         function moveFocuser(valueGenerator) {
             return new Promises.Builder(()=> {
-                return self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
-                    FOCUS_ABSOLUTE_POSITION: valueGenerator()
-                });
+                const target = valueGenerator();
+                
+                const backlash = self.currentStatus.currentSettings.backlash;
+                let intermediate = undefined;
+                if (backlash != 0) {
+                    if (moveForward) {
+                        // Need backlash clearance in this direction
+                        if (target < lastKnownPos) {
+                            intermediate = target - backlash;
+                        }
+                    } else {
+                        if (target > lastKnownPos) {
+                            intermediate = target + backlash;
+                        }
+                    }
+                    if (intermediate < 0) {
+                        intermediate = 0;
+                    }
+                    // FIXME: check upper bound
+                }
+                lastKnownPos = target;
+
+                if ((intermediate !== undefined) && (intermediate !== target)) {
+                    // Account for backlash
+                    console.log('Focuser moving with backlash to : ', intermediate, target);
+                    return new Promises.Chain(
+                        self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
+                            FOCUS_ABSOLUTE_POSITION: intermediate
+                        }),
+                        self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
+                            FOCUS_ABSOLUTE_POSITION: target
+                        })
+                    );
+                } else {
+                    // Direct move
+                    console.log('Focuser moving to : ', target);
+                    return self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
+                        FOCUS_ABSOLUTE_POSITION: target
+                    });
+                }
             });
         }
 
@@ -117,8 +157,10 @@ class Focuser {
                     throw new Error("Focuser is not ready");
                 }
 
-                const start = this.currentStatus.currentSettings.targetCurrentPos 
-                        ? parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"))
+                initialPos = parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"));
+                lastKnownPos = initialPos;
+                const start = this.currentStatus.currentSettings.targetCurrentPos
+                        ? lastKnownPos
                         : this.currentStatus.currentSettings.targetPos;
 
                 console.log('start pos is ' + start);
@@ -126,11 +168,20 @@ class Focuser {
                 lastStep = start + amplitude;
                 stepSize = 2 * amplitude / stepCount;
 
-                
 
                 if (firstStep < 0) {
                     firstStep = 0;
                 }
+                // FIXME: check lastStep < focuser max
+
+                moveForward = self.currentStatus.currentSettings.lowestFirst;
+                // Negative focus swap steps
+                if (!moveForward) {
+                    const tmp = lastStep;
+                    lastStep = firstStep;
+                    firstStep = tmp;
+                }
+
                 self.currentStatus.current.firstStep = firstStep;
                 self.currentStatus.current.lastStep = lastStep;
 
@@ -138,6 +189,7 @@ class Focuser {
                 stepId = 0;
                 return null;
             }),
+            // FIXME: move to first pos needs to clear backfocus
             new Promises.Loop(
                 // Move to currentStep
                 new Promises.Chain(
@@ -179,50 +231,52 @@ class Focuser {
                         self.currentStatus.current.points[currentStep] = {
                             fwhm: fwhm
                         };
-                        currentStep += stepSize;
+                        currentStep += moveForward ? stepSize : -stepSize;
                         stepId++;
                     })
                 ),
                 function() {
-                    return currentStep > lastStep;
+                    return moveForward ? currentStep > lastStep : currentStep < lastStep;
                 }
             ),
             new Promises.Builder(()=> {
-                if (data.length < 5) {
-                    // FIXME: move the focuser back to its original pos
-                    throw new Error("Not enough data for focus");
-                }
-                console.log('regression with :' + JSON.stringify(data));
-                const result = new PolynomialRegression(data.map(e=>e[0]), data.map(e=>e[1]), 4);
-                // This is ugly. but works
-                const precision = Math.ceil(stepSize / 7);
-                let bestValue = undefined;
                 let bestPos = undefined;
-                for(let i = 0; i <= precision; ++i) {
-                    const pos = firstStep + i * (lastStep - firstStep) / precision;
-                    const pred = result.predict(pos);
-                    console.log('predict: '  + JSON.stringify(pred));
-                    const valueAtPos = pred;
-                    self.currentStatus.current.predicted[pos] = {
-                        fwhm: valueAtPos
-                    };
-                    if (i === 0 || bestValue > valueAtPos) {
-                        bestValue = valueAtPos;
-                        bestPos = pos;
-                    }
-                }
-                console.log('Found best position at ' + bestPos);
-                let backlashed = bestPos - self.currentStatus.currentSettings.backlash;
-                if (backlashed < firstStep) {
-                    backlashed = firstStep;
-                }
-                if (backlashed != bestPos) {
-                    return new Promises.Chain(
-                            moveFocuser(()=>backlashed),
-                            moveFocuser(()=>bestPos));
+                let error = undefined;
+                if (data.length < 5) {
+                    bestPos = initialPos;
+                    // FIXME: move the focuser back to its original pos
+                    error = new Error("Not enough data for focus");
+                    console.log('Could not find best position. Moving back to origin');
                 } else {
-                    return moveFocuser(()=>bestPos);
+                    console.log('regression with :' + JSON.stringify(data));
+                    const result = new PolynomialRegression(data.map(e=>e[0]), data.map(e=>e[1]), 4);
+                    // This is ugly. but works
+                    const precision = Math.ceil(stepSize / 7);
+                    let bestValue = undefined;
+                    for(let i = 0; i <= precision; ++i) {
+                        const pos = firstStep + i * (lastStep - firstStep) / precision;
+                        const pred = result.predict(pos);
+                        console.log('predict: '  + JSON.stringify(pred));
+                        const valueAtPos = pred;
+                        self.currentStatus.current.predicted[pos] = {
+                            fwhm: valueAtPos
+                        };
+                        if (i === 0 || bestValue > valueAtPos) {
+                            bestValue = valueAtPos;
+                            bestPos = pos;
+                        }
+                    }
+                    console.log('Found best position at ' + bestPos);
                 }
+                return new Promises.Chain(
+                    moveFocuser(()=>bestPos),
+                    new Promises.Immediate(()=> {
+                        if (error !== undefined) {
+                            throw error;
+                        }
+                        return bestPos;
+                    })
+                );
             })
         );
     }
