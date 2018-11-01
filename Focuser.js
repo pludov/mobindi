@@ -117,7 +117,7 @@ class Focuser {
                     // FIXME: check upper bound
                 }
                 lastKnownPos = target;
-
+                console.log('AUTOFOCUS: moving focuser to ' + target);
                 if ((intermediate !== undefined) && (intermediate !== target)) {
                     // Account for backlash
                     console.log('Focuser moving with backlash to : ', intermediate, target);
@@ -137,6 +137,14 @@ class Focuser {
                     });
                 }
             });
+        }
+
+        function nextStep() {
+            return currentStep + (moveForward ? stepSize : -stepSize);
+        }
+
+        function done(step) {
+            return moveForward ? step > lastStep : step < lastStep
         }
 
         return new Promises.Chain(
@@ -189,54 +197,63 @@ class Focuser {
                 stepId = 0;
                 return null;
             }),
-            // FIXME: move to first pos needs to clear backfocus
+            moveFocuser(()=>currentStep),
             new Promises.Loop(
                 // Move to currentStep
                 new Promises.Chain(
-                    moveFocuser(()=>currentStep),
-                    
                     new Promises.Builder(()=> {
+                        console.log('AUTOFOCUS: shoot start');
                         return self.camera.shoot(shootDevice, ()=>({ prefix: 'focus_ISO8601_step_' + Math.floor(currentStep) }));
                     }),
 
-                    new Promises.Builder((imagePath)=> {
-                        return self.imageProcessor.compute({
-                            "starField":{ "source": { "path": imagePath.path}}
-                        });
-                    }),
-                    // move on or stop
-                    new Promises.Immediate((starField)=> {
-                        console.log('StarField', JSON.stringify(starField, null, 2));
-                        let fwhm;
-                        if (starField.length) {
-                            for(let star of starField) {
-                                fwhm += star.fwhm;
-                            }
-                            fwhm /= starField.length;
+                    new Promises.Concurrent(
+                        new Promises.Chain(
+                            new Promises.Builder((imagePath)=> {
+                                console.log('AUTOFOCUS: compute');
+                                return self.imageProcessor.compute({
+                                    "starField":{ "source": { "path": imagePath.path}}
+                                });
+                            }),
+                            new Promises.Immediate((starField)=> {
+                                console.log('AUTOFOCUS: got starfield');
+                                console.log('StarField', JSON.stringify(starField, null, 2));
+                                let fwhm;
+                                if (starField.length) {
+                                    for(let star of starField) {
+                                        fwhm += star.fwhm;
+                                    }
+                                    fwhm /= starField.length;
 
-                        } else {
-                            fwhm = null;
-                            // Testing...
-                            // if (Math.random() < 0.2) {
-                            //     fwhm = null;
-                            // } else {
-                            //     fwhm = Math.random() * 3 + 3;
-                            // }
-                        }
+                                } else {
+                                    fwhm = null;
+                                    // Testing...
+                                    // if (Math.random() < 0.2) {
+                                    //     fwhm = null;
+                                    // } else {
+                                    //     fwhm = Math.random() * 3 + 3;
+                                    // }
+                                }
 
-                        if (fwhm !== null) {
-                            data.push( [currentStep, fwhm ]);
-                        }
+                                if (fwhm !== null) {
+                                    data.push( [currentStep, fwhm ]);
+                                }
 
-                        self.currentStatus.current.points[currentStep] = {
-                            fwhm: fwhm
-                        };
-                        currentStep += moveForward ? stepSize : -stepSize;
+                                self.currentStatus.current.points[currentStep] = {
+                                    fwhm: fwhm
+                                };
+                            })
+                        ),
+                        moveFocuser(()=>(done(nextStep()) ? currentStep : nextStep()))
+                    ),
+
+                    new Promises.Immediate(()=> {
+                        currentStep = nextStep();
+                        console.log('AUTOFOCUS: next step - ' + currentStep);
                         stepId++;
                     })
                 ),
                 function() {
-                    return moveForward ? currentStep > lastStep : currentStep < lastStep;
+                    return done(currentStep);
                 }
             ),
             new Promises.Builder(()=> {
