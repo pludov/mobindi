@@ -96,7 +96,7 @@ class Focuser {
         
         function moveFocuser(valueGenerator) {
             return new Promises.Builder(()=> {
-                const target = valueGenerator();
+                const target = Math.round(valueGenerator());
                 
                 const backlash = self.currentStatus.currentSettings.backlash;
                 let intermediate = undefined;
@@ -172,9 +172,12 @@ class Focuser {
                         : this.currentStatus.currentSettings.targetPos;
 
                 console.log('start pos is ' + start);
-                firstStep = start - amplitude;
-                lastStep = start + amplitude;
-                stepSize = 2 * amplitude / stepCount;
+                firstStep = Math.round(start - amplitude);
+                lastStep = Math.round(start + amplitude);
+                stepSize = Math.ceil(2 * amplitude / stepCount);
+                if (stepSize === 0) {
+                    stepSize = 1;
+                }
 
 
                 if (firstStep < 0) {
@@ -227,10 +230,10 @@ class Focuser {
                                 } else {
                                     fwhm = null;
                                     // Testing...
-                                    // if (Math.random() < 0.2) {
+                                    // if (Math.random() < 0.1) {
                                     //     fwhm = null;
                                     // } else {
-                                    //     fwhm = Math.random() * 3 + 3;
+                                    //     fwhm = 1.6 + Math.abs(currentStep - 3280)/1000.0 + Math.random() * 0.5;
                                     // }
                                 }
 
