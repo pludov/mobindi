@@ -635,8 +635,8 @@ class IndiManagerView extends Component {
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
                         open={groupDesc.opened}
-                        onOpen={()=>this.props.app.setGroupState(currentDevice, group, true)}
-                        onClose={()=>this.props.app.setGroupState(currentDevice, group, false)}
+                        onOpening={()=>this.props.app.setGroupState(currentDevice, group, true)}
+                        onClosing={()=>this.props.app.setGroupState(currentDevice, group, false)}
                         transitionTime={200}
                         trigger={group}
                         lazyRender={true}>{childs}</Collapsible>);
