@@ -161,6 +161,7 @@ class JQImageDisplay {
             this.loadingDetailsAjax = undefined;
             this.loadingDetailsPath = undefined;
             toCancel.abort();
+            this.child.removeClass('PreLoading');
         }
     }
 
@@ -285,6 +286,7 @@ class JQImageDisplay {
 
         // Start an ajax load of the new path
         this.loadingDetailsPath = path;
+        this.child.addClass('PreLoading');
         this.loadingDetailsAjax = $.ajax({
             url: 'fitsviewer/fitsviewer.cgi?size=true&path=' + encodeURIComponent(path),
             dataType: 'json',
@@ -313,6 +315,7 @@ class JQImageDisplay {
         this.currentDetails = rslt;
         this.loadingDetailsPath = undefined;
         this.loadingDetailsAjax = undefined;
+        this.child.removeClass('PreLoading');
         if (rslt !== null) {
             this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath));
         } else {

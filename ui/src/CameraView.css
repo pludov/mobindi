@@ -54,6 +54,14 @@
     animation: App-logo-spin infinite 2s linear;
 }
 
+.FitsView.PreLoading ~.FitsViewLoading {
+    visibility: inherit;
+    background-image: url("loading.svg");
+    background-color: transparent;
+    background-size: 10vw 10vw;
+    animation: App-logo-spin infinite 1s linear;
+}
+
 .FitsView.Error ~.FitsViewLoading {
     visibility: inherit;
     background-image: url("image-missing.svg");
