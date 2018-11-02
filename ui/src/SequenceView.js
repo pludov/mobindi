@@ -2,6 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
+import { createSelector } from 'reselect'
 
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
@@ -51,21 +52,31 @@ SequenceImageDetail.propTypes = {
     app: PropTypes.any.isRequired
 }
 
-const SequenceSelector = connect((store, ownProps)=> ({
-    active: atPath(store, ownProps.currentPath),
-    availables: store.backend.camera.sequences.list,
-    definitions: store.backend.camera.sequences.byuuid,
-    placeholder: 'Sequence...',
-    getTitle:(id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
-    setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.setCurrentSequence(id))),
-    nullAlwaysPossible: true,
 
-    controls: [{
-        id:'new',
-        title:'New',
-        run: ()=>ownProps.app.newSequence()
-    }]
-}))(PromiseSelector);
+const SequenceSelector = connect(()=>{
+    const sequenceSelectorBaseProps = {
+        placeholder: 'Sequence...',
+        nullAlwaysPossible: true,
+        getTitle: (id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
+        setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.setCurrentSequence(id)))
+    }
+    
+    const controlSelector = createSelector(
+            [ (state, ownProps) => ownProps.app ],
+            app =>  [{
+                id:'new',
+                title:'New',
+                run: ()=>app.newSequence()
+            }]);
+
+    return (store, ownProps)=> ({
+        ... sequenceSelectorBaseProps,
+        active: atPath(store, ownProps.currentPath),
+        availables: store.backend.camera.sequences.list,
+        definitions: store.backend.camera.sequences.byuuid,
+        controls: controlSelector(store, ownProps)
+    })
+})(PromiseSelector);
 
 class SequenceControler extends PureComponent {
     constructor(props) {

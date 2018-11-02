@@ -14,6 +14,7 @@ class PromiseSelector extends PureComponent {
     render() {
         var active = this.props.active;
         if (active == undefined) active = null;
+        console.log('Promise Selector rendering with ' + active);
 
         var availables = this.props.availablesGenerator(this.props);
         if (!availables) availables = [];
@@ -41,14 +42,13 @@ class PromiseSelector extends PureComponent {
 
         for(var v of availables) {
             var id = JSON.stringify(this.props.getId(v, this.props));
-            console.log("WTF key = " + id);
             options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
         }
 
         if (this.props.controls) {
             for(var v of this.props.controls) {
                 var id = "ctrl:" + JSON.stringify(v.id);
-                options.push(<option value={id} key={id}><i>{v.title}</i></option>);
+                options.push(<option value={id} key={id}>{v.title}</option>);
             }
         }
 

@@ -47,7 +47,6 @@ class TableEntry extends PureComponent {
         var result= {
             item: ownProps.getItem(store, ownProps.uid)
         }
-        console.log('map state to prop wtf:', ownProps.uid, JSON.stringify(result));
         return result;
     }
 }
