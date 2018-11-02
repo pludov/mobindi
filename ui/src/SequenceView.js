@@ -57,24 +57,26 @@ const SequenceSelector = connect(()=>{
     const sequenceSelectorBaseProps = {
         placeholder: 'Sequence...',
         nullAlwaysPossible: true,
-        getTitle: (id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null),
-        setValue:(id)=>(new Promises.Immediate(()=>ownProps.app.setCurrentSequence(id)))
+        getTitle: (id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null)
     }
     
     const controlSelector = createSelector(
             [ (state, ownProps) => ownProps.app ],
-            app =>  [{
-                id:'new',
-                title:'New',
-                run: ()=>app.newSequence()
-            }]);
+            app => ({
+                setValue:(id)=>(new Promises.Immediate(()=>app.setCurrentSequence(id))),
+                controls: [{
+                    id:'new',
+                    title:'New',
+                    run: ()=>app.newSequence()
+                }]
+            }));
 
     return (store, ownProps)=> ({
         ... sequenceSelectorBaseProps,
+        ... controlSelector(store, ownProps),
         active: atPath(store, ownProps.currentPath),
         availables: store.backend.camera.sequences.list,
-        definitions: store.backend.camera.sequences.byuuid,
-        controls: controlSelector(store, ownProps)
+        definitions: store.backend.camera.sequences.byuuid
     })
 })(PromiseSelector);
 
