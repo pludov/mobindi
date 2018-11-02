@@ -221,7 +221,7 @@ class Focuser {
                 new Promises.Chain(
                     new Promises.Builder(()=> {
                         console.log('AUTOFOCUS: shoot start');
-                        return self.camera.shoot(shootDevice, ()=>({ prefix: 'focus_ISO8601_step_' + Math.floor(currentStep) }));
+                        return self.camera.shoot(shootDevice, (settings)=>({...settings, prefix: 'focus_ISO8601_step_' + Math.floor(currentStep) }));
                     }),
 
                     new Promises.Concurrent(
