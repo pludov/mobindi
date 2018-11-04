@@ -8,6 +8,7 @@ const Xml2JSONParser = require('./Xml2JSONParser.js');
 const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 const IndiServerStarter = require('./IndiServerStarter');
+const IndiAutoConnect = require('./IndiAutoConnect');
 const ConfigStore = require('./ConfigStore');
 const fs = require('fs');
 
@@ -88,6 +89,8 @@ class IndiManager {
         this.lifeCycle.start();
 
         this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+
+        new IndiAutoConnect(this);
     }
 
     nextMessageUid() {
@@ -416,6 +419,20 @@ class IndiManager {
     {
         return new Promises.Immediate(() => {
             this.indiServerStarter.restartDevice(message.driver);
+        });
+    }
+
+    $api_updateDriverParam(message, progress)
+    {
+        return new Promises.Immediate(() => {
+            if (!Object.prototype.hasOwnProperty.call(this.currentStatus.configuration.indiServer.devices, message.driver)) {
+                throw new Error("Device not found");
+            }
+            const dev = this.currentStatus.configuration.indiServer.devices[message.driver];
+            if (!dev.options) {
+                dev.options = {};
+            }
+            dev.options[message.key] = message.value;
         });
     }
 }

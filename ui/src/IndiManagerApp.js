@@ -63,6 +63,15 @@ class IndiManagerApp extends BaseApp {
         });
     }
 
+    updateDriverParam(driver, key, value) {
+        return this.serverRequest({
+            method: 'updateDriverParam',
+            driver,
+            key,
+            value
+        });
+    }
+    
     // Returns a promise that needs start
     rqtSwitchProperty(desc) {
         return this.serverRequest({

@@ -8,10 +8,12 @@ import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
 import Led from "./Led";
+import Modal from './Modal.js';
 import TextEdit from "./TextEdit.js";
 import "./IndiManagerView.css";
 import Icons from "./Icons.js"
 import IconButton from "./IconButton.js";
+import IndiDriverConfig from './IndiDriverConfig.js';
 
 // Return a function that will call the given function with the given args
 function closure() {
@@ -90,16 +92,31 @@ class IndiDriverSelector extends Component {
 
 IndiDriverSelector = connect(IndiDriverSelector.mapStateToProps)(IndiDriverSelector);
 
-class IndiDriverControlButton extends PureComponent {
+class IndiDriverControlPanel extends PureComponent {
     constructor(props) {
         super(props);
     }
 
     render() {
         if (this.props.configured) {
-            return <input type='button'
+            return <span>
+                <Modal
+                    flagPath='IndiManagerView/driverModalEditor'
+                    flagValue={this.props.current}
+                    ref={modal=>this.modal=modal}>
+                    <IndiDriverConfig 
+                            driverId={this.props.current}
+                            app={this.props.app}/>
+                </Modal>
+                <input type='button'
+                            className='IndiConfigButton'
+                            onClick={() =>{this.modal.open()}}
+                            value='...'/>
+                <input type='button'
                             onClick={() => this.props.app.restartDriver(this.props.current).start()}
-                            value='Restart'/>
+                            className='IndiRestartButton'
+                            value={'\u21bb'}/>
+            </span>
         }
         return null;
     }
@@ -128,7 +145,8 @@ class IndiDriverControlButton extends PureComponent {
     }
 }
 
-IndiDriverControlButton = connect(IndiDriverControlButton.mapStateToProps)(IndiDriverControlButton);
+IndiDriverControlPanel = connect(IndiDriverControlPanel.mapStateToProps)(IndiDriverControlPanel);
+
 
 const VectorStateToColor = {
     Idle: 'grey',
@@ -664,7 +682,7 @@ class IndiManagerView extends Component {
 
                 <div className="IndiDriverSelector">
                     Driver: <IndiDriverSelector app={this.props.app}/>
-                    <IndiDriverControlButton app={this.props.app}/>
+                    <IndiDriverControlPanel app={this.props.app}/>
                 </div>
 
                 <div className="IndiPropertyView">
