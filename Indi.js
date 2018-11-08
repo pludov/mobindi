@@ -221,7 +221,8 @@ class Device {
 }
 
 class IndiConnection {
-    
+    waiterId = 0;
+
     constructor() {
         this.parser = undefined;
         this.socket = undefined;
@@ -314,7 +315,7 @@ class IndiConnection {
     // The predicate will receive the promise input.
     wait(predicate, allowDisconnectionState) {
         const self = this;
-
+        const waiterId = this.waiterId++;
         return new Promises.Cancelable(
             function(next, input) {
                 var listener = undefined;
@@ -345,7 +346,7 @@ class IndiConnection {
                         try {
                             result = predicate(input);
                             if (!result) {
-                                console.log('predicate still false');
+                                console.log('predicate ' + waiterId + ' still false');
                                 return;
                             }
                         } catch(e) {
@@ -359,7 +360,7 @@ class IndiConnection {
                     // Add a listener...
                     self.addListener(listener);
                 } else {
-                    console.log('predicate true');
+                    console.log('predicate ' + waiterId + ' true');
                     next.done(result);
                 }
             }
