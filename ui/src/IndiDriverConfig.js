@@ -11,6 +11,10 @@ class IndiDriverConfig extends React.PureComponent {
         this.state = {runningPromise: 0};
     }
 
+    static supportAutoGphotoSensorSize(driver) {
+        return driver === 'indi_gphoto_ccd' || driver === 'indi_canon_ccd' || driver === 'indi_nikon_ccd';
+    }
+
     render() {
         return <div>
             <div>{this.props.driverId}</div>
@@ -27,10 +31,26 @@ class IndiDriverConfig extends React.PureComponent {
                                     ), this)}}
                                 />
             </div>
+            {IndiDriverConfig.supportAutoGphotoSensorSize(this.props.driver) ?
+                <div>
+                    Auto sensor size (gphoto):
+                    <input
+                            type="checkbox"
+                            checked={this.props.details.autoGphotoSensorSize ? true : false}
+                            onChange={(e) =>
+                                {Utils.promiseToState(this.props.app.updateDriverParam(this.props.driverId,
+                                                'autoGphotoSensorSize',
+                                                e.target.checked
+                                        ), this)}}
+                                    />
+                </div>
+            : null }
         </div>
     }
     static mapStateToProps (store, ownProps) {
+
         var result = {
+            driver: Utils.noErr(()=>store.backend.indiManager.configuration.indiServer.devices[ownProps.driverId].driver || {}, {}),
             details: Utils.noErr(()=>store.backend.indiManager.configuration.indiServer.devices[ownProps.driverId].options || {}, {})
         };
         return result;

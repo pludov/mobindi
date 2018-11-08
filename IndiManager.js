@@ -9,6 +9,7 @@ const {IndiConnection} = require('./Indi');
 const Promises = require('./Promises');
 const IndiServerStarter = require('./IndiServerStarter');
 const IndiAutoConnect = require('./IndiAutoConnect');
+const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
 const ConfigStore = require('./ConfigStore');
 const fs = require('fs');
 
@@ -91,6 +92,7 @@ class IndiManager {
         this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
 
         new IndiAutoConnect(this);
+        new IndiAutoGphotoSensorSize(this);
     }
 
     nextMessageUid() {
@@ -285,7 +287,7 @@ class IndiManager {
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
-    setParam(device, vectorFn, valFn)
+    setParam(device, vectorFn, valFn, force)
     {
         var self = this;
         return new Promises.Builder((e)=>
@@ -325,7 +327,7 @@ class IndiManager {
                             continue;
                         }
                         console.log('Setting value: ' + v);
-                        if (vec.getPropertyValueIfExists(key) !== v) {
+                        if (force || (vec.getPropertyValueIfExists(key) !== v)) {
                             todo.push({name: key, value: v});
                         }
                     }
