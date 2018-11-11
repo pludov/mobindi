@@ -196,18 +196,26 @@ class JQImageDisplay {
         this.emitStateChange();
     }
 
-    computeSrc(path)
+    computeSrc(path, optionalImageSize)
     {
+        const imageSize = optionalImageSize || this.currentImageSize;
         var str = "" + path;
         if (path) {
             var bin = 16;
             if (this.currentImagePos.w > 0 && this.currentImagePos.h > 0
-                 && this.currentImageSize.width  > -1 && this.currentImageSize.height > -1)
+                 && imageSize.width  > -1 && imageSize.height > -1)
             {
                 bin = Math.floor(Math.min(
-                            this.currentImageSize.width / this.currentImagePos.w,
-                            this.currentImageSize.height / this.currentImagePos.h
-                        ));
+                    imageSize.width / this.currentImagePos.w,
+                    imageSize.height / this.currentImagePos.h
+                ));
+            } else if (imageSize.width > 0 && imageSize.height > 0) {
+                // Prepare for a best fit
+                const bestFit = this.getBestFitForSize(imageSize);
+                bin = Math.floor(Math.min(
+                    imageSize.width / bestFit.w,
+                    imageSize.height / bestFit.h
+                ));
             }
 
             // lower this to a 2^power
@@ -317,7 +325,7 @@ class JQImageDisplay {
         this.loadingDetailsAjax = undefined;
         this.child.removeClass('PreLoading');
         if (rslt !== null) {
-            this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath));
+            this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath, rslt));
         } else {
             this.setSrc(this.curentDetailsPath, "#blank");
         }
