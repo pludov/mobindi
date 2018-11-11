@@ -1,14 +1,28 @@
 'use strict';
 
+import * as Promises from './Promises';
+import {CameraStatus, ShootResult, ShootSettings} from './shared/BackOfficeStatus';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
-const Promises = require('./Promises');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
 const uuid = require('node-uuid');
 const TraceError = require('trace-error');
 
 class Camera {
-    constructor(app, appStateManager, context) {
+    appStateManager: any;
+    shootPromises: any;
+    currentStatus: CameraStatus;
+    context: any;
+    indiManager: any;
+    imageProcessor: any;
+
+    imageIdGenerator = new IdGenerator();
+    previousImages: any;
+    
+    currentSequenceUuid:any = undefined;
+    currentSequencePromise:any = undefined;
+
+    constructor(app:any, appStateManager:any, context:any) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
             status: "idle",
@@ -176,7 +190,7 @@ class Camera {
     {
         var indiManager = this.appStateManager.getTarget().indiManager;
         // Ensure that the CCD_FILE_PATH property is set for all devices
-        var found = {};
+        var found:{[deviceId:string]:string} = {};
         for(var device of this.currentStatus.availableDevices)
         {
             
@@ -194,7 +208,7 @@ class Camera {
 
                     // Ignore CCD_FILE_PATH that are from before connection
                     // Some buggy drivers send spurious CCD_FILE_PATH message, not distinguishable from new shoot
-                    if (!"CONNECTION" in dtree) {
+                    if (!Object.prototype.hasOwnProperty.call(dtree, "CONNECTION")) {
                         continue;
                     }
                     var age = timestampToEpoch(timestamp) - timestampToEpoch(dtree.CONNECTION.$timestamp);
@@ -343,9 +357,9 @@ class Camera {
         }
     }
 
-    $api_setCamera(message, progress) {
+    $api_setCamera(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to set device: ', JSON.stringify(message.data));
             if (self.currentStatus.availableDevices.indexOf(message.data.device) == -1) {
                 throw "device not available";
@@ -354,9 +368,9 @@ class Camera {
         });
     }
 
-    $api_setShootParam(message, progress) {
+    $api_setShootParam(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e) => {
+        return new Promises.Immediate(() => {
             // FIXME: send the corresponding info ?
             console.log('Request to set setting: ', JSON.stringify(message.data));
             var key = message.data.key;
@@ -367,9 +381,9 @@ class Camera {
         });
     }
 
-    $api_newSequence(message, progress) {
+    $api_newSequence(message: any, progress: any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to create sequence: ', JSON.stringify(message.data));
             var key = uuid.v4();
             var firstSeq = uuid.v4();
@@ -377,6 +391,7 @@ class Camera {
                 status: 'idle',
                 title: 'New sequence',
                 camera: null,
+                errorMessage: null,
                 steps: {
                     list: [firstSeq],
                     byuuid: {
@@ -392,9 +407,9 @@ class Camera {
         });
     }
 
-    $api_newSequenceStep(message, progress) {
+    $api_newSequenceStep(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to add step: ', JSON.stringify(message));
             var sequenceUid = message.sequenceUid;
             var sequenceStepUid = uuid.v4();
@@ -404,9 +419,9 @@ class Camera {
         });
     }
 
-    $api_deleteSequenceStep(message, progress) {
+    $api_deleteSequenceStep(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to drop step: ', JSON.stringify(message));
             var sequenceUid = message.sequenceUid;
             var sequenceStepUid = message.sequenceStepUid;
@@ -423,9 +438,9 @@ class Camera {
 
     }
 
-    $api_moveSequenceSteps(message, progress) {
+    $api_moveSequenceSteps(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to move steps: ', JSON.stringify(message));
             var sequenceUid = message.sequenceUid;
             var sequenceStepUidList = message.sequenceStepUidList;
@@ -448,9 +463,9 @@ class Camera {
         });
     }
 
-    $api_updateSequenceParam(message, progress) {
+    $api_updateSequenceParam(message:any, progress:any) {
         var self = this;
-        return new Promises.Immediate((e)=> {
+        return new Promises.Immediate(()=> {
             console.log('Request to set setting: ', JSON.stringify(message));
             var key = message.sequenceUid;
             var param = message.param;
@@ -460,7 +475,7 @@ class Camera {
                 var sequenceStepUid = message.sequenceStepUid;
                 self.currentStatus.sequences.byuuid[key].steps.byuuid[sequenceStepUid][param] = value;
             } else {
-                self.currentStatus.sequences.byuuid[key][param] = value;
+                (self.currentStatus.sequences.byuuid[key] as any)[param] = value;
             }
         });
     }
@@ -477,7 +492,7 @@ class Camera {
         }
     }
 
-    startSequence(uuid) {
+    startSequence(uuid:string) {
         var self = this;
         function getSequence() {
             var rslt = self.currentStatus.sequences.byuuid[uuid];
@@ -517,13 +532,18 @@ class Camera {
                         });
                     }
 
-                    var settings = Object.assign({}, sequence);
-                    delete settings.steps;
-                    delete settings.errorMessage;
+                    if (sequence.camera === null) {
+                        throw new Error("No device specified");
+                    }
+
+
+                    var settings:ShootSettings = Object.assign({}, sequence) as any;
+                    delete (settings as any).steps;
+                    delete (settings as any).errorMessage;
                     settings = Object.assign(settings, step);
-                    delete settings.count;
-                    delete settings.done;
-                    settings.prefix = settings.title + '_' + step.type + '_XXX';
+                    delete (settings as any).count;
+                    delete (settings as any).done;
+                    settings.prefix = sequence.title + '_' + step.type + '_XXX';
                     var ditheringStep;
                     if (step.dither) {
                         // FIXME: no dithering for first shoot of sequence
@@ -536,19 +556,19 @@ class Camera {
                     return new Promises.Chain(
                         ditheringStep,
                         self.shoot(sequence.camera, ()=>(settings)),
-                        new Promises.Immediate((e)=> {
+                        new Promises.Immediate(()=> {
                             step.done++;
                             return true;
                         })
                     );
-                }), function(b) {
+                }), function(b:any) {
                     console.log('Sequencey Continue ? ', JSON.stringify(b));
                     return !b;
                 }
             );
     }
 
-    $api_startSequence(message, progress) {
+    $api_startSequence(message:any, progress:any) {
         var self = this;
         return new Promises.Immediate((e)=> {
             console.log('Request to start sequence', JSON.stringify(message));
@@ -568,7 +588,7 @@ class Camera {
             self.currentSequencePromise = self.startSequence(key);
             self.currentSequenceUuid = key;
 
-            function finishWithStatus(s, e) {
+            function finishWithStatus(s:string, e?:any) {
                 console.log('finishing with final status: ' + s);
                 if (e) {
                     console.log('Error ' , e);
@@ -590,14 +610,14 @@ class Camera {
                 self.currentSequencePromise = null;
             }
 
-            self.currentSequencePromise.then((e) => finishWithStatus('done'));
-            self.currentSequencePromise.onError((e) => finishWithStatus('error', e));
-            self.currentSequencePromise.onCancel((e) => finishWithStatus('paused'));
+            self.currentSequencePromise.then(() => finishWithStatus('done'));
+            self.currentSequencePromise.onError(() => finishWithStatus('error', e));
+            self.currentSequencePromise.onCancel(() => finishWithStatus('paused'));
             self.currentSequencePromise.start();
         });
     }
 
-    $api_stopSequence(message, progress) {
+    $api_stopSequence(message:any, progress:any) {
         var self = this;
         return new Promises.Immediate((e)=> {
             console.log('Request to stop sequence', JSON.stringify(message));
@@ -610,7 +630,7 @@ class Camera {
         });
     }
 
-    $api_resetSequence(message, progress) {
+    $api_resetSequence(message:any, progress:any) {
         var self = this;
         return new Promises.Immediate((e)=> {
             console.log('Request to reset sequence', JSON.stringify(message));
@@ -637,7 +657,7 @@ class Camera {
         });
     }
 
-    $api_dropSequence(message, progress) {
+    $api_dropSequence(message:any, progress:any) {
         var self = this;
         return new Promises.Immediate((e)=> {
             console.log('Request to drop sequence', JSON.stringify(message));
@@ -653,7 +673,7 @@ class Camera {
         });
     }
 
-    getCropAdjustment(device)
+    getCropAdjustment(device:any)
     {
         const frameVec = device.getVector('CCD_FRAME');
         if (!frameVec.exists()) {
@@ -698,15 +718,15 @@ class Camera {
     }
 
     // Return a promise to shoot at the given camera (where)
-    shoot(device, settingsProvider)
+    shoot(device:string, settingsProvider?:(s:ShootSettings)=>ShootSettings):Promises.Cancelable<undefined, ShootResult>
     {
-        var connection;
+        var connection:any;
         var self = this;
-        var currentShootSettings;
-        var ccdFilePathInitRevId;
-        let shootResult = null;
+        var currentShootSettings:any;
+        var ccdFilePathInitRevId:any;
+        let shootResult:any = null;
 
-        var result = new Promises.Chain(
+        var result = new Promises.Chain<undefined, ShootResult>(
             new Promises.Immediate(() => {
                 if (Object.prototype.hasOwnProperty.call(self.currentStatus.currentShoots, device)) {
                     throw new Error("Shoot already started for " + device);
@@ -744,7 +764,7 @@ class Camera {
             // Reset the frame size - if prop is present only
             new Promises.Conditional(()=> {
                                 const dev = this.indiManager.getValidConnection().getDevice(device);
-                                return Object.keys(this.getCropAdjustment(dev)).length;
+                                return Object.keys(this.getCropAdjustment(dev)).length != 0;
                                 },
                 this.indiManager.setParam(device, 'CCD_FRAME', ()=>this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true)),
 
@@ -753,7 +773,7 @@ class Camera {
                                 currentShootSettings.iso !== null
                                 && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()),
                 this.indiManager.setParam(device, 'CCD_ISO',
-                    (vec) => {
+                    (vec:any) => {
                         vec = vec.getVectorInTree();
                         var v = currentShootSettings.iso;
                         var childToSet = undefined;
@@ -772,7 +792,7 @@ class Camera {
                 )
             ),
             this.indiManager.setParam(device, 'UPLOAD_SETTINGS',
-                    (vec)=> {
+                    (vec:any)=> {
                         const ret = {};
 
                         if (vec.getPropertyValueIfExists('UPLOAD_DIR') !== currentShootSettings.path
@@ -788,7 +808,7 @@ class Camera {
                     }),
             // Set the upload mode to at least upload_client
             this.indiManager.setParam(device, 'UPLOAD_MODE',
-                    (vec) => {
+                    (vec:any) => {
                         if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') == 'On') {
                             console.log('want upload_client\n');
                             return {
@@ -875,7 +895,7 @@ class Camera {
             // Remove UPLOAD_MODE
             // FIXME: this is a finally !
             this.indiManager.setParam(device, 'UPLOAD_MODE',
-                    (vec) => {
+                    (vec:any) => {
                         if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
                             console.log('set back upload_client\n');
                             return {
@@ -905,13 +925,18 @@ class Camera {
         return result;
     }
 
-    $api_shoot(message, progress) {
+    $api_shoot(message:any, progress:any) {
         var self = this;
         
-        return this.shoot(this.currentStatus.selectedDevice);
+        return new Promises.Builder<undefined,any>(() => {
+            if (this.currentStatus.selectedDevice === null) {
+                throw new Error("No device selected");
+            }
+            return this.shoot(this.currentStatus.selectedDevice)
+        });
     }
 
-    $api_abort(message, progress) {
+    $api_abort(message:any, progress:any) {
         return new Promises.Immediate(() => {
             var currentDevice = this.currentStatus.selectedDevice;
             if (currentDevice === null) throw new Error("No device selected");

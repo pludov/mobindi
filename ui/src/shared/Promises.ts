@@ -373,9 +373,8 @@ export class Concurrent<Input> extends Cancelable<Input, any[]> {
 }
 
 export class Chain<Input, Output> extends Cancelable<Input, Output> {
-    constructor() {
+    constructor(...childs:Cancelable<any, any>[]) {
         let current: number;
-        const childs = Array.from(arguments);
         let next : StatusNotifier<Output>;
 
         function startChild(arg: any)
