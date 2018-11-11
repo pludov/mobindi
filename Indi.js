@@ -169,6 +169,16 @@ class Vector {
         var prop = vecDef.childs[name];
         return prop.$_;
     }
+    
+    getPropertyLabelIfExists(name) {
+        var vecDef = this.getVectorInTree();
+        if (vecDef === null) return null;
+        if (!has(vecDef.childs, name)) {
+            return null;
+        }
+        var prop = vecDef.childs[name];
+        return prop.$label;
+    }
 }
 
 

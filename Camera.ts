@@ -390,6 +390,7 @@ class Camera {
             self.currentStatus.sequences.byuuid[key] = {
                 status: 'idle',
                 title: 'New sequence',
+                progress: null,
                 camera: null,
                 errorMessage: null,
                 steps: {
@@ -513,7 +514,7 @@ class Camera {
                     step.done = 0;
                 }
                 if (step.done < step.count) {
-                    return step;
+                    return {stepId: i, step};
                 }
             }
             return undefined;
@@ -521,21 +522,39 @@ class Camera {
         return new Promises.Loop(
                 new Promises.Builder(()=> {
                     var sequence = getSequence();
+                    sequence.progress = null;
                     console.log('Shoot in sequence:' + JSON.stringify(sequence));
-                    var step = getNextStep();
+                    const nextStep = getNextStep();
 
-                    if (step === undefined) {
+                    if (nextStep === undefined) {
                         console.log('Sequence terminated: ' + uuid);
                         return new Promises.Immediate((e) => {
                             // Break
                             return false;
                         });
                     }
+                    const {stepId, step} = nextStep;
 
                     if (sequence.camera === null) {
                         throw new Error("No device specified");
                     }
 
+                    // Check that camera is connected
+                    const device = this.indiManager.getValidConnection().getDevice(sequence.camera);
+                    if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
+                        throw new Error("Device is not connected");
+                    }
+
+                    // Get the name of frame type
+                    const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';
+
+
+                    this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
+
+                    const shootTitle =
+                            (step.done + 1) + "/" + step.count +
+                            (sequence.steps.list.length > 1 ?
+                                " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
 
                     var settings:ShootSettings = Object.assign({}, sequence) as any;
                     delete (settings as any).steps;
@@ -543,18 +562,22 @@ class Camera {
                     settings = Object.assign(settings, step);
                     delete (settings as any).count;
                     delete (settings as any).done;
-                    settings.prefix = sequence.title + '_' + step.type + '_XXX';
+                    settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
                     var ditheringStep;
                     if (step.dither) {
                         // FIXME: no dithering for first shoot of sequence
                         console.log('Dithering required : ', Object.keys(self.context));
-                        ditheringStep = self.context.phd.dither();
+                        ditheringStep = new Promises.Chain(
+                            new Promises.Immediate(()=>sequence.progress = "Dither " + shootTitle),
+                            self.context.phd.dither()
+                        );
                     } else {
                         ditheringStep = new Promises.Immediate(()=>{});
                     }
 
                     return new Promises.Chain(
                         ditheringStep,
+                        new Promises.Immediate(()=>sequence.progress = (stepTypeLabel) + " " + shootTitle),
                         self.shoot(sequence.camera, ()=>(settings)),
                         new Promises.Immediate(()=> {
                             step.done++;
@@ -562,7 +585,7 @@ class Camera {
                         })
                     );
                 }), function(b:any) {
-                    console.log('Sequencey Continue ? ', JSON.stringify(b));
+                    console.log('Sequence Continue ? ', JSON.stringify(b));
                     return !b;
                 }
             );
@@ -588,7 +611,7 @@ class Camera {
             self.currentSequencePromise = self.startSequence(key);
             self.currentSequenceUuid = key;
 
-            function finishWithStatus(s:string, e?:any) {
+            function finishWithStatus(s:'done'|'error'|'paused', e?:any) {
                 console.log('finishing with final status: ' + s);
                 if (e) {
                     console.log('Error ' , e);
@@ -611,7 +634,7 @@ class Camera {
             }
 
             self.currentSequencePromise.then(() => finishWithStatus('done'));
-            self.currentSequencePromise.onError(() => finishWithStatus('error', e));
+            self.currentSequencePromise.onError((e:any) => finishWithStatus('error', e));
             self.currentSequencePromise.onCancel(() => finishWithStatus('paused'));
             self.currentSequencePromise.start();
         });

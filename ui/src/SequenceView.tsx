@@ -154,6 +154,7 @@ class DiscSequenceControler extends PureComponent<SequenceControlerProps, Sequen
                         <StatusLabel
                                 text={statusStr}
                                 className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} />
+                        {this.props.current && this.props.current.progress ? <i>{this.props.current.progress}</i> : null}
                     </div>
             </div>
             <input

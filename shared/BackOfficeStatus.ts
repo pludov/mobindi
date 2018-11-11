@@ -1,5 +1,6 @@
 export type ShootSettings = {
     prefix?:string;
+    type?:string;
 }
 
 export type ShootResult = {
@@ -7,7 +8,8 @@ export type ShootResult = {
 }
 
 export type Sequence = {
-    status: string;
+    status: "idle"|"running"|"paused"|"done"|"error";
+    progress: string | null;
     title: string;
     camera: string | null;
     errorMessage: string|null;
