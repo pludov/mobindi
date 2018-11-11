@@ -523,8 +523,7 @@ class Camera {
                     settings = Object.assign(settings, step);
                     delete settings.count;
                     delete settings.done;
-                    settings.prefix = settings.title + '-' + step.type + '-' + (step.done + 1);
-
+                    settings.prefix = settings.title + '_' + step.type + '_XXX';
                     var ditheringStep;
                     if (step.dither) {
                         // FIXME: no dithering for first shoot of sequence
