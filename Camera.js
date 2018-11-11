@@ -653,6 +653,50 @@ class Camera {
         });
     }
 
+    getCropAdjustment(device)
+    {
+        const frameVec = device.getVector('CCD_FRAME');
+        if (!frameVec.exists()) {
+            return {};
+        }
+
+        const ccdVec = device.getVector('CCD_INFO');
+        if (!ccdVec.exists()) {
+            return {};
+        }
+        const crop = {
+            x: parseFloat(frameVec.getPropertyValue('X')),
+            y: parseFloat(frameVec.getPropertyValue('Y')),
+            w: parseFloat(frameVec.getPropertyValue('WIDTH')),
+            h: parseFloat(frameVec.getPropertyValue('HEIGHT'))
+        }
+        const max = {
+            w: parseFloat(ccdVec.getPropertyValue('CCD_MAX_X')),
+            h: parseFloat(ccdVec.getPropertyValue('CCD_MAX_Y')),
+        }
+
+        const binningVec = device.getVector('CCD_BINNING');
+        const bin = binningVec.exists() ?
+            {
+                x:parseFloat(binningVec.getPropertyValue('HOR_BIN')),
+                y:parseFloat(binningVec.getPropertyValue('VER_BIN'))
+            }
+            : {x: 1, y: 1};
+        console.log('Crop status is '+ JSON.stringify(crop, null, 2));
+        console.log('Frame status is '+ JSON.stringify(max, null, 2));
+        console.log('Bin status is '+ JSON.stringify(bin, null, 2));
+        if (crop.x || crop.y || crop.w != max.w || crop.h  != max.h) {
+            return {
+                X: 0,
+                Y: 0,
+                WIDTH: Math.floor(max.w),
+                HEIGHT: Math.floor(max.h)
+            };
+        }
+
+        return {};
+    }
+
     // Return a promise to shoot at the given camera (where)
     shoot(device, settingsProvider)
     {
@@ -696,6 +740,14 @@ class Camera {
                     () => ({
                         HOR_BIN: currentShootSettings.bin,
                         VER_BIN: currentShootSettings.bin}))),
+
+            // Reset the frame size - if prop is present only
+            new Promises.Conditional(()=> {
+                                const dev = this.indiManager.getValidConnection().getDevice(device);
+                                return Object.keys(this.getCropAdjustment(dev)).length;
+                                },
+                this.indiManager.setParam(device, 'CCD_FRAME', ()=>this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true)),
+
             // Set the iso
             new Promises.Conditional(() => (
                                 currentShootSettings.iso !== null
