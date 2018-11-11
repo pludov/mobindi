@@ -4,6 +4,8 @@ import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 
+import * as BackOfficeStatus from '../../shared/BackOfficeStatus';
+
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
 import * as Promises from './shared/Promises';
@@ -13,13 +15,26 @@ import { atPath } from './shared/JsonPath';
 import FitsViewerInContext from './FitsViewerInContext';
 import './SequenceView.css';
 import SequenceEditDialog from './SequenceEditDialog';
+import { Connect } from './utils/Connect';
 
 
-class SequenceImageDetail extends PureComponent {
+type SequenceImageDetailInputProps = {
+    app: any;
+    currentPath: string;
+    detailPath: string;
+}
+
+type SequenceImageDetailMappedProps = {
+    url: string|null;
+}
+
+type SequenceImageDetailProps = SequenceImageDetailInputProps & SequenceImageDetailMappedProps
+
+class DiscSequenceImageDetail extends PureComponent<SequenceImageDetailProps> {
 
     render() {
         return <div className="FitsViewer FitsViewContainer">
-                    <FitsViewerInContext 
+                    <FitsViewerInContext
                             contextKey="default"
                             app={this.props.app}
                             src={this.props.url}
@@ -27,7 +42,7 @@ class SequenceImageDetail extends PureComponent {
         </div>;
     }
 
-    static mapStateToProps(store, ownProps) {
+    static mapStateToProps(store:any, ownProps: SequenceImageDetailInputProps):SequenceImageDetailMappedProps {
         var selected = atPath(store, ownProps.currentPath);
 
         if (!selected) {
@@ -45,25 +60,21 @@ class SequenceImageDetail extends PureComponent {
     }
 }
 
-SequenceImageDetail = connect(SequenceImageDetail.mapStateToProps)(SequenceImageDetail);
+const SequenceImageDetail = Connect<DiscSequenceImageDetail, SequenceImageDetailInputProps, {}, SequenceImageDetailMappedProps>(DiscSequenceImageDetail);
 
-SequenceImageDetail.propTypes = {
-    currentPath: PropTypes.string.isRequired,
-    app: PropTypes.any.isRequired
-}
 
 
 const SequenceSelector = connect(()=>{
     const sequenceSelectorBaseProps = {
         placeholder: 'Sequence...',
         nullAlwaysPossible: true,
-        getTitle: (id, props)=>(id && props.definitions[id] ? props.definitions[id].title : null)
+        getTitle: (id:string, props:any)=>(id && props.definitions[id] ? props.definitions[id].title : null)
     }
     
     const controlSelector = createSelector(
-            [ (state, ownProps) => ownProps.app ],
+            [ (state:any, ownProps:any) => ownProps.app ],
             app => ({
-                setValue:(id)=>(new Promises.Immediate(()=>app.setCurrentSequence(id))),
+                setValue:(id:string)=>(new Promises.Immediate(()=>app.setCurrentSequence(id))),
                 controls: [{
                     id:'new',
                     title:'New',
@@ -71,7 +82,7 @@ const SequenceSelector = connect(()=>{
                 }]
             }));
 
-    return (store, ownProps)=> ({
+    return (store:any, ownProps:any)=> ({
         ... sequenceSelectorBaseProps,
         ... controlSelector(store, ownProps),
         active: atPath(store, ownProps.currentPath),
@@ -80,8 +91,24 @@ const SequenceSelector = connect(()=>{
     })
 })(PromiseSelector);
 
-class SequenceControler extends PureComponent {
-    constructor(props) {
+type SequenceControlerInputProps = {
+    app: any;
+    currentPath: string;
+}
+type SequenceControlerMappedProps = {
+    uuid?: string;
+    current?: BackOfficeStatus.Sequence;
+}
+
+type SequenceControlerProps = SequenceControlerInputProps & SequenceControlerMappedProps;
+
+type SequenceControlerState = {
+    // FIXME: not compatible with async state
+    runningPromise?: any;
+}
+
+class DiscSequenceControler extends PureComponent<SequenceControlerProps, SequenceControlerState> {
+    constructor(props:SequenceControlerProps) {
         super(props);
         this.state = {};
     }
@@ -149,7 +176,7 @@ class SequenceControler extends PureComponent {
         </div>);
     }
 
-    static mapStateToProps(store, ownProps) {
+    static mapStateToProps(store:any, ownProps: SequenceControlerInputProps):SequenceControlerMappedProps {
         var selected = atPath(store, ownProps.currentPath);
         if (!selected) {
             return {}
@@ -162,15 +189,14 @@ class SequenceControler extends PureComponent {
     }
 }
 
-SequenceControler = connect(SequenceControler.mapStateToProps)(SequenceControler);
+const SequenceControler = Connect<DiscSequenceControler, SequenceControlerInputProps, {}, SequenceControlerMappedProps>(DiscSequenceControler);
 
-SequenceControler.propTypes = {
-    currentPath: PropTypes.string.isRequired
+type SequenceViewProps = {
+    app:any;
 }
 
-
-class SequenceView extends PureComponent {
-    constructor(props) {
+class SequenceView extends PureComponent<SequenceViewProps> {
+    constructor(props:SequenceViewProps) {
         super(props);
         this.state = {
             sequenceEditDialogVisible: false
@@ -200,7 +226,7 @@ class SequenceView extends PureComponent {
                     path: {
                         title:  'File',
                         defaultWidth: '15em',
-                        render: (o)=>(o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+                        render: (o:BackOfficeStatus.ShootResult)=>(o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
                     },
                     device: {
                         title:  'Device',
@@ -208,8 +234,8 @@ class SequenceView extends PureComponent {
                     }
                 }}
                 defaultHeader={[{id: 'path'}, {id: 'device'}]}
-                getItemList={(store)=>(atPath(store, '$.backend.camera.images.list'))}
-                getItem={(store,uid)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
+                getItemList={(store:any)=>(atPath(store, '$.backend.camera.images.list'))}
+                getItem={(store:any,uid:string)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
                 currentPath='$.sequence.currentImage'
                 onItemClick={this.props.app.setCurrentImage}
             />
