@@ -143,6 +143,19 @@ class Client {
 		worker = false;
 	}
 
+	void release() {
+		for(auto it = producing.begin(); it != producing.end(); ++it)
+		{
+			(*it)->prodFailed("generic worker error");
+		}
+		this->destroy();
+	}
+
+	void destroy() {
+		delete(this);
+	}
+
+private:
 	~Client()
 	{
 		if (this->fd != -1) {
@@ -158,10 +171,6 @@ class Client {
 		}
 		reading.clear();
 
-		for(auto it = producing.begin(); it != producing.end(); ++it)
-		{
-			(*it)->prodFailed("generic worker error");
-		}
 		producing.clear();
 
 		server->waitingWorkers.remove(this);
@@ -177,13 +186,13 @@ class Client {
 		free(readBuffer);
 		free(writeBuffer);
 	}
-
+public:
 	bool send(const std::string & str)
 	{
 		unsigned long l = str.length();
 		if (l > MAX_MESSAGE_SIZE - 2) {
 			std::cerr << "Unable to send message : " << str << "\n";
-			delete(this);
+			release();
 			return false;
 		} else {
 

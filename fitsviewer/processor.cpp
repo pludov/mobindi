@@ -35,7 +35,6 @@ int main (int argc, char ** argv) {
 		cerr << result->getErrorDetails();
 		exit(1);
 	}
-    cerr << result->size();
     write(1, result->data(), result->size());
     result->release();
     return 0;

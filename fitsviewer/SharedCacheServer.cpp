@@ -71,7 +71,7 @@ SharedCacheServer::~SharedCacheServer() {
 	for(auto it = clients.begin(); it != clients.end();)
 	{
 		Client * c = *(it++);
-		delete(c);
+		c->destroy();
 	}
 
 	for(auto it = contentByIdentifier.begin(); it != contentByIdentifier.end();)
@@ -448,9 +448,15 @@ void SharedCacheServer::server()
 
 	// Cleanup the directory
 	while(true) {
-		// Starts some workers if possible
-		while(startedWorkerCount < 2) {
+		// Avoid deadlock: don't account waiting consumers
+		while(startedWorkerCount - waitingConsumers.size() < 2) {
 			startWorker();
+		}
+
+		// don't allow too many idle workers (shrink back)
+		while(waitingWorkers.size() > 2) {
+			// Kill some workers
+			(*waitingWorkers.begin())->release();
 		}
 
 		pollfd polls[clients.size() + 1];
@@ -497,7 +503,7 @@ void SharedCacheServer::server()
 						// Just ignore
 						continue;
 					} else {
-						delete(c);
+						c->release();
 						continue;
 					}
 				} else {
@@ -513,7 +519,7 @@ void SharedCacheServer::server()
 						// Just ignore
 						continue;
 					} else {
-						delete(c);
+						c->release();
 						continue;
 					}
 				} else if (rd == 0 || c->activeRequest) {
@@ -522,7 +528,7 @@ void SharedCacheServer::server()
 					} else {
 						std::cerr << "Client " << c->fd << " terminated\n";
 					}
-					delete(c);
+					c->release();
 					continue;
 				} else {
 					// FIXME: read 0 ? possible ?
@@ -530,7 +536,7 @@ void SharedCacheServer::server()
 					if (c->readBufferPos > 2) {
 						uint16_t size = *(uint16_t*)c->readBuffer;
 						if (size >= MAX_MESSAGE_SIZE || size <= 2) {
-							delete(c);
+							c->release();
 							continue;
 						} else if (size >= c->readBufferPos){
 							// Process a message for the client.
@@ -539,19 +545,19 @@ void SharedCacheServer::server()
 
 							} catch(const std::exception& ex) {
 								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								delete(c);
+								c->release();
 								continue;
 							}
 							try {
 								proceedNewMessage(c);
 							} catch(const ClientError & ex) {
 								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								delete(c);
+								c->release();
 								continue;
 							}
 
 						} else if (c->readBufferPos == MAX_MESSAGE_SIZE) {
-							delete(c);
+							c->release();
 							continue;
 						}
 					}
