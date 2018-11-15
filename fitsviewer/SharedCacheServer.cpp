@@ -144,7 +144,9 @@ void SharedCacheServer::init() {
 			perror("/dev/null");
 		} else {
 			dup2(nullFdw, 1);
-			dup2(nullFdw, 2);
+			if (!getenv("DEBUG")) {
+				dup2(nullFdw, 2);
+			}
 			close(nullFdw);
 		}
 
@@ -328,6 +330,10 @@ void SharedCacheServer::workerLogic(Cache * cache)
 			entry->produced();
 		} catch(WorkerError & e) {
 			entry->failed(e.what());
+		}catch(const std::exception& e) {
+			std::cerr << "Worker dead: "<< e.what() << "\n";
+			entry->failed(std::string("internal error:") + e.what());
+			_exit(255);
 		}
 		delete(entry);
 	}
