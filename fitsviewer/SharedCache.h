@@ -91,9 +91,23 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const StarField & i);
 		void from_json(const nlohmann::json& j, StarField & p);
 
+		struct Astrometry {
+			StarField source;
+			std::string exePath;
+			std::string libraryPath;
+			double fieldMin, fieldMax;
+			double raCenterEstimate, decCenterEstimate;
+			int numberOfBinInUniformize;
+
+			void produce(Entry * entry);
+		};
+		void to_json(nlohmann::json&j, const Astrometry & i);
+		void from_json(const nlohmann::json& j, Astrometry & p);
+
 		// These queries produce json output
 		struct JsonQuery {
 			ChildPtr<StarField> starField;
+			ChildPtr<Astrometry> astrometry;
 			void produce(Entry * entry);
 		};
 		void to_json(nlohmann::json&j, const JsonQuery & i);

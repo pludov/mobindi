@@ -347,6 +347,12 @@ void Messages::JsonQuery::produce(Entry * entry)
 
 		return;
 	}
+	if (this->astrometry) {
+		this->astrometry->produce(entry);
+		std::cerr << "Astrometry done!\n";
+
+		return;
+	}
 	throw WorkerError("Invalid JsonQuery");
 }
 

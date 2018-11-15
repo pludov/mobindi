@@ -18,6 +18,7 @@ struct StarFindResult {
 };
 
 void to_json(nlohmann::json&j, const StarFindResult & i);
+void from_json(const nlohmann::json&j, StarFindResult & i);
 
 class StarFinder {
 

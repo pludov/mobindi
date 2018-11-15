@@ -33,17 +33,47 @@ namespace SharedCache {
 			p.source = j.at("source").get<RawContent>();
 		}
 
+		void to_json(nlohmann::json&j, const Astrometry & i)
+		{
+			j = nlohmann::json::object();
+			j["source"] = i.source;
+			j["exePath"] = i.exePath;
+			j["libraryPath"] = i.libraryPath;
+			j["fieldMin"] = i.fieldMin;
+			j["fieldMax"] = i.fieldMax;
+			j["raCenterEstimate"] = i.raCenterEstimate;
+			j["decCenterEstimate"] = i.decCenterEstimate;
+			j["numberOfBinInUniformize"] = i.numberOfBinInUniformize;
+		}
+
+		void from_json(const nlohmann::json& j, Astrometry & p) {
+			p.source = j.at("source").get<StarField>();
+			p.exePath = j.at("exePath").get<std::string>();
+			p.libraryPath = j.at("libraryPath").get<std::string>();
+			p.fieldMin = j.at("fieldMin").get<double>();
+			p.fieldMax = j.at("fieldMax").get<double>();
+			p.raCenterEstimate = j.at("raCenterEstimate").get<double>();
+			p.decCenterEstimate = j.at("decCenterEstimate").get<double>();
+			p.numberOfBinInUniformize = j.at("numberOfBinInUniformize").get<int>();
+		}
+
 		void to_json(nlohmann::json&j, const JsonQuery & i)
 		{
 			j = nlohmann::json::object();
 			if (i.starField) {
 				j["starField"] = *i.starField;
 			}
+			if (i.astrometry) {
+				j["astrometry"] = *i.astrometry;
+			}
 		}
 
 		void from_json(const nlohmann::json& j, JsonQuery & p) {
 			if (j.find("starField") != j.end()) {
 				p.starField = new StarField(j.at("starField").get<StarField>());
+			}
+			if (j.find("astrometry") != j.end()) {
+				p.astrometry = new Astrometry(j.at("astrometry").get<Astrometry>());
 			}
 		}
 
