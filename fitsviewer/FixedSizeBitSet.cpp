@@ -98,6 +98,7 @@ FixedSizeBitSet & FixedSizeBitSet::operator=(const FixedSizeBitSet & other)
     cardinality = other.cardinality;
     this->words = new uint64_t[wordsLength()];
     memcpy(this->words, other.words, sizeof(uint64_t) * wordsLength());
+    return *this;
 }
 
 
