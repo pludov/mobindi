@@ -15,6 +15,7 @@ void to_json(nlohmann::json&j, const StarFindResult & i)
     j["minFwhm"] = i.minFwhm;
     j["minStddev"] = i.minStddev;
     j["minFwhmAngle"] = i.minFwhmAngle;
+    j["flux"] = i.flux;
 }
 
 void from_json(const nlohmann::json&j, StarFindResult & i)
@@ -29,6 +30,7 @@ void from_json(const nlohmann::json&j, StarFindResult & i)
     i.minFwhm = j.at("minFwhm").get<double>();
     i.minStddev = j.at("minStddev").get<double>();
     i.minFwhmAngle = j.at("minFwhmAngle").get<double>();
+    i.flux = j.at("flux").get<double>();
 }
 
 
@@ -235,6 +237,7 @@ bool StarFinder::perform(StarFindResult & result) {
     result.minFwhm = minFwhm;
     result.minStddev = minFwhm / 2.35;
     result.minFwhmAngle = minAngle;
+    result.flux = aduSum;
 
     return true;
 }

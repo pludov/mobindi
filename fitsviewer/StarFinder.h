@@ -12,7 +12,7 @@
 
 struct StarFindResult {
 	double x, y;
-	double fwhm, stddev;
+	double fwhm, stddev, flux;
 	double maxFwhm, maxStddev, maxFwhmAngle;
 	double minFwhm, minStddev, minFwhmAngle;
 };
