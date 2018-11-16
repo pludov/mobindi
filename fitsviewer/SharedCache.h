@@ -5,6 +5,8 @@
 #include <list>
 #include "json.hpp"
 
+#include "StarFinder.h"
+
 // create a file in /tmp (0 size)
 // adjust its size
 // initialize the structure
@@ -96,9 +98,11 @@ namespace SharedCache {
 			std::string exePath;
 			std::string libraryPath;
 			double fieldMin, fieldMax;
+			double searchRadius;
 			double raCenterEstimate, decCenterEstimate;
 			int numberOfBinInUniformize;
 
+			void writeStarFieldFits(const std::string & path, const std::vector<StarFindResult> & starfield);
 			void produce(Entry * entry);
 		};
 		void to_json(nlohmann::json&j, const Astrometry & i);

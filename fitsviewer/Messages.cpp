@@ -43,6 +43,7 @@ namespace SharedCache {
 			j["fieldMax"] = i.fieldMax;
 			j["raCenterEstimate"] = i.raCenterEstimate;
 			j["decCenterEstimate"] = i.decCenterEstimate;
+			j["searchRadius"] = i.searchRadius;
 			j["numberOfBinInUniformize"] = i.numberOfBinInUniformize;
 		}
 
@@ -54,6 +55,7 @@ namespace SharedCache {
 			p.fieldMax = j.at("fieldMax").get<double>();
 			p.raCenterEstimate = j.at("raCenterEstimate").get<double>();
 			p.decCenterEstimate = j.at("decCenterEstimate").get<double>();
+			p.searchRadius = j.at("searchRadius").get<double>();
 			p.numberOfBinInUniformize = j.at("numberOfBinInUniformize").get<int>();
 		}
 
