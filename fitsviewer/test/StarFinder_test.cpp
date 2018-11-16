@@ -3,6 +3,8 @@
 #include "catch.hpp"
 #include "../StarFinder.h"
 
+using StarOccurence=SharedCache::Messages::StarOccurence;
+
 RawDataStorage * noise(int w, int h, int black, int blackLarg)
 {
     RawDataStorage * result = (RawDataStorage *)::operator new (RawDataStorage::requiredStorage(w,h));
@@ -24,7 +26,7 @@ RawDataStorage * noise(int w, int h, int black, int blackLarg)
 
 
 TEST_CASE( "StarFinder works", "[StarFinder]" ) {
-    StarFindResult findResult;
+    StarOccurence findResult;
     std::shared_ptr<RawDataStorage> source(noise(64, 64, 100, 25));
 
                 // // 0123456789ABCDEF

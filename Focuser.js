@@ -232,7 +232,8 @@ class Focuser {
                                     "starField":{ "source": { "path": imagePath.path}}
                                 });
                             }),
-                            new Promises.Immediate((starField)=> {
+                            new Promises.Immediate((starFieldResponse)=> {
+                                const starField = starFieldResponse.stars;
                                 console.log('AUTOFOCUS: got starfield');
                                 console.log('StarField', JSON.stringify(starField, null, 2));
                                 let fwhm;

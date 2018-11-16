@@ -9,19 +9,9 @@
 #include "BitMask.h"
 #include "ChannelMode.h"
 #include "HistogramStorage.h"
-
-struct StarFindResult {
-	double x, y;
-	double fwhm, stddev, flux;
-	double maxFwhm, maxStddev, maxFwhmAngle;
-	double minFwhm, minStddev, minFwhmAngle;
-};
-
-void to_json(nlohmann::json&j, const StarFindResult & i);
-void from_json(const nlohmann::json&j, StarFindResult & i);
+#include "SharedCache.h"
 
 class StarFinder {
-
 
 	const RawDataStorage* content;
 	const ChannelMode channelMode;
@@ -30,6 +20,7 @@ class StarFinder {
 	const int windowRadius;
 	BitMask star;
 public:
+	using StarOccurence=SharedCache::Messages::StarOccurence;
 
 	StarFinder(const RawDataStorage * content, ChannelMode channelMode, int x, int y, int windowRadius) :
 		content(content), channelMode(channelMode),
@@ -39,7 +30,7 @@ public:
 	{
 	}
 
-	bool perform(StarFindResult & details);
+	bool perform(StarOccurence & details);
 
 	void setExcludeMask(const BitMask * bm) {
 		excludeMask = bm;

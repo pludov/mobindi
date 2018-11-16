@@ -27,14 +27,14 @@ public:
 	}
 };
 
-void SharedCache::Messages::Astrometry::writeStarFieldFits(const std::string & path, const std::vector<StarFindResult> & starfield) {
+void SharedCache::Messages::Astrometry::writeStarFieldFits(const std::string & path, const StarFieldResult & starfield) {
     OpenedFits file;
     int status = 0;
 
 	if (!fits_create_file(&file.fptr, path.c_str(), &status)) {
         fits_create_hdu(file.fptr, &status);
-        int width = 4290;
-        int height = 2856;
+        int width = starfield.width;
+        int height = starfield.height;
 
         fits_write_key_log(file.fptr, "SIMPLE", 1, "file does conform to FITS standard", &status);
         fits_write_key_lng(file.fptr, "BITPIX", 8, nullptr, &status);
@@ -74,30 +74,30 @@ void SharedCache::Messages::Astrometry::writeStarFieldFits(const std::string & p
         char * units[] = { "pix", "pix", "unknown" };
 
         fits_create_hdu(file.fptr, &status);
-        fits_write_btblhdr(file.fptr, starfield.size(), 3, types, forms, units, "SOURCES", 0, &status); 
+        fits_write_btblhdr(file.fptr, starfield.stars.size(), 3, types, forms, units, "SOURCES", 0, &status); 
 
         fits_write_key_lng(file.fptr, "IMAGEW", width, "image width", &status);
         fits_write_key_lng(file.fptr, "IMAGEH", height, "image height", &status);
 
-        float * values = new float[starfield.size()];
+        float * values = new float[starfield.stars.size()];
         for(int col = 1; col <= 3; ++col) {
-            for(size_t i = 0; i < starfield.size(); ++i) {
+            for(size_t i = 0; i < starfield.stars.size(); ++i) {
                 float v;
                 switch(col) {
                     case 1:
-                        v = starfield[i].x;
+                        v = starfield.stars[i].x;
                         break;
                     case 2:
-                        v = starfield[i].y;
+                        v = starfield.stars[i].y;
                         break;
                     case 3:
-                        v = starfield[i].flux;
+                        v = starfield.stars[i].flux;
                         break;
                 }
                 values[i] = v;
             }
 
-            fits_write_col_flt(file.fptr, col, 1, 1, starfield.size(), values, &status);
+            fits_write_col_flt(file.fptr, col, 1, 1, starfield.stars.size(), values, &status);
         }
 
         delete(values);
@@ -120,10 +120,10 @@ void SharedCache::Messages::Astrometry::produce(SharedCache::Entry* entry)
     std::string source((const char*)starField->data(), starField->size());
 
     j = nlohmann::json::parse(source);
-    std::vector<StarFindResult> starFieldData = j;
+    StarFieldResult starFieldResult = j;
 
-    writeStarFieldFits("/tmp/plop.fits", starFieldData);
-    j = starFieldData;
+    writeStarFieldFits("/tmp/plop.fits", starFieldResult);
+    j = starFieldResult;
     std::string t = j.dump();
     entry->allocate(t.size());
     memcpy(entry->data(), t.data(), t.size());

@@ -53,6 +53,7 @@ class MultiStarFinder {
 	HistogramStorage * histogram;
 	const ChannelMode channelMode;
 public:
+	using StarOccurence=SharedCache::Messages::StarOccurence;
 
 	MultiStarFinder(RawDataStorage * content, HistogramStorage * histogram)
 		: channelMode(content->hasColors() ? 4 : 1)
@@ -67,7 +68,7 @@ public:
 		return (x & 1) + (y & 1);
 	}
 
-	std::vector<StarFindResult> proceed(int maxCount) {
+	std::vector<StarOccurence> proceed(int maxCount) {
 		int blackLevelByChannel[channelMode.channelCount];
 		int blackStddevByChannel[channelMode.channelCount];
 
@@ -184,14 +185,14 @@ public:
 		BitMask checkedArea(0, 0, content->w - 1, content->h - 1);
 
 		int left = maxCount;
-		std::vector<StarFindResult> resultVec;
+		std::vector<StarOccurence> resultVec;
 		resultVec.reserve(maxCount);
 		for(const auto & star : stars)
 		{
 			cout << star->weight << " at " << star->cx << "  " << star->cy << "\n" ;
 			StarFinder sf(content, channelMode, star->cx, star->cy, 25);
 			sf.setExcludeMask(&checkedArea);
-			StarFindResult result;
+			StarOccurence result;
 			if (sf.perform(result)) {
 				cout << result.x << "\t" << result.y << "\t=> " << result.fwhm << "\n";
 				resultVec.push_back(result);
@@ -249,7 +250,10 @@ void SharedCache::Messages::StarField::produce(SharedCache::Entry* entry)
 
 	HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
 	MultiStarFinder msf(contentStorage, histogramStorage);
-	auto result = msf.proceed(200);
+	StarFieldResult result;
+	result.width = contentStorage->w;
+	result.height = contentStorage->h;
+	result.stars = msf.proceed(200);
 
     json j = result;
     std::string t = j.dump();

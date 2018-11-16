@@ -5,8 +5,6 @@
 #include <list>
 #include "json.hpp"
 
-#include "StarFinder.h"
-
 // create a file in /tmp (0 size)
 // adjust its size
 // initialize the structure
@@ -86,12 +84,29 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const Histogram & i);
 		void from_json(const nlohmann::json& j, Histogram & p);
 
+		struct StarOccurence {
+			double x, y;
+			double fwhm, stddev, flux;
+			double maxFwhm, maxStddev, maxFwhmAngle;
+			double minFwhm, minStddev, minFwhmAngle;
+		};
+
+		void to_json(nlohmann::json&j, const StarOccurence & i);
+		void from_json(const nlohmann::json&j, StarOccurence & i);
+
 		struct StarField {
 			RawContent source;
 			void produce(Entry * entry);
 		};
 		void to_json(nlohmann::json&j, const StarField & i);
 		void from_json(const nlohmann::json& j, StarField & p);
+
+		struct StarFieldResult {
+			int width, height;
+			std::vector<StarOccurence> stars;
+		};
+		void to_json(nlohmann::json&j, const StarFieldResult & i);
+		void from_json(const nlohmann::json& j, StarFieldResult & p);
 
 		struct Astrometry {
 			StarField source;
@@ -102,7 +117,7 @@ namespace SharedCache {
 			double raCenterEstimate, decCenterEstimate;
 			int numberOfBinInUniformize;
 
-			void writeStarFieldFits(const std::string & path, const std::vector<StarFindResult> & starfield);
+			void writeStarFieldFits(const std::string & path, const StarFieldResult & starfield);
 			void produce(Entry * entry);
 		};
 		void to_json(nlohmann::json&j, const Astrometry & i);

@@ -33,6 +33,52 @@ namespace SharedCache {
 			p.source = j.at("source").get<RawContent>();
 		}
 
+		void to_json(nlohmann::json&j, const StarOccurence & i)
+		{
+			j = nlohmann::json::object();
+			j["x"] = i.x;
+			j["y"] = i.y;
+			j["fwhm"] = i.fwhm;
+			j["stddev"] = i.stddev;
+			j["maxFwhm"] = i.maxFwhm;
+			j["maxStddev"] = i.maxStddev;
+			j["maxFwhmAngle"] = i.maxFwhmAngle;
+			j["minFwhm"] = i.minFwhm;
+			j["minStddev"] = i.minStddev;
+			j["minFwhmAngle"] = i.minFwhmAngle;
+			j["flux"] = i.flux;
+		}
+
+		void from_json(const nlohmann::json&j, StarOccurence & i)
+		{
+			i.x = j.at("x").get<double>();
+			i.y = j.at("y").get<double>();
+			i.fwhm = j.at("fwhm").get<double>();
+			i.stddev = j.at("stddev").get<double>();
+			i.maxFwhm = j.at("maxFwhm").get<double>();
+			i.maxStddev = j.at("maxStddev").get<double>();
+			i.maxFwhmAngle= j.at("maxFwhmAngle").get<double>();
+			i.minFwhm = j.at("minFwhm").get<double>();
+			i.minStddev = j.at("minStddev").get<double>();
+			i.minFwhmAngle = j.at("minFwhmAngle").get<double>();
+			i.flux = j.at("flux").get<double>();
+		}
+
+		void to_json(nlohmann::json&j, const StarFieldResult & i)
+		{
+			j = nlohmann::json::object();
+			j["width"] = i.width;
+			j["height"] = i.height;
+			j["stars"] = i.stars;
+		}
+
+		void from_json(const nlohmann::json& j, StarFieldResult & p)
+		{
+			p.width = j.at("width").get<double>();
+			p.height = j.at("height").get<double>();
+			p.stars = j.at("stars").get<std::vector<StarOccurence>>();
+		}
+
 		void to_json(nlohmann::json&j, const Astrometry & i)
 		{
 			j = nlohmann::json::object();

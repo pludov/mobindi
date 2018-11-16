@@ -798,14 +798,14 @@ class FWHMDisplayer extends PureComponent {
                 details: {"starField":{ "source": { "path":this.props.src}}}
         }).then((e)=>{
             let fwhmSum = 0;
-            for(let star of e) {
+            for(let star of e.stars) {
                 fwhmSum += star.fwhm
             }
-            if (e.length) {
-                fwhmSum /= e.length;
+            if (e.stars.length) {
+                fwhmSum /= e.stars.length;
             }
 
-            const stat = fwhmSum.toFixed(2) + " - " + e.length + " stars"
+            const stat = fwhmSum.toFixed(2) + " - " + e.stars.length + " stars"
 
             this.setState({
                 value: stat,
