@@ -32,6 +32,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(SRCS
   TempDir.cpp
   ChildProcess.cpp
+  FitsFile.cpp
   Astrometry.cpp
   FixedSizeBitSet.cpp
 	SharedCache.cpp

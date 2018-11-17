@@ -1,5 +1,4 @@
-#include "fitsio.h"
-
+#include "FitsFile.h"
 #include "SharedCache.h"
 #include "SharedCacheServer.h"
 #include "RawDataStorage.h"
@@ -67,116 +66,87 @@ int RawDataStorage::getRGBIndex(char c)
 	return -1;
 }
 
-static void throwFitsIOError(const std::string & text, int status)
-{
-	char buffer[128];
-	fits_get_errstatus(status, buffer);
-	throw SharedCache::WorkerError(text + ": " + std::string(buffer));
-}
-
-class OpenedFits {
-public:
-	fitsfile * fptr;
-
-	OpenedFits() {
-		fptr = nullptr;
-	}
-
-	~OpenedFits() {
-		if (fptr) {
-			int status = 0;
-			fits_close_file(fptr, &status);
-		}
-	}
-};
-
 void SharedCache::Messages::RawContent::produce(Entry * entry)
 {
-	OpenedFits file;
+	FitsFile file;
 	int status = 0;
 	int bitpix, naxis;
 	long naxes[2] = {1,1};
 	u_int16_t * data;
 
-	if (!fits_open_file(&file.fptr, path.c_str(), READONLY, &status))
-	{
+	file.open(path.c_str());
 		if (!fits_get_img_param(file.fptr, 2, &bitpix, &naxis, naxes, &status) )
 		{
 			fprintf(stderr, "bitpix = %d\n", bitpix);
 			fprintf(stderr, "naxis = %d\n", naxis);
-			if (naxis != 2) {
-				fprintf(stderr, "unsupported axis count\n");
+		if (naxis != 2) {
+			fprintf(stderr, "unsupported axis count\n");
+		} else {
+			fprintf(stderr, "size=%ldx%ld\n", naxes[0], naxes[1]);
+
+		}
+
+		int w = naxes[0];
+		int h = naxes[1];
+
+		int hdupos = 1;
+		int nkeys;
+		char card[FLEN_CARD];
+		std::string bayer = "";
+		std::string cardBAYERPAT;
+		for (; !status; hdupos++)  /* Main loop through each extension */
+		{
+			fits_get_hdrspace(file.fptr, &nkeys, NULL, &status); /* get # of keywords */
+
+			fprintf(stderr, "Header listing for HDU #%d:\n", hdupos);
+
+			for (int ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
+
+				if (fits_read_record(file.fptr, ii, card, &status))break;
+				fprintf(stderr, "%s\n", card);
+			}
+			fprintf(stderr, "END\n\n");  /* terminate listing with END */
+
+			if (readKey(file.fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
+				fprintf(stderr, "BAYER detected");
+			}
+			fits_movrel_hdu(file.fptr, 1, NULL, &status);  /* try to move to next HDU */
+		}
+
+		status = 0;
+		if (bayer.size() > 0) {
+			if (bayer.size() != 4) {
+				fprintf(stderr, "Ignoring bayer pattern: %s\n", bayer.c_str());
+				bayer = "";
 			} else {
-				fprintf(stderr, "size=%ldx%ld\n", naxes[0], naxes[1]);
-
-			}
-
-			int w = naxes[0];
-			int h = naxes[1];
-
-			int hdupos = 1;
-			int nkeys;
-			char card[FLEN_CARD];
-			std::string bayer = "";
-			std::string cardBAYERPAT;
-			for (; !status; hdupos++)  /* Main loop through each extension */
-			{
-				fits_get_hdrspace(file.fptr, &nkeys, NULL, &status); /* get # of keywords */
-
-				fprintf(stderr, "Header listing for HDU #%d:\n", hdupos);
-
-				for (int ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
-
-					if (fits_read_record(file.fptr, ii, card, &status))break;
-					fprintf(stderr, "%s\n", card);
+				bool valid = true;
+				for(int i = 0; i < 4; ++i) {
+					if (RawDataStorage::getRGBIndex(bayer[i]) == -1) {
+						valid = false;
+						break;
+					}
 				}
-				fprintf(stderr, "END\n\n");  /* terminate listing with END */
-
-				if (readKey(file.fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
-					fprintf(stderr, "BAYER detected");
-				}
-				fits_movrel_hdu(file.fptr, 1, NULL, &status);  /* try to move to next HDU */
-			}
-
-			status = 0;
-			if (bayer.size() > 0) {
-				if (bayer.size() != 4) {
+				if (!valid) {
 					fprintf(stderr, "Ignoring bayer pattern: %s\n", bayer.c_str());
 					bayer = "";
-				} else {
-					bool valid = true;
-					for(int i = 0; i < 4; ++i) {
-						if (RawDataStorage::getRGBIndex(bayer[i]) == -1) {
-							valid = false;
-							break;
-						}
-					}
-					if (!valid) {
-						fprintf(stderr, "Ignoring bayer pattern: %s\n", bayer.c_str());
-						bayer = "";
-					}
 				}
 			}
+		}
 
-			entry->allocate(RawDataStorage::requiredStorage(w, h));
-			RawDataStorage * storage = (RawDataStorage*)entry->data();
+		entry->allocate(RawDataStorage::requiredStorage(w, h));
+		RawDataStorage * storage = (RawDataStorage*)entry->data();
 
-			storage->setSize(w, h);
-			storage->setBayer(bayer);
+		storage->setSize(w, h);
+		storage->setBayer(bayer);
 
-			long fpixels[2]= {1,1};
-			if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
-				return;
-			} else {
-				throwFitsIOError(path, status);
-			}
+		long fpixels[2]= {1,1};
+		if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
+			return;
 		} else {
-			throwFitsIOError(path, status);
+			FitsFile::throwFitsIOError(path, status);
 		}
 	} else {
-		throwFitsIOError(path, status);
+		FitsFile::throwFitsIOError(path, status);
 	}
-	throw std::runtime_error("Failed to read fits");
-
 }
 
