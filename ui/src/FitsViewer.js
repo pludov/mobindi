@@ -15,15 +15,49 @@ class ContextMenu extends PureComponent {
         this.showMedium = this.showMedium.bind(this);
         this.showHigh = this.showHigh.bind(this);
         this.showFwhm = this.showFwhm.bind(this);
+        this.item = null;
     }
+
+    setRef = (e)=>{this.item = e;};
 
     showLow() { this.props.displaySetting('low'); }
     showMedium() { this.props.displaySetting('medium'); }
     showHigh() { this.props.displaySetting('high'); }
     showFwhm() { this.props.displaySetting('fwhm'); }
 
+    adjust() {
+        // ensure that the menu does not go outside the container
+        if (this.item !== null) {
+
+            const sze  = {
+                x: this.item.style.left,
+                y: this.item.style.top,
+                cx: this.item.clientWidth,
+                cy: this.item.clientHeight,
+                px: this.item.parentNode.clientWidth,
+                py: this.item.parentNode.clientHeight,
+            }
+            if (this.props.x + sze.cx > sze.px) {
+                // Update the css: move left
+                this.item.style.left = (parseFloat(this.item.style.left) - (this.props.x + sze.cx - sze.px)) + "px";
+            }
+            if (this.props.y + sze.cy > sze.py) {
+                // Update the css: move up
+                this.item.style.top = (parseFloat(this.item.style.top) - (this.props.y + sze.cy - sze.py)) + "px";
+            }
+            console.log('rendered sze: ', sze);
+        }
+    }
+
+    componentDidMount() {
+        this.adjust();
+    }
+
+    componentDidUpdate() {
+        this.adjust();
+    }
+
     render() {
-        // FIXME: ensure that the menu does not go outside
         var css = {
             left: this.props.x,
             top: this.props.y,
@@ -31,7 +65,7 @@ class ContextMenu extends PureComponent {
         }
         console.log('x = ', this.props.x, 'y = ', this.props.y);
         return(
-            <div className="ImageContextMenu" style={css}>
+            <div className="ImageContextMenu" style={css} ref={this.setRef}>
                 {
                     !this.props.contextMenu ? null :
                         this.props.contextMenu.map(e => <div

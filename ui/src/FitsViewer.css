@@ -17,6 +17,7 @@ div.ImageContextMenu div.Item {
     border: 0.1em solid #404060;
     background: rgba(192,192,192,0.7);
     cursor: pointer;
+    white-space: nowrap;
 }
 
 
