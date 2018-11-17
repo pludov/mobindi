@@ -32,6 +32,18 @@ class ContextMenu extends PureComponent {
         console.log('x = ', this.props.x, 'y = ', this.props.y);
         return(
             <div className="ImageContextMenu" style={css}>
+                {
+                    !this.props.contextMenu ? null :
+                        this.props.contextMenu.map(e => <div
+                                className="Item"
+                                onClick={()=> {
+                                    this.props.displaySetting(null);
+                                    e.cb(this.props.x, this.props.y);
+                                }}
+                                key={e.key}>
+                            {e.title}
+                        </div>)
+                }
                 <div className="Item" onClick={this.showLow}>Low level</div>
                 <div className="Item" onClick={this.showMedium}>Median</div>
                 <div className="Item" onClick={this.showHigh}>High level</div>
@@ -83,7 +95,7 @@ class JQImageDisplay {
 
 
 
-    constructor(elt, contextMenuCb, onViewSettingsChangeCb) {
+    constructor(elt, contextMenuCb, closeContextMenuCb, onViewSettingsChangeCb) {
         this.currentImg = undefined;
         // The path (without cgi settings)
         this.currentImgPath = undefined;
@@ -103,6 +115,7 @@ class JQImageDisplay {
         
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
+        this.closeContextMenuCb = closeContextMenuCb;
         this.onViewSettingsChangeCb = onViewSettingsChangeCb;
         elt.css('display', 'block');
         elt.css('width', '100%');
@@ -427,6 +440,10 @@ class JQImageDisplay {
         }
     }
 
+    closeMenu() {
+        this.closeContextMenuCb();
+    }
+
     touchstart(e) {
         e.preventDefault();
         var touches = e.originalEvent.changedTouches;
@@ -448,6 +465,8 @@ class JQImageDisplay {
             this.menuTimer = setTimeout(function() {
                 self.contextMenuAt(where.x, where.y);
             }, 400);
+        } else {
+            this.closeMenu();
         }
     }
 
@@ -562,6 +581,7 @@ class JQImageDisplay {
             this.mouseIsDown = true;
             this.setMouseDragged(false);
             this.mouseDragPos = {x: e.originalEvent.screenX, y: e.originalEvent.screenY};
+            this.closeMenu();
         }
     }
 
@@ -878,7 +898,10 @@ class FitsViewer extends PureComponent {
 
     componentDidMount() {
         this.$el = $(this.el);
-        this.ImageDisplay = new JQImageDisplay(this.$el, this.openContextMenu.bind(this), this.onViewSettingsChange.bind(this));
+        this.ImageDisplay = new JQImageDisplay(this.$el, 
+            this.openContextMenu.bind(this), 
+            this.closeContextMenu.bind(this), 
+            this.onViewSettingsChange.bind(this));
         this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
     }
 
@@ -890,6 +913,12 @@ class FitsViewer extends PureComponent {
 
     openContextMenu(x, y) {
         this.setState({contextmenu:{x:x, y:y}});
+    }
+
+    closeContextMenu(x, y) {
+        if (this.state.contextmenu !== null) {
+            this.setState({contextmenu:null});
+        }
     }
 
     onViewSettingsChange(state)
@@ -938,7 +967,9 @@ class FitsViewer extends PureComponent {
         console.log('state is ', this.state);
         var contextMenu;
         if (this.state.contextmenu !== null) {
-            contextMenu = <ContextMenu x={this.state.contextmenu.x} y={this.state.contextmenu.y}
+            contextMenu = <ContextMenu
+                            contextMenu={this.props.contextMenu}
+                            x={this.state.contextmenu.x} y={this.state.contextmenu.y}
                             displaySetting={this.displaySetting}
             />
         } else {

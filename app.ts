@@ -36,6 +36,8 @@ import JsonProxy = require('./JsonProxy');
 import TriggerExecuter = require('./TriggerExecuter');
 //@ts-ignore
 import ToolExecuter = require('./ToolExecuter');
+
+import Astrometry from './Astrometry';
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
@@ -130,6 +132,8 @@ context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 context.toolExecuter = new ToolExecuter(appStateManager, context);
 
 context.focuser = new Focuser(app, appStateManager, context);
+
+context.astrometry = new Astrometry(app, appStateManager, context);
 
 app.use(function(req, res:any, next) {
     if ('jsonResult' in res) {

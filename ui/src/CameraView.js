@@ -108,13 +108,35 @@ class CameraView extends PureComponent {
 
     constructor(props) {
         super(props);
-        this.state = {url: 'test.jpg'};
+        this.state = {url: ''};
         this.setPhoto = this.setPhoto.bind(this);
         this.connect = this.connect.bind(this);
+        this.astrometryMenu = [
+            {
+                title: 'Astrometry',
+                key: 'astrometry',
+                cb: this.startAstrometry
+            }
+        ];
     }
+
+    startAstrometry = () => {
+        const computeRequest={
+            image: this.state.url
+        };
+        
+        console.log('Start astrometry ?' + this.state.url);
+        this.props.app.appServerRequest('astrometry', {
+            method: 'compute',
+            ...computeRequest
+        }).start();
+        console.log('done astrometry ?');
+    };
 
     render() {
         //var self = this;
+        const contextMenu = this.state.url === '' ? null : this.astrometryMenu;
+
         return(<div className="CameraView">
             <div>
                 <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
@@ -128,7 +150,11 @@ class CameraView extends PureComponent {
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <div className="FitsViewer FitsViewContainer">
-                <FitsViewerInContext contextKey="default" src={this.state.url} app={this.props.app}/>
+                <FitsViewerInContext contextKey="default" 
+                            src={this.state.url}
+                            app={this.props.app}
+                            contextMenu={contextMenu}
+                    />
             </div>
             <ShootBton
                     activePath="$.backend.camera.selectedDevice"

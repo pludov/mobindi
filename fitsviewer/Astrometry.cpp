@@ -9,7 +9,6 @@
 #include "SharedCacheServer.h"
 #include "SharedCache.h"
 #include "StarFinder.h"
-#include "Astrometry.h"
 
 using namespace std;
 using nlohmann::json;

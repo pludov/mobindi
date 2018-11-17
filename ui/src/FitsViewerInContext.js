@@ -19,7 +19,7 @@ class FitsViewerInContext extends PureComponent {
     }
 
     render() {
-        return <FitsViewer app={this.props.app} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings}/>
+        return <FitsViewer app={this.props.app} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings} contextMenu={this.props.contextMenu}/>
     }
 }
 
@@ -30,6 +30,7 @@ FitsViewerInContext = connect((store, ownProps) => ({
 FitsViewerInContext.propTypes = {
     src: PropTypes.string.isRequired,
     contextKey: PropTypes.string.isRequired,
+    contextMenu: PropTypes.any,
     app: PropTypes.any
 }
 
