@@ -30,6 +30,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(SRCS
+  TempDir.cpp
+  ChildProcess.cpp
   Astrometry.cpp
   FixedSizeBitSet.cpp
 	SharedCache.cpp

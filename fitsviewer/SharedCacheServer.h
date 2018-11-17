@@ -28,6 +28,8 @@ public:
 class WorkerError : public std::runtime_error {
 public:
 	WorkerError(const std::string & s);
+
+	static WorkerError fromErrno(int errnoValue, const std::string & msg);
 };
 
 class ClientFifo : public std::list<Client*> {

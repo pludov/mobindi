@@ -34,6 +34,12 @@ long now()
 ClientError::ClientError(const std::string & msg) : std::runtime_error(msg) {}
 WorkerError::WorkerError(const std::string & msg) : std::runtime_error(msg) {}
 
+WorkerError WorkerError::fromErrno(int fromErrno, const std::string & msg) {
+	char buffer[ 256 ];
+    char * errorMessage = strerror_r( errno, buffer, 256 ); // get string message from errno
+	return WorkerError(msg + ": " + std::string(errorMessage));
+}
+
 ClientFifo::ClientFifo(Getter getter, Setter setter) : setter(setter), getter(getter) {}
 
 void ClientFifo::add(Client * c) {
@@ -404,6 +410,11 @@ void SharedCacheServer::startWorker()
 		try {
 			Cache * clientCache = new Cache(basePath, maxSize, fd[1]);
 			delete(this);
+
+			// restore child process handling to default
+			signal(SIGCHLD, SIG_DFL);
+
+
 			workerLogic(clientCache);
 		}catch(const std::exception& e) {
 			std::cerr << "Worker dead: "<< e.what() << "\n";

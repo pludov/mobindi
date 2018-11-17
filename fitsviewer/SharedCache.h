@@ -117,7 +117,6 @@ namespace SharedCache {
 			double raCenterEstimate, decCenterEstimate;
 			int numberOfBinInUniformize;
 
-			void writeStarFieldFits(const std::string & path, const StarFieldResult & starfield);
 			void produce(Entry * entry);
 		};
 		void to_json(nlohmann::json&j, const Astrometry & i);
