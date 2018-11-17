@@ -32,7 +32,6 @@ int system(const std::string & command, const std::vector<std::string> &  argStr
     } else {
         // FIXME: close filedesc/set close on exec
         const char * args[argStrs.size() + 2];
-        write(2, "forked successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull successfull forked successfull forked successfull",  150);
         args[0] = command.c_str();
         for(size_t i = 0; i < argStrs.size(); ++i) {
             args[i + 1] = argStrs[i].c_str();
