@@ -1,5 +1,7 @@
 import * as Promises from './Promises';
-import {CameraStatus, ShootResult, ShootSettings, AstrometryStatus, AstrometryComputeRequest} from './shared/BackOfficeStatus';
+import ImageProcessor from './ImageProcessor';
+import {CameraStatus, ShootResult, ShootSettings} from './shared/BackOfficeStatus';
+import {AstrometryStatus, AstrometryComputeRequest} from './shared/ProcessorTypes';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 
 
@@ -8,7 +10,8 @@ const {IndiConnection, timestampToEpoch} = require('./Indi');
 export default class Astrometry {
     appStateManager: any;
     currentStatus: AstrometryStatus;
-    imageProcessor: any;
+    imageProcessor: ImageProcessor;
+    currentProcess: Promises.Cancelable<any, any>|null = null;
 
     constructor(app:any, appStateManager:any, context:any) {
         this.appStateManager = appStateManager;
@@ -25,9 +28,12 @@ export default class Astrometry {
     }
 
     $api_compute(message:AstrometryComputeRequest, progress:any) {
-        return new Promises.Builder(()=> {
+        return new Promises.Builder<void, void>(()=>{
             console.log('Astrometry: compute for ' + message.image);
-            return this.imageProcessor.compute({
+            if (this.currentProcess !== null) {
+                throw new Error("Astrometry already in process");
+            }
+            const newProcess = this.imageProcessor.compute({
                 "astrometry": {
                     "exePath": "",
                     "libraryPath": "",
@@ -42,6 +48,19 @@ export default class Astrometry {
                     }
                 }
             });
+
+            const deregister = ()=> {
+                if (this.currentProcess === newProcess) {
+                    this.currentProcess = null;
+                }
+            };
+
+            newProcess.onCancel(deregister);
+            newProcess.onError(deregister);
+            newProcess.then(deregister);
+
+            this.currentProcess = newProcess;
+            return newProcess;
         });
     }
 }
