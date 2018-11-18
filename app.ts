@@ -28,7 +28,7 @@ import {Camera} from './Camera';
 //@ts-ignore
 import {Focuser} from './Focuser';
 //@ts-ignore
-import {ImageProcessor} from './ImageProcessor';
+import ImageProcessor from './ImageProcessor';
 
 //@ts-ignore
 import JsonProxy = require('./JsonProxy');

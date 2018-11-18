@@ -1,28 +1,32 @@
-const memory_streams = require('memory-streams');
-const Obj = require('./Obj.js');
-const ConfigStore = require('./ConfigStore');
-const Promises = require('./Promises');
-const SystemPromises = require('./SystemPromises');
+import MemoryStreams from 'memory-streams';
+import * as Promises from './Promises';
+import * as SystemPromises from './SystemPromises';
+
+import {ProcessorRequest} from './shared/ProcessorTypes';
 
 
-// Ugggglyyy fix for end of stream 
-memory_streams.ReadableStream.prototype._read = function(n) {
-    this.push(this._data);
-    this._data = null;
+// Ugggglyyy fix for end of stream
+MemoryStreams.ReadableStream.prototype._read = function(n) {
+    const self : any = this;
+    this.push(self._data);
+    self._data = null;
   };
 
-class ImageProcessor
+export default class ImageProcessor
 {
-    constructor(jsonProxy, context) {
+    jsonProxy:any;
+
+    constructor(jsonProxy:any, context:any) {
         this.jsonProxy = jsonProxy;
     }
 
-    compute(jsonRequest) {
+    compute(jsonRequest: ProcessorRequest):Promises.Cancelable<void, any> {
         var self = this;
-        let writableStream;
-        let writableStreamDone;
-        let writableStreamCb;
-        function captureDone() 
+        let writableStream: MemoryStreams.WritableStream;
+        let writableStreamDone: boolean = false;
+        let writableStreamCb:undefined|(()=>(void));
+
+        function captureDone()
         {
             writableStreamDone = true;
             if (writableStreamCb) {
@@ -31,7 +35,7 @@ class ImageProcessor
         }
         return new Promises.Chain(
             new Promises.Immediate(() => {
-                writableStream = new memory_streams.WritableStream();
+                writableStream = new MemoryStreams.WritableStream();
                 writableStreamCb = undefined;
                 writableStreamDone = false;
                 writableStream.on('finish', ()=> {
@@ -46,27 +50,25 @@ class ImageProcessor
                         'pipe',
                         'inherit'
                     ],
-                    stdin: new memory_streams.ReadableStream(JSON.stringify(jsonRequest)),
+                    stdin: new MemoryStreams.ReadableStream(JSON.stringify(jsonRequest)),
                     stdout: writableStream
                 }
             })),
-            new Promises.Cancelable((next)=> {
+            new Promises.Cancelable<void, void>((next)=> {
                 if (writableStreamDone) {
-                    next.done();
+                    next.done(undefined);
                 } else {
-                    writableStreamCb = ()=>next.done();
+                    writableStreamCb = ()=>next.done(undefined);
                 }
             }),
-            new Promises.Immediate((e)=> {
+            new Promises.Immediate(()=> {
                 const result = writableStream.toString();
                 return JSON.parse(result);
             })
         );
     }
 
-    $api_compute(jsonRequest) {
+    $api_compute(jsonRequest: any) {
         return this.compute(jsonRequest.details);
     }
 }
-
-module.exports = {ImageProcessor};
