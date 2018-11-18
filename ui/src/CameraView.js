@@ -71,7 +71,7 @@ class ShootBton extends PureComponent {
             available: false
         }
         var active = atPath(store, ownProps.activePath);
-        if (active === null) return result;
+        if (active === undefined) return result;
 
         // Check if exposure is present
         var deviceNode = atPath(store, '$.backend.indiManager.deviceTree[' + JSON.stringify(active) + "].CCD_EXPOSURE");
