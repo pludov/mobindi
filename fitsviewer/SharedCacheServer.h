@@ -70,7 +70,7 @@ class SharedCacheServer {
 
 	int startedWorkerCount;
 
-	void server();
+	[[ noreturn ]] void server();
 	void evict(CacheFileDesc * item);
 	void clearWorkingDirectory();
 	void receiveMessage(Client * client, uint16_t size);

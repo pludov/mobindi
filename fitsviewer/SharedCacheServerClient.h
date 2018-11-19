@@ -112,6 +112,7 @@ class Client {
 	bool waitingConsumer;
 
 	int fd;
+	pid_t workerPid;
 
 	char * readBuffer;
 	int readBufferPos;
@@ -128,9 +129,13 @@ class Client {
 
 	pollfd * poll;
 
-	Client(SharedCacheServer * server, int fd) :readBuffer(), writeBuffer() {
+	// Set when a signal has been sent to client. The client will be closed at its next "finished" message
+	bool killed;
+
+	Client(SharedCacheServer * server, int fd, pid_t workerPid) :readBuffer(), writeBuffer() {
 		this->fd = fd;
 		this->server = server;
+		this->workerPid = workerPid;
 		poll = nullptr;
 		activeRequest = nullptr;
 		writeBufferPos = 0;
@@ -141,6 +146,7 @@ class Client {
 		waitingConsumer = false;
 		waitingWorker = false;
 		worker = false;
+		killed = false;
 	}
 
 	void release() {
@@ -154,6 +160,8 @@ class Client {
 	void destroy() {
 		delete(this);
 	}
+
+	void kill();
 
 private:
 	~Client()

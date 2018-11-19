@@ -6,6 +6,7 @@
  */
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -19,6 +20,7 @@
 #include <assert.h>
 #include <iostream>
 #include <dirent.h>
+
 #include "SharedCacheServer.h"
 #include "SharedCacheServerClient.h"
 
@@ -59,6 +61,15 @@ void ClientFifo::remove(Client * c) {
 		erase(where);
 	}
 	(c->*setter)(false);
+}
+
+void Client::kill()
+{
+	if (killed) {
+		return;
+	}
+	killed = true;
+	::kill(-workerPid, SIGINT);
 }
 
 SharedCacheServer::SharedCacheServer(const std::string & path, long maxSize):
@@ -197,7 +208,7 @@ void SharedCacheServer::doAccept()
 		return;
 	}
 
-	clients.insert(new Client(this, fd));
+	clients.insert(new Client(this, fd, -1));
 }
 
 void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
@@ -221,6 +232,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		return;
 	}
 	if (c->activeRequest->workRequest) {
+		if (c->workerPid == -1) {
+			throw new std::runtime_error("Client is not a worker");
+		}
 		waitingWorkers.add(c);
 		return;
 	}
@@ -251,6 +265,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		}
 		Messages::Result result;
 		c->reply(result);
+		if (c->killed) {
+			c->release();
+		}
 		return;
 	}
 	if (c->activeRequest->releasedAnnounce) {
@@ -397,6 +414,9 @@ void SharedCacheServer::startWorker()
 		throw std::runtime_error("Unable to setup socket");
 	}
 
+	// prevent process from vanishing between for/setpgid
+	signal(SIGCHLD, SIG_DFL);
+
 	pid_t pid = fork();
 	if (pid == -1) {
 		perror("fork");
@@ -405,15 +425,19 @@ void SharedCacheServer::startWorker()
 	if (pid == 0) {
 
 		close(fd[0]); /* Close the parent file descriptor */
+
+		/* Go in own process group */
+		if (setpgid(0, 0) == -1) {
+			perror("child setpgid");
+		}
 		// FIXME: close all but fd[1]...
-		// FIXME: free all server
 		try {
 			Cache * clientCache = new Cache(basePath, maxSize, fd[1]);
+			// free all server
 			delete(this);
 
 			// restore child process handling to default
 			signal(SIGCHLD, SIG_DFL);
-
 
 			workerLogic(clientCache);
 		}catch(const std::exception& e) {
@@ -427,8 +451,30 @@ void SharedCacheServer::startWorker()
 		_exit(0);
 	}
 	close(fd[1]);
+	/* Put in its own process group (race with setpgid above) */
+	if (setpgid(pid, pid) == -1) {
+		perror("parent setpgid");
+	}
 
-	Client * worker = new Client(this, fd[0]);
+	// Ignore SIGCHLD and flush pending waiting process
+	signal(SIGCHLD, SIG_IGN);
+	while(1) {
+		int wstatus;
+		pid_t waitPidRet = waitpid(-1, &wstatus, WNOHANG);
+		if (waitPidRet > 0) {
+			continue;
+		}
+		if (waitPidRet == 0) {
+			break;
+		}
+		if (errno == EINTR) {
+			continue;
+		}
+		perror("waitpid");
+		break;
+	}
+
+	Client * worker = new Client(this, fd[0], pid);
 	worker->worker = true;
 	clients.insert(worker);
 	std::cerr << "New worker started\n";
@@ -615,6 +661,34 @@ void SharedCacheServer::server()
 				c->reply(resultMessage);
 			}
 		}
+
+		ClientLoop: for(auto it = clients.begin(); it != clients.end();) {
+			Client * c = (*it++);
+			if (c->producing.empty()) {
+				continue;
+			}
+			if (c->killed) {
+				continue;
+			}
+
+			bool reallyUsed = false;
+			for(auto producingIt = c->producing.begin(); producingIt != c->producing.end();) {
+				CacheFileDesc * producing = (*producingIt++);
+
+				if (evaluator.required(producing)) {
+					reallyUsed = true;
+					break;
+				}
+			}
+			if (reallyUsed) {
+				continue;
+			}
+			// FIXME: delay the kill call for some ms...
+			// (for the case of brightness burst requests)
+			c->kill();
+		}
+
+
 
 		// Distribute some works
 		// FIXME: check space is ok (ie don't start under low space condition)

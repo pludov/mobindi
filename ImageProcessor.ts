@@ -53,7 +53,7 @@ export default class ImageProcessor
                     stdin: new MemoryStreams.ReadableStream(JSON.stringify(jsonRequest)),
                     stdout: writableStream
                 }
-            })),
+            })).setCancelable(true),
             new Promises.Cancelable<void, void>((next)=> {
                 if (writableStreamDone) {
                     next.done(undefined);

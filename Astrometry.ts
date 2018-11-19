@@ -1,7 +1,7 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
-import {CameraStatus, ShootResult, ShootSettings} from './shared/BackOfficeStatus';
-import {AstrometryStatus, AstrometryComputeRequest} from './shared/ProcessorTypes';
+import {CameraStatus, ShootResult, ShootSettings, AstrometryComputeRequest, AstrometryCancelRequest} from './shared/BackOfficeStatus';
+import {AstrometryStatus} from './shared/ProcessorTypes';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 
 
@@ -61,6 +61,14 @@ export default class Astrometry {
 
             this.currentProcess = newProcess;
             return newProcess;
+        });
+    }
+
+    $api_cancel(message: AstrometryCancelRequest, progress:any) {
+        return new Promises.Immediate<void, void>(()=>{
+            if (this.currentProcess !== null) {
+                this.currentProcess.cancel();
+            }
         });
     }
 }

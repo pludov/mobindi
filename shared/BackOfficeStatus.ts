@@ -44,3 +44,6 @@ export type CameraStatus = {
 export type AstrometryComputeRequest = {
     image: string;
 }
+
+export type AstrometryCancelRequest = {
+}
