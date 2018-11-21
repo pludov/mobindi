@@ -84,6 +84,11 @@ class CacheFileDesc {
 		errorDetails = message;
 	}
 
+	void prodAborted() {
+		unlink();
+		delete(this);
+	}
+
 	Messages::ContentResult toContentResult() const {
 		Messages::ContentResult r;
 		r.filename = filename;
@@ -152,7 +157,11 @@ class Client {
 	void release() {
 		for(auto it = producing.begin(); it != producing.end(); ++it)
 		{
-			(*it)->prodFailed("generic worker error");
+			if (!killed) {
+				(*it)->prodFailed("generic worker error");
+			} else {
+				(*it)->prodAborted();
+			}
 		}
 		this->destroy();
 	}
