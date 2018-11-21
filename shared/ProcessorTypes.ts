@@ -18,7 +18,8 @@ export type SucceededAstrometryResult = {
 export type AstrometryResult = FailedAstrometryResult|SucceededAstrometryResult;
 
 export type AstrometryStatus = {
-    status: "empty"|"computing"|"syncing"|"moving"|"ready";
+    status: "empty"|"error"|"computing"|"syncing"|"moving"|"ready";
+    errorDetails: string  | null,
     image: string | null;
     result: AstrometryResult|null;
 }
