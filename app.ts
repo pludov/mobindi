@@ -1,5 +1,6 @@
 'use strict';
 
+import "source-map-support/register";
 import express from 'express';
 import http = require('http');
 // var path = require('path');
