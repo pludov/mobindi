@@ -63,7 +63,6 @@ class ContextMenu extends PureComponent {
             top: this.props.y,
             position: 'absolute'
         }
-        console.log('x = ', this.props.x, 'y = ', this.props.y);
         return(
             <div className="ImageContextMenu" style={css} ref={this.setRef}>
                 {
@@ -83,6 +82,35 @@ class ContextMenu extends PureComponent {
                 <div className="Item" onClick={this.showHigh}>High level</div>
                 <div className="Item" onClick={this.showFwhm}>FWHM</div>
             </div>);
+    }
+}
+
+class ContextMenuCross extends PureComponent {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        return <React.Fragment>
+            <div className="ContextMenuCrossV"
+                    style={{
+                        position: 'absolute',
+                        backgroundColor: "#red",
+                        left: this.props.x - 10,
+                        width: 20,
+                        top: 0,
+                        bottom: 0
+                    }}/>
+            <div className="ContextMenuCrossH"
+                    style={{
+                        position: 'absolute',
+                        backgroundColor: "#blue",
+                        top: this.props.y - 10,
+                        height: 20,
+                        left: 0,
+                        right: 0
+                    }}/>
+        </React.Fragment>;
     }
 }
 
@@ -999,15 +1027,21 @@ class FitsViewer extends PureComponent {
     }
     render() {
         console.log('state is ', this.state);
-        var contextMenu;
+        var contextMenu, visor;
         if (this.state.contextmenu !== null) {
             contextMenu = <ContextMenu
                             contextMenu={this.props.contextMenu}
                             x={this.state.contextmenu.x} y={this.state.contextmenu.y}
                             displaySetting={this.displaySetting}
             />
+            if (this.props.contextMenu && this.props.contextMenu.filter(e=>e.positional).length) {
+                visor = <ContextMenuCross
+                            x={this.state.contextmenu.x}
+                            y={this.state.contextmenu.y}/>
+            }
         } else {
             contextMenu = null;
+            visor = null;
         }
         var histogramView;
         if (this.state.histogramView !== null) {
@@ -1029,6 +1063,7 @@ class FitsViewer extends PureComponent {
                 <div className='FitsSettingsOverlay'>
                     {histogramView}
                 </div>
+                {visor}
                 {contextMenu}
             </div>);
     }

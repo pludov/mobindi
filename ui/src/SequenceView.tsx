@@ -12,11 +12,11 @@ import * as Promises from './shared/Promises';
 import Table from './Table';
 import StatusLabel from './StatusLabel';
 import { atPath } from './shared/JsonPath';
-import FitsViewerInContext from './FitsViewerInContext';
-import './SequenceView.css';
 import SequenceEditDialog from './SequenceEditDialog';
 import { Connect } from './utils/Connect';
+import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 
+import './SequenceView.css';
 
 type SequenceImageDetailInputProps = {
     app: any;
@@ -33,13 +33,11 @@ type SequenceImageDetailProps = SequenceImageDetailInputProps & SequenceImageDet
 class DiscSequenceImageDetail extends PureComponent<SequenceImageDetailProps> {
 
     render() {
-        return <div className="FitsViewer FitsViewContainer">
-                    <FitsViewerInContext
-                            contextKey="default"
+        return <FitsViewerWithAstrometry
+                            contextKey="sequence"
                             app={this.props.app}
-                            src={this.props.url}
-                        />
-        </div>;
+                            src={this.props.url || ""}
+                        />;
     }
 
     static mapStateToProps(store:any, ownProps: SequenceImageDetailInputProps):SequenceImageDetailMappedProps {

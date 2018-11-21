@@ -42,3 +42,15 @@ div.ImageBarSetting input {
     margin: 0px;
     padding: 0px;
 }
+
+div.ContextMenuCrossV {
+    background: red;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+div.ContextMenuCrossH {
+    background: blue;
+    opacity: 0.4;
+    pointer-events: none;
+}

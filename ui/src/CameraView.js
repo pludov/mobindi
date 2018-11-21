@@ -8,9 +8,9 @@ import FitsViewerInContext from './FitsViewerInContext';
 import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
-import './CameraView.css'
-import AstrometryImageInfo from './AstrometryImageInfo';
+import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 
+import './CameraView.css'
 
 const CameraSelector = connect((store)=> ({
             active: store.backend && store.backend.camera ? store.backend.camera.selectedDevice : undefined,
@@ -150,16 +150,10 @@ class CameraView extends PureComponent {
                 activePath="$.backend.camera.selectedDevice"
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
-            <div className="FitsViewer FitsViewContainer">
-                <FitsViewerInContext contextKey="default"
-                            src={this.state.url}
-                            app={this.props.app}
-                            contextMenu={contextMenu}
-                    />
-                <AstrometryImageInfo
-                            src={this.state.url}
-                            app={this.props.app}/>
-            </div>
+            <FitsViewerWithAstrometry 
+                contextKey="default"
+                src={this.state.url}
+                app={this.props.app}/>
             <ShootBton
                     activePath="$.backend.camera.selectedDevice"
                     onSuccess={this.setPhoto} value="Shoot"
