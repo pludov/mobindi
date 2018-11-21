@@ -1,0 +1,8 @@
+.AstrometryImageInfoRoot {
+    position: absolute;
+    pointer-events: none;
+}
+
+.AstrometryImageInfoRoot input {
+    pointer-events: all;
+}

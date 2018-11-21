@@ -1,7 +1,7 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
-import {CameraStatus, ShootResult, ShootSettings, AstrometryComputeRequest, AstrometryCancelRequest} from './shared/BackOfficeStatus';
-import {AstrometryStatus, AstrometryResult} from './shared/ProcessorTypes';
+import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest} from './shared/BackOfficeStatus';
+import { AstrometryResult } from './shared/ProcessorTypes';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 
 
@@ -50,7 +50,7 @@ export default class Astrometry {
                 }
             });
 
-            const setStatus = (status: AstrometryStatus['status'], error:string|null, result:AstrometryResult|null)=> {
+            const finish = (status: AstrometryStatus['status'], error:string|null, result:AstrometryResult|null)=> {
                 if (this.currentProcess === newProcess) {
                     this.currentProcess = null;
                     this.currentStatus.status = status;
@@ -58,11 +58,13 @@ export default class Astrometry {
                 }
             };
 
-            newProcess.onCancel(()=>setStatus('empty', null, null));
-            newProcess.onError((e)=>setStatus('error', e.message || '' + e, null));
-            newProcess.then((e:AstrometryResult)=>setStatus('ready', null, e));
-            setStatus('computing', null, null);
+            newProcess.onCancel(()=>finish('empty', null, null));
+            newProcess.onError((e)=>finish('error', e.message || '' + e, null));
+            newProcess.then((e:AstrometryResult)=>finish('ready', null, e));
+            this.currentProcess = newProcess;
             this.currentStatus.image = message.image;
+            this.currentStatus.status = 'computing';
+            this.currentStatus.errorDetails = null;
             return newProcess;
         });
     }

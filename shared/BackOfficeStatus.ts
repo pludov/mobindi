@@ -1,3 +1,5 @@
+import { AstrometryResult } from "./ProcessorTypes";
+
 export type ShootSettings = {
     prefix?:string;
     type?:string;
@@ -38,6 +40,13 @@ export type CameraStatus = {
         byuuid: {[uuid: string]:Sequence}
     };
     configuration: any;
+}
+
+export type AstrometryStatus = {
+    status: "empty"|"error"|"computing"|"syncing"|"moving"|"ready";
+    errorDetails: string  | null,
+    image: string | null;
+    result: AstrometryResult|null;
 }
 
 

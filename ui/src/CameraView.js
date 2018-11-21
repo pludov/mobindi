@@ -9,6 +9,7 @@ import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
 import './CameraView.css'
+import AstrometryImageInfo from './AstrometryImageInfo';
 
 
 const CameraSelector = connect((store)=> ({
@@ -71,7 +72,7 @@ class ShootBton extends PureComponent {
             available: false
         }
         var active = atPath(store, ownProps.activePath);
-        if (active === undefined) return result;
+        if (active === undefined || active === null) return result;
 
         // Check if exposure is present
         var deviceNode = atPath(store, '$.backend.indiManager.deviceTree[' + JSON.stringify(active) + "].CCD_EXPOSURE");
@@ -150,11 +151,14 @@ class CameraView extends PureComponent {
                 setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <div className="FitsViewer FitsViewContainer">
-                <FitsViewerInContext contextKey="default" 
+                <FitsViewerInContext contextKey="default"
                             src={this.state.url}
                             app={this.props.app}
                             contextMenu={contextMenu}
                     />
+                <AstrometryImageInfo
+                            src={this.state.url}
+                            app={this.props.app}/>
             </div>
             <ShootBton
                     activePath="$.backend.camera.selectedDevice"
