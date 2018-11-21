@@ -464,7 +464,13 @@ export class Cancelator<Input, Output> extends Cancelable<Input, Output> {
             }
         });
         child.onError((e)=>next.error(e));
-        child.onCancel(()=>next.cancel());
+        child.onCancel(()=>{
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.error(new Error("Child canceled"));
+            }
+        });
         super((n, arg) => {
             next = n;
             if (doCancel !== undefined) {
@@ -495,7 +501,13 @@ export class Loop<Input, Output> extends Cancelable<Input, Output> {
             next.done(rslt);
         });
         repeat.onError((e)=> { next.error(e); });
-        repeat.onCancel(() => { next.cancel(); });
+        repeat.onCancel(() => {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.error(new Error("Child canceled"));
+            }
+        });
 
         super((n, arg) => {
             next = n;
@@ -527,7 +539,13 @@ export class Conditional<Input, Intermediate, Output> extends Cancelable<Input, 
             }
         });
         promise.onError((e)=> { next.error(e); });
-        promise.onCancel(() => { next.cancel(); });
+        promise.onCancel(() => {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.error(new Error("Child canceled"));
+            }
+        });
         super((n, arg) => {
             next = n;
             let condResult = cond(arg);
@@ -571,7 +589,13 @@ export class ExecutePromise<Input extends Cancelable<undefined, Output>, Output>
             }
             arg.then((rslt) => { next.done(rslt); });
             arg.onError((e) => { next.error(e); });
-            arg.onCancel(() => { next.cancel(); });
+            arg.onCancel(() => {
+                if (next.cancelationPending()) {
+                    next.cancel();
+                } else {
+                    next.error(new Error("Child canceled"));
+                }
+            });
             arg.start(undefined);
         });
     }
@@ -597,7 +621,13 @@ export class Builder<Input, Output> extends Cancelable<Input, Output> {
             });
             child.then((rslt) => { next.done(rslt); });
             child.onError((e) => { next.error(e); });
-            child.onCancel(() => { next.cancel(); });
+            child.onCancel(() => {
+                if (next.cancelationPending()) {
+                    next.cancel();
+                } else {
+                    next.error(new Error("Child canceled"));
+                }
+            });
             child.start(undefined);
         });
     }

@@ -60,7 +60,7 @@ class Exec extends Promises.Cancelable {
                 if (ret === 0) {
                     next.done(true);
                 } else {
-                    if (supportCancel && next.cancelationPending()) {
+                    if (supportCancel && next.cancelationPending() && signal === 'SIGTERM') {
                         next.cancel();
                     } else {
                         next.error('Wrong result code for ' + JSON.stringify(cmdArr));
