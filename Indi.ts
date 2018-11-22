@@ -1,12 +1,27 @@
 'use strict';
 
-const xmlbuilder = require('xmlbuilder');
-const net = require('net');
+import SAX from 'sax';
+import xmlbuilder from 'xmlbuilder';
+import net from 'net';
 
-const Promises = require('./Promises');
-const Xml2JSONParser = require('./Xml2JSONParser.js');
+import * as Promises from './Promises';
+import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
+import { StringDecoder } from 'string_decoder';
+import { Buffer } from 'buffer';
 
-const schema = {
+export type IndiListener = ()=>(void);
+export type IndiMessageListener = (m:IndiMessage)=>(void);
+
+export type IndiPredicate<INPUT, OUTPUT>=(e:INPUT)=>OUTPUT;
+
+export type IndiMessage = {
+    $$: string;
+}
+
+
+const socketEncoding = "utf-8";
+
+const schema: Schema = {
       
       
       defTextVector: {
@@ -71,17 +86,22 @@ const schema = {
       
       message: {
       }
-};
+} as any;
+
 
 // Each change/notification will increment this by one
 var globalRevisionId = 0;
 
-function has(obj, key) {
+function has(obj:any, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-class Vector {
-    constructor(connection, device, vectorId) {
+export class Vector {
+    public readonly connection: IndiConnection;
+    public readonly device: string;
+    public readonly vectorId: string;
+
+    constructor(connection:IndiConnection, device:string, vectorId:string) {
         this.connection = connection;
         this.device = device;
         this.vectorId = vectorId;
@@ -129,9 +149,9 @@ class Vector {
 
     // affectation is an array of {name:key, value:value}
     // Vector is switched to busy immediately
-    setValues(affectations) {
+    setValues(affectations:{name:string, value:string}[]) {
         console.log('Received affectations: ' + JSON.stringify(affectations));
-        var vecDef = this.getExistingVectorInTree(this.device);
+        var vecDef = this.getExistingVectorInTree();
         var msg = {
             $$: 'new' + vecDef.$type + 'Vector',
             $device: this.device,
@@ -145,13 +165,13 @@ class Vector {
         };
         vecDef.$state = "Busy";
 
-        var xml = this.connection.toXml(msg)
+        var xml = IndiConnection.toXml(msg)
         this.connection.queueMessage(xml);
     }
 
     // Return the value of a property.
     // throw if the vector or the property does not exists
-    getPropertyValue(name) {
+    getPropertyValue(name:string):string {
         var vecDef = this.getExistingVectorInTree();
         if (!has(vecDef.childs, name)) {
             throw new Error("Property not found: " + this.device + "/" + this.vectorId + "/" + name);
@@ -160,7 +180,7 @@ class Vector {
         return prop.$_;
     }
 
-    getPropertyValueIfExists(name) {
+    getPropertyValueIfExists(name:string):string|null {
         var vecDef = this.getVectorInTree();
         if (vecDef === null) return null;
         if (!has(vecDef.childs, name)) {
@@ -170,7 +190,7 @@ class Vector {
         return prop.$_;
     }
     
-    getPropertyLabelIfExists(name) {
+    getPropertyLabelIfExists(name:string):string|null {
         var vecDef = this.getVectorInTree();
         if (vecDef === null) return null;
         if (!has(vecDef.childs, name)) {
@@ -182,9 +202,11 @@ class Vector {
 }
 
 
-class Device {
+export class Device {
+    readonly connection:IndiConnection;
+    readonly device: string;
 
-    constructor(connection, device) {
+    constructor(connection:IndiConnection, device:string) {
         this.connection = connection;
         this.device = device;
     }
@@ -195,43 +217,27 @@ class Device {
         {
             throw "Device not found: " + this.device;
         }
-            
+
         return this.connection.deviceTree[this.device];
     }
 
-    getVector(vectorId)
+    getVector(vectorId:string)
     {
         return new Vector(this.connection, this.device, vectorId);
     }
-
-
-    // getProperty(property, name)
-    // {
-    //     var devProps = this.getDeviceInTree(this.device);
-
-    //     if (!has(devProps, property)) {
-    //         return null;
-    //     }
-    //     var prop = devProps[property];
-    //     if (!has(prop.childs, name)) {
-    //         return null;
-    //     }
-
-    //     return prop.childs[name];
-    // }
-
-    // getPropertyValue(property, name)
-    // {
-    //     var property = this.getProperty( property, name);
-    //     if (property == null) return null;
-    //     return property.$_;
-    // }
-
-
 }
 
-class IndiConnection {
-    waiterId = 0;
+export class IndiConnection {
+    deviceTree: any;
+    connected: boolean;
+    private waiterId = 0;
+    private dead: boolean;
+    private socket?: net.Socket;
+    private readonly listeners:IndiListener[];
+    private readonly messageListeners:IndiMessageListener[];
+    private checkingListeners?:IndiListener[];
+    private parser?: SAX.SAXParser;
+    private queue: string[];
 
     constructor() {
         this.parser = undefined;
@@ -244,16 +250,16 @@ class IndiConnection {
         this.dead = false;
     }
 
-    connect(host, port) {
+    connect(host:string, port?:number) {
         var self = this;
         
-        if (port == undefined) {
+        if (port === undefined) {
             port = 7624;
         }
         console.log('Opening indi connection to ' + host + ':' + port);
-        var socket = new net.Socket(host, port);
-        var parser = this.newParser((msg)=>self.onMessage(msg));
-        
+        var socket = new net.Socket();
+        var parser = this.newParser((msg:any)=>self.onMessage(msg));
+        const decoder = new StringDecoder(socketEncoding);
         this.socket = socket;
         this.parser = parser;
         
@@ -265,8 +271,11 @@ class IndiConnection {
             ++globalRevisionId;
         });
         socket.on('data', function(data) {
-            parser.write(data);
-            parser.flush();
+            const decoded = decoder.write(data);
+            if (decoded.length) {
+                parser.write(decoded);
+                parser.flush();
+            }
         });
         socket.on('error', function(err) {
             console.log('socket error: ' + err);
@@ -275,7 +284,7 @@ class IndiConnection {
             ++globalRevisionId;
             console.log('socket closed');
             try {
-                self.socket.destroy();
+                self.socket!.destroy();
             } catch(e) {
                 console.log('closing error', e);
             }
@@ -287,7 +296,7 @@ class IndiConnection {
             self.checkListeners();
         })
         this.connected = false;
-        socket.connect(7624, '127.0.0.1');
+        socket.connect(port, host);
     }
 
     flushQueue() {
@@ -297,7 +306,7 @@ class IndiConnection {
             var toSend = this.queue[0];
             this.queue.splice(0, 1);
             console.log('Sending: ' + toSend);
-            this.socket.write(toSend);
+            this.socket!.write(Buffer.from(toSend, socketEncoding));
         }
     }
 
@@ -305,15 +314,15 @@ class IndiConnection {
     checkListeners() {
         var self = this;
 
-        self.checkingListener = self.listeners.slice();
+        self.checkingListeners = self.listeners.slice();
 
         if (self.listeners.length == 0) return;
 
         process.nextTick(function() {
-            while((self.checkingListener != undefined) && (self.checkingListener.length))
+            while((self.checkingListeners != undefined) && (self.checkingListeners.length))
             {
-                var todo = self.checkingListener[self.checkingListener.length - 1];
-                self.checkingListener.splice(self.checkingListener.length - 1, 1);
+                var todo = self.checkingListeners[self.checkingListeners.length - 1];
+                self.checkingListeners.splice(self.checkingListeners.length - 1, 1);
                 todo();
             }
         });
@@ -323,12 +332,12 @@ class IndiConnection {
     // will be checked after every indi event
     // allowDisconnectionState: if true, predicate will be checked event after disconnection
     // The predicate will receive the promise input.
-    wait(predicate, allowDisconnectionState) {
+    wait<INPUT, OUTPUT>(predicate:IndiPredicate<INPUT, OUTPUT>, allowDisconnectionState?:boolean):Promises.Cancelable<INPUT, OUTPUT> {
         const self = this;
         const waiterId = this.waiterId++;
-        return new Promises.Cancelable(
+        return new Promises.Cancelable<INPUT, OUTPUT>(
             function(next, input) {
-                var listener = undefined;
+                var listener:IndiListener|undefined = undefined;
 
                 function dettach()
                 {
@@ -377,7 +386,7 @@ class IndiConnection {
         );
     }
 
-    dispatchMessage(m)
+    dispatchMessage(m: IndiMessage)
     {
         for(var i = 0; i < this.messageListeners.length; ++i)
         {
@@ -389,12 +398,12 @@ class IndiConnection {
         }
     }
 
-    addMessageListener(m)
+    addMessageListener(m:IndiMessageListener)
     {
         this.messageListeners.push(m);
     }
 
-    removeMessageListener(m)
+    removeMessageListener(m:IndiMessageListener)
     {
         for(var i = 0; i < this.messageListeners.length; ++i)
         {
@@ -405,12 +414,12 @@ class IndiConnection {
         }
     }
 
-    addListener(f)
+    addListener(f:IndiListener)
     {
         this.listeners.push(f);
     }
     
-    removeListener(f)
+    removeListener(f:IndiListener)
     {
         for(var i = 0; i < this.listeners.length; ++i)
         {
@@ -428,21 +437,21 @@ class IndiConnection {
         }
     }
     
-    onProtocolError(pe) {
+    onProtocolError(pe:Error) {
             
     }
 
     //msg: string
-    queueMessage(msg) {
+    queueMessage(msg:string) {
         this.queue.push(msg);
         this.flushQueue();
     }
 
-    toXml(obj) {
+    public static toXml(obj:any) {
 
         var xml = xmlbuilder.create(obj.$$, undefined, undefined, {headless: true});
 
-        function render(obj, node) {
+        function render(obj:any, node:any) {
             if (typeof obj == "string" || typeof obj == "number") {
                 node.txt("" + obj);
                 return;
@@ -479,7 +488,7 @@ class IndiConnection {
         return xml.end({pretty: true});
     }
 
-    newParser(onMessage) {
+    newParser(onMessage:any) {
         var parser = Xml2JSONParser(schema, 2, onMessage);
 
         var self = this;
@@ -494,7 +503,7 @@ class IndiConnection {
         return parser;
     }
 
-    getDeviceInTree(dev) {
+    getDeviceInTree(dev:string) {
         if (!has(this.deviceTree, dev)) {
             this.deviceTree[dev] = {};
         }
@@ -502,15 +511,15 @@ class IndiConnection {
         return this.deviceTree[dev];
     }
 
-    getDevice(dev) {
+    getDevice(dev:string) {
         return new Device(this, dev);
     }
 
-    getAvailableDeviceIds() {
+    getAvailableDeviceIds():string[] {
         return Object.keys(this.deviceTree);
     }
 
-    getAvailableDeviceIds(requiredProps)
+    getAvailableDeviceIdsWith(requiredProps:string[]):string[]
     {
         const rslt = [];
         ext: for(let devId of Object.keys(this.deviceTree))
@@ -526,7 +535,7 @@ class IndiConnection {
         return rslt;
     }
 
-    onMessage(message) {
+    onMessage(message:any) {
         globalRevisionId++;
         if (message.$$.match(/^message$/)) {
             this.dispatchMessage(message);
@@ -638,7 +647,7 @@ function demo() {
 
         new Promises.Immediate(() => {
             console.log('Connection established');
-            connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues({name: "CCD_EXPOSURE_VALUE", value: 10});
+            connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues([{name: "CCD_EXPOSURE_VALUE", value: "10"}]);
         }),
 
         connection.wait(function() {
@@ -650,14 +659,14 @@ function demo() {
 
             var value = vector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
-            return (value == 0);
+            return (parseFloat(value) === 0);
         })
     );
 
     shoot.then(function() { console.log('SHOOT: done'); });
     shoot.onError(function(e) { console.log('SHOOT: error ' + e)});
     shoot.onCancel(function() { console.log('SHOOT: canceled')});
-    shoot.start();
+    shoot.start({});
 
     /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
 
@@ -676,7 +685,7 @@ function demo() {
 
     infinite = new Promises.Timeout(5000.0, infinite);
     infinite.onError(console.warn);
-    infinite.start();
+    infinite.start({});
 
 
 
@@ -696,7 +705,7 @@ function demo() {
     */
 }
 
-function timestampToEpoch(v)
+export function timestampToEpoch(v:string):number
 {
     var values = v.match(/^([0-9]+)-([0-9]+)-([0-9]+)T([0-9]+):([0-9]+):([0-9]+)$/);
     if (!values) {
@@ -712,9 +721,7 @@ function timestampToEpoch(v)
     return d / 1000.0;
 }
 
-function timestampDiff(a, b)
+function timestampDiff(a:string, b:string):number
 {
     return timestampToEpoch(a) - timestampToEpoch(b);
 }
-
-module.exports = {IndiConnection, timestampToEpoch};

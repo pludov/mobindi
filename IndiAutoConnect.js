@@ -60,7 +60,7 @@ class IndiAutoConnect {
         if (this.indiManager.connection) {
             const c = this.indiManager.connection;
 
-            const deviceIds = c.getAvailableDeviceIds(['CONNECTION']);
+            const deviceIds = c.getAvailableDeviceIdsWith(['CONNECTION']);
 
             debug('valid devices = ', JSON.stringify(deviceIds));
             for(let devId of deviceIds) {

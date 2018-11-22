@@ -166,7 +166,7 @@ class Focuser {
             new Promises.Builder(()=> {
                 // Find a focuser.
                 const connection = self.indiManager.getValidConnection();
-                const availableFocusers = connection.getAvailableDeviceIds(['ABS_FOCUS_POSITION']);
+                const availableFocusers = connection.getAvailableDeviceIdsWith(['ABS_FOCUS_POSITION']);
                 availableFocusers.sort();
                 if (availableFocusers.length == 0) {
                     throw new Error("No focuser available");

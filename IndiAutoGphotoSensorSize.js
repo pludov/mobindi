@@ -71,7 +71,7 @@ class IndiAutoGphotoSensorSize {
         if (this.indiManager.connection) {
             const c = this.indiManager.connection;
 
-            const deviceIds = c.getAvailableDeviceIds([targetVector]);
+            const deviceIds = c.getAvailableDeviceIdsWith([targetVector]);
 
             debug('valid devices = ', JSON.stringify(deviceIds));
             for(let devId of deviceIds) {
