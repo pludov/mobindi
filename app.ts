@@ -2,16 +2,13 @@
 
 import "source-map-support/register";
 import express from 'express';
+import {Application as ExpressApplication} from "express-serve-static-core";
+
 import http = require('http');
 // var path = require('path');
 // var favicon = require('serve-favicon');
-import logger = require('morgan');
-import cookieParser = require('cookie-parser');
 import cors = require('cors');
-import NEDB = require('nedb');
-import sha1 = require('sha1')
 import bodyParser = require('body-parser');
-import url = require('url');
 import WebSocket = require('ws');
 import uuid = require('node-uuid');
 // Only for debug !
@@ -24,8 +21,8 @@ import Client = require('./Client.js');
 import {Phd} from './Phd';
 //@ts-ignore
 import {IndiManager} from './IndiManager';
-//@ts-ignore
-import {Camera} from './Camera';
+
+import Camera from './Camera';
 //@ts-ignore
 import {Focuser} from './Focuser';
 //@ts-ignore
@@ -42,11 +39,12 @@ import Astrometry from './Astrometry';
 // var index = require('./routes/index');
 // var users = require('./routes/users');
 
-const app = express();
+const app:ExpressApplication = express();
 
 
 import session = require('express-session');
 import SessionFileStore = require('session-file-store')
+import { AppContext } from "./ModuleBase";
 
 const FileStore = SessionFileStore(session);
 
@@ -112,12 +110,7 @@ appState.apps= {
 };
 
 
-var phd;
-var indiManager;
-var camera;
-var toolExecuter;
-
-var context:any = {
+var context:Partial<AppContext> = {
 };
 
 context.imageProcessor = new ImageProcessor(appStateManager, context);
@@ -126,7 +119,7 @@ context.phd = new Phd(app, appStateManager);
 
 context.indiManager = new IndiManager(app, appStateManager);
 
-context.camera = new Camera(app, appStateManager, context);
+context.camera = new Camera(app, appStateManager, context as AppContext);
 
 context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 
@@ -134,7 +127,7 @@ context.toolExecuter = new ToolExecuter(appStateManager, context);
 
 context.focuser = new Focuser(app, appStateManager, context);
 
-context.astrometry = new Astrometry(app, appStateManager, context);
+context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
 app.use(function(req, res:any, next) {
     if ('jsonResult' in res) {
@@ -276,7 +269,7 @@ wss.on('connection', function connection(ws) {
                 var target = message.details.target;
                 var targetObj = undefined;
                 if (Object.prototype.hasOwnProperty.call(context, target)) {
-                    targetObj = context[target];
+                    targetObj = (context as any)[target];
                 } else {
                     request.onError('invalid target');
                     return;

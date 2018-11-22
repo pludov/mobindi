@@ -1,5 +1,7 @@
+
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
+import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
@@ -13,14 +15,14 @@ export default class Astrometry {
     imageProcessor: ImageProcessor;
     currentProcess: Promises.Cancelable<any, any>|null = null;
 
-    constructor(app:any, appStateManager:any, context:any) {
+    constructor(app:ExpressApplication, appStateManager:any, context: AppContext) {
         this.appStateManager = appStateManager;
         
         const initialStatus: AstrometryStatus = {
             status: "empty",
             errorDetails: null,
             image: null,
-            result: null
+            result: null,
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;

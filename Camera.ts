@@ -1,6 +1,5 @@
-'use strict';
-
 import * as Promises from './Promises';
+import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, ShootResult, ShootSettings} from './shared/BackOfficeStatus';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
@@ -8,7 +7,7 @@ const ConfigStore = require('./ConfigStore');
 const uuid = require('node-uuid');
 const TraceError = require('trace-error');
 
-class Camera {
+export default class Camera {
     appStateManager: any;
     shootPromises: any;
     currentStatus: CameraStatus;
@@ -22,7 +21,7 @@ class Camera {
     currentSequenceUuid:any = undefined;
     currentSequencePromise:any = undefined;
 
-    constructor(app:any, appStateManager:any, context:any) {
+    constructor(app:ExpressApplication, appStateManager:any, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
             status: "idle",
@@ -973,5 +972,3 @@ class Camera {
     }
 
 }
-
-module.exports = {Camera}
