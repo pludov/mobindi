@@ -1,6 +1,7 @@
 import * as Promises from './Promises';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, ShootResult, ShootSettings} from './shared/BackOfficeStatus';
+import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus} from './shared/BackOfficeStatus';
+import JsonProxy from './JsonProxy';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
@@ -8,12 +9,12 @@ const uuid = require('node-uuid');
 const TraceError = require('trace-error');
 
 export default class Camera {
-    appStateManager: any;
+    appStateManager: JsonProxy<BackofficeStatus>;
     shootPromises: any;
     currentStatus: CameraStatus;
-    context: any;
-    indiManager: any;
-    imageProcessor: any;
+    context: AppContext;
+    get indiManager() { return this.context.indiManager };
+    get imageProcessor() { return this.context.imageProcessor };
 
     imageIdGenerator = new IdGenerator();
     previousImages: any;
@@ -21,7 +22,7 @@ export default class Camera {
     currentSequenceUuid:any = undefined;
     currentSequencePromise:any = undefined;
 
-    constructor(app:ExpressApplication, appStateManager:any, context:AppContext) {
+    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
             status: "idle",
@@ -134,8 +135,6 @@ export default class Camera {
         this.shootPromises = {};
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.context = context;
-        this.indiManager = context.indiManager;
-        this.imageProcessor = context.imageProcessor;
 
         this.imageIdGenerator = new IdGenerator();
         this.previousImages = {};
@@ -729,10 +728,10 @@ export default class Camera {
         console.log('Bin status is '+ JSON.stringify(bin, null, 2));
         if (crop.x || crop.y || crop.w != max.w || crop.h  != max.h) {
             return {
-                X: 0,
-                Y: 0,
-                WIDTH: Math.floor(max.w),
-                HEIGHT: Math.floor(max.h)
+                X: "0",
+                Y: "0",
+                WIDTH: "" + Math.floor(max.w),
+                HEIGHT: "" + Math.floor(max.h)
             };
         }
 

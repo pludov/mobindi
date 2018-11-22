@@ -27,7 +27,7 @@
 // const missingProperty = "_$_missing_$_";
 
 
-function has(obj: any, key: string) {
+export function has(obj: any, key: string) {
     if (obj === null) {
         return false;
     }
@@ -503,7 +503,7 @@ class SynchronizerTrigger {
 type Callback = ()=>(void);
 type ListenerId = string;
 
-class JsonProxy {
+export default class JsonProxy<CONTENTTYPE> {
     root: JsonProxyNode;
     currentSerial: number;
     currentSerialUsed: boolean;
@@ -906,11 +906,11 @@ class JsonProxy {
         return objectProps(this.root, version);
     }
 
-    getTarget() {
+    getTarget():CONTENTTYPE {
         return this.root.proxy;
     }
 
-    fork() {
+    fork():{data: CONTENTTYPE, serial: SerialSnapshot} {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
@@ -940,7 +940,7 @@ type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | Up
 
 
 // Update an object
-function applyDiff(from : any, diff: Diff) {
+export function applyDiff(from : any, diff: Diff) {
     if (diff === undefined) {
         return from;
     }
@@ -992,7 +992,7 @@ function applyDiff(from : any, diff: Diff) {
     return from;
 }
 
-function asDiff(value:any):Diff
+export function asDiff(value:any):Diff
 {
     if (typeof value == 'number' || typeof value == 'string' || typeof value == 'boolean' || value === null) {
         return value;
@@ -1012,4 +1012,3 @@ function asDiff(value:any):Diff
 }
 
 
-module.exports = {JsonProxy, applyDiff, has, asDiff};

@@ -1,4 +1,5 @@
 import { AstrometryResult } from "./ProcessorTypes";
+import { IndiMessage } from "./IndiTypes";
 
 export type ShootSettings = {
     prefix?:string;
@@ -20,7 +21,50 @@ export type Sequence = {
     steps: {
         list: string[];
         byuuid: {[uuid:string]:any}
+    };
+}
+
+export type IndiMessageWithUid = IndiMessage | {
+    uid: string;
+};
+
+export type IndiManagerStatus = {
+    status: "error"|"connecting"|"connected";
+    configuration: {
+        indiServer: any;
+        driverPath: string;
+    };
+    driverToGroup: {[driver: string]: string};
+    deviceTree: {[deviceId:string]:any}
+    messages: {
+        byUid: {[uuid:string]:IndiMessageWithUid}
+    };
+}
+
+export type IndiManagerConnectDeviceRequest = {
+    device: string;
+}
+
+export type IndiManagerDisconnectDeviceRequest = {
+    device: string;
+}
+
+export type IndiManagerSetPropertyRequest = {
+    data: {
+        dev: string;
+        vec: string;
+        children: {name:string, value:string}[]
     }
+}
+
+export type IndiManagerRestartDriverRequest = {
+    driver: string;
+}
+
+export type IndiManagerUpdateDriverParamRequest = {
+    driver: string;
+    key: string;
+    value: string;
 }
 
 export type CameraStatus = {
@@ -56,3 +100,11 @@ export type AstrometryComputeRequest = {
 
 export type AstrometryCancelRequest = {
 }
+
+
+export type BackofficeStatus = {
+    apps: {[appId:string]: {enabled:boolean,position:number}};
+    indiManager: IndiManagerStatus;
+    camera: CameraStatus;
+    astrometry: AstrometryStatus;
+};

@@ -2,20 +2,23 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest} from './shared/BackOfficeStatus';
+import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
+import JsonProxy from './JsonProxy';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
 export default class Astrometry {
-    appStateManager: any;
+    appStateManager: JsonProxy<BackofficeStatus>;
+    readonly context: AppContext;
     currentStatus: AstrometryStatus;
-    imageProcessor: ImageProcessor;
     currentProcess: Promises.Cancelable<any, any>|null = null;
+    get imageProcessor() { return this.context.imageProcessor };
 
-    constructor(app:ExpressApplication, appStateManager:any, context: AppContext) {
+
+    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.appStateManager = appStateManager;
         
         const initialStatus: AstrometryStatus = {
@@ -27,7 +30,7 @@ export default class Astrometry {
 
         this.appStateManager.getTarget().astrometry = initialStatus;
         this.currentStatus = this.appStateManager.getTarget().astrometry;
-        this.imageProcessor = context.imageProcessor;
+        this.context = context;
     }
 
     $api_compute(message:AstrometryComputeRequest, progress:any) {
@@ -61,7 +64,7 @@ export default class Astrometry {
             };
 
             newProcess.onCancel(()=>finish('empty', null, null));
-            newProcess.onError((e)=>finish('error', e.message || '' + e, null));
+            newProcess.onError((e:any)=>finish('error', e.message || '' + e, null));
             newProcess.then((e:AstrometryResult)=>finish('ready', null, e));
             this.currentProcess = newProcess;
             this.currentStatus.image = message.image;

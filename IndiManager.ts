@@ -1,31 +1,31 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-
-'use strict';
-
-const Xml2JSONParser = require('./Xml2JSONParser.js');
-const {IndiConnection} = require('./Indi');
-const Promises = require('./Promises');
+import fs from 'fs';
+import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
+import {IndiConnection, Vector} from './Indi';
+import * as Promises from './Promises';
+import { ExpressApplication, AppContext } from "./ModuleBase";
+import { IndiManagerStatus, IndiManagerConnectDeviceRequest, IndiManagerDisconnectDeviceRequest, IndiManagerSetPropertyRequest, IndiManagerRestartDriverRequest, IndiManagerUpdateDriverParamRequest, BackofficeStatus } from './shared/BackOfficeStatus';
+import { IndiMessage } from './shared/IndiTypes';
+import JsonProxy from './JsonProxy';
 const IndiServerStarter = require('./IndiServerStarter');
 const IndiAutoConnect = require('./IndiAutoConnect');
 const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
 const ConfigStore = require('./ConfigStore');
-const fs = require('fs');
 
-function has(obj, key) {
+
+function has(obj:any, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function clear(obj) {
-    for(var k in obj) {
-        if (has(obj, k)) {
-            delete(obj[k]);
-        }
+function clear(obj:any) {
+    for(var k of Object.keys(obj)) {
+        delete(obj[k]);
     }
 }
 
-const DriverXmlSchema = {
+const DriverXmlSchema:Schema = {
     driversList: {
         devGroup: {
             $isArray:true,
@@ -35,11 +35,18 @@ const DriverXmlSchema = {
             }
         }
     }
-};
+} as any;
 
-class IndiManager {
+export default class IndiManager {
+    appStateManager: JsonProxy<BackofficeStatus>;
+    currentStatus: IndiManagerStatus;
+    lastMessageSerial: undefined|number;
+    lastMessageStamp: undefined|number;
+    lifeCycle: Promises.Cancelable<any, any>;
+    indiServerStarter: any;
+    connection: undefined|IndiConnection;
 
-    constructor(app, appStateManager) {
+    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         var self = this;
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().indiManager = {
@@ -52,7 +59,10 @@ class IndiManager {
             },
             // Maps indi drivers to group
             driverToGroup: {},
-            configuration: {}
+            configuration: {
+                driverPath: "none",
+                indiServer: null,
+            }
         }
 
         this.currentStatus = this.appStateManager.getTarget().indiManager;
@@ -87,7 +97,7 @@ class IndiManager {
         this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {self.readDrivers();}, true);
 
         this.lifeCycle = this.buildLifeCycle();
-        this.lifeCycle.start();
+        this.lifeCycle.start(undefined);
 
         this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
 
@@ -97,14 +107,14 @@ class IndiManager {
 
     nextMessageUid() {
         var now = new Date().getTime();
-        var serial = 0;
+        let serial:number = 0;
         if (this.lastMessageStamp !== undefined) {
             if (this.lastMessageStamp > now) {
                 // Don't go backward
-                now = this.lastMessageStamp;
+                now = this.lastMessageStamp!;
             }
-            if (this.lastMessageStamp == now) {
-                serial = this.lastMessageSerial + 1;
+            if (this.lastMessageStamp === now) {
+                serial = this.lastMessageSerial! + 1;
             } else {
                 serial = 0;
             }
@@ -114,23 +124,23 @@ class IndiManager {
         this.lastMessageStamp = now;
         this.lastMessageSerial = serial;
 
-        serial = serial.toString(16);
+        let serialStr = serial.toString(16);
         // Ensure lexicographical order of serial
         var prefix = '';
-        for(var i = 1; i < serial.length; ++i) {
+        for(var i = 1; i < serialStr.length; ++i) {
             prefix += 'Z';
         }
-        return new Date(now).toISOString() + ":" + prefix + serial;
+        return new Date(now).toISOString() + ":" + prefix + serialStr;
     }
 
     readDrivers()
     {
         var pathList = this.currentStatus.configuration.driverPath.split(',');
 
-        var driverToGroup = {};
+        var driverToGroup : {[id:string]:string}= {};
 
         pathList.forEach((path)=>{
-            var content = [];
+            var content:string[] = [];
             try {
                 content = fs.readdirSync(path);
             } catch(e) {
@@ -141,7 +151,7 @@ class IndiManager {
                 console.log('Found driver: ' + file);
 
                 try {
-                    function onMessage(e) {
+                    function onMessage(e:any) {
                         if (e.$$ != 'driversList') {
                             console.warn('Ignored xml driver content: ' + JSON.stringify(e, null, 2));
                             return;
@@ -160,7 +170,7 @@ class IndiManager {
                     }
                     var content = fs.readFileSync(file);
                     var parser = Xml2JSONParser(DriverXmlSchema, 1, onMessage);
-                    parser.write(content)
+                    parser.write(content.toString('utf-8'))
                     parser.close();
                 } catch(e) {
                     console.log('Unable to parse ' + file, e.stack || e);
@@ -209,8 +219,7 @@ class IndiManager {
                             self.cleanupMessages();
                         });
                         next.done(indiConnection.wait(()=>{
-                            console.log('socket is ' + indiConnection.socket);
-                            return indiConnection.socket == undefined;
+                            return indiConnection.isDead();
                         }, true).then(() => {
                             console.log('Indi connection disconnected');
                             indiConnection.removeListener(listener);
@@ -227,11 +236,10 @@ class IndiManager {
         );
     }
 
-    addMessage(m)
+    addMessage(m:IndiMessage)
     {
-        var msgUid = this.nextMessageUid();
-        m.uid = msgUid;
-        this.currentStatus.messages.byUid[msgUid] = m;
+        var uid = this.nextMessageUid();
+        this.currentStatus.messages.byUid[uid] = {...m, uid};
         this.cleanupMessages();
     }
 
@@ -247,26 +255,26 @@ class IndiManager {
         }
     }
 
-    getValidConnection()
+    getValidConnection():IndiConnection
     {
         var connection = this.connection;
         if (connection === undefined) {
             throw new Error("Indi server not connected");
         }
-        return this.connection;
+        return connection;
     }
 
     // Return a promise that waits until the vector exists
-    waitForVectors(device, vectorFn)
+    waitForVectors<INPUT>(device:Promises.DynValueProvider<string,INPUT>, vectorFn: Promises.DynValueProvider<string|string[], INPUT>)
     {
         var self = this;
-        return new Promises.Builder((e)=>
+        return new Promises.Builder<INPUT,void>((e:INPUT)=>
         {
             var connection = self.getValidConnection();
-            var devId = Promises.dynValue(device);
+            var devId = Promises.dynValue(device, e);
             var dev = connection.getDevice(devId);
 
-            var vectorIds = Promises.dynValue(vectorFn);
+            var vectorIds = Promises.dynValue(vectorFn, e);
             if (!Array.isArray(vectorIds)) {
                 vectorIds = [vectorIds];
             }
@@ -275,6 +283,7 @@ class IndiManager {
                 var vectorId = vectorIds[i];
                 var vecInstance = dev.getVector(vectorId);
                 if (!vecInstance.exists()) {
+                    // FIXME: wait until ?
                     console.log('Waiting for vector ' + vectorId + ' on ' + devId);
                     return new Promises.Sleep(1000);
                 }
@@ -287,17 +296,20 @@ class IndiManager {
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
-    setParam(device, vectorFn, valFn, force)
+    setParam<INPUT>(device:Promises.DynValueProvider<string,INPUT>,
+                    vectorFn:Promises.DynValueProvider<string,INPUT>,
+                    valFn:Promises.DynValueProvider<{[id:string]:string|null|undefined}, Vector>,
+                    force?: boolean)
     {
         var self = this;
-        return new Promises.Builder((e)=>
+        return new Promises.Builder<INPUT, void>((e)=>
         {
             var connection = self.getValidConnection();
-            var devId = Promises.dynValue(device);
+            var devId = Promises.dynValue(device, e);
             
             var dev = connection.getDevice(devId);
 
-            var vectorId = Promises.dynValue(vectorFn);
+            var vectorId = Promises.dynValue(vectorFn, e);
 
             if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
                 throw new Error("Device is not connected : " + devId);
@@ -347,15 +359,15 @@ class IndiManager {
     }
 
 
-    connectDevice(deviceFn)
+    connectDevice<INPUT>(deviceFn:Promises.DynValueProvider<string,INPUT>)
     {
         var self = this;
 
-        var device;
+        var device:string;
         // Set connected to true, then wait for status, then load configuration
-        return new Promises.Chain(
-            new Promises.Conditional(() => {
-                    device = Promises.dynValue(deviceFn);
+        return new Promises.Chain<INPUT, void>(
+            new Promises.Conditional((e) => {
+                    device = Promises.dynValue(deviceFn, e);
                     var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
                     if (!vector.isReadyForOrder()) {
                         throw "Connection already pending";
@@ -374,14 +386,14 @@ class IndiManager {
         );
     }
 
-    disconnectDevice(deviceFn)
+    disconnectDevice<INPUT>(deviceFn:Promises.DynValueProvider<string,INPUT>)
     {
         var self = this;
 
-        var device;
+        var device:string;
         return new Promises.Chain(
-            new Promises.Conditional(() => {
-                    device = Promises.dynValue(deviceFn);
+            new Promises.Conditional((e: INPUT) => {
+                    device = Promises.dynValue(deviceFn, e);
                     var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
                     if (!vector.isReadyForOrder()) {
                         throw "Connection already pending";
@@ -399,17 +411,17 @@ class IndiManager {
         );
     }
 
-    $api_connectDevice(message, progress)
+    $api_connectDevice(message:IndiManagerConnectDeviceRequest, progress:any)
     {
         return this.connectDevice(message.device);
     }
 
-    $api_disconnectDevice(message, progress)
+    $api_disconnectDevice(message:IndiManagerDisconnectDeviceRequest, progress:any)
     {
         return this.disconnectDevice(message.device);
     }
 
-    $api_setProperty(message, progress)
+    $api_setProperty(message:IndiManagerSetPropertyRequest, progress:any)
     {
         return new Promises.Immediate(() => {
             var dev = this.getValidConnection().getDevice(message.data.dev);
@@ -417,14 +429,14 @@ class IndiManager {
         });
     }
 
-    $api_restartDriver(message, progress)
+    $api_restartDriver(message:IndiManagerRestartDriverRequest, progress:any)
     {
         return new Promises.Immediate(() => {
             this.indiServerStarter.restartDevice(message.driver);
         });
     }
 
-    $api_updateDriverParam(message, progress)
+    $api_updateDriverParam(message:IndiManagerUpdateDriverParamRequest, progress:any)
     {
         return new Promises.Immediate(() => {
             if (!Object.prototype.hasOwnProperty.call(this.currentStatus.configuration.indiServer.devices, message.driver)) {
@@ -438,5 +450,3 @@ class IndiManager {
         });
     }
 }
-
-module.exports = {IndiManager};

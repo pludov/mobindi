@@ -1,7 +1,7 @@
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import {JsonProxy, applyDiff, has, asDiff} from './JsonProxy';
+import JsonProxy from './JsonProxy';
 import * as Obj from './Obj';
 
 describe("JsonProxySynchronizers", ()=>{

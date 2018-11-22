@@ -5,7 +5,7 @@ const {promisify} = require("util");
 
 const readFile = promisify(fs.readFile);
 
-import * as JsonProxy from './JsonProxy';
+import JsonProxy from './JsonProxy';
 import {IndiConnection} from './Indi';
 
 describe("Indi", () => {
@@ -21,7 +21,7 @@ describe("Indi", () => {
             }]
         };
 
-        var xml = new IndiConnection().toXml(obj);
+        var xml = IndiConnection.toXml(obj);
         console.log('xml=' + xml);
 
         var rslt = undefined;
@@ -35,7 +35,7 @@ describe("Indi", () => {
         var content = JSON.parse(data);
         assert.ok(content.length > 0, "Got data");
 
-        var appStateManager = new JsonProxy.JsonProxy();
+        var appStateManager = new JsonProxy();
         var indiConnection = new IndiConnection();
         indiConnection.deviceTree = appStateManager.getTarget();
         for(var i = 0 ; i < content.length; ++i) {

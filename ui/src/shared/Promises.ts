@@ -483,7 +483,7 @@ export class Cancelator<Input, Output> extends Cancelable<Input, Output> {
 }
 
 export class Loop<Input, Output> extends Cancelable<Input, Output> {
-    constructor(repeat: Cancelable<Input, Output>, until: (o:Output)=>boolean)
+    constructor(repeat: Cancelable<Input, Output>, until?: (o:Output)=>boolean)
     {
         let next: StatusNotifier<Output>;
         let startArg: Input;
@@ -605,7 +605,7 @@ export class ExecutePromise<Input extends Cancelable<undefined, Output>, Output>
  * Assume that the builded promise is new and discarded thereafter. (no reusing)
  */
 export class Builder<Input, Output> extends Cancelable<Input, Output> {
-    constructor(provider:(i:Input)=>Cancelable<undefined, Output>)
+    constructor(provider:(i:Input)=>Cancelable<undefined, Output>|undefined)
     {
         let child : Cancelable<undefined, Output> | undefined;
         super((next, arg) => {
@@ -634,9 +634,11 @@ export class Builder<Input, Output> extends Cancelable<Input, Output> {
 }
 
 
+export type DynValueProvider<T,I> = T|((arg:I)=>T);
+
 // Recognize func and call them with arg
 // Otherwise, use value as is
-export function dynValue(o: any, arg : any)
+export function dynValue<T, I>(o: DynValueProvider<T,I>, arg : I)
 {
     if (o instanceof Function) {
         return o(arg);

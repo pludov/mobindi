@@ -8,15 +8,12 @@ import * as Promises from './Promises';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import { StringDecoder } from 'string_decoder';
 import { Buffer } from 'buffer';
+import { IndiMessage } from "./shared/IndiTypes";
 
 export type IndiListener = ()=>(void);
 export type IndiMessageListener = (m:IndiMessage)=>(void);
 
 export type IndiPredicate<INPUT, OUTPUT>=(e:INPUT)=>OUTPUT;
-
-export type IndiMessage = {
-    $$: string;
-}
 
 
 const socketEncoding = "utf-8";
@@ -297,6 +294,10 @@ export class IndiConnection {
         })
         this.connected = false;
         socket.connect(port, host);
+    }
+
+    public isDead():boolean {
+        return this.dead;
     }
 
     flushQueue() {

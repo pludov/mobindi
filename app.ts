@@ -19,17 +19,15 @@ import Client = require('./Client.js');
 
 //@ts-ignore
 import {Phd} from './Phd';
-//@ts-ignore
-import {IndiManager} from './IndiManager';
 
+import IndiManager from './IndiManager';
 import Camera from './Camera';
 //@ts-ignore
 import {Focuser} from './Focuser';
 //@ts-ignore
 import ImageProcessor from './ImageProcessor';
 
-//@ts-ignore
-import JsonProxy = require('./JsonProxy');
+import JsonProxy from './JsonProxy';
 //@ts-ignore
 import TriggerExecuter = require('./TriggerExecuter');
 //@ts-ignore
@@ -45,6 +43,7 @@ const app:ExpressApplication = express();
 import session = require('express-session');
 import SessionFileStore = require('session-file-store')
 import { AppContext } from "./ModuleBase";
+import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
 
 const FileStore = SessionFileStore(session);
 
@@ -75,7 +74,7 @@ app.use(cors({
 }));
 
 
-var appStateManager = new JsonProxy.JsonProxy();
+var appStateManager = new JsonProxy<BackofficeStatus>();
 var appState = appStateManager.getTarget();
 
 appState.apps= {
@@ -113,11 +112,11 @@ appState.apps= {
 var context:Partial<AppContext> = {
 };
 
-context.imageProcessor = new ImageProcessor(appStateManager, context);
+context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
 context.phd = new Phd(app, appStateManager);
 
-context.indiManager = new IndiManager(app, appStateManager);
+context.indiManager = new IndiManager(app, appStateManager, context as AppContext);
 
 context.camera = new Camera(app, appStateManager, context as AppContext);
 

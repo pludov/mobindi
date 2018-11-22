@@ -3,6 +3,9 @@ import * as Promises from './Promises';
 import * as SystemPromises from './SystemPromises';
 
 import {ProcessorRequest} from './shared/ProcessorTypes';
+import JsonProxy from './JsonProxy';
+import { BackofficeStatus } from './shared/BackOfficeStatus';
+import { AppContext } from './ModuleBase';
 
 
 // Ugggglyyy fix for end of stream
@@ -14,14 +17,15 @@ MemoryStreams.ReadableStream.prototype._read = function(n) {
 
 export default class ImageProcessor
 {
-    jsonProxy:any;
+    readonly appStateManager:JsonProxy<BackofficeStatus>;
+    readonly context:AppContext;
 
-    constructor(jsonProxy:any, context:any) {
-        this.jsonProxy = jsonProxy;
+    constructor(appStateManager:any, context:AppContext) {
+        this.appStateManager = appStateManager;
+        this.context = context;
     }
 
     compute(jsonRequest: ProcessorRequest):Promises.Cancelable<void, any> {
-        var self = this;
         let writableStream: MemoryStreams.WritableStream;
         let writableStreamDone: boolean = false;
         let writableStreamCb:undefined|(()=>(void));
