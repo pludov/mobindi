@@ -102,3 +102,19 @@ Then connect to port 3000 : http://localhost:3000
 The REACT http server on port 3000 will automatically push changes to UI, and relay request to the backed to port 8080
 
 
+## Licence
+
+Copyright ©2017-2018 Ludovic Pollet &lt;<a mailto="pludow@gmail.com">pludow@gmail.com</a>&gt;. All rights reserved.
+
+This software is provided under the GPL-3 licence.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3 as published by
+the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+Astrometry icon made by smashicons from www.flaticon.com
+

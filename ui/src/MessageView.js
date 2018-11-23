@@ -65,9 +65,14 @@ class MessageView extends PureComponent {
 
     render() {
         //var self = this;
-        return(<div className="MessageView">
-            <MessageList/>
-        </div>);
+        return(<React.Fragment>
+            <div className="MessageView">
+                <MessageList/>
+            </div>
+            <div style={{textAlign: 'right'}}>
+                <i>MOBINDI</i> <a href='about.html' target='_new'>about</a>
+            </div>
+        </React.Fragment>);
     }
 }
 
