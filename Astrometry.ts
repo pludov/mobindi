@@ -5,6 +5,7 @@ import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
+import { DriverInterface } from './Indi';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 
 
@@ -20,17 +21,22 @@ export default class Astrometry {
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.appStateManager = appStateManager;
-        
+
         const initialStatus: AstrometryStatus = {
             status: "empty",
             errorDetails: null,
             image: null,
             result: null,
+            availableScopes: [],
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
         this.currentStatus = this.appStateManager.getTarget().astrometry;
         this.context = context;
+
+        context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableScopes = devs;
+        }, undefined, DriverInterface.TELESCOPE);
     }
 
     $api_compute(message:AstrometryComputeRequest, progress:any) {

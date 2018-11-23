@@ -1,7 +1,7 @@
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy, {applyDiff, has} from './JsonProxy';
+import JsonProxy, {has} from './JsonProxy';
 
 /**
  * Created by ludovic on 21/07/17.
@@ -9,7 +9,6 @@ import JsonProxy, {applyDiff, has} from './JsonProxy';
 describe("Json proxy", () => {
     it("has function for null value", ()=> {
         assert.ok(has({e: null}, 'e'), "has function with null value");
-
     });
     it("updates serial", ()=> {
         var changeTracker = new JsonProxy();
@@ -274,7 +273,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {a: "toto"}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
         previousData = checkConst(data);
@@ -287,7 +286,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {a: "toto2"}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -303,7 +302,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {b: {newObject: {}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -318,7 +317,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {b: {update: {coucou: "coucou"}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -334,7 +333,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {c: null}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -349,7 +348,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {d: {newArray: {0:"a", 1:"b"}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -363,7 +362,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {d: {update: {0:"b"}, delete: ["1"]}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -376,7 +375,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {d: {update: {0:"a is back", 1:"b"}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -389,7 +388,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {e: {newArray: {0:"first"}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -401,7 +400,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {e: {update: {1:"second"}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -418,7 +417,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {}, delete: ['a']}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -433,7 +432,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {b: { update: { coucou : { newObject: { truc: {newObject: { machin: "bidule"}}}}}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -448,7 +447,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {b: { update: { coucou : 3}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
@@ -462,7 +461,7 @@ describe("Json proxy", () => {
         assert.deepEqual(patches, {update: {b: { update: { coucou : true}}}}, "Patch for " + STEP);
         assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
 
-        data = applyDiff(data, patches);
+        data = JsonProxy.applyDiff(data, patches);
         assert.deepEqual(data, root, "Patch apply for " + STEP);
 
         assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);

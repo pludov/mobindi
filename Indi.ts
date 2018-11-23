@@ -722,6 +722,22 @@ export function timestampToEpoch(v:string):number
     return d / 1000.0;
 }
 
+export const DriverInterface = {
+    TELESCOPE: (1 << 0),  /**< Telescope interface, must subclass INDI::Telescope */
+    CCD:       (1 << 1),  /**< CCD interface, must subclass INDI::CCD */
+    GUIDER:    (1 << 2),  /**< Guider interface, must subclass INDI::GuiderInterface */
+    FOCUSER:   (1 << 3),  /**< Focuser interface, must subclass INDI::FocuserInterface */
+    FILTER:    (1 << 4),  /**< Filter interface, must subclass INDI::FilterInterface */
+    DOME:      (1 << 5),  /**< Dome interface, must subclass INDI::Dome */
+    GPS:       (1 << 6),  /**< GPS interface, must subclass INDI::GPS */
+    WEATHER:   (1 << 7),  /**< Weather interface, must subclass INDI::Weather */
+    AO:        (1 << 8),  /**< Adaptive Optics Interface */
+    DUSTCAP:   (1 << 9),  /**< Dust Cap Interface */
+    LIGHTBOX:  (1 << 10), /**< Light Box Interface */
+    DETECTOR:  (1 << 11), /**< Detector interface, must subclass INDI::Detector */
+    AUX:       (1 << 15), /**< Auxiliary interface */
+}
+
 function timestampDiff(a:string, b:string):number
 {
     return timestampToEpoch(a) - timestampToEpoch(b);

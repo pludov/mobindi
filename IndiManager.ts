@@ -105,6 +105,59 @@ export default class IndiManager {
         new IndiAutoGphotoSensorSize(this);
     }
 
+    public createDeviceListSynchronizer(cb: (devices: string[])=>(void), driverClass?: string, interfaceMask?:number)
+    {
+        const updateAvailableDevices = () => {
+            // Re-List all devices
+            var availableDevices = [];
+            for(var deviceId of Object.keys(this.currentStatus.deviceTree).sort()) {
+                var device = this.currentStatus.deviceTree[deviceId];
+                if (driverClass !== undefined) {
+                    try {
+                        const driver = device.DRIVER_INFO.childs.DRIVER_EXEC.$_;
+                        if (this.currentStatus.driverToGroup[driver] !== driverClass) {
+                            continue;
+                        }
+                    } catch(e) {
+                        continue;
+                    }
+                }
+
+                if (interfaceMask !== undefined) {
+                    try {
+                        const interfaceValue = parseInt(device.DRIVER_INFO.childs.DRIVER_INTERFACE.$_, 10);
+                        if ((interfaceValue & interfaceMask) !== interfaceMask) {
+                            continue;
+                        }
+                    } catch(e) {
+                        continue;
+                    }
+                }
+
+                console.log('got a device: ' + deviceId)
+                availableDevices.push(deviceId);
+            }
+            cb(availableDevices);
+        }
+
+        // Update available devices on driver desc and deviceTree change 
+        this.appStateManager.addSynchronizer(
+            [
+                'indiManager',
+                    [
+                        // Bind to driver_exec of each device
+                        ['deviceTree', null, 'DRIVER_INFO', 'childs', 
+                            [
+                                ['DRIVER_EXEC', '$_'],
+                                ['DRIVER_INTERFACE', '$_']
+                            ]
+                        ],
+                        // Bind to driverToGroup mapping (any change)
+                        ['driverToGroup',null]
+                    ]
+            ], updateAvailableDevices, true);
+    }
+
     nextMessageUid() {
         var now = new Date().getTime();
         let serial:number = 0;

@@ -503,6 +503,21 @@ class SynchronizerTrigger {
 type Callback = ()=>(void);
 type ListenerId = string;
 
+type NewArrayDiff = {
+    newArray: {[id: string]:Diff};
+}
+
+type NewObjectDiff = {
+    newObject: {[id: string]:Diff};
+}
+
+type UpdateDiff = {
+    update: {[id: string]:Diff};
+    delete?: string[];
+}
+
+type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
+
 export default class JsonProxy<CONTENTTYPE> {
     root: JsonProxyNode;
     currentSerial: number;
@@ -921,94 +936,78 @@ export default class JsonProxy<CONTENTTYPE> {
             serial: this.takeSerialSnapshot()
         }
     }
-}
 
-type NewArrayDiff = {
-    newArray: {[id: string]:Diff};
-}
-
-type NewObjectDiff = {
-    newObject: {[id: string]:Diff};
-}
-
-type UpdateDiff = {
-    update: {[id: string]:Diff};
-    delete?: string[];
-}
-
-type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
-
-
-// Update an object
-export function applyDiff(from : any, diff: Diff) {
-    if (diff === undefined) {
-        return from;
-    }
-    if (typeof diff == 'number' || typeof diff == 'string' || typeof diff == 'boolean' || diff === null) {
-        return diff;
-    }
-    let updateProps: undefined | {[id: string]:Diff} = undefined;
-    if (has(diff, 'newArray')) {
-        updateProps = (diff as NewArrayDiff).newArray;
-        from = [];
-    } else if (has(diff, 'newObject')) {
-        updateProps = (diff as NewObjectDiff).newObject;
-        from = {};
-    } else if (has(diff, 'update')) {
-        updateProps = (diff as UpdateDiff).update;
-        if (Array.isArray(from)) {
-            from = from.slice();
-        } else {
-            from = Object.assign({}, from);
+    public static asDiff(value:any):Diff
+    {
+        if (typeof value == 'number' || typeof value == 'string' || typeof value == 'boolean' || value === null) {
+            return value;
         }
+        if (typeof value != 'object') {
+            throw new Error("Unsupported value:" + value);
+        }
+        if (Array.isArray(value)) {
+            const result: {[id:string]:Diff} = {};
+            for(let i = 0; i < value.length; ++i) {
+                // FIXME: asDiff(value[i]) ???
+                result[i] = value[i];
+            }
+            return {newArray: result};
+        }
+        return {newObject: value};
+    }
 
-        if (has(diff, 'delete')) {
-            var toDelete = (diff as UpdateDiff).delete!;
+    // Update an object
+    public static applyDiff(from : any, diff: Diff) {
+        if (diff === undefined) {
+            return from;
+        }
+        if (typeof diff == 'number' || typeof diff == 'string' || typeof diff == 'boolean' || diff === null) {
+            return diff;
+        }
+        let updateProps: undefined | {[id: string]:Diff} = undefined;
+        if (has(diff, 'newArray')) {
+            updateProps = (diff as NewArrayDiff).newArray;
+            from = [];
+        } else if (has(diff, 'newObject')) {
+            updateProps = (diff as NewObjectDiff).newObject;
+            from = {};
+        } else if (has(diff, 'update')) {
+            updateProps = (diff as UpdateDiff).update;
             if (Array.isArray(from)) {
-                var lowestDelete = from.length;
-                for(var i = 0; i < toDelete.length; ++i) {
-                    var id = parseInt(toDelete[i]);
-                    if (i == 0 || id < lowestDelete) {
-                        lowestDelete = id;
+                from = from.slice();
+            } else {
+                from = Object.assign({}, from);
+            }
+
+            if (has(diff, 'delete')) {
+                var toDelete = (diff as UpdateDiff).delete!;
+                if (Array.isArray(from)) {
+                    var lowestDelete = from.length;
+                    for(var i = 0; i < toDelete.length; ++i) {
+                        var id = parseInt(toDelete[i]);
+                        if (i == 0 || id < lowestDelete) {
+                            lowestDelete = id;
+                        }
+                    }
+                    from.splice(lowestDelete);
+                } else {
+                    for(var i = 0; i < toDelete.length; ++i) {
+                        delete from[toDelete[i]];
                     }
                 }
-                from.splice(lowestDelete);
-            } else {
-                for(var i = 0; i < toDelete.length; ++i) {
-                    delete from[toDelete[i]];
+            }
+        }
+
+        if (updateProps != undefined) {
+            for(var k of Object.keys(updateProps)) {
+                if (has(updateProps, k)) {
+                    from[k] = JsonProxy.applyDiff(has(from, k) ? from[k] : undefined, updateProps[k]);
                 }
             }
         }
+        return from;
     }
-
-    if (updateProps != undefined) {
-        for(var k of Object.keys(updateProps)) {
-            if (has(updateProps, k)) {
-                from[k] = applyDiff(has(from, k) ? from[k] : undefined, updateProps[k]);
-            }
-        }
-    }
-
-    return from;
 }
 
-export function asDiff(value:any):Diff
-{
-    if (typeof value == 'number' || typeof value == 'string' || typeof value == 'boolean' || value === null) {
-        return value;
-    }
-    if (typeof value != 'object') {
-        throw new Error("Unsupported value:" + value);
-    }
-    if (Array.isArray(value)) {
-        const result: {[id:string]:Diff} = {};
-        for(let i = 0; i < value.length; ++i) {
-            // FIXME: asDiff(value[i]) ???
-            result[i] = value[i];
-        }
-        return {newArray: result};
-    }
-    return {newObject: value};
-}
 
 

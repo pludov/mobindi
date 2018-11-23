@@ -91,6 +91,7 @@ export type AstrometryStatus = {
     errorDetails: string  | null,
     image: string | null;
     result: AstrometryResult|null;
+    availableScopes: string [];
 }
 
 

@@ -2,6 +2,7 @@ import * as Promises from './Promises';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
+import { DriverInterface } from './Indi';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
@@ -145,17 +146,10 @@ export default class Camera {
         this.pauseRunningSequences();
         
         // Update available camera
-        this.appStateManager.addSynchronizer(
-            [
-                'indiManager',
-                    [
-                        // Bind to driver_exec of each device
-                        ['deviceTree', null, 'DRIVER_INFO', 'childs', 'DRIVER_EXEC', '$_'],
-                        // Bind to driverToGroup mapping (any change)
-                        ['driverToGroup',null]
-                    ]
-            ], this.updateAvailableCamera.bind(this), true);
-
+        context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableDevices = devs;
+        }, undefined, DriverInterface.CCD);
+        
         // Update shoots
         this.appStateManager.addSynchronizer(
             [
@@ -266,31 +260,6 @@ export default class Camera {
                 delete(this.previousImages[o]);
             }
         }
-    }
-
-    updateAvailableCamera()
-    {
-        // List all cameras
-        var indiManager = this.appStateManager.getTarget().indiManager;
-
-        var availableDevices = [];
-        for(var deviceId of Object.keys(indiManager.deviceTree).sort()) {
-            var device = indiManager.deviceTree[deviceId];
-            var driver;
-            try {
-                driver = device.DRIVER_INFO.childs.DRIVER_EXEC.$_;
-            } catch(e) {
-                continue;
-            }
-
-            if (indiManager.driverToGroup[driver] == 'CCDs') {
-                console.log('got a ccd: ' + deviceId)
-                availableDevices.push(deviceId);
-            }
-        }
-
-        this.currentStatus.availableDevices = availableDevices;
-
     }
 
     updateRunningShoots()
