@@ -98,13 +98,17 @@ appState.apps= {
         enabled: true,
         position: 5
     },
+    astrometry: {
+        enabled: true,
+        position: 6,
+    },
     toolExecuter: {
         enabled: true,
-        position: 6
+        position: 7,
     },
     messages: {
         enabled: true,
-        position: 7
+        position: 8,
     }
 };
 

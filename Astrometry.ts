@@ -2,7 +2,7 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus} from './shared/BackOfficeStatus';
+import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface } from './Indi';
@@ -28,6 +28,7 @@ export default class Astrometry {
             image: null,
             result: null,
             availableScopes: [],
+            selectedScope: null,
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
@@ -85,6 +86,15 @@ export default class Astrometry {
             if (this.currentProcess !== null) {
                 this.currentProcess.cancel();
             }
+        });
+    }
+
+    $api_setScope(message:AstrometrySetScopeRequest, progress:any) {
+        return new Promises.Immediate(()=> {
+            if (this.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
+                throw "device not available";
+            }
+            this.currentStatus.selectedScope = message.deviceId;
         });
     }
 }

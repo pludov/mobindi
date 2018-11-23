@@ -10,6 +10,7 @@ import IndiManagerApp from './IndiManagerApp';
 import CameraApp from './CameraApp';
 import SequenceApp from './SequenceApp';
 import FocuserApp from './FocuserApp';
+import AstrometryApp from './AstrometryApp';
 import MessageApp from './MessageApp';
 import ToolExecuterApp from './ToolExecuterApp';
 
@@ -65,6 +66,7 @@ class App extends Component {
             new SequenceApp(this.storeManager),
             new PhdApp(this.storeManager),
             new FocuserApp(this.storeManager),
+            new AstrometryApp(this.storeManager),
             new IndiManagerApp(this.storeManager),
             new ToolExecuterApp(this.storeManager),
             new MessageApp(this.storeManager)
@@ -106,7 +108,7 @@ class App extends Component {
 
                         <div className="AppMainContent">
                             {
-                                this.apps.map((app) => (app.getAppId() == this.props.currentApp ? app.getUi() : null))
+                                this.apps.map((app) => (app.getAppId() === this.props.currentApp ? app.getUi() : null))
                             }
                         </div>
                     </div>);

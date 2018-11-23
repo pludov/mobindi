@@ -92,6 +92,7 @@ export type AstrometryStatus = {
     image: string | null;
     result: AstrometryResult|null;
     availableScopes: string [];
+    selectedScope: string | null;
 }
 
 
@@ -102,6 +103,9 @@ export type AstrometryComputeRequest = {
 export type AstrometryCancelRequest = {
 }
 
+export type AstrometrySetScopeRequest = {
+    deviceId: string;
+}
 
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};

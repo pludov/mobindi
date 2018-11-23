@@ -10,9 +10,8 @@ class CameraApp extends BaseApp {
     }
 
     getUi() {
-        var self = this;
-        return (<div className="Page" key={self.appId}>
-                    <CameraView app={self} />
+        return (<div className="Page" key={this.appId}>
+                    <CameraView app={this} />
                 </div>);
     }
 }
