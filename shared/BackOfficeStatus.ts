@@ -107,6 +107,9 @@ export type AstrometrySetScopeRequest = {
     deviceId: string;
 }
 
+export type AstrometrySyncScopeRequest = {
+}
+
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;

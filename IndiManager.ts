@@ -3,7 +3,7 @@
  */
 import fs from 'fs';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
-import {IndiConnection, Vector} from './Indi';
+import {IndiConnection, Vector, Device} from './Indi';
 import * as Promises from './Promises';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { IndiManagerStatus, IndiManagerConnectDeviceRequest, IndiManagerDisconnectDeviceRequest, IndiManagerSetPropertyRequest, IndiManagerRestartDriverRequest, IndiManagerUpdateDriverParamRequest, BackofficeStatus } from './shared/BackOfficeStatus';
@@ -411,6 +411,14 @@ export default class IndiManager {
         });
     }
 
+
+    checkDeviceConnected(deviceId:string):Device {
+        const device = this.getValidConnection().getDevice(deviceId);
+        if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
+            throw new Error("Device " + deviceId + " is not connected");
+        }
+        return device;
+    }
 
     connectDevice<INPUT>(deviceFn:Promises.DynValueProvider<string,INPUT>)
     {

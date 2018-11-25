@@ -13,6 +13,9 @@ export type SucceededAstrometryResult = {
     cd1_2: number;
     cd2_1: number;
     cd2_2: number;
+    //frame pixel size (verbatim from input)
+    width: number;
+    height: number;
 }
 
 export type AstrometryResult = FailedAstrometryResult|SucceededAstrometryResult;

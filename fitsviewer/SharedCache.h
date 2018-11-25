@@ -113,6 +113,7 @@ namespace SharedCache {
 			double raCenter, decCenter;
 			double refPixX, refPixY;
 			double cd1_1,cd1_2, cd2_1, cd2_2;
+			int width, height;
 		};
 		void to_json(nlohmann::json&j, const AstrometryResult & i);
 		void from_json(const nlohmann::json& j, AstrometryResult & p);

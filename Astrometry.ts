@@ -2,12 +2,11 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest} from './shared/BackOfficeStatus';
+import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface } from './Indi';
-const {IndiConnection, timestampToEpoch} = require('./Indi');
-
+import SkyProjection from './ui/src/utils/SkyProjection';
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
@@ -67,6 +66,7 @@ export default class Astrometry {
                     this.currentProcess = null;
                     this.currentStatus.status = status;
                     this.currentStatus.errorDetails = error;
+                    this.currentStatus.result = result;
                 }
             };
 
@@ -76,6 +76,7 @@ export default class Astrometry {
             this.currentProcess = newProcess;
             this.currentStatus.image = message.image;
             this.currentStatus.status = 'computing';
+            this.currentStatus.result = null;
             this.currentStatus.errorDetails = null;
             return newProcess;
         });
@@ -95,6 +96,72 @@ export default class Astrometry {
                 throw "device not available";
             }
             this.currentStatus.selectedScope = message.deviceId;
+        });
+    }
+
+    $api_sync(message:AstrometrySyncScopeRequest, progress:any) {
+        return new Promises.Builder<void, void>(()=>{
+            console.log('Astrometry: sync');
+            if (this.currentStatus.result === null) {
+                throw new Error("Run astrometry first");
+            }
+
+            if (!this.currentStatus.result.found) {
+                throw new Error("Astrometry failed, cannot sync");
+            }
+
+            const skyProjection = SkyProjection.fromAstrometry(this.currentStatus.result);
+
+            // take the center of the image
+            const center = [(this.currentStatus.result.width - 1) / 2, (this.currentStatus.result.height - 1) / 2];
+            // Project to J2000
+            const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+            // compute JNOW center for last image.
+            const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+            if (this.currentProcess !== null) {
+                throw new Error("Astrometry already in process");
+            }
+
+            const targetScope = this.currentStatus.selectedScope;
+            if (!targetScope) {
+                throw new Error("No scope selected for astrometry");
+            }
+
+            // Check that scope is connected
+            this.context.indiManager.checkDeviceConnected(targetScope);
+
+            // FIXME:
+            // - check no motion is in progress
+            const newProcess = new Promises.Chain<void, void>(
+                this.context.indiManager.setParam(
+                    targetScope,
+                    'ON_COORD_SET',
+                    {'SYNC': 'On'}),
+                this.context.indiManager.setParam(
+                    targetScope,
+                    'EQUATORIAL_EOD_COORD',
+                    {
+                        'RA': ''+ ranow * 24 / 360,
+                        'DEC': '' + decnow,
+                    }),
+            );
+
+            const finish = (status: AstrometryStatus['status'], error:string|null)=> {
+                if (this.currentProcess === newProcess) {
+                    this.currentProcess = null;
+                    this.currentStatus.status = status;
+                    this.currentStatus.errorDetails = error;
+                }
+            };
+
+            newProcess.onCancel(()=>finish('empty', null));
+            newProcess.onError((e:any)=>finish('error', e.message || '' + e));
+            newProcess.then(()=>finish('ready', null));
+            this.currentProcess = newProcess;
+            this.currentStatus.status = 'syncing';
+            this.currentStatus.errorDetails = null;
+            return newProcess;
         });
     }
 }

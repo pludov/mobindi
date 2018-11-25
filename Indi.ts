@@ -512,7 +512,7 @@ export class IndiConnection {
         return this.deviceTree[dev];
     }
 
-    getDevice(dev:string) {
+    getDevice(dev:string):Device {
         return new Device(this, dev);
     }
 

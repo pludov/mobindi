@@ -507,10 +507,7 @@ export default class Camera {
                     }
 
                     // Check that camera is connected
-                    const device = this.indiManager.getValidConnection().getDevice(sequence.camera);
-                    if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
-                        throw new Error("Device is not connected");
-                    }
+                    const device = this.indiManager.checkDeviceConnected(sequence.camera);
 
                     // Get the name of frame type
                     const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';

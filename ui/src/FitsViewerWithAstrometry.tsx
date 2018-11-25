@@ -41,11 +41,17 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
     }
 
     private readonly sync = () => {
-        // TODO
+        const syncRequest:BackOfficeStatus.AstrometrySyncScopeRequest = {
+        };
+
+        this.props.app.appServerRequest('astrometry', {
+            method: 'sync',
+            ...syncRequest
+        }).start();
     }
 
     private readonly start = () => {
-        const computeRequest={
+        const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
             image: this.props.src
         };
 

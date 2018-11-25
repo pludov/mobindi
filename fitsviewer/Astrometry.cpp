@@ -19,6 +19,8 @@ namespace SharedCache {
         {
             j = nlohmann::json::object();
             j["found"] = i.found;
+            j["width"] = i.width;
+            j["height"] = i.height;
             if (i.found) {
                 j["raCenter"] = i.raCenter;
                 j["decCenter"] = i.decCenter;
@@ -34,6 +36,8 @@ namespace SharedCache {
         void from_json(const nlohmann::json& j, AstrometryResult & p)
         {
             p.found = j.at("found").get<bool>();
+            p.width = j.at("width").get<int>();
+            p.height = j.at("height").get<int>();
             if (p.found) {
                 p.raCenter = j.at("raCenter").get<double>();
                 p.decCenter = j.at("decCenter").get<double>();
@@ -152,7 +156,7 @@ public:
         if (naxis != 0) {
             throw SharedCache::WorkerError("wrong wcs fits (naxis != 0)");
         }
-        
+
         long wcaxes;
         if (fits_read_key_lng(file.fptr, "WCSAXES", &wcaxes, nullptr, &status)) {
             FitsFile::throwFitsIOError("wrong wcs fits (WCSAXES)", status);
@@ -183,6 +187,8 @@ public:
         result.cd1_2 = file.getDoubleKey("CD1_2");
         result.cd2_1 = file.getDoubleKey("CD2_1");
         result.cd2_2 = file.getDoubleKey("CD2_2");
+        result.width = starfield.width;
+        result.height = starfield.height;
 
         return result;
     }
