@@ -87,8 +87,12 @@ export type CameraStatus = {
 }
 
 export type AstrometryStatus = {
-    status: "empty"|"error"|"computing"|"syncing"|"moving"|"ready";
-    errorDetails: string  | null,
+    status: "empty"|"error"|"computing"|"ready";
+    scopeStatus: "idle"|"moving"|"syncing";
+    scopeReady: boolean;
+
+    scopeDetails: string | null;
+    lastOperationError: string|null;
     image: string | null;
     result: AstrometryResult|null;
     availableScopes: string [];

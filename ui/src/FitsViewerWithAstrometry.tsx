@@ -16,7 +16,8 @@ type InputProps = {
 
 type MappedProps = {
     visible: boolean;
-    status: BackOfficeStatus.AstrometryStatus["status"];
+    status: BackOfficeStatus.AstrometryStatus["status"] | BackOfficeStatus.AstrometryStatus["scopeStatus"];
+    error: string | null;
     cancel: boolean;
     move: boolean;
     sync: boolean;
@@ -87,7 +88,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
             }
     );
 
-    titleForStatus(status:BackOfficeStatus.AstrometryStatus["status"])
+    titleForStatus(status:BackOfficeStatus.AstrometryStatus["status"]|BackOfficeStatus.AstrometryStatus["scopeStatus"])
     {
         return "Astrometry " + status;
     }
@@ -103,6 +104,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                 {this.props.visible ? this.titleForStatus(this.props.status) : null}
                 {this.props.cancel ? <input type='button' value='Cancel' onClick={this.cancel}/> : null}
                 {this.props.sync ? <input type='button' value='Sync Scope' onClick={this.sync}/> : null}
+                {this.props.error !== null
+                    ? <div className="Error">{this.props.error}</div>
+                    : null
+                }
             </span>
         </div>;
     }
@@ -120,19 +125,26 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                         move: false,
                         sync: false,
                         start: false,
+                        error: null,
                     }
                 }
-                const status = astrometry.status;
-                const result = {
-                    status,
+                const computeStatus = astrometry.status;
+                const scopeStatus = astrometry.scopeStatus;
+                const result: MappedProps = {
+                    status: computeStatus,
                     visible: true,
                     cancel: false,
                     move: false,
                     sync: false,
                     start: false,
+                    error: null,
                 };
-                if (status === "computing") {
+                if (scopeStatus === "moving" || scopeStatus === "syncing") {
                     result.cancel = true;
+                    result.status = scopeStatus;
+                } else if (computeStatus === "computing") {
+                    result.cancel = true;
+                    result.status
                 } else {
                     if (astrometry.image !== null && astrometry.image === src)
                     {
@@ -145,14 +157,18 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                                 result.move = true;
                                 result.sync = true;
                                 break;
-                            case "moving":
-                            case "syncing":
-                                result.cancel = true;
-                                break;
                         }
                     } else {
                         result.start = true;
                         result.visible = false;
+                    }
+                }
+
+                if (astrometry.image !== null && astrometry.image === src) {
+                    if (astrometry.lastOperationError !== null) {
+                        result.error = astrometry.lastOperationError;
+                    } else if (astrometry.scopeDetails !== null) {
+                        result.error = astrometry.scopeDetails;
                     }
                 }
                 return result;

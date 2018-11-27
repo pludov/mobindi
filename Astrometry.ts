@@ -23,7 +23,10 @@ export default class Astrometry {
 
         const initialStatus: AstrometryStatus = {
             status: "empty",
-            errorDetails: null,
+            lastOperationError: null,
+            scopeStatus: "idle",
+            scopeReady: true,
+            scopeDetails: "not initialised",
             image: null,
             result: null,
             availableScopes: [],
@@ -37,6 +40,40 @@ export default class Astrometry {
         context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
             this.currentStatus.availableScopes = devs;
         }, undefined, DriverInterface.TELESCOPE);
+
+        // listener to adjust scopeStatus (only when ok/ko)
+        this.appStateManager.addSynchronizer([
+            [
+                [   'indiManager', 'deviceTree', null, 'CONNECTION', 'childs', 'CONNECT' ],
+                [   'astrometry', 'selectedScope' ]
+            ]
+        ],
+            this.syncScopeStatus, true
+
+        );
+    }
+
+    private readonly syncScopeStatus=()=>
+    {
+        try {
+            if (this.currentStatus.selectedScope === null) {
+                throw new Error("no scope selected");
+            }
+
+            const connection = this.context.indiManager.getValidConnection();
+
+            const device = connection.getDevice(this.currentStatus.selectedScope);
+
+            if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
+                throw new Error("scope not connected");
+            }
+
+            this.currentStatus.scopeReady = true;
+            this.currentStatus.scopeDetails = null;
+        } catch(e) {
+            this.currentStatus.scopeReady = false;
+            this.currentStatus.scopeDetails = e.message || (""+e);
+        }
     }
 
     $api_compute(message:AstrometryComputeRequest, progress:any) {
@@ -65,7 +102,7 @@ export default class Astrometry {
                 if (this.currentProcess === newProcess) {
                     this.currentProcess = null;
                     this.currentStatus.status = status;
-                    this.currentStatus.errorDetails = error;
+                    this.currentStatus.lastOperationError = error;
                     this.currentStatus.result = result;
                 }
             };
@@ -77,7 +114,7 @@ export default class Astrometry {
             this.currentStatus.image = message.image;
             this.currentStatus.status = 'computing';
             this.currentStatus.result = null;
-            this.currentStatus.errorDetails = null;
+            this.currentStatus.lastOperationError = null;
             return newProcess;
         });
     }
@@ -101,67 +138,75 @@ export default class Astrometry {
 
     $api_sync(message:AstrometrySyncScopeRequest, progress:any) {
         return new Promises.Builder<void, void>(()=>{
+            let newProcess:this['currentProcess'] = null;
+
             console.log('Astrometry: sync');
-            if (this.currentStatus.result === null) {
-                throw new Error("Run astrometry first");
-            }
-
-            if (!this.currentStatus.result.found) {
-                throw new Error("Astrometry failed, cannot sync");
-            }
-
-            const skyProjection = SkyProjection.fromAstrometry(this.currentStatus.result);
-
-            // take the center of the image
-            const center = [(this.currentStatus.result.width - 1) / 2, (this.currentStatus.result.height - 1) / 2];
-            // Project to J2000
-            const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-            // compute JNOW center for last image.
-            const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
-
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
             }
 
-            const targetScope = this.currentStatus.selectedScope;
-            if (!targetScope) {
-                throw new Error("No scope selected for astrometry");
-            }
-
-            // Check that scope is connected
-            this.context.indiManager.checkDeviceConnected(targetScope);
-
-            // FIXME:
-            // - check no motion is in progress
-            const newProcess = new Promises.Chain<void, void>(
-                this.context.indiManager.setParam(
-                    targetScope,
-                    'ON_COORD_SET',
-                    {'SYNC': 'On'}),
-                this.context.indiManager.setParam(
-                    targetScope,
-                    'EQUATORIAL_EOD_COORD',
-                    {
-                        'RA': ''+ ranow * 24 / 360,
-                        'DEC': '' + decnow,
-                    }),
-            );
-
-            const finish = (status: AstrometryStatus['status'], error:string|null)=> {
+            const finish = (status: AstrometryStatus['scopeStatus'], error:string|null)=> {
                 if (this.currentProcess === newProcess) {
                     this.currentProcess = null;
-                    this.currentStatus.status = status;
-                    this.currentStatus.errorDetails = error;
+                    this.currentStatus.scopeStatus = status;
+                    this.currentStatus.lastOperationError = error;
                 }
             };
 
-            newProcess.onCancel(()=>finish('empty', null));
-            newProcess.onError((e:any)=>finish('error', e.message || '' + e));
-            newProcess.then(()=>finish('ready', null));
+            try {
+                if (this.currentStatus.result === null) {
+                    throw new Error("Run astrometry first");
+                }
+
+                if (!this.currentStatus.result.found) {
+                    throw new Error("Astrometry failed, cannot sync");
+                }
+
+                const skyProjection = SkyProjection.fromAstrometry(this.currentStatus.result);
+
+                // take the center of the image
+                const center = [(this.currentStatus.result.width - 1) / 2, (this.currentStatus.result.height - 1) / 2];
+                // Project to J2000
+                const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                // compute JNOW center for last image.
+                const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+
+                const targetScope = this.currentStatus.selectedScope;
+                if (!targetScope) {
+                    throw new Error("No scope selected for astrometry");
+                }
+
+                // Check that scope is connected
+                this.context.indiManager.checkDeviceConnected(targetScope);
+
+                // FIXME:
+                // - check no motion is in progress
+                newProcess = new Promises.Chain<void, void>(
+                    this.context.indiManager.setParam(
+                        targetScope,
+                        'ON_COORD_SET',
+                        {'SYNC': 'On'}),
+                    this.context.indiManager.setParam(
+                        targetScope,
+                        'EQUATORIAL_EOD_COORD',
+                        {
+                            'RA': ''+ ranow * 24 / 360,
+                            'DEC': '' + decnow,
+                        }),
+                );
+
+            } catch(e) {
+                finish('idle', e.message || '' + e);
+                throw e;
+            }
+            newProcess.onCancel(()=>finish('idle', null));
+            newProcess.onError((e:any)=>finish('idle', e.message || '' + e));
+            newProcess.then(()=>finish('idle', null));
             this.currentProcess = newProcess;
-            this.currentStatus.status = 'syncing';
-            this.currentStatus.errorDetails = null;
-            return newProcess;
+            this.currentStatus.scopeStatus = 'syncing';
+            this.currentStatus.lastOperationError = null;
+            return newProcess!;
         });
     }
 }
