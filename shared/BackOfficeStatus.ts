@@ -91,13 +91,14 @@ export type AstrometryStatus = {
     status: "empty"|"error"|"computing"|"ready";
     scopeStatus: "idle"|"moving"|"syncing";
     scopeReady: boolean;
-
+    scopeMovedSinceImage: boolean;
     scopeDetails: string | null;
     lastOperationError: string|null;
     image: string | null;
     result: AstrometryResult|null;
     availableScopes: string [];
     selectedScope: string | null;
+    target: {ra: number, dec:number}|null;
 }
 
 

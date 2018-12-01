@@ -26,11 +26,13 @@ export default class Astrometry {
             lastOperationError: null,
             scopeStatus: "idle",
             scopeReady: true,
+            scopeMovedSinceImage: false,
             scopeDetails: "not initialised",
             image: null,
             result: null,
             availableScopes: [],
             selectedScope: null,
+            target: null,
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
@@ -112,8 +114,10 @@ export default class Astrometry {
             newProcess.then((e:AstrometryResult)=>finish('ready', null, e));
             this.currentProcess = newProcess;
             this.currentStatus.image = message.image;
+            this.currentStatus.scopeMovedSinceImage = false;
             this.currentStatus.status = 'computing';
             this.currentStatus.result = null;
+            this.currentStatus.target = null;
             this.currentStatus.lastOperationError = null;
             return newProcess;
         });
@@ -193,7 +197,9 @@ export default class Astrometry {
             newProcess.then(()=>finish('idle', null));
             this.currentProcess = newProcess;
             this.currentStatus.scopeStatus = 'moving';
+            this.currentStatus.scopeMovedSinceImage = true;
             this.currentStatus.lastOperationError = null;
+            this.currentStatus.target = {ra:message.ra, dec:message.dec};
             return newProcess!;
 
         });
@@ -272,6 +278,7 @@ export default class Astrometry {
             this.currentProcess = newProcess;
             this.currentStatus.scopeStatus = 'syncing';
             this.currentStatus.lastOperationError = null;
+            this.currentStatus.target = null;
             return newProcess!;
         });
     }

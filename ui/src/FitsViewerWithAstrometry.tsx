@@ -86,7 +86,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         }).start();
     }
 
-
     private readonly start = () => {
         const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
             image: this.props.src
@@ -209,9 +208,35 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                     ranow: null,
                     decnow: null,
                 };
+
+                const calcTrackScope=()=>{
+                    if (astrometry.image !== null && astrometry.image === src
+                        && astrometry.status === "ready"
+                        && astrometry.result !== null && astrometry.result.found ) {
+
+                        result.trackScope = astrometry.selectedScope;
+
+                        if (astrometry.target === null) {
+                            const skyProjection = SkyProjection.fromAstrometry(astrometry.result);
+                            // take the center of the image
+                            const center = [(astrometry.result.width - 1) / 2, (astrometry.result.height - 1) / 2];
+                            // Project to J2000
+                            const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                            // compute JNOW center for last image.
+                            const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+                            result.ranow = ranow;
+                            result.decnow = decnow;
+                        } else {
+                            result.ranow = astrometry.target.ra;
+                            result.decnow = astrometry.target.dec;
+                        }
+                    }
+                }
                 if (scopeStatus === "moving" || scopeStatus === "syncing") {
                     result.cancel = true;
                     result.status = scopeStatus;
+                    calcTrackScope();
                 } else if (computeStatus === "computing") {
                     result.cancel = true;
                     result.status
@@ -226,19 +251,8 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                             case "ready":
                                 if (astrometry.result !== null && astrometry.result.found) {
                                     result.move = astrometry.scopeReady;
-                                    result.sync = astrometry.scopeReady;
-
-                                    const skyProjection = SkyProjection.fromAstrometry(astrometry.result);
-                                    // take the center of the image
-                                    const center = [(astrometry.result.width - 1) / 2, (astrometry.result.height - 1) / 2];
-                                    // Project to J2000
-                                    const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-                                    // compute JNOW center for last image.
-                                    const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
-
-                                    result.trackScope = astrometry.selectedScope;
-                                    result.ranow = ranow;
-                                    result.decnow = decnow;
+                                    result.sync = astrometry.scopeReady && !astrometry.scopeMovedSinceImage;
+                                    calcTrackScope();
                                 } else {
 
                                     result.start = true;
