@@ -56,7 +56,7 @@ export default class Camera {
 
                 }
             },
-
+            lastByDevices: {},
             sequences: {
                 list: [],
                 byuuid: {
@@ -868,6 +868,7 @@ export default class Camera {
                     }
                     console.log('Using fake image : ' + value);
                 }
+                self.currentStatus.lastByDevices[device] = value;
 
                 var newUuid = self.imageIdGenerator.next();
 

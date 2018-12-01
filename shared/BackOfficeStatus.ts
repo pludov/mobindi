@@ -74,6 +74,7 @@ export type CameraStatus = {
     availableDevices: string [];
     currentSettings: any;
     currentShoots: {[deviceId:string]:any};
+    lastByDevices: {[deviceId:string]:string};
     images: {
         list: string[];
         byuuid: {[uuid:string]:any}

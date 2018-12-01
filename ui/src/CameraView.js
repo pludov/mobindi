@@ -109,7 +109,6 @@ class CameraView extends PureComponent {
 
     constructor(props) {
         super(props);
-        this.state = {url: ''};
         this.setPhoto = this.setPhoto.bind(this);
         this.connect = this.connect.bind(this);
         this.astrometryMenu = [
@@ -123,10 +122,10 @@ class CameraView extends PureComponent {
 
     startAstrometry = () => {
         const computeRequest={
-            image: this.state.url
+            image: this.props.url
         };
         
-        console.log('Start astrometry ?' + this.state.url);
+        console.log('Start astrometry ?' + this.props.url);
         this.props.app.appServerRequest('astrometry', {
             method: 'compute',
             ...computeRequest
@@ -136,7 +135,7 @@ class CameraView extends PureComponent {
 
     render() {
         //var self = this;
-        const contextMenu = this.state.url === '' ? null : this.astrometryMenu;
+        const contextMenu = this.props.url === '' ? null : this.astrometryMenu;
 
         return(<div className="CameraView">
             <div>
@@ -152,7 +151,7 @@ class CameraView extends PureComponent {
                 />
             <FitsViewerWithAstrometry 
                 contextKey="default"
-                src={this.state.url}
+                src={this.props.url}
                 app={this.props.app}/>
             <ShootBton
                     activePath="$.backend.camera.selectedDevice"
@@ -162,7 +161,6 @@ class CameraView extends PureComponent {
     }
 
     setPhoto(rslt) {
-        this.setState({url : rslt.path});
     }
 
     connect() {
@@ -174,7 +172,23 @@ class CameraView extends PureComponent {
             console.log('got rslt:' + JSON.stringify(rslt));
         }).start();
     }
+
+    static mapStateToProps(store, ownProps) {
+        try {
+            const camera = store.backend.camera.selectedDevice;
+            if (!camera) {
+                return {url: null};
+            }
+            if (Object.prototype.hasOwnProperty.call(store.backend.camera.lastByDevices, camera)) {
+                return {url: store.backend.camera.lastByDevices[camera]};
+            } else {
+                return {url: null};
+            }
+        } catch(e) {
+            console.log('Ignored camera pb', e);
+            return {url: null}
+        }
+    }
 }
 
-
-export default CameraView;
+export default connect(CameraView.mapStateToProps)(CameraView);
