@@ -44,7 +44,7 @@ class MessageList extends PureComponent {
 
     render() {
         var messagesUids = Object.keys(this.props.messages).sort().reverse();
-        var content = messagesUids.map((uid)=><Item uid={uid} id={uid}/>);
+        var content = messagesUids.map((uid)=><Item key={uid} uid={uid} id={uid}/>);
         return <div>{content}</div>;
     }
 
