@@ -1,8 +1,14 @@
 .AstrometryImageInfoRoot {
     position: absolute;
     pointer-events: none;
+    left: 0px;
+    right: 0px;
 }
 
 .AstrometryImageInfoRoot input {
     pointer-events: all;
+}
+
+.AstrometryBton {
+    float: right;
 }

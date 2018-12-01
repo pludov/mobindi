@@ -6,6 +6,7 @@ import * as BackOfficeStatus from '../../shared/BackOfficeStatus';
 
 import './FitsViewerWithAstrometry.css'
 import FitsViewerInContext from './FitsViewerInContext';
+import SkyProjection from './utils/SkyProjection';
 
 
 type InputProps = {
@@ -14,7 +15,7 @@ type InputProps = {
     contextKey: string;
 };
 
-type MappedProps = {
+type AstrometryProps = {
     visible: boolean;
     status: BackOfficeStatus.AstrometryStatus["status"] | BackOfficeStatus.AstrometryStatus["scopeStatus"];
     error: string | null;
@@ -22,7 +23,17 @@ type MappedProps = {
     move: boolean;
     sync: boolean;
     start: boolean;
+    trackScope: string|null;
+    ranow: number|null;
+    decnow: number|null;
 };
+
+type LiveProps = {
+    scopeDeltaRa: number|null;
+    scopeDeltaDec: number|null;
+};
+
+type MappedProps = AstrometryProps & LiveProps;
 
 type Props = InputProps & MappedProps;
 
@@ -93,6 +104,33 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         return "Astrometry " + status;
     }
 
+    static deltaTitle(dlt:number) {
+        if (dlt === 0) {
+            return '0"';
+        }
+
+        let rslt;
+        if (dlt < 0) {
+            rslt = '-';
+            dlt = -dlt;
+        } else {
+            rslt = '+';
+        }
+
+        if (dlt >= 3600) {
+            rslt += Math.floor(dlt / 3600) + '°';
+        }
+
+        if (dlt >= 60 && dlt < 2*3600) {
+            rslt += (Math.floor(dlt / 60) % 60) + "'";
+        }
+
+        if (dlt < 120) {
+            rslt += (dlt % 60) + '"';
+        }
+        return rslt;
+    }
+
     render() {
         return <div className="FitsViewer FitsViewContainer">
             <FitsViewerInContext contextKey={this.props.contextKey}
@@ -101,9 +139,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                         contextMenu={this.contextMenuSelector(this.props)}
                 />
             <span className="AstrometryImageInfoRoot">
-                {this.props.visible ? this.titleForStatus(this.props.status) : null}
-                {this.props.cancel ? <input type='button' value='Cancel' onClick={this.cancel}/> : null}
-                {this.props.sync ? <input type='button' value='Sync Scope' onClick={this.sync}/> : null}
+                {this.props.scopeDeltaRa !== null ? "Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)  : null}
+                {this.props.visible && this.props.scopeDeltaRa === null ? this.titleForStatus(this.props.status) : null}
+                {this.props.cancel ? <input type='button' className='AstrometryBton' value='Cancel' onClick={this.cancel}/> : null}
+                {this.props.sync && this.props.scopeDeltaRa !== 0 && this.props.scopeDeltaDec !== 0 ? <input type='button' className='AstrometryBton' value='Sync' onClick={this.sync}/> : null}
                 {this.props.error !== null
                     ? <div className="Error">{this.props.error}</div>
                     : null
@@ -116,7 +155,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
 
         const selector = createSelector (
             [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.src],
-            (astrometry:BackOfficeStatus.AstrometryStatus, src:string):MappedProps =>  {
+            (astrometry:BackOfficeStatus.AstrometryStatus, src:string):AstrometryProps =>  {
                 if (astrometry === undefined) {
                     return {
                         status: "empty",
@@ -126,11 +165,14 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                         sync: false,
                         start: false,
                         error: null,
+                        trackScope: null,
+                        ranow : null,
+                        decnow: null,
                     }
                 }
                 const computeStatus = astrometry.status;
                 const scopeStatus = astrometry.scopeStatus;
-                const result: MappedProps = {
+                const result: AstrometryProps = {
                     status: computeStatus,
                     visible: true,
                     cancel: false,
@@ -138,6 +180,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                     sync: false,
                     start: false,
                     error: null,
+                    trackScope: null,
+                    ranow: null,
+                    decnow: null,
                 };
                 if (scopeStatus === "moving" || scopeStatus === "syncing") {
                     result.cancel = true;
@@ -154,8 +199,26 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                                 result.start = true;
                                 break;
                             case "ready":
-                                result.move = true;
-                                result.sync = true;
+                                if (astrometry.result !== null && astrometry.result.found) {
+                                    result.move = true;
+                                    result.sync = true;
+
+                                    const skyProjection = SkyProjection.fromAstrometry(astrometry.result);
+                                    // take the center of the image
+                                    const center = [(astrometry.result.width - 1) / 2, (astrometry.result.height - 1) / 2];
+                                    // Project to J2000
+                                    const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                                    // compute JNOW center for last image.
+                                    const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+                                    result.trackScope = astrometry.selectedScope;
+                                    result.ranow = ranow;
+                                    result.decnow = decnow;
+                                } else {
+
+                                    result.start = true;
+                                    result.error = "failed";
+                                }
                                 break;
                         }
                     } else {
@@ -174,7 +237,30 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                 return result;
             });
 
-        return (store:any, ownProps:InputProps)=>selector(store, ownProps);
+        return (store:any, ownProps:InputProps):MappedProps=>{
+            const astrometryProps = selector(store, ownProps);
+            const liveProps: LiveProps = { scopeDeltaRa:null, scopeDeltaDec:null};
+            if (astrometryProps.trackScope) {
+                try {
+                    const coordNode = store.backend.indiManager.deviceTree[astrometryProps.trackScope].EQUATORIAL_EOD_COORD;
+                    const ra = 360 * parseFloat(coordNode.childs.RA.$_) / 24;
+                    const dec = parseFloat(coordNode.childs.DEC.$_);
+
+                    const deltaRa = Math.round((astrometryProps.ranow! - ra) * 3600);
+                    const deltaDec = Math.round((astrometryProps.decnow! - dec) * 3600);
+
+                    liveProps.scopeDeltaRa = deltaRa;
+                    liveProps.scopeDeltaDec = deltaDec;
+                } catch(e) {
+                    console.log('ignoring : ', e);
+                }
+                console.log('liveProps', liveProps);
+            }
+            return {
+                ...liveProps,
+                ...astrometryProps
+            };
+        }
     }
 };
 
