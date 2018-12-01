@@ -352,7 +352,8 @@ export default class IndiManager {
     setParam<INPUT>(device:Promises.DynValueProvider<string,INPUT>,
                     vectorFn:Promises.DynValueProvider<string,INPUT>,
                     valFn:Promises.DynValueProvider<{[id:string]:string|null|undefined}, Vector>,
-                    force?: boolean)
+                    force?: boolean,
+                    nowait?: boolean)
     {
         var self = this;
         return new Promises.Builder<INPUT, void>((e)=>
@@ -378,10 +379,12 @@ export default class IndiManager {
 
             return new Promises.Chain(
                 self.waitForVectors(devId, vectorId),
-                connection.wait(() => (getVec().getState() != "Busy")),
+                (!nowait) ? (connection.wait(() => (getVec().getState() != "Busy"))) : new Promises.Immediate(()=>{}),
                 new Promises.Immediate(() => {
                     var vec = getVec();
-
+                    if (vec.getState() === "Busy") {
+                        throw new Error("Device is busy");
+                    }
                     var value = Promises.dynValue(valFn, vec);
                     var diff = false;
                     

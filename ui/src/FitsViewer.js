@@ -71,7 +71,12 @@ class ContextMenu extends PureComponent {
                                 className="Item"
                                 onClick={()=> {
                                     this.props.displaySetting(null);
-                                    e.cb(this.props.x, this.props.y);
+                                    let event = {
+                                        x: this.props.x,
+                                        y: this.props.y,
+                                    };
+                                    event = {...event, ...this.props.xlateCoords(event.x, event.y)};
+                                    e.cb(event);
                                 }}
                                 key={e.key}>
                             {e.title}
@@ -725,6 +730,22 @@ class JQImageDisplay {
         }
     }
 
+    getImagePosFromParent(x, y)
+    {
+        console.log('Translate : ' ,x ,y, this.currentImagePos, this.currentImageSize);
+        if ((this.currentImageSize.width <= 0) || (this.currentImageSize.height <= 0)) {
+            return null;
+        }
+        if (this.currentImagePos.w <= 0 || (this.currentImagePos.h <= 0)) {
+            return null;
+        }
+
+        return {
+            imageX: (x - this.currentImagePos.x) * this.currentImageSize.width / this.currentImagePos.w,
+            imageY: (y - this.currentImagePos.y) * this.currentImageSize.height / this.currentImagePos.h,
+        }
+    }
+
     zoom(cx, cy, z) {
         var corners = [
             [this.currentImagePos.x, this.currentImagePos.y],
@@ -1025,6 +1046,14 @@ class FitsViewer extends PureComponent {
             this.ImageDisplay.flushView();
         }
     }
+
+    xlateCoords=(x, y)=> {
+        if (this.ImageDisplay !== undefined) {
+            return this.ImageDisplay.getImagePosFromParent(x, y);
+        }
+        return {};
+    }
+
     render() {
         console.log('state is ', this.state);
         var contextMenu, visor;
@@ -1032,6 +1061,7 @@ class FitsViewer extends PureComponent {
             contextMenu = <ContextMenu
                             contextMenu={this.props.contextMenu}
                             x={this.state.contextmenu.x} y={this.state.contextmenu.y}
+                            xlateCoords={this.xlateCoords}
                             displaySetting={this.displaySetting}
             />
             if (this.props.contextMenu && this.props.contextMenu.filter(e=>e.positional).length) {

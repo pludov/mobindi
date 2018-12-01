@@ -7,6 +7,7 @@ import * as BackOfficeStatus from '../../shared/BackOfficeStatus';
 import './FitsViewerWithAstrometry.css'
 import FitsViewerInContext from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
+import { storeManager, store } from './Store';
 
 
 type InputProps = {
@@ -48,26 +49,50 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         }).start();
     }
 
-    private readonly move = () => {
-        // TODO
+    private readonly move = (pos:any) => {
+        const state = store.getState();
+        const astrometryResult = state.backend.astrometry.result;
+        console.log('move at ', pos);
+        if (pos.imageX === undefined || pos.imageY === undefined) {
+            throw new Error("Wrong image position");
+        }
+
+        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
+        // take the center of the image
+        const center = [pos.imageX, pos.imageY];
+        // Project to J2000
+        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+        // compute JNOW center for last image.
+        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+        const gotoRequest:BackOfficeStatus.AstrometryGotoScopeRequest = {
+            ra: ranow,
+            dec: decnow,
+        };
+
+        return this.props.app.appServerRequest('astrometry', {
+            method: 'goto',
+            ...gotoRequest
+        }).start();
     }
 
     private readonly sync = () => {
         const syncRequest:BackOfficeStatus.AstrometrySyncScopeRequest = {
         };
 
-        this.props.app.appServerRequest('astrometry', {
+        return this.props.app.appServerRequest('astrometry', {
             method: 'sync',
             ...syncRequest
         }).start();
     }
+
 
     private readonly start = () => {
         const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
             image: this.props.src
         };
 
-        this.props.app.appServerRequest('astrometry', {
+        return this.props.app.appServerRequest('astrometry', {
             method: 'compute',
             ...computeRequest
         }).start();
@@ -91,7 +116,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                     ret.push({
                         title: 'Goto here',
                         key: 'goto',
-                        cb: this.start,
+                        cb: this.move,
                         positional: true,
                     });
                 }
@@ -200,8 +225,8 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                                 break;
                             case "ready":
                                 if (astrometry.result !== null && astrometry.result.found) {
-                                    result.move = true;
-                                    result.sync = true;
+                                    result.move = astrometry.scopeReady;
+                                    result.sync = astrometry.scopeReady;
 
                                     const skyProjection = SkyProjection.fromAstrometry(astrometry.result);
                                     // take the center of the image

@@ -2,7 +2,7 @@
 import * as Promises from './Promises';
 import ImageProcessor from './ImageProcessor';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest} from './shared/BackOfficeStatus';
+import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest, AstrometryGotoScopeRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface } from './Indi';
@@ -136,6 +136,63 @@ export default class Astrometry {
         });
     }
 
+    $api_goto(message:AstrometryGotoScopeRequest, progress: any) {
+        return new Promises.Builder<void, void>(()=>{
+            let newProcess:this['currentProcess'] = null;
+            console.log('Astrometry: goto');
+            if (this.currentProcess !== null) {
+                throw new Error("Astrometry already in process");
+            }
+
+            const finish = (status: AstrometryStatus['scopeStatus'], error:string|null)=> {
+                if (this.currentProcess === newProcess) {
+                    this.currentProcess = null;
+                    this.currentStatus.scopeStatus = status;
+                    this.currentStatus.lastOperationError = error;
+                }
+            };
+
+            try {
+                const targetScope = this.currentStatus.selectedScope;
+                if (!targetScope) {
+                    throw new Error("No scope selected for astrometry");
+                }
+
+                // FIXME: abort = specific order. setParam must handle this
+                // check no motion is in progress
+                newProcess = new Promises.Chain<void, void>(
+                    this.context.indiManager.setParam(
+                        targetScope,
+                        'ON_COORD_SET',
+                        {'TRACK': 'On'},
+                        true,
+                        true),
+                    this.context.indiManager.setParam(
+                        targetScope,
+                        'EQUATORIAL_EOD_COORD',
+                        {
+                            'RA': ''+ message.ra * 24 / 360,
+                            'DEC': '' + message.dec,
+                        },
+                        true,
+                        true),
+                );
+
+            } catch(e) {
+                finish('idle', e.message || '' + e);
+                throw e;
+            }
+            newProcess.onCancel(()=>finish('idle', null));
+            newProcess.onError((e:any)=>finish('idle', e.message || '' + e));
+            newProcess.then(()=>finish('idle', null));
+            this.currentProcess = newProcess;
+            this.currentStatus.scopeStatus = 'moving';
+            this.currentStatus.lastOperationError = null;
+            return newProcess!;
+
+        });
+    }
+
     $api_sync(message:AstrometrySyncScopeRequest, progress:any) {
         return new Promises.Builder<void, void>(()=>{
             let newProcess:this['currentProcess'] = null;
@@ -180,20 +237,23 @@ export default class Astrometry {
                 // Check that scope is connected
                 this.context.indiManager.checkDeviceConnected(targetScope);
 
-                // FIXME:
-                // - check no motion is in progress
+                // true,true=> check no motion is in progress
                 newProcess = new Promises.Chain<void, void>(
                     this.context.indiManager.setParam(
                         targetScope,
                         'ON_COORD_SET',
-                        {'SYNC': 'On'}),
+                        {'SYNC': 'On'},
+                        true,
+                        true),
                     this.context.indiManager.setParam(
                         targetScope,
                         'EQUATORIAL_EOD_COORD',
                         {
                             'RA': ''+ ranow * 24 / 360,
                             'DEC': '' + decnow,
-                        }),
+                        },
+                        true,
+                        true),
                 );
 
             } catch(e) {
