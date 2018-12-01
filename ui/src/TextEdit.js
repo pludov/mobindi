@@ -20,7 +20,7 @@ class FullScreenEdit extends PureComponent {
 
     render() {
         return <div className="Dialog WithVirtualKeyboard" onClick={this.stopEvent}>
-            <textarea ref={(input) => { this.textArea = input; }} >{this.props.value}</textarea>
+            <textarea ref={(input) => { this.textArea = input; }} defaultValue={this.props.value}/>
             <br/>
             <input type="button" value="Ok" onClick={this.done}/>
             <input type="button" value="Cancel" onClick={this.close}/>
