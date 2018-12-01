@@ -470,7 +470,7 @@ export class IndiConnection {
                 if (key == '$$') {
                     continue;
                 } else if (key == "$_") {
-                    node.txt(obj[key]);
+                    node.txt('' + obj[key]);
                 } else if (key.substr(0,1) == '$') {
                     node.att(key.substr(1), obj[key]);
                 } else {
