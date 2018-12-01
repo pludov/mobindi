@@ -353,7 +353,8 @@ export default class IndiManager {
                     vectorFn:Promises.DynValueProvider<string,INPUT>,
                     valFn:Promises.DynValueProvider<{[id:string]:string|null|undefined}, Vector>,
                     force?: boolean,
-                    nowait?: boolean)
+                    nowait?:boolean,
+                    cancelator?: (connection:IndiConnection, devId:string, vectorId:string)=>(void))
     {
         var self = this;
         return new Promises.Builder<INPUT, void>((e)=>
@@ -380,7 +381,7 @@ export default class IndiManager {
             return new Promises.Chain(
                 self.waitForVectors(devId, vectorId),
                 (!nowait) ? (connection.wait(() => (getVec().getState() != "Busy"))) : new Promises.Immediate(()=>{}),
-                new Promises.Immediate(() => {
+                new Promises.Builder(() => {
                     var vec = getVec();
                     if (vec.getState() === "Busy") {
                         throw new Error("Device is busy");
@@ -403,13 +404,24 @@ export default class IndiManager {
                     if (!todo.length) {
                         console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
                         // Value is ready.
-                        return null;
+                        return undefined;
                     } else {
                         vec.setValues(todo);
-                        return connection.wait(() => (getVec().getState() != "Busy"));
+                        const waiter = connection.wait<undefined, boolean>(() => {
+                            if (vectorId === 'EQUATORIAL_EOD_COORD') {
+                                console.log('is it busy now ?');
+                            }
+                            return (getVec().getState() != "Busy")
+                        });
+                        if (cancelator) {
+                            return new Promises.Cancelator<undefined, boolean>(()=> {
+                                cancelator(connection, devId, vectorId);
+                            }, waiter);
+                        } else {
+                            return waiter;
+                        }
                     }
-                }),
-                new Promises.ExecutePromise()
+                })
             );
         });
     }

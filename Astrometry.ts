@@ -5,7 +5,7 @@ import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest, AstrometryGotoScopeRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
-import { DriverInterface } from './Indi';
+import { DriverInterface, IndiConnection } from './Indi';
 import SkyProjection from './ui/src/utils/SkyProjection';
 
 // Astrometry requires: a camera, a mount
@@ -158,7 +158,6 @@ export default class Astrometry {
                     throw new Error("No scope selected for astrometry");
                 }
 
-                // FIXME: abort = specific order. setParam must handle this
                 // check no motion is in progress
                 newProcess = new Promises.Chain<void, void>(
                     this.context.indiManager.setParam(
@@ -175,7 +174,14 @@ export default class Astrometry {
                             'DEC': '' + message.dec,
                         },
                         true,
-                        true),
+                        true,
+                        // Aborter...
+                        (connection:IndiConnection, devId:string)=>{
+                            console.log('Cancel requested');
+                            const dev = connection.getDevice(devId);
+                            const vec = dev.getVector("TELESCOPE_ABORT_MOTION")
+                            vec.setValues([{name:"ABORT", value:"On"}]);
+                        }),
                 );
 
             } catch(e) {

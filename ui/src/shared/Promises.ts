@@ -159,7 +159,11 @@ export class Cancelable<Input, Output> {
             }
 
             cancelRequested = true;
-            doCancel();
+            try {
+                doCancel();
+            } catch(e) {
+                console.warn("Cancel failed - ignoring", e);
+            }
             return this;
         }
     }

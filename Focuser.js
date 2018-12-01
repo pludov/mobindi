@@ -4,7 +4,7 @@ const PolynomialRegression = require('ml-regression-polynomial');
 const Obj = require('./Obj.js');
 const Promises = require('./Promises');
 const ConfigStore = require('./ConfigStore');
-const JsonProxy = require('./JsonProxy');
+import JsonProxy from './JsonProxy';
 
 class Focuser {
     constructor(app, appStateManager, context)
@@ -131,25 +131,30 @@ class Focuser {
                     }
                     // FIXME: check upper bound
                 }
+
+                const moveFocuser = (position)=>(self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
+                    FOCUS_ABSOLUTE_POSITION: position
+                },
+                    false,
+                    true,
+                    (connection, devId, vectorId) => {
+                        const vec = connection.getDevice(devId).getVector('FOCUS_ABORT_MOTION');
+                        vec.setValues([{name: 'ABORT', value: 'On'}]);
+                    }
+                ));
                 lastKnownPos = target;
                 console.log('AUTOFOCUS: moving focuser to ' + target);
                 if ((intermediate !== undefined) && (intermediate !== target)) {
                     // Account for backlash
                     console.log('Focuser moving with backlash to : ', intermediate, target);
                     return new Promises.Chain(
-                        self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
-                            FOCUS_ABSOLUTE_POSITION: intermediate
-                        }),
-                        self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
-                            FOCUS_ABSOLUTE_POSITION: target
-                        })
+                        moveFocuser(intermediate),
+                        moveFocuser(target)
                     );
                 } else {
                     // Direct move
                     console.log('Focuser moving to : ', target);
-                    return self.indiManager.setParam(focuserId, 'ABS_FOCUS_POSITION', {
-                        FOCUS_ABSOLUTE_POSITION: target
-                    });
+                    return moveFocuser(target);
                 }
             });
         }

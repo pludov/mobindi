@@ -333,7 +333,7 @@ export class IndiConnection {
     // will be checked after every indi event
     // allowDisconnectionState: if true, predicate will be checked event after disconnection
     // The predicate will receive the promise input.
-    wait<INPUT, OUTPUT>(predicate:IndiPredicate<INPUT, OUTPUT>, allowDisconnectionState?:boolean):Promises.Cancelable<INPUT, OUTPUT> {
+    wait<INPUT, OUTPUT>(predicate:IndiPredicate<INPUT, OUTPUT>, allowDisconnectionState?:boolean, cancelable?:boolean):Promises.Cancelable<INPUT, OUTPUT> {
         const self = this;
         const waiterId = this.waiterId++;
         return new Promises.Cancelable<INPUT, OUTPUT>(
@@ -348,10 +348,12 @@ export class IndiConnection {
                     }
                 }
 
-                next.setCancelFunc(() => {
-                    dettach();
-                    next.cancel();
-                });
+                if (cancelable) {
+                    next.setCancelFunc(() => {
+                        dettach();
+                        next.cancel();
+                    });
+                }
 
                 if (self.dead && !allowDisconnectionState) {
                     next.error('Indi server disconnected');
@@ -361,7 +363,7 @@ export class IndiConnection {
                 if (!result) {
                     console.log('predicate false');
                     listener = function() {
-                        if (!next.isActive()) return;
+                        if (!next.isActive() && !next.cancelationPending()) return;
                         var result;
                         try {
                             result = predicate(input);
