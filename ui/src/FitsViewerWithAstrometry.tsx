@@ -18,6 +18,7 @@ type InputProps = {
 
 type AstrometryProps = {
     visible: boolean;
+    narrowable: boolean;
     status: BackOfficeStatus.AstrometryStatus["status"] | BackOfficeStatus.AstrometryStatus["scopeStatus"];
     error: string | null;
     cancel: boolean;
@@ -86,9 +87,11 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         }).start();
     }
 
-    private readonly start = () => {
+    private readonly start=(forceWide?:boolean)=>
+    {
         const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
-            image: this.props.src
+            image: this.props.src,
+            forceWide:!!forceWide
         };
 
         return this.props.app.appServerRequest('astrometry', {
@@ -97,19 +100,37 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         }).start();
     }
 
+    private readonly startWide = () => {
+        return this.start(true);
+    }
+
     private readonly contextMenuSelector = createSelector(
             [
                 (m:MappedProps)=>m.start,
+                (m:MappedProps)=>m.narrowable,
                 (m:MappedProps)=>m.move
             ],
-            (start, move)=> {
+            (start, narrowable, move)=> {
                 const ret = [];
                 if (start) {
-                    ret.push({
-                        title: 'Astrometry',
-                        key: 'astrometry',
-                        cb: this.start
-                    });
+                    if (narrowable) {
+                        ret.push({
+                            title: 'Astrometry',
+                            key: 'astrometry',
+                            cb: this.start
+                        });
+                        ret.push({
+                            title: 'Astrometry (Wide)',
+                            key: 'astrometry',
+                            cb: this.startWide
+                        });
+                    } else {
+                        ret.push({
+                            title: 'Astrometry (Wide)',
+                            key: 'astrometry',
+                            cb: this.startWide
+                        });
+                    }
                 }
                 if (move) {
                     ret.push({
@@ -184,6 +205,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                     return {
                         status: "empty",
                         visible: false,
+                        narrowable: false,
                         cancel: false,
                         move: false,
                         sync: false,
@@ -198,6 +220,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                 const scopeStatus = astrometry.scopeStatus;
                 const result: AstrometryProps = {
                     status: computeStatus,
+                    narrowable: (astrometry.narrowedField !== null || astrometry.useNarrowedSearchRadius),
                     visible: true,
                     cancel: false,
                     move: false,

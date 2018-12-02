@@ -126,6 +126,7 @@ export type AstrometryStatus = {
 
 export type AstrometryComputeRequest = {
     image: string;
+    forceWide: boolean;
 }
 
 export type AstrometryCancelRequest = {

@@ -108,11 +108,11 @@ export default class Astrometry {
                 "exePath": "",
                 "libraryPath": "",
                 "fieldMin":
-                    this.currentStatus.narrowedField !== null
+                    this.currentStatus.narrowedField !== null && !message.forceWide
                         ? this.currentStatus.narrowedField * 100 / (100 + this.currentStatus.settings.narrowedFieldPercent)
                         : this.currentStatus.settings.initialFieldMin,
                 "fieldMax":
-                    this.currentStatus.narrowedField !== null
+                    this.currentStatus.narrowedField !== null && !message.forceWide
                         ? this.currentStatus.narrowedField * (100 + this.currentStatus.settings.narrowedFieldPercent) / 100
                         : this.currentStatus.settings.initialFieldMax,
                 "raCenterEstimate": 0,
@@ -148,7 +148,7 @@ export default class Astrometry {
                     const j2000Center = SkyProjection.J2000RaDecFromEpoch([scopeRa*360/24, scopeDec], Date.now());
                     astrometry.raCenterEstimate = j2000Center[0];
                     astrometry.decCenterEstimate = j2000Center[1];
-                    const radius = this.currentStatus.useNarrowedSearchRadius
+                    const radius = this.currentStatus.useNarrowedSearchRadius && !message.forceWide
                         ? this.currentStatus.settings.narrowedSearchRadius
                         : this.currentStatus.settings.initialSearchRadius;
 
