@@ -313,6 +313,13 @@ export default class SkyProjection {
         return [x, y];
     }
 
+    // Get the size of the diagonal of an image from pixel unit
+    public getFieldSize(width:number, height:number):number {
+        const radw = this.pixelRad * (width + 1);
+        const radh = this.pixelRad * (height + 1);
+        return Math.sqrt(radw*radw + radh*radh) * 180/Math.PI;
+    }
+
     /** Pixel => ra/dec (degrees) */
     public pixToRaDec(xy: number[]): number[] {
         const x = (xy[0] - this.centerx) * this.pixelRad;

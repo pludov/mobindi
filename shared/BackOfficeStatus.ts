@@ -87,6 +87,21 @@ export type CameraStatus = {
     configuration: any;
 }
 
+export type AstrometrySettings = {
+    initialFieldMin: number;
+    initialFieldMax: number;
+
+    // Use scope position when available
+    useMountPosition: boolean;
+    // When useScopePosition is true (else, 180°)
+    initialSearchRadius: number|null;
+
+    // Used after a successfull sync
+    narrowedSearchRadius: number|null;
+    // Used after a successfull search
+    narrowedFieldPercent: number;
+}
+
 export type AstrometryStatus = {
     status: "empty"|"error"|"computing"|"ready";
     scopeStatus: "idle"|"moving"|"syncing";
@@ -98,7 +113,14 @@ export type AstrometryStatus = {
     result: AstrometryResult|null;
     availableScopes: string [];
     selectedScope: string | null;
+    settings: AstrometrySettings;
+    // set during GOTOs
     target: {ra: number, dec:number}|null;
+
+    // Set on first success (FIXME: should reset on camera change)
+    narrowedField: number|null;
+    // Set after one sync is ok (FIXME: should reset on mount/camera change)
+    useNarrowedSearchRadius: boolean;
 }
 
 
