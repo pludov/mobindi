@@ -186,7 +186,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
             <span className="AstrometryImageInfoRoot">
                 {this.props.scopeDeltaRa !== null ? "Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)  : null}
                 {this.props.visible && this.props.scopeDeltaRa === null ? this.titleForStatus(this.props.status) : null}
-                {this.props.cancel ? <input type='button' className='AstrometryBton' value='Cancel' onClick={this.cancel}/> : null}
+                {this.props.cancel ? <input type='button' className='AstrometryBton' value='Abort' onClick={this.cancel}/> : null}
                 {this.props.sync && this.props.scopeDeltaRa !== 0 && this.props.scopeDeltaDec !== 0 ? <input type='button' className='AstrometryBton' value='Sync' onClick={this.sync}/> : null}
                 {this.props.error !== null
                     ? <div className="Error">{this.props.error}</div>
