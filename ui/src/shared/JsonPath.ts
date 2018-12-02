@@ -17,7 +17,7 @@ function atPath(object:any, path:string)
         case 1:
             return rslt[0];
         default:
-            throw new Error("More than one match in atPath");
+            throw new Error("More than one match in atPath for " + path);
     }
 }
 

@@ -3,24 +3,26 @@ import * as JsonPath from '../shared/JsonPath';
 import JsonProxy from '../shared/JsonProxy';
 
 
-function asSubPath(path) {
-    if (path.substr(0,1) == "$") {
+function asSubPath(path:string) {
+    if (path.substr(0,1) === "$") {
         path = path.substr(1);
-    } else {
+    } else if (path.substr(0,1) !== ".") {
         path = "." + path
     }
     return path;
 }
 
 class BackendChildAccessor {
-    constructor(root, relpath)
+    readonly root: BackendAccessor;
+    readonly relpath: string; // startwith .
+
+    constructor(root: BackendAccessor, relpath: string)
     {
         this.root = root;
         this.relpath = relpath;
-        this.send = this.send.bind(this);
     }
 
-    apply(jsonDiff) {
+    apply(jsonDiff:any) {
         const path = JsonPath.asDirectPath('$' + this.relpath);
         
         for(let i = path.length - 1; i >= 0; --i) {
@@ -31,15 +33,15 @@ class BackendChildAccessor {
         return this.root.apply(jsonDiff);
     }
 
-    send(value) {
+    send = (value:any)=>{
         return this.apply(JsonProxy.asDiff(value));
     }
 
-    child(path) {
+    child(path:string) {
         return new BackendChildAccessor(this.root, this.relpath + asSubPath(path));
     }
 
-    fromStore(store, defaultValue)
+    fromStore(store:any, defaultValue?:any)
     {
         let root = this.root.fromStore(store);
         if (root === undefined) return defaultValue;
@@ -50,32 +52,31 @@ class BackendChildAccessor {
 }
 
 class BackendAccessor {
-
-    constructor(backendPath)
+    backendPath: string;
+    constructor(backendPath:string)
     {
         this.backendPath = backendPath;
-        this.send = this.send.bind(this);
     }
 
     // Returns a promise that perform a change.
     // A change is a set of jsonPath=>operation
     // Changes has: path, value, delete
-    apply(changes) {
+    apply(changes:any) {
         return new Promises.Immediate(()=>{
             throw new Error("not implemented");
         });
     }
 
-    child(path) {
+    child(path:string) {
         return new BackendChildAccessor(this, asSubPath(path));
     }
 
-    send(value) {
+    readonly send= (value:any)=>{
         return this.apply(JsonProxy.asDiff(value));
     }
 
     // Map the path to the given target
-    fromStore(store, defaultValue)
+    fromStore(store:any, defaultValue?:any)
     {
         const backend = store.backend;
         if (backend === null || backend === undefined) {
