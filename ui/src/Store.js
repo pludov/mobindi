@@ -120,8 +120,12 @@ var {reducer, storeManager } = function() {
             }
             if ('data' in action) {
                 state.backend = action.data;
-            } else {
+            } else if ('diff' in action) {
                 state.backend = JsonProxy.applyDiff(state.backend, action.diff);
+            } else if ('batch' in action) {
+                for(const diff of action.batch) {
+                    state.backend = JsonProxy.applyDiff(state.backend, diff);
+                }
             }
         } else if (type == "appAction") {
             var nvArgs = action.args.slice();

@@ -285,12 +285,38 @@ class Notifier {
             this.socket = undefined;
             this.dispatchBackendStatus('' + e);
         }
+
+        let notifications = [];
+        let flushTimeout = undefined;
+
+        function flushNotifications() {
+            if (flushTimeout !== undefined) {
+                clearTimeout(flushTimeout);
+                flushTimeout = undefined;
+            }
+            if (notifications.length) {
+                const toSend = notifications;
+                notifications = [];
+                console.log('batching notifications: ', toSend.length);
+                self.store.dispatch({type: "notification", batch: toSend});
+            }
+        }
+
+        function pushNotification(diff) {
+            notifications.push(diff);
+            if (flushTimeout === undefined) {
+                flushTimeout = setTimeout(()=> {
+                    flushTimeout = undefined;
+                    flushNotifications();
+                }, 40);
+            }
+        }
+
         if (this.socket) {
             this.socket.onopen = function(data) {
                 console.log('Websocket: connected');
             };
             this.socket.onmessage = function(event) {
-                console.log('Websocket: received : ' + JSON.stringify(event.data, null, 2));
                 var data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
                     console.log('Websocket: welcomed', data);
@@ -303,6 +329,7 @@ class Notifier {
 
 
                 if (data.type == 'requestEnd') {
+                    flushNotifications();
                     var uid = data.uid;
                     if (Object.prototype.hasOwnProperty.call(self.activeRequests, uid)) {
                         var request = self.activeRequests[uid];
@@ -327,12 +354,12 @@ class Notifier {
                 }
 
                 if (data.type=="update") {
-                    self.store.dispatch({type: "notification", diff: data.diff});
+                    pushNotification(data.diff);
                 }
-
             };
             this.socket.onclose = function(data) {
                 console.log('Websocket: closed');
+                flushNotifications();
                 self.socket = undefined;
                 self.resetHandshakeStatus(false);
                 self.dispatchBackendStatus();
@@ -343,6 +370,7 @@ class Notifier {
             };
             this.socket.onerror = function(error) {
                 console.log('Websocket: error: ' + JSON.stringify(error));
+                flushNotifications();
                 self._close();
                 self.dispatchBackendStatus('Connection aborted');
                 window.setTimeout(function() {
