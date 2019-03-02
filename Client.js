@@ -6,6 +6,10 @@ var clientId = 0;
 
 
 class Client {
+    pendingWrites = 0;
+    sendingTimer = undefined;
+    writes = 0;
+    pendingDiffs = 0;
 
     constructor(socket)
     {
@@ -28,11 +32,26 @@ class Client {
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
     }
 
-    jsonListener() {
-        // FIXME: Si la socket est pleine, abandonne (mais met un timer pour rééssai...)
+    sendDiff() {
+        if (this.sendingTimer !== undefined) {
+            clearTimeout(this.sendingTimer);
+            this.sendingTimer = undefined;
+        }
+        console.log('Client: sending diff after ' + this.pendingDiffs + ' notifications');
+        this.pendingDiffs = 0;
         var patch = this.jsonProxy.diff(this.jsonSerial);
         if (patch !== undefined) {
             this.notify({type: 'update', status: "ok", diff: patch});
+        }
+    }
+
+    jsonListener() {
+        this.pendingDiffs++;
+        if (this.sendingTimer === undefined) {
+            this.sendingTimer = setTimeout(()=> {
+                this.sendingTimer = undefined;
+                this.sendDiff();
+            }, 40);
         }
     }
 
@@ -59,27 +78,34 @@ class Client {
     }
 
     notify(changeEvent) {
-        // Pour l'instant c'est crado
         console.log('Sending notification to '+ this.uid + ': ' + JSON.stringify(changeEvent, null, 2));
+        this.write(changeEvent);
+    }
+
+    write(event) {
         try {
-            this.socket.send(JSON.stringify(changeEvent));
+            this.socket.send(JSON.stringify(event), (error)=> {
+                if (error !== undefined) {
+                    this.log('Failed to send: ' + error);
+                    this.dispose();
+                }
+                this.writes--;
+            });
         } catch(e) {
             this.log('Failed to send: ' + e);
             this.dispose();
+            return;
         }
+        this.writes++;
     }
+
     reply(data) {
         // Ensure client view is up to date
-        this.jsonListener();
+        this.sendDiff();
 
         if (this.socket != undefined) {
             console.log('Message to ' + this.uid + ':' + JSON.stringify(data));
-            try {
-                this.socket.send(JSON.stringify(data));
-            } catch(e) {
-                this.log('Failed to send: ' + e);
-                this.dispose();
-            }
+            this.write(data);
         }
     }
 }
