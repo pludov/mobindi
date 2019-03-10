@@ -12,12 +12,14 @@ if (!fs.existsSync(configDir)){
 
 class ConfigStore
 {
-    constructor(appStateManager, fileName, path, defaultContent, exampleContent)
+    constructor(appStateManager, fileName, path, defaultContent, exampleContent, readCb, writeCb)
     {
         this.appStateManager = appStateManager;
         
         this.saveRunning = false;
         this.saveMustRestart = false;
+        this.readCb = readCb;
+        this.writeCb = writeCb;
 
         var target = appStateManager.getTarget();
         for(var i = 0; i < path.length; ++i) {
@@ -57,7 +59,11 @@ class ConfigStore
             var content = fs.readFileSync(this.localPath, 'utf8');
             var patch = JSON.parse(content);
             console.log('Loaded config patch: ' + JSON.stringify(patch, null, 2));
-            Object.assign(this.currentContent, this.applyPatch(this.defaultContent, patch));
+            let newContent = this.applyPatch(this.defaultContent, patch);
+            if (this.readCb) {
+                newContent = this.readCb(newContent);
+            }
+            Object.assign(this.currentContent, newContent);
             console.log('Resulting config: ' + JSON.stringify(this.currentContent, null, 2));
             this.lastPatch = patch;
         } catch(e) {
@@ -113,7 +119,11 @@ class ConfigStore
             return result;
         }
 
-        return compareObject(this.currentContent, this.defaultContent);
+        let toSave = this.currentContent;
+        if (this.writeCb) {
+            toSave = this.writeCb(toSave);
+        }
+        return compareObject(toSave, this.defaultContent);
     }
 
     applyPatch(defaultV, patchV)

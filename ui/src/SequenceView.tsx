@@ -17,6 +17,7 @@ import { Connect } from './utils/Connect';
 import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 
 import './SequenceView.css';
+import { has } from './shared/JsonProxy';
 
 type SequenceImageDetailInputProps = {
     app: any;
@@ -201,6 +202,21 @@ class SequenceView extends PureComponent<SequenceViewProps> {
             sequenceEditDialogVisible: false
         }
     }
+
+    getItemList = (store:any)=>{
+        const currentSequence = store.sequence.currentSequence;
+        let seq = undefined;
+        if (currentSequence && has(store.backend.camera.sequences.byuuid, currentSequence)) {
+            seq = store.backend.camera.sequences.byuuid[currentSequence];
+        }
+
+        if (seq !== undefined) {
+            return seq.images;
+        } else {
+            return store.backend.camera.images.list
+        }
+    }
+
     render() {
         //var self = this;
         return(<div className="CameraView">
@@ -225,7 +241,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     path: {
                         title:  'File',
                         defaultWidth: '15em',
-                        render: (o:BackOfficeStatus.ShootResult)=>(o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+                        render: (o:BackOfficeStatus.ShootResult)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
                     },
                     device: {
                         title:  'Device',
@@ -233,7 +249,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     }
                 }}
                 defaultHeader={[{id: 'path'}, {id: 'device'}]}
-                getItemList={(store:any)=>(atPath(store, '$.backend.camera.images.list'))}
+                getItemList={this.getItemList}
                 getItem={(store:any,uid:string)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
                 currentPath='$.sequence.currentImage'
                 onItemClick={this.props.app.setCurrentImage}

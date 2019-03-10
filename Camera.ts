@@ -1,7 +1,8 @@
 import * as Promises from './Promises';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus} from './shared/BackOfficeStatus';
+import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
+import { hasKey, deepCopy } from './Obj';
 import { DriverInterface } from './Indi';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
@@ -81,6 +82,18 @@ export default class Camera {
             configuration: {}
         };
 
+        // Device => promise
+        this.shootPromises = {};
+        this.currentStatus = this.appStateManager.getTarget().camera;
+        this.context = context;
+
+        this.imageIdGenerator = new IdGenerator();
+        this.previousImages = {};
+        
+        this.currentSequenceUuid = undefined;
+        this.currentSequencePromise = undefined;
+
+
         new ConfigStore(appStateManager, 'camera', ['camera', 'configuration'], {
             fakeImagePath: null,
             fakeImages: null,
@@ -129,19 +142,43 @@ export default class Camera {
                     }
                 }
             }
-        });
+        },
+            // read callback
+            (content:CameraStatus["sequences"])=> {
+                for(const sid of Object.keys(content.byuuid)) {
+                    const seq = content.byuuid[sid];
+                    seq.images = [];
+                    if (seq.storedImages) {
+                        for(const image of seq.storedImages!) {
+                            // Pour l'instant c'est brutal
+                            const uuid = this.imageIdGenerator.next();
+                            this.currentStatus.images.list.push(uuid);
+                            this.currentStatus.images.byuuid[uuid] = image;
+                            seq.images.push(uuid);
+                        }
+                    }
+                    delete(seq.storedImages);
+                }
+                return content;
+            },
+            // write callback (add new images)
+            (content:CameraStatus["sequences"])=>{
+                content = deepCopy(content);
+                for(const sid of Object.keys(content.byuuid)) {
+                    const seq = content.byuuid[sid];
+                    seq.storedImages = [];
+                    for(const uuid of seq.images) {
+                        if (hasKey(this.currentStatus.images.byuuid, uuid)) {
+                            seq.storedImages.push(this.currentStatus.images.byuuid[uuid]);
+                        }
+                    }
+                    delete seq.images;
+                }
+                return content;
+            }
+        );
         // Ensure no sequence is running on start
 
-        // Device => promise
-        this.shootPromises = {};
-        this.currentStatus = this.appStateManager.getTarget().camera;
-        this.context = context;
-
-        this.imageIdGenerator = new IdGenerator();
-        this.previousImages = {};
-        
-        this.currentSequenceUuid = undefined;
-        this.currentSequencePromise = undefined;
 
         this.pauseRunningSequences();
         
@@ -368,7 +405,8 @@ export default class Camera {
                             type:   'FRAME_LIGHT'
                         }
                     }
-                }
+                },
+                images: []
             };
             self.currentStatus.sequences.list.push(key);
             return key;
@@ -539,11 +577,12 @@ export default class Camera {
                         ditheringStep = new Promises.Immediate(()=>{});
                     }
 
-                    return new Promises.Chain(
+                    return new Promises.Chain<undefined, boolean>(
                         ditheringStep,
                         new Promises.Immediate(()=>sequence.progress = (stepTypeLabel) + " " + shootTitle),
                         self.shoot(sequence.camera, ()=>(settings)),
-                        new Promises.Immediate(()=> {
+                        new Promises.Immediate((s: ShootResult)=> {
+                            sequence.images.push(s.uuid);
                             step.done++;
                             return true;
                         })
@@ -711,7 +750,7 @@ export default class Camera {
         var self = this;
         var currentShootSettings:any;
         var ccdFilePathInitRevId:any;
-        let shootResult:any = null;
+        let shootResult:ShootResult;
 
         var result = new Promises.Chain<undefined, ShootResult>(
             new Promises.Immediate(() => {
@@ -877,7 +916,7 @@ export default class Camera {
                     path: value,
                     device: device
                 };
-                shootResult = ({path: value});
+                shootResult = ({path: value, device, uuid: newUuid});
             }),
 
             // Remove UPLOAD_MODE

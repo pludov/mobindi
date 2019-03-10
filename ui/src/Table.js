@@ -28,7 +28,7 @@ class TableEntry extends PureComponent {
             if ('render' in field) {
                 details = field.render(this.props.item);
             } else {
-                details = "" + this.props.item[o.id];
+                details = this.props.item === undefined ? "N/A" : "" + this.props.item[o.id];
             }
             content.push(<td key={o.id}>
                 {details}

@@ -7,7 +7,9 @@ export type ShootSettings = {
 }
 
 export type ShootResult = {
+    uuid: string;
     path: string;
+    device: string;
 }
 
 export type Sequence = {
@@ -22,6 +24,9 @@ export type Sequence = {
         list: string[];
         byuuid: {[uuid:string]:any}
     };
+    // uuids of images
+    images: string [];
+    storedImages?: ImageStatus[];
 }
 
 export type IndiMessageWithUid = IndiMessage | {
@@ -67,6 +72,11 @@ export type IndiManagerUpdateDriverParamRequest = {
     value: string;
 }
 
+export type ImageStatus = {
+    path: string;
+    device: string;
+}
+
 export type CameraStatus = {
     status: string;
     selectedDevice: string | null;
@@ -77,7 +87,7 @@ export type CameraStatus = {
     lastByDevices: {[deviceId:string]:string};
     images: {
         list: string[];
-        byuuid: {[uuid:string]:any}
+        byuuid: {[uuid:string]:ImageStatus}
     };
 
     sequences: {
