@@ -9,6 +9,7 @@ import FitsViewer from './FitsViewer';
 
 
 class FitsViewerInContext extends PureComponent {
+    fitsViewer = React.createRef();
     constructor(props) {
         super(props);
         this.saveViewSettings = this.saveViewSettings.bind(this);
@@ -18,14 +19,18 @@ class FitsViewerInContext extends PureComponent {
         this.props.app.setViewerState(this.props.contextKey, e);
     }
 
+    updateLayout() {
+        this.fitsViewer.current.updateLayout();
+    }
+
     render() {
-        return <FitsViewer app={this.props.app} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings} contextMenu={this.props.contextMenu}/>
+        return <FitsViewer ref={this.fitsViewer} app={this.props.app} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings} contextMenu={this.props.contextMenu}/>
     }
 }
 
 FitsViewerInContext = connect((store, ownProps) => ({
     viewSettings: ownProps.app.getViewerState(store, ownProps.contextKey)
-}))(FitsViewerInContext);
+}), null, null, { forwardRef: true })(FitsViewerInContext);
 
 FitsViewerInContext.propTypes = {
     src: PropTypes.string.isRequired,

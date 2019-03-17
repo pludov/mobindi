@@ -39,9 +39,16 @@ type MappedProps = AstrometryProps & LiveProps;
 
 type Props = InputProps & MappedProps;
 
-class FitsViewerWithAstrometry extends React.PureComponent<Props> {
+type State = {
+    fs: boolean;
+}
+
+class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
+    private readonly fitsViewer = React.createRef<FitsViewerInContext>();
+
     constructor(props:Props) {
         super(props);
+        this.state = {fs: false};
     }
 
     private readonly cancel = () => {
@@ -104,6 +111,13 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
         return this.start(true);
     }
 
+    private readonly toggleFs = () => {
+        this.setState({fs: !this.state.fs}, ()=> {
+            console.log('current is ', this.fitsViewer.current!);
+            this.fitsViewer.current!.updateLayout();
+        });
+    }
+
     private readonly contextMenuSelector = createSelector(
             [
                 (m:MappedProps)=>m.start,
@@ -111,7 +125,11 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
                 (m:MappedProps)=>m.move
             ],
             (start, narrowable, move)=> {
-                const ret = [];
+                const ret:any[] = [{
+                    title: 'Toggle fullscreen',
+                    key: 'fullscreen',
+                    cb: this.toggleFs,
+                }];
                 if (start) {
                     if (narrowable) {
                         ret.push({
@@ -177,10 +195,11 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props> {
     }
 
     render() {
-        return <div className="FitsViewer FitsViewContainer">
+        return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext contextKey={this.props.contextKey}
                         src={this.props.src}
                         app={this.props.app}
+                        ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
                 />
             <span className="AstrometryImageInfoRoot">

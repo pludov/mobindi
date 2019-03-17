@@ -11,19 +11,15 @@ const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'm
 class ContextMenu extends PureComponent {
     constructor(props) {
         super(props);
-        this.showLow = this.showLow.bind(this);
-        this.showMedium = this.showMedium.bind(this);
-        this.showHigh = this.showHigh.bind(this);
-        this.showFwhm = this.showFwhm.bind(this);
         this.item = null;
     }
 
     setRef = (e)=>{this.item = e;};
 
-    showLow() { this.props.displaySetting('low'); }
-    showMedium() { this.props.displaySetting('medium'); }
-    showHigh() { this.props.displaySetting('high'); }
-    showFwhm() { this.props.displaySetting('fwhm'); }
+    showLow= ()=>this.props.displaySetting('low');
+    showMedium= () => this.props.displaySetting('medium');
+    showHigh= () => this.props.displaySetting('high');
+    showFwhm= () => this.props.displaySetting('fwhm');
 
     adjust() {
         // ensure that the menu does not go outside the container
@@ -746,6 +742,10 @@ class JQImageDisplay {
         }
     }
 
+    updateLayout() {
+        setTimeout(1000, ()=>this.zoom(this.viewSize.x / 2, this.viewSize.y / 2, 1.0));
+    }
+
     zoom(cx, cy, z) {
         var corners = [
             [this.currentImagePos.x, this.currentImagePos.y],
@@ -1052,6 +1052,12 @@ class FitsViewer extends PureComponent {
             return this.ImageDisplay.getImagePosFromParent(x, y);
         }
         return {};
+    }
+
+    updateLayout = () => {
+        if (this.ImageDisplay !== undefined) {
+            return this.ImageDisplay.zoom(0, 0, 1);
+        }
     }
 
     render() {
