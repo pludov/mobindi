@@ -3,178 +3,97 @@ import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import $ from 'jquery';
-import * as Obj from './shared/Obj';
+import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
+import ContextMenu from './ContextMenu';
+import LevelBar from './LevelBar';
+import FWHMDisplayer from './FWHMDisplayer';
+import BaseApp from 'src/BaseApp';
+import ContextMenuCross from './ContextMenuCross';
 
-const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
+export type LevelId = "low"|"medium"|"high";
 
-class ContextMenu extends PureComponent {
-    constructor(props) {
-        super(props);
-        this.item = null;
-    }
-
-    setRef = (e)=>{this.item = e;};
-
-    showLow= ()=>this.props.displaySetting('low');
-    showMedium= () => this.props.displaySetting('medium');
-    showHigh= () => this.props.displaySetting('high');
-    showFwhm= () => this.props.displaySetting('fwhm');
-
-    adjust() {
-        // ensure that the menu does not go outside the container
-        if (this.item !== null) {
-
-            const sze  = {
-                x: this.item.style.left,
-                y: this.item.style.top,
-                cx: this.item.clientWidth,
-                cy: this.item.clientHeight,
-                px: this.item.parentNode.clientWidth,
-                py: this.item.parentNode.clientHeight,
-            }
-            if (this.props.x + sze.cx > sze.px) {
-                // Update the css: move left
-                this.item.style.left = (parseFloat(this.item.style.left) - (this.props.x + sze.cx - sze.px)) + "px";
-            }
-            if (this.props.y + sze.cy > sze.py) {
-                // Update the css: move up
-                this.item.style.top = (parseFloat(this.item.style.top) - (this.props.y + sze.cy - sze.py)) + "px";
-            }
-            console.log('rendered sze: ', sze);
-        }
-    }
-
-    componentDidMount() {
-        this.adjust();
-    }
-
-    componentDidUpdate() {
-        this.adjust();
-    }
-
-    render() {
-        var css = {
-            left: this.props.x,
-            top: this.props.y,
-            position: 'absolute'
-        }
-        return(
-            <div className="ImageContextMenu" style={css} ref={this.setRef}>
-                {
-                    !this.props.contextMenu ? null :
-                        this.props.contextMenu.map(e => <div
-                                className="Item"
-                                onClick={()=> {
-                                    this.props.displaySetting(null);
-                                    let event = {
-                                        x: this.props.x,
-                                        y: this.props.y,
-                                    };
-                                    event = {...event, ...this.props.xlateCoords(event.x, event.y)};
-                                    e.cb(event);
-                                }}
-                                key={e.key}>
-                            {e.title}
-                        </div>)
-                }
-                <div className="Item" onClick={this.showLow}>Low level</div>
-                <div className="Item" onClick={this.showMedium}>Median</div>
-                <div className="Item" onClick={this.showHigh}>High level</div>
-                <div className="Item" onClick={this.showFwhm}>FWHM</div>
-            </div>);
-    }
+type ImageSize = {
+    width: number;
+    height: number;
 }
 
-class ContextMenuCross extends PureComponent {
-    constructor(props) {
-        super(props);
-    }
-
-    render() {
-        return <React.Fragment>
-            <div className="ContextMenuCrossV"
-                    style={{
-                        position: 'absolute',
-                        backgroundColor: "#red",
-                        left: this.props.x - 10,
-                        width: 20,
-                        top: 0,
-                        bottom: 0
-                    }}/>
-            <div className="ContextMenuCrossH"
-                    style={{
-                        position: 'absolute',
-                        backgroundColor: "#blue",
-                        top: this.props.y - 10,
-                        height: 20,
-                        left: 0,
-                        right: 0
-                    }}/>
-        </React.Fragment>;
-    }
+export type Levels = {
+    low: number;
+    medium: number;
+    high: number;
 }
 
-class LevelBar extends PureComponent {
-    constructor(props) {
-        super(props);
-        this.sendUpdate = this.sendUpdate.bind(this);
-        this.finishMove = this.finishMove.bind(this);
-    }
-    sendUpdate(v) {
-        console.log('changing to ', v.target.valueAsNumber);
-        this.props.onChange(this.props.property, v.target.valueAsNumber);
-    }
-    
-    finishMove(v) {
-        if (this.props.onFinishMove) {
-            this.props.onFinishMove();
-        }
-    }
+type FullState = {
+    levels: Levels;
+}
 
-    render() {
-        return (
-            <div className="ImageBarSetting">
-                <div className="ImageBarContainer">
-                    <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate} onMouseUp={this.finishMove}/>
-                </div>
-            </div>
-        );
-    }
-/*
-    top: 224.967px;
-    position: absolute;
-    width: 2em;
-    border: 1px solid #606060;
-    bottom: 0.2em;
-    top: 0.2em;
-    right: 0.2em;
-    background: repeating-linear-gradient(-0deg, grey, transparent 0.5em, transparent 0.5em, grey 1em);
-*/
+type ImagePos = {
+    x:number;
+    y:number;
+    w:number;
+    h:number;
+}
 
+export type ContextMenuEntry = {
+    title: string;
+    key: string;
+    cb: (e:ContextMenuEvent)=>(void);
+    positional: boolean;
+}
+
+export type ContextMenuEvent = {
+    x: number;
+    y: number;
+    imageX?: number;
+    imageY?: number;
 }
 
 class JQImageDisplay {
 
+    currentImg: HTMLImageElement|null = null;
+    // The path (without cgi settings)
+    currentImgPath: string|null = null;
+    // Same with cgi settings ?
+    currentImgSrc: string|null = null;
 
+    currentDetails:ImageSize|null = null;
+    currentDetailsPath: string|null = null;
 
-    constructor(elt, contextMenuCb, closeContextMenuCb, onViewSettingsChangeCb) {
-        this.currentImg = undefined;
-        // The path (without cgi settings)
-        this.currentImgPath = undefined;
+    loadingDetailsAjax:JQueryXHR|null = null;
+    loadingDetailsPath:string|null = null;
 
-        this.currentDetails = undefined;
-        this.currentDetailsPath = undefined;
-        
-        this.loadingDetailsAjax = undefined;
-        this.loadingDetailsPath = undefined;
+    loadingImg:HTMLImageElement|null = null;
 
-        this.loadingImg = undefined;
-        // The path (without cgi settings)
-        this.loadingImgSrc = undefined;
-        this.loadingImgPath = undefined;
-        this.loadingToDisplay = false;
-        this.nextLoadingImgSrc = undefined;
+    // The path (without cgi settings)
+    loadingImgSrc:string|null = null;
+    loadingImgPath:string|null = null;
+    loadingToDisplay?:boolean = false;
+    nextLoadingImgSrc:string|null = null;
+    
+    child:JQuery<HTMLDivElement>;
+    
+    levels: Levels;
+
+    mouseIsDown:boolean = false;
+    mouseDragged:boolean = false;
+    mouseDragPos?:{x:number, y:number} = undefined;
+
+    touches = {};
+
+    currentImageSize:ImageSize = {width: -1, height: -1};
+    currentImagePos = {x:0, y:0, w:0, h:0};
+
+    // While the bestFit is active (cleared by moves)
+    atBestFit = true;
+
+    menuTimer:NodeJS.Timeout|null = null;
+
+    closeContextMenuCb:()=>void;
+    onViewSettingsChangeCb:(state:FullState)=>void;
+    contextMenuCb:(x:number, y:number)=>void;
+
+    constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, onViewSettingsChangeCb:(state:FullState)=>void) {
         
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
@@ -185,26 +104,21 @@ class JQImageDisplay {
         elt.css('height', '100%');
         elt.css('overflow', 'hidden');
 
-        for(var event of jqBindedEvents) {
-            var func = event.replace(/-/,'');
-            this[func] = this[func].bind(this);
-            elt.on(event, this[func]);
-        }
-
-
-        this.mouseIsDown = false;
-        this.mouseDragged = false;
-        this.mouseDragPos = undefined;
-
-        this.touches = {};
-
-        this.currentImageSize = {width: -1, height: -1};
-        this.currentImagePos = {x:0, y:0, w:0, h:0};
-
-        // While the bestFit is active (cleared by moves)
-        this.atBestFit = true;
-
-        this.menuTimer = null;
+        // const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 
+        // 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
+        elt.on('click', this.click);
+        elt.on('wheel', this.wheel);
+        elt.on('mousedown', this.mousedown);
+        elt.on('mouseup', this.mouseup);
+        elt.on('mousemove', this.mousemove);
+        elt.on('mouseleave', this.mouseleave);
+        elt.on('dragstart', this.dragstart);
+        elt.on('touchmove', this.touchmove);
+        elt.on('touchstart', this.touchstart);
+        elt.on('touchend', this.touchend);
+        elt.on('touchcancel', this.touchcancel);
+        elt.on('touchleave', this.touchleave);
+        elt.on('contextmenu', this.contextmenu);
 
         this.levels = {
             low: 0.05,
@@ -223,19 +137,28 @@ class JQImageDisplay {
 
     dispose() {
         this.cancelMenuTimer();
-        for(var event of jqBindedEvents) {
-            var func = event.replace(/-/,'');
-            this.child.off(event, this[func]);
-        }
+        this.child.off('click', this.click);
+        this.child.off('wheel', this.wheel);
+        this.child.off('mousedown', this.mousedown);
+        this.child.off('mouseup', this.mouseup);
+        this.child.off('mousemove', this.mousemove);
+        this.child.off('mouseleave', this.mouseleave);
+        this.child.off('dragstart', this.dragstart);
+        this.child.off('touchmove', this.touchmove);
+        this.child.off('touchstart', this.touchstart);
+        this.child.off('touchend', this.touchend);
+        this.child.off('touchcancel', this.touchcancel);
+        this.child.off('touchleave', this.touchleave);
+        this.child.off('contextmenu', this.contextmenu);
         this.child.empty();
     }
 
     abortDetailsLoading()
     {
-        if (this.loadingDetailsAjax != undefined) {
+        if (this.loadingDetailsAjax !== null) {
             var toCancel = this.loadingDetailsAjax;
-            this.loadingDetailsAjax = undefined;
-            this.loadingDetailsPath = undefined;
+            this.loadingDetailsAjax = null;
+            this.loadingDetailsPath = null;
             toCancel.abort();
             this.child.removeClass('PreLoading');
         }
@@ -243,40 +166,44 @@ class JQImageDisplay {
 
 
     abortLoading() {
-        if (this.loadingImg != undefined) {
+        if (this.loadingImg !== null) {
             this.loadingImg.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=;';
             if (this.loadingToDisplay) {
-                this.loadingImg.parentNode.removeChild(this.loadingImg);
+                this.loadingImg.parentNode!.removeChild(this.loadingImg);
                 this.loadingToDisplay = false;
             }
             this.loadingImg = null;
-            this.loadingImgPath = undefined;
-            this.loadingImgSrc = undefined;
-            this.nextLoadingImgSrc = undefined;
+            this.loadingImgPath = null;
+            this.loadingImgSrc = null;
+            this.nextLoadingImgSrc = null;
             this.child.removeClass('Loading');
         }
     }
     
-    getFullState()
+    getFullState(): FullState
     {
         return {
-            levels: Obj.deepCopy(this.levels)
+            levels: {...this.levels}
         }
     }
 
-    changeLevels(f)
+    changeLevels(f:(l:Levels)=>(boolean))
     {
         if (!f(this.levels)) {
             return false;
         }
         this.emitStateChange();
+        return true;
     }
 
-    computeSrc(path, optionalImageSize)
+    computeSrc(path:string|null, optionalImageSize?:ImageSize)
     {
         const imageSize = optionalImageSize || this.currentImageSize;
-        var str = "" + path;
-        if (path) {
+        let str;
+        if (path !== null) {
+            if (path === undefined ){
+                throw new Error("Undefined path arrived");
+            }
             var bin = 16;
             if (this.currentImagePos.w > 0 && this.currentImagePos.h > 0
                  && imageSize.width  > -1 && imageSize.height > -1)
@@ -315,7 +242,7 @@ class JQImageDisplay {
         this.onViewSettingsChangeCb(this.getFullState());
     }
 
-    setFullState(path, params) {
+    setFullState(path:string|null, params?:FullState) {
         if (params !== undefined && 'levels' in params) {
             this.levels = params.levels;
         }
@@ -323,46 +250,45 @@ class JQImageDisplay {
         // il faut assurer qu'on charge la taille avant, que computeurl dépende de la taille
         // et implementer le downsampling coté serveur
         // et revoir le témoin de chargement
-        if (this.loadingImg !== undefined && this.loadingImgPath == path) {
-            var newSrc = this.computeSrc(path);
-            if (this.loadingImgSrc == newSrc) {
+        if (this.loadingImg !== null && this.loadingImgPath === path) {
+            const newSrc = this.computeSrc(path);
+            if (this.loadingImgSrc === newSrc) {
                 // Already loading... Just wait...
-                this.nextLoadingImgSrc = undefined;
+                this.nextLoadingImgSrc = null;
             } else {
                 // Enqueue the loading
                 this.nextLoadingImgSrc = newSrc;
             }
         } else {
-            this.nextLoadingImgSrc = undefined;
-            if (this.currentImgPath != path) {
+            this.nextLoadingImgSrc = null;
+            if (this.currentImgPath !== path) {
                 if (!this.setDetails(path)) {
                     // Stop loading for previous path
                     this.abortLoading();
                 } else {
                     // Ready for new url. go
-                    var newSrc = this.computeSrc(path);
+                    const newSrc = this.computeSrc(path);
                     this.setSrc(path, newSrc);
                 }
             } else {
                 // Ready for new url. go
                 // Don't go back...
                 this.abortDetailsLoading();
-                var newSrc = this.computeSrc(path);
+                const newSrc = this.computeSrc(path);
                 this.setSrc(path, newSrc);
             }
         }
     }
 
     // True if ready, false otherwise
-    setDetails(path)
+    setDetails(path:string|null)
     {
-        var self = this;
-        if (this.currentDetailsPath == path) {
+        if (this.currentDetailsPath === path) {
             this.abortDetailsLoading();
             return true;
         }
 
-        if ((this.loadingDetailsAjax !== undefined) && this.loadingDetailsPath == path) {
+        if ((this.loadingDetailsAjax !== null) && this.loadingDetailsPath === path) {
             return false;
         }
 
@@ -371,65 +297,69 @@ class JQImageDisplay {
         // Start an ajax load of the new path
         this.loadingDetailsPath = path;
         this.child.addClass('PreLoading');
-        this.loadingDetailsAjax = $.ajax({
-            url: 'fitsviewer/fitsviewer.cgi?size=true&path=' + encodeURIComponent(path),
-            dataType: 'json',
-            error: function(e) {
-                console.log('size query had error', e);
-                self.gotDetails(path, null);
-            },
-            success: function(d) {
-                console.log('Size is ', d);
-                self.gotDetails(path, d);
-            },
-            timeout: 30000
-        });
-
+        if (path === null) {
+            this.gotDetails(path, null);
+            return true;
+        } else {
+            this.loadingDetailsAjax = $.ajax({
+                url: 'fitsviewer/fitsviewer.cgi?size=true&path=' + encodeURIComponent(path),
+                dataType: 'json',
+                error: (e)=>{
+                    console.log('size query had error', e);
+                    this.gotDetails(path, null);
+                },
+                success: (d)=> {
+                    console.log('Size is ', d);
+                    this.gotDetails(path, d);
+                },
+                timeout: 30000
+            });
+        }
         return false;
     }
 
-    gotDetails(path, rslt)
+    gotDetails(path:string|null, rslt:ImageSize|null)
     {
         // FIXME: ajax request can be reordered (right path with the wrong request, is it important ?)
-        if (path != this.loadingDetailsPath) {
+        if (path !== this.loadingDetailsPath) {
             console.log('Ignore late size result');
             return;
         }
         this.currentDetailsPath = this.loadingDetailsPath;
         this.currentDetails = rslt;
-        this.loadingDetailsPath = undefined;
-        this.loadingDetailsAjax = undefined;
+        this.loadingDetailsPath = null;
+        this.loadingDetailsAjax = null;
         this.child.removeClass('PreLoading');
         if (rslt !== null) {
             this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath, rslt));
         } else {
-            this.setSrc(this.curentDetailsPath, "#blank");
+            this.setSrc(this.currentDetailsPath, "#blank");
         }
     }
 
     flushView()
     {
-        if (this.loadingImg !== undefined && this.nextLoadingImgSrc !== undefined) {
-            this.setSrc(this.loadingImgPath, this.nextLoadingImgSrc);
+        if (this.loadingImg !== null && this.nextLoadingImgSrc !== null) {
+            this.setSrc(this.loadingImgPath!, this.nextLoadingImgSrc);
         }
     }
 
     
-    setSrc(path, src) {
-        var self = this;
-        if (this.currentImgSrc == src) {
+    setSrc(path:string|null, src: string) {
+        if (this.currentImgSrc === src) {
             this.abortLoading();
+            this.currentImgPath = path;
             return;
         }
-        if ((this.loadingImg != undefined) && (this.loadingImgSrc == src)) {
+        if ((this.loadingImg !== null) && (this.loadingImgSrc === src)) {
             return;
         }
 
         this.abortLoading();
 
-        var newImage = new Image();
-        newImage.onload = (() => { console.warn('image loaded ok'); self.loaded(src, newImage, true) });
-        newImage.onerror = ((e) => { console.warn('image loading failed', e); self.loaded(src, newImage, false) });
+        const newImage = new Image();
+        newImage.onload = (() => { console.warn('image loaded ok'); this.loaded(src, newImage, true) });
+        newImage.onerror = ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) });
         newImage.src = src;
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
@@ -439,7 +369,7 @@ class JQImageDisplay {
         // Do exposed loading if possible (display image while it is loading)
         // FIXME: only for image of the same geo ?
         // FIXME: some browser  flickers to black. whitelist browser ?
-        if (this.currentImg != undefined && this.currentImgPath == this.loadingImgPath) {
+        if (this.currentImg !== null && this.currentImgPath === this.loadingImgPath) {
             this.loadingToDisplay = true;
             $(this.loadingImg).css('position', 'absolute');
             $(this.loadingImg).css("width", $(this.currentImg).css("width"));
@@ -455,7 +385,7 @@ class JQImageDisplay {
         this.child.removeClass('Error');
     }
 
-    loaded(newSrc, newImage, result) {
+    loaded(newSrc:string, newImage:HTMLImageElement, result: boolean) {
         if (newImage !== this.loadingImg) {
             console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
             return;
@@ -473,20 +403,20 @@ class JQImageDisplay {
         var previousImg = this.currentImg;
         var previousImgSrc = this.currentImgSrc;
 
-        this.loadingImg = undefined;
-        this.currentImg = result ? newImage : undefined;
+        this.loadingImg = null;
+        this.currentImg = result ? newImage : null;
         this.currentImgSrc = newSrc;
         this.currentImgPath = this.loadingImgPath;
         this.child.empty();
 
-        if (this.currentImg !== undefined) {
-            this.currentImageSize = this.currentDetails;
+        if (this.currentImg !== null) {
+            this.currentImageSize = this.currentDetails!;
             
             $(this.currentImg).css('position', 'relative');
 
             this.child.append(this.currentImg);
 
-            if (previousImg == undefined || previousSize.width != this.currentImageSize.width || previousSize.height != this.currentImageSize.height) {
+            if (previousImg === null || previousSize.width != this.currentImageSize.width || previousSize.height != this.currentImageSize.height) {
                 this.bestFit();
             } else {
                 $(this.currentImg).css('top', $(previousImg).css('top'));
@@ -496,9 +426,9 @@ class JQImageDisplay {
             }
         }
 
-        if (this.nextLoadingImgSrc !== undefined) {
+        if (this.nextLoadingImgSrc !== null) {
             var todo = this.nextLoadingImgSrc;
-            this.nextLoadingImgSrc = undefined;
+            this.nextLoadingImgSrc = null;
             this.setSrc(this.currentImgPath, todo);
         }
     }
@@ -507,9 +437,9 @@ class JQImageDisplay {
         this.closeContextMenuCb();
     }
 
-    touchstart(e) {
+    private readonly touchstart=(e:JQuery.TouchStartEvent<HTMLDivElement>)=>{
         e.preventDefault();
-        var touches = e.originalEvent.changedTouches;
+        var touches = e.originalEvent!.changedTouches;
         for (var i=0; i<touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
             this.touches[uid] = {
@@ -524,39 +454,38 @@ class JQImageDisplay {
         if (activeTouches.length == 1) {
             var where = this.touches[activeTouches[0]];
             where = {x: where.x, y: where.y};
-            var self = this;
-            this.menuTimer = setTimeout(function() {
-                self.contextMenuAt(where.x, where.y);
+            this.menuTimer = setTimeout(()=> {
+                this.contextMenuAt(where.x, where.y);
             }, 400);
         } else {
             this.closeMenu();
         }
     }
 
-    touchend(e) {
+    private readonly touchend=(e:JQuery.TouchEventBase<HTMLDivElement>)=>{
         e.preventDefault();
         this.cancelMenuTimer();
-        var touches = e.originalEvent.changedTouches;
+        var touches = e.originalEvent!.changedTouches;
         for (var i = 0; i < touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
             delete this.touches[uid];
         }
     }
 
-    touchcancel(e) {
+    private readonly touchcancel=(e:JQuery.TouchCancelEvent<HTMLDivElement>)=>{
         this.touchend(e);
     }
 
-    touchleave(e) {
+    private readonly touchleave=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
         e.preventDefault();
         // Forget all current touches
         this.touches = {};
     }
 
-    touchmove(e) {
+    private readonly touchmove=(e:JQuery.TouchMoveEvent<HTMLDivElement>)=>{
         e.preventDefault();
         this.cancelMenuTimer();
-        var touches = e.originalEvent.changedTouches;
+        var touches = e.originalEvent!.changedTouches;
         var newTouches = {};
         for (var i = 0; i<touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
@@ -569,10 +498,10 @@ class JQImageDisplay {
         }
 
         var activeTouches = Object.keys(this.touches);
-        if (activeTouches.length == 2) {
+        if (activeTouches.length === 2) {
 
             var self = this;
-            function getPosAndDist() {
+            const getPosAndDist = function() {
                 var cx = 0, cy = 0, dx = 0, dy = 0;
                 for(var i = 0; i < activeTouches.length; ++i) {
                     var uid = activeTouches[i];
@@ -593,7 +522,7 @@ class JQImageDisplay {
             Object.assign(this.touches, newTouches);
             var after = getPosAndDist();
 
-            var offset = this.child.offset();
+            var offset = this.child.offset()!;
 
             if (before.d > 1 && after.d > 1) {
                 var cx = (after.x + before.x) / 2;
@@ -635,31 +564,31 @@ class JQImageDisplay {
     }
 
 
-    dragstart(e) {
+    private readonly dragstart=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
         e.preventDefault();
     }
 
-    mousedown(e) {
+    private readonly mousedown=(e:JQuery.MouseDownEvent<HTMLDivElement>)=>{
         if (e.which == 1) {
             this.mouseIsDown = true;
             this.setMouseDragged(false);
-            this.mouseDragPos = {x: e.originalEvent.screenX, y: e.originalEvent.screenY};
+            this.mouseDragPos = {x: e.originalEvent!.screenX, y: e.originalEvent!.screenY};
             this.closeMenu();
         }
     }
 
-    mouseleave(e) {
+    private readonly mouseleave=(e:JQuery.MouseLeaveEvent<HTMLDivElement>)=>{
         this.mouseIsDown = false;
         this.setMouseDragged(false);
         this.mouseDragPos = undefined;
     }
 
-    mousemove(e) {
+    private readonly mousemove=(e:JQuery.MouseMoveEvent<HTMLDivElement>)=>{
         if (this.mouseIsDown) {
             this.setMouseDragged(true);
 
-            var prevPos = this.mouseDragPos;
-            this.mouseDragPos = {x: e.originalEvent.screenX, y: e.originalEvent.screenY};
+            var prevPos = this.mouseDragPos!;
+            this.mouseDragPos = {x: e.originalEvent!.screenX, y: e.originalEvent!.screenY};
 
 
             this.setCurrentImagePos({
@@ -671,7 +600,7 @@ class JQImageDisplay {
         }
     }
 
-    mouseup(e) {
+    private readonly mouseup=(e:JQuery.MouseUpEvent<HTMLDivElement>)=>{
         if (e.which == 1) {
             this.mouseIsDown = false;
             e.preventDefault()
@@ -680,45 +609,46 @@ class JQImageDisplay {
         }
     }
 
-    setMouseDragged(to) {
+    private readonly setMouseDragged=(to:boolean)=>{
         if (this.mouseDragged == to) return;
         this.mouseDragged = to;
         this.child.css('pointer', to ? 'hand' : 'inherit');
     }
 
 
-    contextMenuAt(pageX, pageY)
+    contextMenuAt(pageX:number, pageY:number)
     {
-        var offset = this.child.offset();
+        var offset = this.child.offset()!;
         var x = pageX - offset.left;
         var y = pageY - offset.top;
         this.contextMenuCb(x, y);
     }
 
-    contextmenu(e) {
+    private readonly contextmenu=(e:JQuery.ContextMenuEvent<HTMLDivElement>)=>{
         e.preventDefault();
         this.contextMenuAt(e.pageX, e.pageY);
     }
 
-    click(e) {
+    private readonly click=(e:JQuery.ClickEvent<HTMLDivElement>)=>{
         e.preventDefault();
         // FIXME: prevent clic from drag from mouseup ?
 
     }
 
-    wheel(e) {
-        if (e.originalEvent.deltaY) {
+    private readonly wheel=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
+        const deltaY = (e.originalEvent! as any).deltaY;
+        if (deltaY) {
             e.preventDefault();
 
 
-            var offset = this.child.offset();
-            var x = e.pageX - offset.left;
-            var y = e.pageY - offset.top;
+            const offset = this.child.offset()!;
+            const x = e.pageX! - offset.left;
+            const y = e.pageY! - offset.top;
 
-            var zoom = 0;
+            let zoom = 0;
             // deltaX => ignore
 
-            zoom = Math.sign(e.originalEvent.deltaY);
+            zoom = Math.sign(deltaY);
 
             zoom = Math.pow(2, -zoom / 8.0);
 
@@ -726,7 +656,7 @@ class JQImageDisplay {
         }
     }
 
-    getImagePosFromParent(x, y)
+    readonly getImagePosFromParent=(x:number, y:number):{imageX:number, imageY:number}|null=>
     {
         console.log('Translate : ' ,x ,y, this.currentImagePos, this.currentImageSize);
         if ((this.currentImageSize.width <= 0) || (this.currentImageSize.height <= 0)) {
@@ -742,11 +672,15 @@ class JQImageDisplay {
         }
     }
 
-    updateLayout() {
-        setTimeout(1000, ()=>this.zoom(this.viewSize.x / 2, this.viewSize.y / 2, 1.0));
+    public readonly updateLayout=()=>{
+        setTimeout(()=>{
+            console.log('Updating zoom');
+            const viewSize = { x: this.child.width()!, y: this.child.height()!};
+            this.zoom(viewSize!.x / 2, viewSize!.y / 2, 1.0);
+        }, 1000);
     }
 
-    zoom(cx, cy, z) {
+    public readonly zoom=(cx:number, cy:number, z:number)=>{
         var corners = [
             [this.currentImagePos.x, this.currentImagePos.y],
             [this.currentImagePos.x + this.currentImagePos.w, this.currentImagePos.y + this.currentImagePos.h]
@@ -771,39 +705,38 @@ class JQImageDisplay {
     }
 
 
-    setRawCurrentImagePos(e) {
-        if (this.currentImg !== undefined) {
+    setRawCurrentImagePos(e:ImagePos) {
+        if (this.currentImg !== null) {
             $(this.currentImg).css("width", e.w + 'px');
             $(this.currentImg).css("height", e.h + 'px');
             $(this.currentImg).css('top', e.y + 'px');
             $(this.currentImg).css('left', e.x + 'px');
 
             if(this.loadingToDisplay) {
-                $(this.loadingImg).css("width", e.w + 'px');
-                $(this.loadingImg).css("height", e.h + 'px');
-                $(this.loadingImg).css('top', e.y + 'px');
-                $(this.loadingImg).css('left', e.x + 'px');
+                $(this.loadingImg!).css("width", e.w + 'px');
+                $(this.loadingImg!).css("height", e.h + 'px');
+                $(this.loadingImg!).css('top', e.y + 'px');
+                $(this.loadingImg!).css('left', e.x + 'px');
             }
         }
         this.currentImagePos = e;
     }
 
-    setCurrentImagePos(e) {
-        var viewSize = { x: this.child.width(), y: this.child.height()};
+    setCurrentImagePos(e:ImagePos) {
+        const viewSize = { x: this.child.width()!, y: this.child.height()!};
         // prevent zoom under 1.
         if (e.w < viewSize.x && e.h < viewSize.y) {
             e = this.getBestFit();
         } else {
             // Prevent black borders
-            var viewSize = { x: this.child.width(), y: this.child.height()};
-            var marginX = (e.w < viewSize.x) ? (viewSize.x - e.w) / 2 : 0;
-            var minx = marginX;
-            var maxx = viewSize.x - marginX;
+            const marginX = (e.w < viewSize.x) ? (viewSize.x - e.w) / 2 : 0;
+            const minx = marginX;
+            const maxx = viewSize.x - marginX;
 
 
-            var marginY = (e.h < viewSize.y) ? (viewSize.y - e.h) / 2 : 0;
-            var miny = marginY;
-            var maxy = viewSize.y - marginY;
+            const marginY = (e.h < viewSize.y) ? (viewSize.y - e.h) / 2 : 0;
+            const miny = marginY;
+            const maxy = viewSize.y - marginY;
 
             if (e.x > minx) {
                 e.x = minx;
@@ -821,15 +754,15 @@ class JQImageDisplay {
         this.setRawCurrentImagePos(e);
 
         // Adjust the bin
-        if (this.loadingDetailsPath == undefined) {
+        if (this.loadingDetailsPath === null) {
             // No path change. Make sure the path is the latest
-            var path;
-            if (this.loadingImgPath != undefined) {
+            let path;
+            if (this.loadingImgPath !== null) {
                 path = this.loadingImgPath;
             } else {
                 path = this.currentImgPath;
             }
-            var newSrc = this.computeSrc(path);
+            const newSrc = this.computeSrc(path!);
             this.setSrc(path, newSrc);
         }
     }
@@ -838,8 +771,8 @@ class JQImageDisplay {
         return this.getBestFitForSize(this.currentImageSize);
     }
 
-    getBestFitForSize(imageSize) {
-        var viewSize = { width: this.child.width(), height: this.child.height()};
+    getBestFitForSize(imageSize:ImageSize) {
+        var viewSize = { width: this.child.width()!, height: this.child.height()!};
 
         if (imageSize.width == 0
             || imageSize.height == 0
@@ -872,155 +805,87 @@ class JQImageDisplay {
     }
 }
 
-class FWHMDisplayer extends PureComponent {
-    constructor(props) {
-        super(props);
-        this.state = {
-            src: null,
-            value: null,
-            loading: false
-        }
-    }
+let uid:number = 0;
 
-    _loadData() {
-        if (this.props.src === this.state.src) {
-            return;
-        }
-        // Start a new loading.
-        // cancel the previous request
-        this._cancelLoadData();
-        this.setState({
-            src: this.props.src,
-            value: null,
-            loading: true
-        });
-        const self = this;
+export type Props = {
+    src: string|null;
+    viewSettings?: Partial<FullState>;
+    contextMenu?: ContextMenuEntry[];
+    app: BaseApp;
+    onViewSettingsChange: (state: FullState)=>(void);
+};
 
-        this.request = this.props.app.appServerRequest('imageProcessor', {
-                method: 'compute',
-                details: {"starField":{ "source": { "path":this.props.src}}}
-        }).then((e)=>{
-            let fwhmSum = 0;
-            for(let star of e.stars) {
-                fwhmSum += star.fwhm
-            }
-            if (e.stars.length) {
-                fwhmSum /= e.stars.length;
-            }
+export type State = {
+    contextmenu: {x:number, y:number}|null;
+    histogramView: null|LevelId;
+    fwhm: boolean;
+};
 
-            const stat = fwhmSum.toFixed(2) + " - " + e.stars.length + " stars"
+class FitsViewer extends React.PureComponent<Props, State> {
+    uid:number;
+    ImageDisplay: JQImageDisplay;
+    $el: JQuery<HTMLDivElement>;
+    el: React.RefObject<HTMLDivElement> = React.createRef();
 
-            this.setState({
-                value: stat,
-                loading: false
-            });
-        }).onError((e)=> {
-            this.setState({
-                value: null, 
-                loading: false
-            });
-        });
-        this.request.start();
-    }
-
-    _cancelLoadData() {
-        if (this.request !== undefined) {
-            this.request.cancel();
-            this.request = undefined;
-        }
-    }
-
-    componentWillUnmount() {
-        this._cancelLoadData();
-    }
-
-    componentDidMount() {
-        this._loadData();
-    }
-
-    componentDidUpdate(prevProps, prevState) {
-        this._loadData();
-    }
-
-    render() {
-        if (this.state.value === null) {
-            if (this.state.loading) {
-                return <div>...</div>;
-            } else {
-                return <div>N/A</div>;
-            }
-        } else {
-            return <div>{this.state.value}</div>
-        }
-    }
-}
-
-FWHMDisplayer.propTypes = {
-    src: PropTypes.string.isRequired,
-    app: PropTypes.any.isRequired
-}
-
-var uid = 0;
-
-class FitsViewer extends PureComponent {
-    constructor(props) {
+    constructor(props: Props) {
         super(props);
         this.uid = uid++;
         this.state = {
             contextmenu: null,
-            histogramView: null
+            histogramView: null,
+            fwhm: false,
         };
 
         this.displaySetting = this.displaySetting.bind(this);
         this.updateHisto = this.updateHisto.bind(this);
     }
 
-    componentDidUpdate(prevProps) {
+    componentDidUpdate(prevProps: Props) {
         this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
     }
 
     componentDidMount() {
-        this.$el = $(this.el);
-        this.ImageDisplay = new JQImageDisplay(this.$el, 
-            this.openContextMenu.bind(this), 
-            this.closeContextMenu.bind(this), 
+        this.$el = $(this.el.current!);
+        this.ImageDisplay = new JQImageDisplay(this.$el,
+            this.openContextMenu.bind(this),
+            this.closeContextMenu.bind(this),
             this.onViewSettingsChange.bind(this));
         this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
     }
 
     componentWillUnmount() {
         this.ImageDisplay.dispose();
-        this.ImageDisplay = undefined;
-        this.$el = undefined;
+        (this as any).ImageDisplay = undefined;
+        (this as any).$el = undefined;
     }
 
-    openContextMenu(x, y) {
-        this.setState({contextmenu:{x:x, y:y}});
+    openContextMenu(x:number, y:number) {
+        this.setState({contextmenu:{x, y}});
     }
 
-    closeContextMenu(x, y) {
+    closeContextMenu(x:number, y:number) {
         if (this.state.contextmenu !== null) {
             this.setState({contextmenu:null});
         }
     }
 
-    onViewSettingsChange(state)
+    onViewSettingsChange(state:FullState)
     {
         this.props.onViewSettingsChange(state);
     }
 
-    displaySetting(which) {
+    private readonly displaySetting=(which: LevelId|"fwhm"|null)=>{
         if (which === 'fwhm') {
             this.setState({contextmenu: null, histogramView: null, fwhm: true});
         } else {
-            this.setState({contextmenu: null, histogramView: (this.state.histogramView == which ? null : which), fwhm: false});
+            this.setState({contextmenu: null, histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
         }
     }
 
-    getViewSettingsCopy()
+    getViewSettingsCopy(): FullState
     {
-        var propValue = this.props.viewSettings;
-        if (propValue == undefined) {
+        let propValue:any = this.props.viewSettings;
+        if (propValue === undefined) {
             propValue = {};
         }
         propValue = Obj.deepCopy(propValue);
@@ -1031,10 +896,10 @@ class FitsViewer extends PureComponent {
         if (!('medium' in propValue.levels)) propValue.levels.medium = 0.5;
         if (!('high' in propValue.levels)) propValue.levels.high = 0.95;
 
-        return propValue;
+        return propValue as FullState;
     }
 
-    updateHisto(which, v) {
+    updateHisto(which: string, v:number) {
         var newViewSettings = this.getViewSettingsCopy();
         newViewSettings.levels[which] = v;
         
@@ -1047,11 +912,11 @@ class FitsViewer extends PureComponent {
         }
     }
 
-    xlateCoords=(x, y)=> {
+    xlateCoords=(x:number, y:number)=> {
         if (this.ImageDisplay !== undefined) {
             return this.ImageDisplay.getImagePosFromParent(x, y);
         }
-        return {};
+        return null;
     }
 
     updateLayout = () => {
@@ -1094,7 +959,7 @@ class FitsViewer extends PureComponent {
         }
         return(
             <div className='FitsViewOverlayContainer'>
-                <div className='FitsView' ref={el => this.el = el}/>
+                <div className='FitsView' ref={this.el}/>
                 <div className='FitsViewLoading'/>
                 <div className='FitsSettingsOverlay'>
                     {histogramView}
@@ -1106,12 +971,4 @@ class FitsViewer extends PureComponent {
 
 }
 
-FitsViewer.propTypes = {
-    src: PropTypes.string.isRequired,
-    viewSettings: PropTypes.any,
-    onViewSettingsChange: PropTypes.func.isRequired,
-    app: PropTypes.any.isRequired
-}
-
-// connect(mapStateToProps)(
 export default FitsViewer;

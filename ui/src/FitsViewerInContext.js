@@ -5,7 +5,7 @@ import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 
 
-import FitsViewer from './FitsViewer';
+import FitsViewer from './FitsViewer/FitsViewer';
 
 
 class FitsViewerInContext extends PureComponent {

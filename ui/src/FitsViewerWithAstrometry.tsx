@@ -113,7 +113,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly toggleFs = () => {
         this.setState({fs: !this.state.fs}, ()=> {
-            console.log('current is ', this.fitsViewer.current!);
             this.fitsViewer.current!.updateLayout();
         });
     }
