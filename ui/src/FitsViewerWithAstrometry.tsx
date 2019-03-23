@@ -112,9 +112,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     private readonly toggleFs = () => {
-        this.setState({fs: !this.state.fs}, ()=> {
-            this.fitsViewer.current!.updateLayout();
-        });
+        this.setState({fs: !this.state.fs});
     }
 
     private readonly contextMenuSelector = createSelector(

@@ -19,10 +19,6 @@ class FitsViewerInContext extends PureComponent {
         this.props.app.setViewerState(this.props.contextKey, e);
     }
 
-    updateLayout() {
-        this.fitsViewer.current.updateLayout();
-    }
-
     render() {
         return <FitsViewer ref={this.fitsViewer} app={this.props.app} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings} contextMenu={this.props.contextMenu}/>
     }

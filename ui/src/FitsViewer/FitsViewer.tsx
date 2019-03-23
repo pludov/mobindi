@@ -10,6 +10,7 @@ import LevelBar from './LevelBar';
 import FWHMDisplayer from './FWHMDisplayer';
 import BaseApp from 'src/BaseApp';
 import ContextMenuCross from './ContextMenuCross';
+import ReactResizeDetector from 'react-resize-detector';
 
 export type LevelId = "low"|"medium"|"high";
 
@@ -34,6 +35,12 @@ type ImagePos = {
     w:number;
     h:number;
 }
+
+type CompleteImagePos = ImagePos & {
+    centerx: number;
+    centery: number;
+    zoomToBestfit: number;
+};
 
 export type ContextMenuEntry = {
     title: string;
@@ -82,10 +89,7 @@ class JQImageDisplay {
     touches = {};
 
     currentImageSize:ImageSize = {width: -1, height: -1};
-    currentImagePos = {x:0, y:0, w:0, h:0};
-
-    // While the bestFit is active (cleared by moves)
-    atBestFit = true;
+    currentImagePos:CompleteImagePos = {x:0, y:0, w:0, h:0, centerx: 0.5, centery: 0.5, zoomToBestfit: 1};
 
     menuTimer:NodeJS.Timeout|null = null;
 
@@ -125,6 +129,31 @@ class JQImageDisplay {
             medium: 0.5,
             high: 0.95
         };
+    }
+
+    onResize = ()=>{
+        const newSize = {x: this.child.width(), y:this.child.height() };
+        if (newSize.x === undefined) return;
+        if (newSize.y === undefined) return;
+
+        if (this.currentImageSize.width === -1) return;
+        if (this.currentImageSize.height === -1) return;
+
+        const centerX = this.currentImageSize.width * this.currentImagePos.x;
+        const centerY = this.currentImageSize.height * this.currentImagePos.y;
+        const bestFit = this.getBestFit();
+
+        bestFit.w *= this.currentImagePos.zoomToBestfit;
+        bestFit.h *= this.currentImagePos.zoomToBestfit;
+        // Center at centerX, centerY
+        bestFit.x  = newSize.x / 2 - bestFit.w * this.currentImagePos.centerx;
+        bestFit.y  = newSize.y / 2 - bestFit.h * this.currentImagePos.centery;
+
+        bestFit.centerx = this.currentImagePos.zoomToBestfit;
+        bestFit.centery = this.currentImagePos.zoomToBestfit;
+        bestFit.zoomToBestfit = this.currentImagePos.zoomToBestfit;
+
+        this.setCurrentImagePos(bestFit);
     }
 
     cancelMenuTimer() {
@@ -361,6 +390,7 @@ class JQImageDisplay {
         newImage.onload = (() => { console.warn('image loaded ok'); this.loaded(src, newImage, true) });
         newImage.onerror = ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) });
         newImage.src = src;
+        $(newImage).css('display', 'block');
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
@@ -672,14 +702,6 @@ class JQImageDisplay {
         }
     }
 
-    public readonly updateLayout=()=>{
-        setTimeout(()=>{
-            console.log('Updating zoom');
-            const viewSize = { x: this.child.width()!, y: this.child.height()!};
-            this.zoom(viewSize!.x / 2, viewSize!.y / 2, 1.0);
-        }, 1000);
-    }
-
     public readonly zoom=(cx:number, cy:number, z:number)=>{
         var corners = [
             [this.currentImagePos.x, this.currentImagePos.y],
@@ -705,7 +727,7 @@ class JQImageDisplay {
     }
 
 
-    setRawCurrentImagePos(e:ImagePos) {
+    private setRawCurrentImagePos(e:CompleteImagePos) {
         if (this.currentImg !== null) {
             $(this.currentImg).css("width", e.w + 'px');
             $(this.currentImg).css("height", e.h + 'px');
@@ -722,36 +744,42 @@ class JQImageDisplay {
         this.currentImagePos = e;
     }
 
-    setCurrentImagePos(e:ImagePos) {
+    setCurrentImagePos(imgPos:ImagePos) {
+        let targetPos: CompleteImagePos;
         const viewSize = { x: this.child.width()!, y: this.child.height()!};
         // prevent zoom under 1.
-        if (e.w < viewSize.x && e.h < viewSize.y) {
-            e = this.getBestFit();
+        if (imgPos.w < viewSize.x && imgPos.h < viewSize.y) {
+            targetPos = this.getBestFit();
         } else {
             // Prevent black borders
-            const marginX = (e.w < viewSize.x) ? (viewSize.x - e.w) / 2 : 0;
+            targetPos = {...imgPos,
+                centerx: (viewSize.x / 2 - imgPos.x) / imgPos.w,
+                centery: (viewSize.y / 2 - imgPos.y) / imgPos.h,
+                zoomToBestfit: Math.max(imgPos.w/viewSize.x, imgPos.h/viewSize.y)
+            };
+            const marginX = (targetPos.w < viewSize.x) ? (viewSize.x - targetPos.w) / 2 : 0;
             const minx = marginX;
             const maxx = viewSize.x - marginX;
 
 
-            const marginY = (e.h < viewSize.y) ? (viewSize.y - e.h) / 2 : 0;
+            const marginY = (targetPos.h < viewSize.y) ? (viewSize.y - targetPos.h) / 2 : 0;
             const miny = marginY;
             const maxy = viewSize.y - marginY;
 
-            if (e.x > minx) {
-                e.x = minx;
+            if (targetPos.x > minx) {
+                targetPos.x = minx;
             }
-            if (e.y > miny) {
-                e.y = miny;
+            if (targetPos.y > miny) {
+                targetPos.y = miny;
             }
-            if (e.x + e.w < maxx) {
-                e.x = maxx - e.w;
+            if (targetPos.x + targetPos.w < maxx) {
+                targetPos.x = maxx - targetPos.w;
             }
-            if (e.y + e.h < maxy) {
-                e.y = maxy - e.h;
+            if (targetPos.y + targetPos.h < maxy) {
+                targetPos.y = maxy - targetPos.h;
             }
         }
-        this.setRawCurrentImagePos(e);
+        this.setRawCurrentImagePos(targetPos);
 
         // Adjust the bin
         if (this.loadingDetailsPath === null) {
@@ -767,8 +795,13 @@ class JQImageDisplay {
         }
     }
 
-    getBestFit() {
-        return this.getBestFitForSize(this.currentImageSize);
+    getBestFit():CompleteImagePos {
+        return {
+            ...this.getBestFitForSize(this.currentImageSize),
+            centerx: 0.5,
+            centery: 0.5,
+            zoomToBestfit: 1.0,
+        };
     }
 
     getBestFitForSize(imageSize:ImageSize) {
@@ -800,8 +833,7 @@ class JQImageDisplay {
     // Max zoom keeping aspect ratio
     bestFit() {
         // Move the img
-        this.setRawCurrentImagePos(this.getBestFit());
-        this.atBestFit = true;
+        this.setCurrentImagePos(this.getBestFit());
     }
 }
 
@@ -921,9 +953,9 @@ class FitsViewer extends React.PureComponent<Props, State> {
         return null;
     }
 
-    updateLayout = () => {
+    onResize = () => {
         if (this.ImageDisplay !== undefined) {
-            return this.ImageDisplay.zoom(0, 0, 1);
+            this.ImageDisplay.onResize();
         }
     }
 
@@ -961,7 +993,9 @@ class FitsViewer extends React.PureComponent<Props, State> {
         }
         return(
             <div className='FitsViewOverlayContainer'>
-                <div className='FitsView' ref={this.el}/>
+                <div className='FitsView' ref={this.el}>
+                    <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
+                </div>
                 <div className='FitsViewLoading'/>
                 <div className='FitsSettingsOverlay'>
                     {histogramView}
