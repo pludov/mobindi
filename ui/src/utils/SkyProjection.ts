@@ -1,4 +1,4 @@
-import { SucceededAstrometryResult } from '../../../shared/ProcessorTypes';
+import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 
 
 const RAD_PER_DEG = Math.PI / 180;

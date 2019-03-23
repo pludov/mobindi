@@ -1,7 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import AstrometryView from './AstrometryView';
-import { AstrometrySetScopeRequest } from '../../shared/BackOfficeStatus';
+import { AstrometrySetScopeRequest } from '@bo/BackOfficeStatus';
 
 
 export default class AstrometryApp extends BaseApp {

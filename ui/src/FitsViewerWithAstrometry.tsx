@@ -2,7 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import { createSelector } from 'reselect'
 
 import { Connect } from './utils/Connect';
-import * as BackOfficeStatus from '../../shared/BackOfficeStatus';
+import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
 import './FitsViewerWithAstrometry.css'
 import FitsViewerInContext from './FitsViewerInContext';

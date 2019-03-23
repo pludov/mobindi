@@ -4,7 +4,7 @@ import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 
-import * as BackOfficeStatus from '../../shared/BackOfficeStatus';
+import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
