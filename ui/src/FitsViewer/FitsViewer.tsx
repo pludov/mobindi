@@ -854,7 +854,9 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     componentWillUnmount() {
-        this.ImageDisplay.dispose();
+        if (this.ImageDisplay) {
+            this.ImageDisplay.dispose();
+        }
         (this as any).ImageDisplay = undefined;
         (this as any).$el = undefined;
     }
