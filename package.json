@@ -12,6 +12,7 @@
   "main": "dist/app.js",
   "dependencies": {
     "body-parser": "^1.18.3",
+    "cancellationtoken": "^2.0.1",
     "cgi": "https://github.com/pludov/node-cgi/tarball/master",
     "cookie-parser": "~1.4.3",
     "cors": "^2.8.3",
