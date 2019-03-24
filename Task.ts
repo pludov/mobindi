@@ -10,7 +10,7 @@ export default class Task<T> extends Promise<T>{
     public readonly reject: (reason?: any) => void;
     public readonly cancel: (reason?: any) => void;
 
-    constructor(parentCancelation: CancellationToken, code?:(task: Task<T>)=>Promise<T>) {
+    constructor(parentCancelation?: CancellationToken, code?:(task: Task<T>)=>Promise<T>) {
         let tresolve : this['resolve'], treject: this['reject'];
         super((resolve, reject)=> {
             tresolve = resolve;
@@ -22,7 +22,7 @@ export default class Task<T> extends Promise<T>{
         this.cancellation = token;
         this.cancel = cancel;
 
-        if (parentCancelation) {
+        if (parentCancelation !== undefined) {
             const whenDone = parentCancelation.onCancelled(this.cancel);
             this.catch(whenDone);
             this.then(whenDone);

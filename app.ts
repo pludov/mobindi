@@ -44,6 +44,8 @@ import session = require('express-session');
 import SessionFileStore = require('session-file-store')
 import { AppContext } from "./ModuleBase";
 import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
+import Task from "./Task.js";
+import CancellationToken from "cancellationtoken";
 
 const FileStore = SessionFileStore(session);
 
@@ -157,7 +159,7 @@ var serverId = uuid.v4();
 
 
 class Request {
-    promise: any;
+    promise: Task<any>|undefined;
     cancelRequested: any;
     uid: any;
     client: any;
@@ -267,28 +269,28 @@ wss.on('connection', function connection(ws) {
             var request = new Request(globalUid, client);
 
 
-            try {
-                if (!message.details) throw "missing details property";
-                var target = message.details.target;
-                var targetObj = undefined;
-                if (Object.prototype.hasOwnProperty.call(context, target)) {
-                    targetObj = (context as any)[target];
-                } else {
-                    request.onError('invalid target');
-                    return;
+            new Task<any>(undefined, async (task)=> {
+                try {
+                    if (!message.details) throw "missing details property";
+                    var target = message.details.target;
+                    if (!Object.prototype.hasOwnProperty.call(context, target)) {
+                        throw new Error('invalid target: ' + target);
+                    }
+                    const targetObj = (context as any)[target];
+                    const method = '$api_' + message.details.method;
+                    if (!Object.prototype.hasOwnProperty.call(targetObj, method)) {
+                        throw new Error("Method does not exists: " + target + "." + method);
+                    }
+                    const ret = targetObj[method](message.details);
+                    request.success(ret);
+                } catch(e) {
+                    if (e instanceof CancellationToken.CancellationError) {
+                        request.onCancel();
+                    } else {
+                        request.onError(e);
+                    }
                 }
-
-                request.promise = targetObj['$api_' + message.details.method](message.details);
-                request.promise.then(request.success.bind(request));
-                request.promise.onCancel(request.onCancel.bind(request));
-                request.promise.onError(request.onError.bind(request));
-
-            } catch(e) {
-                request.onError(e);
-                return;
-            }
-
-            request.promise.start();
+            });
         }
     });
 
