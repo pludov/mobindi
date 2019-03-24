@@ -1,3 +1,4 @@
+import CancellationToken from 'cancellationtoken';
 
 function debug() {
     console.log('IndiAutoConnect: ' + Array.from(arguments).map((e)=>''+e).join(' '));
@@ -95,14 +96,14 @@ class IndiAutoConnect {
 
                 this.memory[devId] = true;
                 if (val === 'Off') {
-                    try {
-                        debug('Starting...');
-                        this.indiManager.connectDevice(devId)
-                            .onError((e)=>{debug('Failed to autostart ' + devId, e)})
-                            .start();
-                    } catch(e) {
-                        debug('Ignoring start error', e);
-                    }
+                    (async ()=> {
+                        try {
+                            debug('Starting...');
+                            this.indiManager.connectDevice(CancellationToken.CONTINUE, devId);
+                        } catch(e) {
+                            debug('Failed to autostart ' + devId, e);
+                        }
+                    })();
                 }
             }
         }

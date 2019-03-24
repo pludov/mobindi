@@ -4,7 +4,7 @@ import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
-import { DriverInterface } from './Indi';
+import { DriverInterface, Vector } from './Indi';
 import Task from './Task';
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
@@ -750,25 +750,25 @@ export default class Camera {
                     && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists())
                 {
                     task.cancellation.throwIfCancelled();
-                    await this.indiManager.setParam(device, 'CCD_BINNING',
-                            () => ({
+                    await this.indiManager.setParam(task.cancellation, device, 'CCD_BINNING', {
                                 HOR_BIN: currentShootSettings.bin,
-                                VER_BIN: currentShootSettings.bin}));
+                                VER_BIN: currentShootSettings.bin
+                            });
                 }
                 // Reset the frame size - if prop is present only
                 if (Object.keys(this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device))).length != 0) {
-                    task.cancellation.throwIfCancelled();
-                    await this.indiManager.setParam(device, 'CCD_FRAME', ()=>this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
+                    await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
                 }
 
                 // Set the iso
                 if (currentShootSettings.iso !== null
                         && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()) {
                     task.cancellation.throwIfCancelled();
-                    await this.indiManager.setParam(device, 'CCD_ISO',
-                        (vec:any) => {
-                            vec = vec.getVectorInTree();
-                            var v = currentShootSettings.iso;
+                    await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',
+                        // FIXME : support cb for setParam
+                        (vector:Vector) => {
+                            const vec = vector.getVectorInTree();
+                            const v = currentShootSettings.iso;
                             var childToSet = undefined;
                             for(var id of vec.childNames)
                             {
@@ -786,8 +786,8 @@ export default class Camera {
                 }
 
                 task.cancellation.throwIfCancelled();
-                await this.indiManager.setParam(device, 'UPLOAD_SETTINGS',
-                        (vec:any)=> {
+                await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_SETTINGS',
+                        (vec:Vector)=> {
                             const ret = {};
 
                             if (vec.getPropertyValueIfExists('UPLOAD_DIR') !== currentShootSettings.path
@@ -804,8 +804,8 @@ export default class Camera {
                 
                 // Set the upload mode to at least upload_client
                 task.cancellation.throwIfCancelled();
-                await this.indiManager.setParam(device, 'UPLOAD_MODE',
-                        (vec:any) => {
+                await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
+                        (vec:Vector) => {
                             if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') == 'On') {
                                 console.log('want upload_client\n');
                                 return {
@@ -816,7 +816,7 @@ export default class Camera {
                             }
                         });
 
-                await this.indiManager.waitForVectors(device, ['CCD_FILE_PATH']);
+                await this.indiManager.waitForVectors(task.cancellation, device, ['CCD_FILE_PATH']);
 
                 const connection = this.indiManager.connection;
                 if (connection == undefined) {
@@ -838,33 +838,32 @@ export default class Camera {
                         var uploadModeVector = connection.getDevice(device).getVector("UPLOAD_MODE");
                         uploadModeVector.setValues([{name: 'UPLOAD_CLIENT', value: 'On'}]);
                 });
-                // Make this uninterruptible
                 try {
-                    await connection.wait(() => {
-                            console.log('Waiting for exposure end');
+                    // Make this uninterruptible
+                    await connection.wait(CancellationToken.CONTINUE, () => {
+                        console.log('Waiting for exposure end');
 
-                            var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
-                            var state = expVector.getState();
-                            if (value != "0") {
-                                currentShootSettings.status = 'Exposing';
-                            } else if (state == "Busy" && currentShootSettings.status == 'Exposing') {
-                                currentShootSettings.status = 'Downloading';
-                            }
+                        var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
+                        var state = expVector.getState();
+                        if (value != "0") {
+                            currentShootSettings.status = 'Exposing';
+                        } else if (state == "Busy" && currentShootSettings.status == 'Exposing') {
+                            currentShootSettings.status = 'Downloading';
+                        }
 
-                            if (state == "Busy") {
-                                return false;
-                            }
-                            if (state != "Ok" && state != "Idle") {
-                                throw "Exposure failed";
-                            }
+                        if (state === "Busy") {
+                            return false;
+                        }
+                        if (state !== "Ok" && state !== "Idle") {
+                            throw new Error("Exposure failed");
+                        }
 
-                            return (value == "0");
+                        return (value == "0");
                     });
                 } finally {
                     doneWithExposure();
                 }
 
-                
                 if (ccdFilePathInitRevId === connection.getDevice(device).getVector("CCD_FILE_PATH").getRev())
                 {
                     throw new Error("CCD_FILE_PATH was not updated");
@@ -895,8 +894,8 @@ export default class Camera {
 
                 // Remove UPLOAD_MODE
                 // FIXME: this should be in a finally !
-                await this.indiManager.setParam(device, 'UPLOAD_MODE',
-                        (vec:any) => {
+                await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
+                        (vec:Vector) => {
                             if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
                                 console.log('set back upload_client\n');
                                 return {
