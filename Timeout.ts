@@ -1,12 +1,12 @@
 import CancellationToken from "cancellationtoken";
-import Task from "./Task";
+import {createTask} from "./Task.js";
 
 
 export default async function Timeout<T>(ct: CancellationToken, code: (ct:CancellationToken)=>Promise<T>, timeout:number, errorProvider:()=>Error)
 {
     ct.throwIfCancelled();
 
-    new Task(ct, async (task)=> {
+    return await createTask(ct, async (task)=> {
         let expired : boolean = false;
         let timeObj:NodeJS.Timeout|undefined = setTimeout(()=> {
             timeObj = undefined;

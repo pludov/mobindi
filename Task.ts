@@ -4,41 +4,48 @@ import CancellationToken from "cancellationtoken";
  * A task is a promise with a CancellationToken
  * It can inherit from a "parent" cancellationToken (canceling the parent will cancel the promise, if not already done)
  */
-export default class Task<T> extends Promise<T>{
-    public readonly cancellation: CancellationToken;
-    public readonly resolve: (value?: T | PromiseLike<T> | undefined) => void;
-    public readonly reject: (reason?: any) => void;
-    public readonly cancel: (reason?: any) => void;
+export interface Task<T> extends Promise<T> {
+    readonly cancellation: CancellationToken;
+    readonly cancel: (reason?: any)=>(void);
+}
 
-    constructor(parentCancelation?: CancellationToken, code?:(task: Task<T>)=>Promise<T>) {
-        let tresolve : this['resolve'], treject: this['reject'];
-        super((resolve, reject)=> {
-            tresolve = resolve;
-            treject = reject;
-        });
-        this.resolve = tresolve!;
-        this.reject = treject!;
-        const {token, cancel} = CancellationToken.create();
-        this.cancellation = token;
-        this.cancel = cancel;
+export function createTask<T>(
+                parentCancelation?: CancellationToken,
+                code?:(task: Task<T>)=>Promise<T>
+            ):Task<T> {
+    let child:any = {};
+    let resolve: (value?: T | PromiseLike<T> | undefined) => void;
+    let reject: (reason?: any) => void;
 
-        if (parentCancelation !== undefined) {
-            const whenDone = parentCancelation.onCancelled(this.cancel);
-            this.catch(whenDone);
-            this.then(whenDone);
-        }
+    const ret:any = new Promise<T>((tresolve, treject) => {
+        resolve = tresolve;
+        reject = treject;
+    });
 
-        (async ()=> {
-            if (code) {
-                let result: T;
-                try {
-                    result = await code(this);
-                } catch(e) {
-                    treject!(e);
-                    return;
-                }
-                tresolve!(result);
-            }
-        })();
+    const {token, cancel} = CancellationToken.create();
+    ret.cancellation = token;
+    ret.cancel = cancel;
+
+    if (parentCancelation !== undefined) {
+        console.log('parentCancelation is ', parentCancelation);
+        const whenDone = parentCancelation.onCancelled(cancel);
+        ret.catch!(whenDone);
+        ret.then!(whenDone);
     }
-};
+
+    (async ()=> {
+        if (code) {
+            let result: T;
+            try {
+                result = await code(ret);
+            } catch(e) {
+                reject!(e);
+                return;
+            }
+            resolve!(result);
+        }
+    })();
+
+    return ret;
+}
+

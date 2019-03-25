@@ -346,7 +346,8 @@ export default class IndiManager {
                     valueProvider: {[id:string]:string|null|undefined} | ((vec:Vector)=>{[id:string]:string|null|undefined}),
                     force?: boolean,
                     nowait?:boolean,
-                    cancelator?: (connection:IndiConnection, devId:string, vectorId:string)=>(Array<string>))
+                    cancelator?: (connection:IndiConnection, devId:string, vectorId:string)=>(void))
+            :Promise<Array<{name:string, value:string}>>
     {
         const connection = this.getValidConnection();
 
@@ -374,11 +375,10 @@ export default class IndiManager {
         if (vec.getState() === "Busy") {
             throw new Error("Device is busy");
         }
-        var diff = false;
         
         const value = (typeof valueProvider === "function" ? valueProvider(vec) : valueProvider);
         var todo = [];
-        for(var key in value) {
+        for(const key of Object.keys(value).sort()) {
             var v = value[key];
             if (v === null || v === undefined) {
                 continue;
@@ -393,7 +393,21 @@ export default class IndiManager {
             console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
         } else {
             vec.setValues(todo);
-            await connection.wait(ct, () => (getVec().getState() !== "Busy"));
+            let cancelatorCancel = ()=>{};
+            if (cancelator) {
+                ct.throwIfCancelled();
+                cancelatorCancel = ct.onCancelled(()=>{
+                    cancelator(connection, devId, vectorId);
+                });
+            }
+            try {
+                await connection.wait(ct, () => (getVec().getState() !== "Busy"));
+                if (cancelator) {
+                    ct.throwIfCancelled();
+                }
+            } finally {
+                cancelatorCancel();
+            }
         }
 
         return todo;

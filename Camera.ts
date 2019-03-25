@@ -5,7 +5,7 @@ import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus, Sequence} fr
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
-import Task from './Task';
+import {Task, createTask} from "./Task.js";
 const {IndiConnection, timestampToEpoch} = require('./Indi');
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
@@ -593,7 +593,7 @@ export default class Camera {
         }
 
         
-        await (new Task(ct, async (task:Task<void>)=> {
+        await (createTask(ct, async (task:Task<void>)=> {
             this.currentSequencePromise = task;
             this.currentSequenceUuid = uuid;
             this.currentStatus.sequences.byuuid[uuid].status = 'running';
@@ -733,7 +733,8 @@ export default class Camera {
                     path: this.currentStatus.configuration.defaultImagePath || process.env.HOME,
                     prefix: this.currentStatus.configuration.defaultImagePrefix || 'IMAGE_XXX'
                 }, settings);
-        return await new Task(cancellation, async (task)=>{
+
+        return await createTask<ShootResult>(cancellation, async (task)=>{
             this.shootPromises[device] = task;
         
             try {

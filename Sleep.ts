@@ -5,7 +5,7 @@ export default async function Sleep(ct: CancellationToken, timeout:number):Promi
 {
     ct.throwIfCancelled();
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
         let timeObj:NodeJS.Timeout|undefined = setTimeout(()=> {
             cleanup();
             resolve();

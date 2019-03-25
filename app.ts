@@ -44,7 +44,7 @@ import session = require('express-session');
 import SessionFileStore = require('session-file-store')
 import { AppContext } from "./ModuleBase";
 import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
-import Task from "./Task.js";
+import {Task, createTask} from "./Task.js";
 import CancellationToken from "cancellationtoken";
 
 const FileStore = SessionFileStore(session);
@@ -269,7 +269,7 @@ wss.on('connection', function connection(ws) {
             var request = new Request(globalUid, client);
 
 
-            new Task<any>(undefined, async (task)=> {
+            createTask<any>(undefined, async (task)=> {
                 try {
                     if (!message.details) throw "missing details property";
                     var target = message.details.target;
@@ -278,7 +278,7 @@ wss.on('connection', function connection(ws) {
                     }
                     const targetObj = (context as any)[target];
                     const method = '$api_' + message.details.method;
-                    if (!Object.prototype.hasOwnProperty.call(targetObj, method)) {
+                    if (!(method in targetObj)) {
                         throw new Error("Method does not exists: " + target + "." + method);
                     }
                     const ret = targetObj[method](message.details);

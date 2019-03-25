@@ -1,3 +1,4 @@
+import CancellationToken from 'cancellationtoken';
 const Obj = require('./Obj.js');
 const ConfigStore = require('./ConfigStore');
 
@@ -100,11 +101,19 @@ class IndiNewProperty
                 }
             }
             if (changeRequired) {
-                this.context.indiManager.setParam(
-                    this.params.device,
-                    this.params.vector,
-                    toSet
-                ).onError((e)=>{console.log('Trigger ' + self.key + ' failed', e);}).start();
+                (async ()=> {
+                    try {
+                        console.log('Using cancellation token: ', CancellationToken.CONTINUE);
+                        await this.context.indiManager.setParam(
+                            CancellationToken.CONTINUE,
+                            this.params.device,
+                            this.params.vector,
+                            toSet
+                        );
+                    } catch(e) {
+                        console.log('Trigger ' + self.key + ' failed', e);
+                    }
+                })();
             }
         }
     }

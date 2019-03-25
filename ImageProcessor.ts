@@ -6,6 +6,7 @@ import {ProcessorRequest} from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import { AppContext } from './ModuleBase';
+import CancellationToken from 'cancellationtoken';
 
 
 // Ugggglyyy fix for end of stream
@@ -25,7 +26,7 @@ export default class ImageProcessor
         this.context = context;
     }
 
-    compute(jsonRequest: ProcessorRequest):Promises.Cancelable<void, any> {
+    async compute(ct: CancellationToken, jsonRequest: ProcessorRequest):Promise<any> {
         let writableStream: MemoryStreams.WritableStream;
         let writableStreamDone: boolean = false;
         let writableStreamCb:undefined|(()=>(void));
@@ -37,6 +38,8 @@ export default class ImageProcessor
                 writableStreamCb();
             }
         }
+        // TODO: Arg, il y a du boulot ici !
+        throw new Error("not implemented");
         return new Promises.Chain(
             new Promises.Immediate(() => {
                 writableStream = new MemoryStreams.WritableStream();
@@ -72,7 +75,7 @@ export default class ImageProcessor
         );
     }
 
-    $api_compute(jsonRequest: any) {
-        return this.compute(jsonRequest.details);
+    async $api_compute(ct: CancellationToken, jsonRequest: any) {
+        return await this.compute(ct, jsonRequest.details);
     }
 }
