@@ -132,7 +132,7 @@ class IndiNewProperty
     }
 };
 
-class TriggerExecuter
+export class TriggerExecuter
 {
 
     constructor(jsonProxy, context) {
@@ -230,5 +230,3 @@ class TriggerExecuter
     }
 };
 
-
-module.exports = TriggerExecuter;

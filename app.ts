@@ -29,7 +29,7 @@ import ImageProcessor from './ImageProcessor';
 
 import JsonProxy from './JsonProxy';
 //@ts-ignore
-import TriggerExecuter = require('./TriggerExecuter');
+import TriggerExecuter from './TriggerExecuter';
 //@ts-ignore
 import ToolExecuter = require('./ToolExecuter');
 
