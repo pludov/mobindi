@@ -391,6 +391,7 @@ class JQImageDisplay {
         newImage.onerror = ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) });
         newImage.src = src;
         $(newImage).css('display', 'block');
+        $(newImage).css('pointer-events', 'none');
         console.log('Loading image: ' + src);
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
