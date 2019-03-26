@@ -1,6 +1,4 @@
 
-import * as Promises from './Promises';
-import ImageProcessor from './ImageProcessor';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest, AstrometryGotoScopeRequest} from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
