@@ -183,6 +183,50 @@ export type AstrometryStatus = {
     useNarrowedSearchRadius: boolean;
 }
 
+export type PhdConfiguration = {
+    autorun: false;
+    path: string| null;
+    env: {[id:string]:string};
+}
+
+export type PhdGuideStep = {
+    Timestamp: null;
+    RADistanceRaw?: number,
+    DECDistanceRaw?: number,
+    settling?: boolean;
+}
+
+
+export type PhdSettling = {
+    running: boolean;
+    status?: boolean;
+    error?: any;
+}
+
+export type PhdStar = {
+    SNR: number;
+    StarMass: number;
+}
+
+export type PhdAppState ="NotConnected" | "Guiding" | "Paused" | "Calibrating" | "Looping" | "Stopped" | "LostLock"; 
+
+export type PhdStatus = {
+    phd_started: boolean;
+    connected: boolean;
+    AppState: PhdAppState;
+    settling: PhdSettling|null;
+    guideSteps: {[id:string]: PhdGuideStep};
+    configuration: PhdConfiguration;
+    firstStepOfRun: string;
+    RADistanceRMS:number|null;
+    DECDistanceRMS:number|null;
+    RADECDistanceRMS:number|null;
+    RADistancePeak: number|null;
+    DECDistancePeak: number|null;
+    RADECDistancePeak: number|null;
+    star: PhdStar|null;
+};
+
 
 export type AstrometryComputeRequest = {
     image: string;
@@ -212,4 +256,5 @@ export type BackofficeStatus = {
     camera: CameraStatus;
     astrometry: AstrometryStatus;
     focuser: FocuserStatus;
+    phd: PhdStatus;
 };
