@@ -11,7 +11,7 @@ import JsonProxy from './JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import Timeout from './Timeout';
 import Sleep from './Sleep';
-const IndiServerStarter = require('./IndiServerStarter');
+import IndiServerStarter from './IndiServerStarter';
 const IndiAutoConnect = require('./IndiAutoConnect');
 const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
 const ConfigStore = require('./ConfigStore');
@@ -44,7 +44,7 @@ export default class IndiManager {
     currentStatus: IndiManagerStatus;
     lastMessageSerial: undefined|number;
     lastMessageStamp: undefined|number;
-    indiServerStarter: any;
+    indiServerStarter: IndiServerStarter | null;
     connection: undefined|IndiConnection;
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
@@ -62,7 +62,12 @@ export default class IndiManager {
             driverToGroup: {},
             configuration: {
                 driverPath: "none",
-                indiServer: null,
+                indiServer: {
+                    path: null,
+                    fifopath: null,
+                    devices: {},
+                    autorun: true,
+                },
             }
         }
 
@@ -99,7 +104,11 @@ export default class IndiManager {
 
         this.lifecycle(CancellationToken.CONTINUE);
 
-        this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+        if (this.currentStatus.configuration.indiServer !== null) {
+            this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+        } else {
+            this.indiServerStarter = null;
+        }
 
         new IndiAutoConnect(this);
         new IndiAutoGphotoSensorSize(this);
@@ -414,7 +423,7 @@ export default class IndiManager {
     }
 
 
-    checkDeviceConnected(deviceId:string):Device {
+    public checkDeviceConnected=(deviceId:string):Device=>{
         const device = this.getValidConnection().getDevice(deviceId);
         if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
             throw new Error("Device " + deviceId + " is not connected");
@@ -422,7 +431,7 @@ export default class IndiManager {
         return device;
     }
 
-    async connectDevice(ct: CancellationToken, device: string)
+    private connectDevice=async (ct: CancellationToken, device: string)=>
     {
         const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
         if (!vector.isReadyForOrder()) {
@@ -436,7 +445,7 @@ export default class IndiManager {
         await this.setParam(ct, device, 'CONFIG_PROCESS', {CONFIG_LOAD: "On"});
     }
 
-    async disconnectDevice(ct: CancellationToken, device: string)
+    private disconnectDevice=async (ct: CancellationToken, device: string)=>
     {
 
         const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
@@ -468,7 +477,10 @@ export default class IndiManager {
 
     async $api_restartDriver(ct: CancellationToken, message:IndiManagerRestartDriverRequest)
     {
-        this.indiServerStarter.restartDevice(message.driver);
+        if (this.indiServerStarter === null) {
+            throw new Error("no indiserver configured");
+        }
+        return await this.indiServerStarter.restartDevice(ct, message.driver);
     }
 
     async $api_updateDriverParam(ct: CancellationToken, message:IndiManagerUpdateDriverParamRequest)

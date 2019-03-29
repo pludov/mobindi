@@ -350,10 +350,9 @@ export class IndiConnection {
         });
     }
 
-    // Return a Promises.Cancelable that wait until the predicate is true
+    // Wait until the predicate is true
     // will be checked after every indi event
-    // allowDisconnectionState: if true, predicate will be checked event after disconnection
-    // The predicate will receive the promise input.
+    // allowDisconnectionState: if true, predicate will be checked event after disconnection (reject otherwise)
     async wait<OUTPUT>(ct: CancellationToken, predicate:IndiPredicate<OUTPUT>, allowDisconnectionState?:boolean):Promise<OUTPUT> {
         while(true) {
             if (this.dead && !allowDisconnectionState) {

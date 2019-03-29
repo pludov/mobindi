@@ -33,10 +33,29 @@ export type IndiMessageWithUid = IndiMessage | {
     uid: string;
 };
 
+export type IndiDeviceConfiguration = {
+    driver: string;
+    config?: string;
+    skeleton?: string;
+    prefix?: string;
+    options: {[id:string]:string};
+};
+
+export type IndiServerConfiguration = {
+    path: null;
+    fifopath: null;
+    devices: {[id: string]: IndiDeviceConfiguration};
+    autorun: boolean;
+}
+
+export type IndiServerState = IndiServerConfiguration & {
+    restartList: string[];
+};
+
 export type IndiManagerStatus = {
     status: "error"|"connecting"|"connected";
     configuration: {
-        indiServer: any;
+        indiServer: IndiServerConfiguration;
         driverPath: string;
     };
     driverToGroup: {[driver: string]: string};
@@ -95,6 +114,37 @@ export type CameraStatus = {
         byuuid: {[uuid: string]:Sequence}
     };
     configuration: any;
+}
+
+export type AutoFocusSettings = {
+    range: number;
+    steps: number;
+    backlash: number;
+    lowestFirst : boolean;
+    targetCurrentPos: boolean;
+    targetPos: number;
+};
+
+export type AutoFocusStatus = {
+    status: "idle"|"running"|"done"|"error"|"interrupted";
+    error: null|string;
+    firstStep: null|number;
+    lastStep: null|number;
+    points: {[id:string]:{fwhm: number|null}};
+    predicted: {[id:string]:{fwhm: number}};
+    targetStep: null|number;
+}
+
+export type FocuserUpdateCurrentSettingsRequest = {
+    diff: any
+}
+
+export type FocuserStatus = {
+    selectedDevice: string|null;
+    preferedDevice: string|null;
+    availableDevices: string[];
+    currentSettings: AutoFocusSettings;
+    current: AutoFocusStatus;
 }
 
 export type AstrometrySettings = {
@@ -161,4 +211,5 @@ export type BackofficeStatus = {
     indiManager: IndiManagerStatus;
     camera: CameraStatus;
     astrometry: AstrometryStatus;
+    focuser: FocuserStatus;
 };
