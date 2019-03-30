@@ -10,7 +10,7 @@ import { DriverInterface, Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
 const {IdGenerator} = require('./IdGenerator');
-const ConfigStore = require('./ConfigStore');
+import ConfigStore from './ConfigStore';
 
 export default class Camera {
     appStateManager: JsonProxy<BackofficeStatus>;
@@ -113,34 +113,8 @@ export default class Camera {
             list: [],
             byuuid: {}
         },{
-            list: ['21324564'],
-            byuuid: {
-                '21324564': {
-                    // status are: idle/paused/error, running, done
-                    status: 'idle',
-                    errorMessage: null,
-                    title: 'Test 1',
-                    camera: null,
-                    exposure: null,
-                    iso: null,
-                    bin: null,
-                    steps: {
-                        list: ['000001', '000002'],
-                        byuuid:
-                        {
-                            'OOOOO1': {
-                                count: 3,
-                                type: 'Light'
-                            },
-                            'OOOOO2': {
-                                count: 3,
-                                expt: 30,
-                                type: 'Light'
-                            }
-                        }
-                    }
-                }
-            }
+            list: [],
+            byuuid: {}
         },
             // read callback
             (content:CameraStatus["sequences"])=> {

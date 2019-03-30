@@ -12,9 +12,9 @@ import CancellationToken from 'cancellationtoken';
 import Timeout from './Timeout';
 import Sleep from './Sleep';
 import IndiServerStarter from './IndiServerStarter';
+import ConfigStore from './ConfigStore';
 const IndiAutoConnect = require('./IndiAutoConnect');
 const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
-const ConfigStore = require('./ConfigStore');
 
 
 function has(obj:any, key:string) {

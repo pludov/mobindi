@@ -2,7 +2,7 @@ const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 const Obj = require('./Obj.js');
-const ConfigStore = require('./ConfigStore');
+import ConfigStore from './ConfigStore';
 import JsonProxy from './JsonProxy';
 import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentSettingsRequest } from './shared/BackOfficeStatus';
 import { Task, createTask } from './Task';

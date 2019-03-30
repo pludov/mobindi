@@ -1,8 +1,9 @@
-'use strict';
-
+import fs from 'fs';
+import tmp from 'tmp';
+import JsonProxy from "./JsonProxy";
+import { BackofficeStatus } from "./shared/BackOfficeStatus";
 const Obj = require('./Obj.js');
-const fs = require('fs');
-const tmp = require('tmp');
+
 
 var configDir = 'local';
 
@@ -10,9 +11,25 @@ if (!fs.existsSync(configDir)){
     fs.mkdirSync(configDir);
 }
 
-class ConfigStore
-{
-    constructor(appStateManager, fileName, path, defaultContent, exampleContent, readCb, writeCb)
+export default class ConfigStore<T> {
+    readonly appStateManager: JsonProxy<BackofficeStatus>;
+    private saveRunning: boolean;
+    private saveMustRestart: boolean;
+    private readCb?: (content:T)=>T;
+    private writeCb?: (content:T)=>T;
+    private readonly currentContent: T;
+    private defaultContent: T;
+    private lastPatch: {};
+    private readonly fileName: string;
+    private readonly localPath: string;
+    
+    constructor(appStateManager: JsonProxy<BackofficeStatus>,
+                fileName:string,
+                path:string[],
+                defaultContent:T,
+                exampleContent:T,
+                readCb?: (content:T)=>T,
+                writeCb?: (content:T)=>T)
     {
         this.appStateManager = appStateManager;
         
@@ -21,16 +38,18 @@ class ConfigStore
         this.readCb = readCb;
         this.writeCb = writeCb;
 
-        var target = appStateManager.getTarget();
-        for(var i = 0; i < path.length; ++i) {
-            if (!Object.prototype.hasOwnProperty.call(target, path[i])) {
-                // Stay proxyed
-                target[path[i]] = {};
+        {
+            let target:any = appStateManager.getTarget();
+            for(const pathItem of path) {
+                if (!Object.prototype.hasOwnProperty.call(target, pathItem)) {
+                    // Stay proxyed
+                    target[pathItem] = {};
+                }
+                target = target[pathItem];
             }
-            target = target[path[i]];
+            Object.assign(target, defaultContent);
+            this.currentContent = target as T;
         }
-        Object.assign(target, defaultContent);
-        this.currentContent = target;
         this.lastPatch = {};
         this.defaultContent = Obj.deepCopy(defaultContent);
 
@@ -49,7 +68,7 @@ class ConfigStore
         
         try {
             if (!fs.existsSync(this.localPath)) {
-                fs.writeFileSync(this.localPath, '{}', null, 2);
+                fs.writeFileSync(this.localPath, '{}');
             }
         } catch(e) {
             console.warn('Unable to save ' + this.localPath, e);
@@ -74,16 +93,10 @@ class ConfigStore
         this.appStateManager.addSynchronizer(path, this.saveLocal.bind(this), false);
     }
 
-    createPatch()
-    {
-        // Compare currentContent to defaultContent
-        function canPatch(currentValue, defaultValue)
+    private createPatch=()=>{
+        function compareObject(currentO:any, defaultO:any)
         {
-            return Obj.isObject(currentValue) && Obj.isObject(defaultValue);
-        }
-        function compareObject(currentO, defaultO)
-        {
-            var result = {};
+            var result:any = {};
             for(var k of Object.keys(currentO))
             {
                 if (!Object.prototype.hasOwnProperty.call(defaultO, k))
@@ -126,12 +139,11 @@ class ConfigStore
         return compareObject(toSave, this.defaultContent);
     }
 
-    applyPatch(defaultV, patchV)
-    {
+    private applyPatch=(defaultV:any, patchV:any)=>{
         if (!Obj.isObject(patchV)) {
             return patchV;
         }
-        var result = {};
+        var result:any = {};
         for(var k of Object.keys(patchV)) {
             var wanted = patchV[k];
             // Recursive patch
@@ -151,18 +163,24 @@ class ConfigStore
         return result;
     }
 
-    startSave() {
+    
+    private startSave=()=>{
         var self = this;
-        var state = {};
+        type SaveState = {
+            tmpPath?: string;
+            tmpFd?: number;
+            tmpCleanupCallback?: ()=>(void);
+        };
 
-
+        var state:SaveState = {};
+        
         // Gives a delay to not save too often
         function start() {
             setTimeout(createTemp, 1000);
         }
 
         function createTemp() {
-            tmp.file({dir: configDir, prefix: self.fileName, suffix: '.json'},
+            tmp.file({dir: configDir, prefix: self.fileName, postfix: '.json'},
                 function(err, path, fd, cleanupCallback) {
                     if (err) {
                         return onError(err);
@@ -180,7 +198,7 @@ class ConfigStore
             var position = 0;
 
             function writeMore() {
-                fs.write(state.tmpFd, buffer, position, buffer.length - position,
+                fs.write(state.tmpFd!, buffer, position, buffer.length - position,
                     function (err, bytesWritten) {
                         if (err) {
                             return onError(err);
@@ -209,7 +227,7 @@ class ConfigStore
 
         function syncFile()
         {
-            fs.fsync(state.tmpFd, function(err) {
+            fs.fsync(state.tmpFd!, function(err) {
                 if (err) {
                     return onError(err);
                 }
@@ -219,7 +237,7 @@ class ConfigStore
 
         function closeFile()
         {
-            fs.close(state.tmpFd, function(err) {
+            fs.close(state.tmpFd!, function(err) {
                 state.tmpFd = undefined;
                 if (err) {
                     return onError(err);
@@ -230,19 +248,19 @@ class ConfigStore
 
         function renameFile()
         {
-            fs.rename(state.tmpPath, self.localPath, function(err) {
+            fs.rename(state.tmpPath!, self.localPath, function(err) {
                 if (err) {
                     return onError(err);
                 }
 
                 try {
-                    state.tmpCleanupCallback();
+                    state.tmpCleanupCallback!();
                 } catch(e) {}
                 done();
             })
         }
 
-        function onError(err) {
+        function onError(err:NodeJS.ErrnoException) {
             console.error('Error saving ' + self.localPath, err);
             if (state.tmpCleanupCallback) {
                 try {
@@ -283,7 +301,4 @@ class ConfigStore
             }
         }
     }
-
 }
-
-module.exports = ConfigStore;
