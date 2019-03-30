@@ -349,5 +349,3 @@ export default class Focuser {
         }
     }
 }
-
-module.exports = {Focuser}

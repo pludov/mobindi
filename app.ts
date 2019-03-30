@@ -1,24 +1,22 @@
 'use strict';
 
 import "source-map-support/register";
-import express from 'express';
+import express, { Response } from 'express';
 import {Application as ExpressApplication} from "express-serve-static-core";
 
-import http = require('http');
-// var path = require('path');
-// var favicon = require('serve-favicon');
-import cors = require('cors');
-import bodyParser = require('body-parser');
+import http from 'http';
+import cors from 'cors';
+import bodyParser from 'body-parser';
 import * as WebSocket from 'ws';
-import uuid = require('node-uuid');
-// Only for debug !
+import uuid from 'node-uuid';
+
 //@ts-ignore
 import cgi = require('cgi');
-//@ts-ignore
+import session from 'express-session';
+import SessionFileStore from 'session-file-store';
+
 import Client from './Client';
-
 import Phd from './Phd';
-
 import IndiManager from './IndiManager';
 import Camera from './Camera';
 import Focuser from './Focuser';
@@ -30,17 +28,13 @@ import ToolExecuter from './ToolExecuter';
 
 import Astrometry from './Astrometry';
 
-const app:ExpressApplication = express();
-
-
-import session = require('express-session');
-import SessionFileStore = require('session-file-store')
 import { AppContext } from "./ModuleBase";
 import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
-import {Task, createTask} from "./Task.js";
+import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
 
+const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
 
 app.use(express.static('ui/build'));
@@ -128,16 +122,17 @@ context.focuser = new Focuser(app, appStateManager, context as AppContext);
 
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
-app.use(function(req, res:any, next) {
-    if ('jsonResult' in res) {
+app.use(function(req, res:Response, next) {
+    if (Object.prototype.hasOwnProperty.call(res, 'jsonResult')) {
+        const jsonResult = (res as any).jsonResult;
         res.status(200);
         res.contentType('application/json');
         // res.header('Cache-Control', 'no-cache');
         res.header("Cache-Control", "no-cache, no-store, must-revalidate");
         res.header("Pragma", "no-cache");
-        res.header("Expires", 0);
-        console.log('API Returning: ' + JSON.stringify(res.jsonResult));
-        res.send(JSON.stringify(res.jsonResult));
+        res.header("Expires", "0");
+        console.log('API Returning: ' + jsonResult);
+        res.send(JSON.stringify(jsonResult));
     } else {
         next();
     }
@@ -154,11 +149,12 @@ var serverId = uuid.v4();
 wss.on('connection', (ws:WebSocket)=>{
     const client : Client = new Client(ws, appStateManager, serverId);
 
-    ws.on('message', function incoming(message : any) {
-        console.log('received from ' + client.uid + ': %s', message);
+    ws.on('message', function incoming(messageData:WebSocket.Data) {
+        console.log('received from ' + client.uid + ': %s', messageData);
 
+        let message: any;
         try {
-            message = JSON.parse(message);
+            message = JSON.parse(messageData.toString());
         } catch(e) {
             console.log('Invalid message', e);
             ws.terminate();
@@ -214,4 +210,3 @@ app.set('port', port);
 
 server.listen(port);
 
-module.exports = app;

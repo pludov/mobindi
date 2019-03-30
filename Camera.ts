@@ -9,7 +9,8 @@ import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
-const {IdGenerator} = require('./IdGenerator');
+import {IdGenerator} from "./IdGenerator";
+import * as Obj from "./Obj";
 import ConfigStore from './ConfigStore';
 
 export default class Camera {
@@ -562,7 +563,7 @@ export default class Camera {
             throw new Error("A sequence is already running");
         }
 
-        if (Object.prototype.hasOwnProperty.call(this.currentStatus.sequences.byuuid, uuid)) {
+        if (!Obj.hasKey(this.currentStatus.sequences.byuuid, uuid)) {
             throw new Error("No sequence");
         }
 

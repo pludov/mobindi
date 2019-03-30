@@ -26,23 +26,25 @@ export function createTask<T>(
     ret.cancellation = token;
     ret.cancel = cancel;
 
-    if (parentCancelation !== undefined) {
-        console.log('parentCancelation is ', parentCancelation);
-        const whenDone = parentCancelation.onCancelled(cancel);
-        ret.catch!(whenDone);
-        ret.then!(whenDone);
-    }
-
     (async ()=> {
-        if (code) {
-            let result: T;
-            try {
-                result = await code(ret);
-            } catch(e) {
-                reject!(e);
-                return;
+        const whenDone = (parentCancelation !== undefined) 
+            ? parentCancelation.onCancelled(cancel)
+            :undefined;
+        try {
+            if (code) {
+                let result: T;
+                try {
+                    result = await code(ret);
+                } catch(e) {
+                    reject!(e);
+                    return;
+                }
+                resolve!(result);
             }
-            resolve!(result);
+        } finally {
+            if (whenDone !== undefined) {
+                whenDone();
+            }
         }
     })();
 

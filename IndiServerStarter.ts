@@ -74,7 +74,7 @@ export default class IndiServerStarter {
             throw new Error("rm failed");
         }
 
-        if (await SystemPromise.Exec(ct, {command: ["mkfifo", "---", fifopath]}) !== 0) {
+        if (await SystemPromise.Exec(ct, {command: ["mkfifo", "--", fifopath]}) !== 0) {
             throw new Error("mkfifo failed");
         }
 
@@ -257,5 +257,3 @@ export default class IndiServerStarter {
         });
     }
 }
-
-module.exports = IndiServerStarter;

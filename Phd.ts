@@ -529,5 +529,3 @@ export default class Phd {
             });
     }
 }
-
-module.exports = {Phd};
