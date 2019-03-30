@@ -13,7 +13,7 @@ import Timeout from './Timeout';
 import Sleep from './Sleep';
 import IndiServerStarter from './IndiServerStarter';
 import ConfigStore from './ConfigStore';
-const IndiAutoConnect = require('./IndiAutoConnect');
+import IndiAutoConnect from './IndiAutoConnect';
 const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
 
 
@@ -431,7 +431,7 @@ export default class IndiManager {
         return device;
     }
 
-    private connectDevice=async (ct: CancellationToken, device: string)=>
+    public connectDevice=async (ct: CancellationToken, device: string)=>
     {
         const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
         if (!vector.isReadyForOrder()) {

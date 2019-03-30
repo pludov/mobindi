@@ -1,12 +1,13 @@
 import CancellationToken from 'cancellationtoken';
+import IndiManager from './IndiManager';
 
-function debug() {
-    console.log('IndiAutoConnect: ' + Array.from(arguments).map((e)=>''+e).join(' '));
+function debug(...args:any[]) {
+    console.log('IndiAutoConnect: ' + args.map((e)=>''+e).join(' '));
 }
 
 
 // Evaluate f function, but if fail, return def
-function noErr(f, def)
+function noErr<T>(f:()=>T, def: T)
 {
     try  {
         return f();
@@ -16,20 +17,21 @@ function noErr(f, def)
 }
 
 
-class IndiAutoConnect {
+export default class IndiAutoConnect {
     // Device => connectattempted
-    memory = {};
+    memory:{[id:string]:boolean} = {};
+    indiManager: IndiManager;
 
-    constructor(indiManager) {
+    constructor(indiManager:IndiManager) {
         this.indiManager = indiManager;
         this.check = this.check.bind(this);
 
         // Change of the config flag for any will trigger recompute
         indiManager.appStateManager.addSynchronizer(['indiManager', 'configuration', 'indiServer', 'devices', null, 'options', 'autoConnect'],
-                                                this.check);
+                                                this.check, false);
 
         indiManager.appStateManager.addSynchronizer(['indiManager', 'deviceTree', null, 'CONNECTION', 'childs', 'CONNECT'],
-                                                this.check);
+                                                this.check, false);
         // Any change of the connection status will trigger recompute
 
     }
@@ -42,14 +44,14 @@ class IndiAutoConnect {
         //    - idle disconnected, connect
         // Remove the unknown devices from the memory
         debug('Recheck');
-        const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices) || {};
+        const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices, undefined) || {};
 
-        const configuredDevices = {};
+        const configuredDevices:{[id:string]:boolean} = {};
 
         for(let devId of Object.keys(configDevices))
         {
             const dev = configDevices[devId];
-            if (!noErr(()=>dev.options.autoConnect)) {
+            if (!noErr(()=>dev.options.autoConnect, "")) {
                 continue;
             }
             debug('Configured device:', devId);
@@ -99,7 +101,7 @@ class IndiAutoConnect {
                     (async ()=> {
                         try {
                             debug('Starting...');
-                            this.indiManager.connectDevice(CancellationToken.CONTINUE, devId);
+                            await this.indiManager.connectDevice(CancellationToken.CONTINUE, devId);
                         } catch(e) {
                             debug('Failed to autostart ' + devId, e);
                         }
@@ -114,6 +116,3 @@ class IndiAutoConnect {
         }
     }
 }
-
-
-module.exports = IndiAutoConnect;
