@@ -1,13 +1,12 @@
 const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-const Obj = require('./Obj.js');
 import ConfigStore from './ConfigStore';
 import JsonProxy from './JsonProxy';
 import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentSettingsRequest } from './shared/BackOfficeStatus';
 import { Task, createTask } from './Task';
 
-class Focuser {
+export default class Focuser {
     readonly appStateManager: JsonProxy<BackofficeStatus>;
     readonly currentStatus: FocuserStatus;
     currentPromise: Task<number>|null;

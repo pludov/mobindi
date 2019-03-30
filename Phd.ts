@@ -18,7 +18,7 @@ export type Listener = {
     test: ()=>(void);
 }
 
-class Phd {
+export default class Phd {
     private appStateManager: JsonProxy<BackofficeStatus>;
     private running: boolean;
     private pendingRequests: {[id:string]:PhdRequest};

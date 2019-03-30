@@ -17,25 +17,19 @@ import cgi = require('cgi');
 //@ts-ignore
 import Client = require('./Client.js');
 
-//@ts-ignore
-import {Phd} from './Phd';
+import Phd from './Phd';
 
 import IndiManager from './IndiManager';
 import Camera from './Camera';
-//@ts-ignore
-import {Focuser} from './Focuser';
-//@ts-ignore
+import Focuser from './Focuser';
 import ImageProcessor from './ImageProcessor';
 
 import JsonProxy from './JsonProxy';
 //@ts-ignore
 import TriggerExecuter from './TriggerExecuter';
-//@ts-ignore
-import ToolExecuter = require('./ToolExecuter');
+import ToolExecuter from './ToolExecuter';
 
 import Astrometry from './Astrometry';
-// var index = require('./routes/index');
-// var users = require('./routes/users');
 
 const app:ExpressApplication = express();
 
@@ -128,9 +122,9 @@ context.camera = new Camera(app, appStateManager, context as AppContext);
 
 context.triggerExecuter = new TriggerExecuter(appStateManager, context);
 
-context.toolExecuter = new ToolExecuter(appStateManager, context);
+context.toolExecuter = new ToolExecuter(appStateManager, context as AppContext);
 
-context.focuser = new Focuser(app, appStateManager, context);
+context.focuser = new Focuser(app, appStateManager, context as AppContext);
 
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 

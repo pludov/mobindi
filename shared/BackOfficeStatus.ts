@@ -227,6 +227,18 @@ export type PhdStatus = {
     star: PhdStar|null;
 };
 
+export type ToolConfig = {
+    desc?: string;
+    hidden?: boolean;
+    trigger?: "atstart";
+    confirm?: string;
+    cmd: string[];
+};
+
+export type ToolExecuterStatus = {
+    tools: {};
+    config: {[id:string]:ToolConfig};
+};
 
 export type AstrometryComputeRequest = {
     image: string;
@@ -250,6 +262,10 @@ export type AstrometryGotoScopeRequest = {
     dec:number;
 }
 
+export type ToolExecuterStartToolRequest = {
+    uid: string;
+}
+
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
@@ -257,4 +273,5 @@ export type BackofficeStatus = {
     astrometry: AstrometryStatus;
     focuser: FocuserStatus;
     phd: PhdStatus;
+    toolExecuter: ToolExecuterStatus;
 };

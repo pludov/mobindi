@@ -1,8 +1,8 @@
 import fs from 'fs';
 import tmp from 'tmp';
+import * as Obj from './Obj';
 import JsonProxy from "./JsonProxy";
 import { BackofficeStatus } from "./shared/BackOfficeStatus";
-const Obj = require('./Obj.js');
 
 
 var configDir = 'local';
