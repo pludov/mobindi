@@ -9,13 +9,13 @@ import http = require('http');
 // var favicon = require('serve-favicon');
 import cors = require('cors');
 import bodyParser = require('body-parser');
-import WebSocket = require('ws');
+import * as WebSocket from 'ws';
 import uuid = require('node-uuid');
 // Only for debug !
 //@ts-ignore
 import cgi = require('cgi');
 //@ts-ignore
-import Client = require('./Client.js');
+import Client from './Client';
 
 import Phd from './Phd';
 
@@ -39,6 +39,7 @@ import { AppContext } from "./ModuleBase";
 import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
 import {Task, createTask} from "./Task.js";
 import CancellationToken from "cancellationtoken";
+import ClientRequest from "./ClientRequest";
 
 const FileStore = SessionFileStore(session);
 
@@ -150,96 +151,8 @@ const wss = new WebSocket.Server({ server: server });
 
 var serverId = uuid.v4();
 
-
-class Request {
-    promise: Task<any>|undefined;
-    cancelRequested: any;
-    uid: any;
-    client: any;
-    finalStatus: any;
-
-    constructor(uid:string, fromClient:any) {
-        this.promise = undefined;
-        this.cancelRequested = false;
-        this.uid = uid;
-
-        this.client = fromClient;
-        fromClient.requests.push(this);
-        // What was sent when promise terminated
-        this.finalStatus = {
-            type: 'requestEnd',
-            uid: uid,
-            status: 'error',
-            message: 'internal error'
-        };
-    }
-
-    // Dettach request from client
-    dettach() {
-        if (this.client != undefined) {
-            var id = this.client.requests.indexOf(this);
-            if (id != -1) this.client.requests.splice(id, 1);
-            this.client = undefined;
-        }
-    }
-
-    dispatch(content:any) {
-        if (this.client == undefined) {
-            return;
-        }
-        this.client.reply(content);
-    }
-
-    onError(err:any) {
-        if (err == undefined) {
-            err = null;
-        } else {
-            err = err.stack || '' + err;
-        }
-        console.log('Request ' + this.uid + ' failure notification: ' + err);
-        this.promise = undefined;
-        this.finalStatus = {
-            type: 'requestEnd',
-            uid: this.uid,
-            status: 'error',
-            message: err
-        };
-        this.dispatch(this.finalStatus);
-        this.dettach();
-    }
-
-    success (rslt:any) {
-        if (rslt == undefined) rslt = null;
-        console.log('Request ' + this.uid + ' succeeded: ' + JSON.stringify(rslt));
-        this.promise = undefined;
-        this.finalStatus = {
-            type: 'requestEnd',
-            uid: this.uid,
-            status: 'done',
-            result: rslt
-        };
-        this.dispatch(this.finalStatus);
-        this.dettach();
-    }
-
-    onCancel() {
-        console.log('Request ' + this.uid + ' canceled');
-        this.promise = undefined;
-        this.finalStatus = {
-            type: 'requestEnd',
-            uid: this.uid,
-            status: 'canceled'
-        };
-        this.dispatch(this.finalStatus);
-        this.dettach();
-    }
-}
-
-
-wss.on('connection', function connection(ws) {
-    var client : any;
-
-    client = new Client(ws);
+wss.on('connection', (ws:WebSocket)=>{
+    const client : Client = new Client(ws, appStateManager, serverId);
 
     ws.on('message', function incoming(message : any) {
         console.log('received from ' + client.uid + ': %s', message);
@@ -255,11 +168,11 @@ wss.on('connection', function connection(ws) {
         if (message.type == "startRequest") {
             console.log('Got action message');
             var id = message.id;
-            if (id == undefined) id = null;
+            if (id === undefined) id = null;
 
-            var globalUid = client.uid + ':' + id;
+            const globalUid = client.uid + ':' + id;
 
-            var request = new Request(globalUid, client);
+            const request = new ClientRequest(globalUid, client);
 
 
             createTask<any>(undefined, async (task)=> {
@@ -274,7 +187,7 @@ wss.on('connection', function connection(ws) {
                     if (!(method in targetObj)) {
                         throw new Error("Method does not exists: " + target + "." + method);
                     }
-                    const ret = targetObj[method](message.details);
+                    const ret = await targetObj[method](task.cancellation, message.details);
                     request.success(ret);
                 } catch(e) {
                     if (e instanceof CancellationToken.CancellationError) {
@@ -291,8 +204,6 @@ wss.on('connection', function connection(ws) {
         console.log('Websocket closed : ' + code);
         client.dispose();
     });
-
-    client.attach(appStateManager, serverId);
 });
 
 

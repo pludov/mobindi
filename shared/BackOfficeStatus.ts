@@ -240,6 +240,18 @@ export type ToolExecuterStatus = {
     config: {[id:string]:ToolConfig};
 };
 
+export type TriggerConfig = {
+    desc: string;
+    device: string;
+    vector: string;
+    property: string[]|string;
+    value: string[]|string;
+}
+
+export type TriggerExecuterStatus = {
+    triggers: {[id:string]:TriggerConfig};
+}
+
 export type AstrometryComputeRequest = {
     image: string;
     forceWide: boolean;
@@ -274,4 +286,5 @@ export type BackofficeStatus = {
     focuser: FocuserStatus;
     phd: PhdStatus;
     toolExecuter: ToolExecuterStatus;
+    triggerExecuter: TriggerExecuterStatus;
 };
