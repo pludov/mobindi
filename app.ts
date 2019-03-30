@@ -25,7 +25,6 @@ import Focuser from './Focuser';
 import ImageProcessor from './ImageProcessor';
 
 import JsonProxy from './JsonProxy';
-//@ts-ignore
 import TriggerExecuter from './TriggerExecuter';
 import ToolExecuter from './ToolExecuter';
 
@@ -120,7 +119,7 @@ context.indiManager = new IndiManager(app, appStateManager, context as AppContex
 
 context.camera = new Camera(app, appStateManager, context as AppContext);
 
-context.triggerExecuter = new TriggerExecuter(appStateManager, context);
+context.triggerExecuter = new TriggerExecuter(appStateManager, context as AppContext);
 
 context.toolExecuter = new ToolExecuter(appStateManager, context as AppContext);
 
