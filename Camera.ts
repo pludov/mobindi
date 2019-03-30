@@ -1,3 +1,6 @@
+import uuid from 'node-uuid';
+const TraceError = require('trace-error');
+
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
@@ -5,11 +8,9 @@ import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
-const {IndiConnection, timestampToEpoch} = require('./Indi');
+import {timestampToEpoch} from "./Indi";
 const {IdGenerator} = require('./IdGenerator');
 const ConfigStore = require('./ConfigStore');
-const uuid = require('node-uuid');
-const TraceError = require('trace-error');
 
 export default class Camera {
     appStateManager: JsonProxy<BackofficeStatus>;

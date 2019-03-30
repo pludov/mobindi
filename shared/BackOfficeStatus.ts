@@ -183,7 +183,7 @@ export type AstrometryStatus = {
     useNarrowedSearchRadius: boolean;
 }
 
-export type PhdConfiguration = {
+export type ProcessConfiguration = {
     autorun: false;
     path: string| null;
     env: {[id:string]:string};
@@ -216,7 +216,7 @@ export type PhdStatus = {
     AppState: PhdAppState;
     settling: PhdSettling|null;
     guideSteps: {[id:string]: PhdGuideStep};
-    configuration: PhdConfiguration;
+    configuration: ProcessConfiguration;
     firstStepOfRun: string;
     RADistanceRMS:number|null;
     DECDistanceRMS:number|null;
