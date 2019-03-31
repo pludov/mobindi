@@ -236,8 +236,7 @@ export type ToolConfig = {
 };
 
 export type ToolExecuterStatus = {
-    tools: {};
-    config: {[id:string]:ToolConfig};
+    tools: {[id:string]:ToolConfig};
 };
 
 export type TriggerConfig = {

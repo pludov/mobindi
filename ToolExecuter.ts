@@ -27,8 +27,7 @@ export default class ToolExecuter
         this.instanciatedTools = {};
         this.context = context;
         jsonProxy.getTarget().toolExecuter = {
-            tools: {},
-            config: {}
+            tools: {}
         };
         this.status = jsonProxy.getTarget().toolExecuter;
 
@@ -36,7 +35,7 @@ export default class ToolExecuter
             this.syncTools,
             true);
 
-        new ConfigStore<ToolExecuterStatus["config"]>(jsonProxy, 'toolExecuter', ['toolExecuter', 'tools'], {
+        new ConfigStore<ToolExecuterStatus["tools"]>(jsonProxy, 'toolExecuter', ['toolExecuter', 'tools'], {
 
         }, {
             "welcome": {
@@ -94,9 +93,9 @@ export default class ToolExecuter
     {
         // At least a trigger def was updated.
 
-        for(const ikey of Object.keys(this.status.config))
+        for(const ikey of Object.keys(this.status.tools))
         {
-            var wantedParams = this.status.config[ikey];
+            const wantedParams = this.status.tools[ikey];
             if (!Obj.hasKey(this.instanciatedTools, ikey)) {
                 this.instanciatedTools[ikey] = this.initTool(ikey, Obj.deepCopy(wantedParams));
             } else {
@@ -107,27 +106,24 @@ export default class ToolExecuter
             }
         }
 
-        for(var ikey of Object.keys(this.instanciatedTools))
+        for(const ikey of Object.keys(this.instanciatedTools))
         {
-            if (!Obj.hasKey(this.status.config, ikey)) {
+            if (!Obj.hasKey(this.status.tools, ikey)) {
                 delete this.instanciatedTools[ikey];
             }
         }
     }
 
     public $api_startTool = async(ct:CancellationToken, message:ToolExecuterStartToolRequest)=> {
-        var self = this;
-
         const which = message.uid;
-        console.log('Request to start tool', JSON.stringify(which));
         if (!which) {
             throw new Error("Invalid id");
         }
-        if (!Obj.hasKey(self.instanciatedTools, which)) {
+        if (!Obj.hasKey(this.instanciatedTools, which)) {
             throw new Error("Unknown id");
         }
 
-        const toStart = self.instanciatedTools[which];
-        self.startTool(toStart);
+        const toStart = this.instanciatedTools[which];
+        this.startTool(toStart);
     }
 };
