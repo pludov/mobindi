@@ -14,7 +14,7 @@ import Sleep from './Sleep';
 import IndiServerStarter from './IndiServerStarter';
 import ConfigStore from './ConfigStore';
 import IndiAutoConnect from './IndiAutoConnect';
-const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
+import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
 
 
 function has(obj:any, key:string) {

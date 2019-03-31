@@ -5,14 +5,17 @@ import ConfigStore from './ConfigStore';
 import JsonProxy from './JsonProxy';
 import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentSettingsRequest } from './shared/BackOfficeStatus';
 import { Task, createTask } from './Task';
+import Camera from './Camera';
+import IndiManager from "./IndiManager";
+import ImageProcessor from "./ImageProcessor";
 
 export default class Focuser {
     readonly appStateManager: JsonProxy<BackofficeStatus>;
     readonly currentStatus: FocuserStatus;
     currentPromise: Task<number>|null;
-    camera: import("/home/ludovic/WebstormProjects/IPhd/Camera").default;
-    indiManager: import("/home/ludovic/WebstormProjects/IPhd/IndiManager").default;
-    imageProcessor: import("/home/ludovic/WebstormProjects/IPhd/ImageProcessor").default;
+    camera: Camera;
+    indiManager: IndiManager;
+    imageProcessor: ImageProcessor;
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext)
     {
         this.appStateManager = appStateManager;
