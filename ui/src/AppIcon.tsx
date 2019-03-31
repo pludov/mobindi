@@ -1,16 +1,26 @@
-/**
- * Created by ludovic on 21/07/17.
- */
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import * as Utils from './Utils';
 import './AppIcon.css';
+import * as Store from './Store';
+import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
-class AppIcon extends Component {
-    constructor(props)
+export type InputProps = {
+    appid: string;
+};
+
+export type MappedProps = {
+    apps: BackofficeStatus["apps"];
+    currentApp: Store.Content["currentApp"];
+    notification: any;
+}
+
+export type Props = InputProps & MappedProps;
+
+class AppIcon extends React.PureComponent<Props> {
+    constructor(props:Props)
     {
         super(props);
-        this.activate = this.activate.bind(this);
     }
 
     render() {
@@ -29,13 +39,13 @@ class AppIcon extends Component {
             </div>);
     }
 
-    activate() {
+    private activate=()=>{
         console.log('Applicating');
-        this.props.dispatch({type: 'SwitchToApp', value: this.props.appid});
+        Store.SwitchToApp.dispatch({value: this.props.appid});
     }
 }
 
-const mapStateToProps = function(store, ownProps) {
+const mapStateToProps = function(store:Store.Content, ownProps:InputProps) {
     var result = {
         apps: store.backend.apps,
         currentApp: store.currentApp,
@@ -43,15 +53,5 @@ const mapStateToProps = function(store, ownProps) {
     };
     return result;
 }
-
-/*// FIXME: ça sert à quoi ?
-const mapDispatchToProps = (dispatch) => {
-    return {
-        Activate: (value) => {
-            dispatch({type: 'SwitchApplication', value: value});
-        }
-    };
-}*/
-
 
 export default connect(mapStateToProps)(AppIcon);

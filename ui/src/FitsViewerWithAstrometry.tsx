@@ -8,6 +8,7 @@ import './FitsViewerWithAstrometry.css'
 import FitsViewerInContext from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
 import { storeManager, store } from './Store';
+import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 
 
 type InputProps = {
@@ -59,13 +60,16 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly move = (pos:any) => {
         const state = store.getState();
-        const astrometryResult = state.backend.astrometry.result;
+        const astrometryResult = state.backend.astrometry!.result;
         console.log('move at ', pos);
         if (pos.imageX === undefined || pos.imageY === undefined) {
             throw new Error("Wrong image position");
         }
+        if (astrometryResult === null) {
+            throw new Error("No astrometry result");
+        }
 
-        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
+        const skyProjection = SkyProjection.fromAstrometry(astrometryResult as SucceededAstrometryResult);
         // take the center of the image
         const center = [pos.imageX, pos.imageY];
         // Project to J2000

@@ -9,6 +9,9 @@ import Notifier from './Notifier';
 import JsonProxy from './shared/JsonProxy';
 import { update } from './shared/Obj'
 import { atPath } from './shared/JsonPath'
+import * as Actions from './Actions';
+import * as ActionsRegistry from './ActionsRegistry';
+import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 const BackendStatus = {
     Idle: 0,
@@ -19,7 +22,7 @@ const BackendStatus = {
     Failed: 5
 }
 
-const initialState =  {
+const initialState:Content =  {
     backendStatus: BackendStatus.Idle,
     backendError: null,
     backend: {
@@ -30,12 +33,18 @@ const initialState =  {
     appNotifications: {}
 };
 
-const actions = {};
-
+export type Content = {
+    currentApp: string|null;
+    backendStatus: number;
+    backendError: string|null;
+    backend: Partial<BackofficeStatus>;
+    indiManager: {};
+    appNotifications: {};
+};
 
 // Fork un état et des sous-objet (forcement des objets)
 // Keep the state if no modif is implied
-function fork(state, path, fn)
+function fork(state:Content, path?:string[], fn?:(t:any)=>any)
 {
     var orgState = state;
     state = Object.assign({}, state);
@@ -66,50 +75,60 @@ function fork(state, path, fn)
     return state;
 }
 
-function transform(state, path, fn)
+function transform(state:Content, path?:string[], fn?:(t:any)=>any)
 {
     return fork(state, path, fn);
 }
 
 
-actions.SwitchToApp = function(state, action)
-{
+export const SwitchToApp = new Actions.Handler<{value: string},'SwitchToApp'>("SwitchToApp", (state, action)=>{
+    console.log('SwitchToApp', action);
     var appid = action.value;
     if (state.currentApp == appid) return state;
-    state = fork(state);
-    state.currentApp = appid;
+    return {
+        ...state,
+        currentApp: appid
+    };
+});
+
+export const backendStatus = new Actions.Handler<{backendStatus: number, backendError?:string, data?:BackofficeStatus}, "backendStatus">("backendStatus",(state, action)=> {
+    state  = Object.assign({}, state);
+    state.backendStatus = action.backendStatus;
+    if (Object.prototype.hasOwnProperty.call(action, "backendError")) {
+        state.backendError = action.backendError || null;
+    }
+    switch (state.backendStatus) {
+        case BackendStatus.Connected:
+            state.backend = action.data!;
+            break;
+        case BackendStatus.Paused:
+        case BackendStatus.Reconnecting:
+            break;
+        default:
+            state.backend = {};
+    }
     return state;
-}
+});
+
+
+export const actions = ()=>({
+    SwitchToApp,
+    backendStatus,
+});
 
 
 var {reducer, storeManager } = function() {
-    var adjusters = [];
+    var adjusters:Array<(state:Content)=>Content> = [];
 
     var actionsByApp = {};
 
-    var reducer = function (state = initialState, action) {
+    var reducer = function (state:Content = initialState, action:any) {
         var prevJson = JSON.stringify(state);
         var prevState = state;
 
         var type = action.type;
         if (type == "update") {
             state = update(state, action.op);
-        } else if (type == "backendStatus") {
-            state = Object.assign({}, state);
-            state.backendStatus = action.backendStatus;
-            if ('backendError' in action) {
-                state.backendError = action.backendError;
-            }
-            switch (state.backendStatus) {
-                case BackendStatus.Connected:
-                    state.backend = action.data;
-                    break;
-                case BackendStatus.Paused:
-                case BackendStatus.Reconnecting:
-                    break;
-                default:
-                    state.backend = {};
-            }
         } else if (type == "notification") {
             // Mettre le status du backend
             state = Object.assign({}, state);
@@ -135,10 +154,13 @@ var {reducer, storeManager } = function() {
             } catch(e) {
                 console.error('Error in ' + action.app + '.' + action.method, e);
             }
-        } else if (type in actions) {
-            state = actions[type](state, action);
         } else {
-            console.log('invalid action: ' + type);
+            const newState = ActionsRegistry.performDispatch(state, type, action);
+            if (newState === null || newState === undefined) {
+                console.log('invalid action: ' + type);
+            } else {
+                state = newState;
+            }
         }
         state = adjusters.reduce((state, func) => (func(state)), state);
 
@@ -146,20 +168,25 @@ var {reducer, storeManager } = function() {
     }
 
     return {reducer, storeManager: {
-        addAdjuster: (func) => {adjusters.push(func);},
+        addAdjuster: (func:(s:Content)=>Content) => {adjusters.push(func);},
 
-        addActions: (id, obj) => {
+        addActions: (id:string, obj:any) => {
             if (!Object.prototype.hasOwnProperty.call(actionsByApp, id)) {
                 actionsByApp[id] = {};
             }
             Object.assign(actionsByApp[id], obj);
-        }
+        },
+        dispatch: (e:any):void=>{},
+        dispatchUpdate: (e:any):void=>{},
+        // FIXME: ça retourne une Promises.
+        sendRequest: (e:any):null=>null,
+
     }};
 }();
 
 const enhancer = compose(
-    persistState(undefined, {
-            slicer: (paths)=> (state) => {
+    (persistState as any)(undefined, {
+            slicer: (paths:any)=> (state:any) => {
                 var rslt = Object.assign({}, state);
                 delete rslt.backend;
                 delete rslt.backendStatus;
@@ -189,7 +216,7 @@ notifier.attachToStore(store);
 storeManager.sendRequest = notifier.sendRequest.bind(notifier);
 
 // Connect notifier to websocket
-function stripLastPart(url)
+function stripLastPart(url:string)
 {
     var str = "" + url;
     var lastSlash = str.lastIndexOf('/');
@@ -203,6 +230,5 @@ const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
 console.log('api root is at: ' + apiRoot);
 
 notifier.connect(apiRoot);
-
 
 export { store, notifier, BackendStatus, storeManager, fork }

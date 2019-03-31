@@ -1,7 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import SequenceView from './SequenceView';
-import {fork} from './Store.js';
+import {fork} from './Store';
 import * as Utils from './Utils';
 import * as Promises from './shared/Promises';
 
