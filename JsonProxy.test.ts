@@ -1,3 +1,4 @@
+import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
@@ -11,9 +12,8 @@ describe("Json proxy", () => {
         assert.ok(has({e: null}, 'e'), "has function with null value");
     });
     it("updates serial", ()=> {
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
-
 
 
         assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial start at 0");
@@ -51,7 +51,7 @@ describe("Json proxy", () => {
 
 
     it("updates serial of object childs", ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial start at 0");
@@ -100,7 +100,7 @@ describe("Json proxy", () => {
     });
 
     it("Updates serial of array childs", () => {
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial start at 0");
@@ -239,11 +239,11 @@ describe("Json proxy", () => {
     });
 
 
-    function checkConst(obj) {
+    function checkConst(obj:any) {
         var json = JSON.stringify(obj);
         return {
             value: json,
-            unchanged: function(assert) {
+            unchanged: function() {
                 console.log('compare:\n  ' + JSON.stringify(obj) + '\n  ' + json);
                 return JSON.stringify(obj) == json;
             }
@@ -251,7 +251,7 @@ describe("Json proxy", () => {
     }
 
     it('performs streaming replication', ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         var fork = changeTracker.fork();
@@ -261,7 +261,7 @@ describe("Json proxy", () => {
         console.log('starting serial =' + JSON.stringify(serial));
 
         var previousData = checkConst(data);
-        var patches = changeTracker.diff(serial);
+        var patches: any = changeTracker.diff(serial);
         assert.deepEqual(patches, undefined, "No change => no patch");
 
 

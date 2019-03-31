@@ -470,7 +470,7 @@ export class IndiConnection {
         return xml.end({pretty: true});
     }
 
-    newParser(onMessage:any) {
+    newParser(onMessage:(node:any)=>(void)) {
         var parser = Xml2JSONParser(schema, 2, onMessage);
 
         var self = this;
