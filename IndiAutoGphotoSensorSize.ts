@@ -1,11 +1,13 @@
+import CancellationToken from 'cancellationtoken';
+import IndiManager from './IndiManager';
 
-function debug() {
-    console.log('IndiAutoGphotoSensorSize: ' + Array.from(arguments).map((e)=>''+e).join(' '));
+function debug(...args:any[]) {
+    console.log('IndiAutoConnect: ' + args.map((e)=>''+e).join(' '));
 }
 
 
 // Evaluate f function, but if fail, return def
-function noErr(f, def)
+function noErr<T>(f:()=>T, def: T)
 {
     try  {
         return f();
@@ -14,37 +16,38 @@ function noErr(f, def)
     }
 }
 
+
 const targetVector = 'CCD_INFO';
 const defaultValues = {
-    CCD_MAX_X: 16000,
-    CCD_MAX_Y: 9000,
-    CCD_PIXEL_SIZE: 10,
-    CCD_PIXEL_SIZE_X: 10,
-    CCD_PIXEL_SIZE_Y: 10,
-    CCD_BITSPERPIXEL: 16
+    CCD_MAX_X: "16000",
+    CCD_MAX_Y: "9000",
+    CCD_PIXEL_SIZE: "10",
+    CCD_PIXEL_SIZE_X: "10",
+    CCD_PIXEL_SIZE_Y: "10",
+    CCD_BITSPERPIXEL: "16"
 }
 
-class IndiAutoGphotoSensorSize {
+export default class IndiAutoGphotoSensorSize {
     // Device => connectattempted
-    memory = {};
+    memory:{[id:string]:boolean} = {};
+    private readonly indiManager: IndiManager;
 
-    constructor(indiManager) {
+    constructor(indiManager:IndiManager) {
         this.indiManager = indiManager;
-        this.check = this.check.bind(this);
 
         // Change of the config flag for any will trigger recompute
         indiManager.appStateManager.addSynchronizer(['indiManager', 'configuration', 'indiServer', 'devices', null, 'options', 'autoGphotoSensorSize'],
-                                                this.check);
+                                                this.check, false);
 
         // Any change of the connection status will trigger recompute
         indiManager.appStateManager.addSynchronizer(['indiManager', 'deviceTree', null, 'CONNECTION', 'childs', 'CONNECT'],
-                                                this.check);
+                                                this.check, false);
 
         indiManager.appStateManager.addSynchronizer(['indiManager', 'deviceTree', null, targetVector],
-                                                this.check);
+                                                this.check, false);
     }
 
-    check() {
+    private check=()=>{
         // Check all the devices with flag set to true
         // if connection status is :
         //    - missing or idle (connected), clear the memory
@@ -52,14 +55,14 @@ class IndiAutoGphotoSensorSize {
         //    - idle disconnected, connect
         // Remove the unknown devices from the memory
         debug('Recheck');
-        const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices) || {};
+        const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices, undefined) || {};
 
-        const configuredDevices = {};
+        const configuredDevices:{[id:string]:boolean} = {};
 
         for(let devId of Object.keys(configDevices))
         {
             const dev = configDevices[devId];
-            if (!noErr(()=>dev.options.autoGphotoSensorSize)) {
+            if (!noErr(()=>dev.options.autoGphotoSensorSize, undefined)) {
                 continue;
             }
             debug('Configured device:', devId);
@@ -107,10 +110,13 @@ class IndiAutoGphotoSensorSize {
                     continue;
                 }
                 
-                const values = Object.keys(defaultValues).sort().map(k=>parseFloat(vector.getPropertyValueIfExists(k)));
+                const values = Object.keys(defaultValues).sort().map(k=>{
+                    const strValue = vector.getPropertyValueIfExists(k);
+                    return strValue === null ? null : parseFloat(strValue);
+                });
                 debug('Current values:', JSON.stringify(values));
 
-                if (values.filter(e=>(e!=='0' && e !== null)).length === 0) {
+                if (values.filter(e=>(e!==0 && e !== null)).length === 0) {
                     debug('Values are fine');
                     continue;
                 }
@@ -125,14 +131,14 @@ class IndiAutoGphotoSensorSize {
 
                 this.memory[devId] = true;
                 
-                try {
-                    debug('Starting...');
-                    this.indiManager.setParam(devId, targetVector, defaultValues, true)
-                        .onError((e)=>{debug('Failed to set size ' + devId, e)})
-                        .start();
-                } catch(e) {
-                    debug('Ignoring set size error', e);
-                }
+                (async ()=> {
+                    try {
+                        debug('Starting...');
+                        await this.indiManager.setParam(CancellationToken.CONTINUE, devId, targetVector, defaultValues, true);
+                    } catch(e) {
+                        debug('Ignoring set size error', e);
+                    }
+                })();
             }
         }
 
@@ -142,6 +148,3 @@ class IndiAutoGphotoSensorSize {
         }
     }
 }
-
-
-module.exports = IndiAutoGphotoSensorSize;

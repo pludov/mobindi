@@ -24,7 +24,6 @@ export default class IndiAutoConnect {
 
     constructor(indiManager:IndiManager) {
         this.indiManager = indiManager;
-        this.check = this.check.bind(this);
 
         // Change of the config flag for any will trigger recompute
         indiManager.appStateManager.addSynchronizer(['indiManager', 'configuration', 'indiServer', 'devices', null, 'options', 'autoConnect'],
@@ -36,7 +35,7 @@ export default class IndiAutoConnect {
 
     }
 
-    check() {
+    private check=()=>{
         // Check all the devices with flag set to true
         // if connection status is :
         //    - missing or idle (connected), clear the memory
