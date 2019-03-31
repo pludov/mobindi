@@ -1,12 +1,18 @@
+import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
 import JsonProxy from './JsonProxy';
 import * as Obj from './Obj';
 
-describe("JsonProxySynchronizers", ()=>{
+class TestContext{
+    checkEmptyPath: () => void;
+    checkCallNumber: (delta: {[id:string]:number}) => void;
+    checkCallbackCount: (listener: any, v: any) => void;
+    performFlush: (title: any) => void;
+    
     // Helper function
-    function TestContext(assert, changeTracker, numberOfCall) {
+    constructor(changeTracker:JsonProxy<any>, numberOfCall:{[id:string]:number}) {
         var STEP = 'init';
 
         function checkEmptyPath() {
@@ -23,7 +29,7 @@ describe("JsonProxySynchronizers", ()=>{
 
         var previousNumberOfCall = Obj.deepCopy(numberOfCall);
 
-        function checkCallNumber(delta) {
+        function checkCallNumber(delta:{[id:string]:number}) {
             for (var k of Object.keys(delta)) {
                 var d = delta[k];
                 if (d > 0) {
@@ -37,7 +43,7 @@ describe("JsonProxySynchronizers", ()=>{
         }
         this.checkCallNumber = checkCallNumber.bind(this);
 
-        function checkCallbackCount(listener, v) {
+        function checkCallbackCount(listener: { pending: boolean; func: () => void; dead: boolean; }, v: string | number) {
             var installedCallbacks = changeTracker.synchronizerRoot.getInstalledCallbacks(listener);
             if (installedCallbacks.length != v) {
                 console.error(STEP + ': Installed callback mismatch = ' + JSON.stringify(installedCallbacks));
@@ -46,7 +52,7 @@ describe("JsonProxySynchronizers", ()=>{
         }
         this.checkCallbackCount = checkCallbackCount.bind(this);
 
-        function performFlush(title) {
+        function performFlush(title: string) {
             STEP = title;
             previousNumberOfCall = Object.assign({}, numberOfCall);
             changeTracker.flushSynchronizers();
@@ -54,16 +60,20 @@ describe("JsonProxySynchronizers", ()=>{
         }
         this.performFlush = performFlush.bind(this);
     }
+}
 
+
+describe("JsonProxySynchronizers", ()=>{
     it("Synchronize for root property", () => {
 
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         var numberOfCall = {plop: 0};
         changeTracker.addSynchronizer(['plop'], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false);
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
 
@@ -97,13 +107,15 @@ describe("JsonProxySynchronizers", ()=>{
     });
 
     it("Synchronize for child property", ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         var numberOfCall = {plop: 0, secondPlop:0};
         changeTracker.addSynchronizer(['plop','a'], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false
+        );
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
 
@@ -151,8 +163,10 @@ describe("JsonProxySynchronizers", ()=>{
 
         // Attach to existing node
         changeTracker.addSynchronizer(['plop','a'], function () {
-            numberOfCall.secondPlop++;
-        });
+                numberOfCall.secondPlop++;
+            },
+            false
+        );
         changeTracker.flushSynchronizers();
         assert.ok(numberOfCall.secondPlop == 0, "new synchronizer added => no initial call");
 
@@ -180,7 +194,7 @@ describe("JsonProxySynchronizers", ()=>{
 
 
     it("synchronizes with Wildcards", () => {
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         root.plop = { child1: {c:10, d:11} };
@@ -188,12 +202,16 @@ describe("JsonProxySynchronizers", ()=>{
         var numberOfCall = {plop: 0, troubleMaker:0};
 
         var troubleMakerListener = changeTracker.addSynchronizer(['plop', 'child2', 'a'], function() {
-            numberOfCall.troubleMaker++;
-        });
+                numberOfCall.troubleMaker++;
+            },
+            false
+        );
 
         var listener = changeTracker.addSynchronizer(['plop', null, [['a'], ['b']]], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false
+        );
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
         assert.ok(changeTracker.synchronizerRoot.getInstalledCallbackCount(listener) == 2, "Wildcard instancied on installation");
@@ -232,16 +250,18 @@ describe("JsonProxySynchronizers", ()=>{
     });
 
     it("synchronize removals under wildcards", ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         var numberOfCall = {plop: 0};
 
-        var ctx = new TestContext(assert, changeTracker, numberOfCall);
+        var ctx = new TestContext(changeTracker, numberOfCall);
 
         var listener = changeTracker.addSynchronizer(['plop', null, [['a'], ['b']]], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false
+        );
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
         ctx.checkCallbackCount(listener, 0);
@@ -279,17 +299,19 @@ describe("JsonProxySynchronizers", ()=>{
     });
 
     it("synchronizes removal of two level wildcards", () => {
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
 
         var numberOfCall = {plop: 0};
-        var ctx = new TestContext(assert, changeTracker, numberOfCall);
+        var ctx = new TestContext(changeTracker, numberOfCall);
 
 
         var listener = changeTracker.addSynchronizer(['plop', null, null, [['a'], ['b']]], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false
+        );
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
         ctx.checkCallbackCount(listener, 0);
@@ -331,12 +353,12 @@ describe("JsonProxySynchronizers", ()=>{
     });
 
     it("synchronizes with two listeners", ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
         
         var numberOfCall = {total: 0, childs: 0, second: 0};
         
-        var ctx = new TestContext(assert, changeTracker, numberOfCall);
+        var ctx = new TestContext(changeTracker, numberOfCall);
         
         root.child1 = {child2: {}};
 
@@ -367,13 +389,15 @@ describe("JsonProxySynchronizers", ()=>{
 
     // A synchronizer should not be called when multiple change occurs
     it("collapses multiple changes", ()=>{
-        var changeTracker = new JsonProxy();
+        var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
         var numberOfCall = {plop: 0, secondPlop:0};
         changeTracker.addSynchronizer(['plop',[['a'], ['b']]], function () {
-            numberOfCall.plop++;
-        });
+                numberOfCall.plop++;
+            },
+            false
+        );
 
         assert.ok(numberOfCall.plop == 0, "No initial call");
 

@@ -1,5 +1,9 @@
-const Obj = require('./Obj.js');
-const ConfigStore = require('./ConfigStore');
+import CancellationToken from 'cancellationtoken';
+import * as Obj from './Obj';
+import ConfigStore from './ConfigStore';
+import { BackofficeStatus, TriggerConfig, TriggerExecuterStatus, ToolConfig } from './shared/BackOfficeStatus';
+import JsonProxy from './JsonProxy';
+import { AppContext } from './ModuleBase';
 
 // Connect to a JSONProxy and react to state change
 
@@ -18,7 +22,12 @@ const ConfigStore = require('./ConfigStore');
 
 class IndiNewProperty
 {
-    constructor(key, params, context)
+    private readonly key: string;
+    readonly params: TriggerConfig;
+    private readonly context: AppContext;
+    private last: string[];
+
+    constructor(key:string, params: TriggerConfig, context: AppContext)
     {
         this.key = key;
         this.params = params;
@@ -26,7 +35,7 @@ class IndiNewProperty
         this.last = [];
     }
 
-    getProperties(newState) {
+    private getProperties=(newState: BackofficeStatus)=>{
         if (newState.indiManager === undefined) return undefined;
         var device = newState.indiManager.deviceTree[this.params.device];
         if (device === undefined) return undefined;
@@ -48,8 +57,7 @@ class IndiNewProperty
         }
     }
 
-    getCurrentValue(newState)
-    {
+    private getCurrentValue=(newState: BackofficeStatus):string[]=> {
         var prop = this.getProperties(newState);
         if (prop === undefined) return [];
         var result = [];
@@ -59,8 +67,7 @@ class IndiNewProperty
         return result;
     }
 
-    getTargetProperty(i)
-    {
+    private getTargetProperty=(i:number)=> {
         if (Array.isArray(this.params.property)) {
             return this.params.property[i];
         } else if (i == 0) {
@@ -70,8 +77,7 @@ class IndiNewProperty
         }
     }
 
-    getTargetValue(i)
-    {
+    private getTargetValue=(i:number)=> {
         if (Array.isArray(this.params.property)) {
             if (!Array.isArray(this.params.value)) {
                 throw new Error("Array/simple mismatch for trigger properties");
@@ -87,10 +93,9 @@ class IndiNewProperty
         }
     }
 
-    action(newState, oldValues, newValues) {
-        var self = this;
+    private action=(newState: BackofficeStatus, oldValues: string[], newValues:string[])=> {
         if (oldValues.length == 0) {
-            var toSet = {};
+            var toSet: {[id:string]:string} = {};
             var changeRequired = false;
             for(var i = 0 ; i < newValues.length; ++i) {
                 var targetValue = this.getTargetValue(i);
@@ -100,16 +105,24 @@ class IndiNewProperty
                 }
             }
             if (changeRequired) {
-                this.context.indiManager.setParam(
-                    this.params.device,
-                    this.params.vector,
-                    toSet
-                ).onError((e)=>{console.log('Trigger ' + self.key + ' failed', e);}).start();
+                (async ()=> {
+                    try {
+                        console.log('Using cancellation token: ', CancellationToken.CONTINUE);
+                        await this.context.indiManager.setParam(
+                            CancellationToken.CONTINUE,
+                            this.params.device,
+                            this.params.vector,
+                            toSet
+                        );
+                    } catch(e) {
+                        console.log('Trigger ' + this.key + ' failed', e);
+                    }
+                })();
             }
         }
     }
 
-    check(newState)
+    check(newState: BackofficeStatus)
     {
         var newValue = this.getCurrentValue(newState);
         console.log('trigger:' + this.key + "=> " + JSON.stringify(newValue));
@@ -123,24 +136,28 @@ class IndiNewProperty
     }
 };
 
-class TriggerExecuter
+export default class TriggerExecuter
 {
+    private jsonProxy: JsonProxy<BackofficeStatus>;
+    private instanciatedTriggers: {[id:string]:IndiNewProperty};
+    private context: AppContext;
+    config: { [id: string]: TriggerConfig; };
 
-    constructor(jsonProxy, context) {
+    constructor(jsonProxy:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.jsonProxy = jsonProxy;
         this.instanciatedTriggers = {};
         this.context = context;
         jsonProxy.getTarget().triggerExecuter = {
             triggers: {}
         };
+
         this.config = jsonProxy.getTarget().triggerExecuter.triggers;
 
         jsonProxy.addSynchronizer(['triggerExecuter'/*, 'triggers'*/],
             this.syncTriggers.bind(this),
             true);
 
-        new ConfigStore(jsonProxy, 'triggerExecuter', ['triggerExecuter', 'triggers'], {
-            
+        new ConfigStore<TriggerExecuterStatus['triggers']>(jsonProxy, 'triggerExecuter', ['triggerExecuter', 'triggers'], {
         }, {
             autoconnect_CCDSimulator: {
                 desc:'testautoconnect',
@@ -157,7 +174,6 @@ class TriggerExecuter
                 "value":    ["1.4", "48.0833"]
             }
         });
-        
 
 /*        this.triggers.push(new IndiNewProperty({
             desc:'testautoconnect',
@@ -168,11 +184,11 @@ class TriggerExecuter
         }, context));
 */
 
-        this.jsonProxy.addListener(this.listener.bind(this));
+        this.jsonProxy.addListener(this.listener);
         this.listener();
     }
 
-    createTrigger(key, params) {
+    private createTrigger=(key:string, params: TriggerConfig)=>{
         console.log('Instanciating trigger: ' + key);
         var result = new IndiNewProperty(key, params, this.context);
 
@@ -184,12 +200,12 @@ class TriggerExecuter
         return result;
     }
 
-    syncTriggers()
+    private syncTriggers=()=>
     {
         console.log('Syncing triggers');
-        for(var ikey of Object.keys(this.config))
+        for(const ikey of Object.keys(this.config))
         {
-            var wantedParams = this.config[ikey];
+            const wantedParams = this.config[ikey];
             if (!Obj.hasKey(this.instanciatedTriggers, ikey)) {
                 this.instanciatedTriggers[ikey] = this.createTrigger(ikey, Obj.deepCopy(wantedParams));
             } else {
@@ -200,7 +216,7 @@ class TriggerExecuter
             }
         }
 
-        for(var ikey of Object.keys(this.instanciatedTriggers))
+        for(const ikey of Object.keys(this.instanciatedTriggers))
         {
             if (!Obj.hasKey(this.config, ikey)) {
                 delete this.instanciatedTriggers[ikey];
@@ -208,7 +224,7 @@ class TriggerExecuter
         }
     }
 
-    listener()
+    private listener=()=>
     {
         var state = this.jsonProxy.getTarget();
         for(var key of Object.keys(this.instanciatedTriggers)) {
@@ -221,5 +237,3 @@ class TriggerExecuter
     }
 };
 
-
-module.exports = TriggerExecuter;

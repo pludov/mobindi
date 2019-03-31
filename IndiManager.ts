@@ -4,15 +4,17 @@
 import fs from 'fs';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import {IndiConnection, Vector, Device} from './Indi';
-import * as Promises from './Promises';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { IndiManagerStatus, IndiManagerConnectDeviceRequest, IndiManagerDisconnectDeviceRequest, IndiManagerSetPropertyRequest, IndiManagerRestartDriverRequest, IndiManagerUpdateDriverParamRequest, BackofficeStatus } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
 import JsonProxy from './JsonProxy';
-const IndiServerStarter = require('./IndiServerStarter');
-const IndiAutoConnect = require('./IndiAutoConnect');
-const IndiAutoGphotoSensorSize = require('./IndiAutoGphotoSensorSize');
-const ConfigStore = require('./ConfigStore');
+import CancellationToken from 'cancellationtoken';
+import Timeout from './Timeout';
+import Sleep from './Sleep';
+import IndiServerStarter from './IndiServerStarter';
+import ConfigStore from './ConfigStore';
+import IndiAutoConnect from './IndiAutoConnect';
+import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
 
 
 function has(obj:any, key:string) {
@@ -42,8 +44,7 @@ export default class IndiManager {
     currentStatus: IndiManagerStatus;
     lastMessageSerial: undefined|number;
     lastMessageStamp: undefined|number;
-    lifeCycle: Promises.Cancelable<any, any>;
-    indiServerStarter: any;
+    indiServerStarter: IndiServerStarter | null;
     connection: undefined|IndiConnection;
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
@@ -61,7 +62,12 @@ export default class IndiManager {
             driverToGroup: {},
             configuration: {
                 driverPath: "none",
-                indiServer: null,
+                indiServer: {
+                    path: null,
+                    fifopath: null,
+                    devices: {},
+                    autorun: true,
+                },
             }
         }
 
@@ -96,10 +102,13 @@ export default class IndiManager {
         // List configuration settings
         this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {self.readDrivers();}, true);
 
-        this.lifeCycle = this.buildLifeCycle();
-        this.lifeCycle.start(undefined);
+        this.lifecycle(CancellationToken.CONTINUE);
 
-        this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+        if (this.currentStatus.configuration.indiServer !== null) {
+            this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+        } else {
+            this.indiServerStarter = null;
+        }
 
         new IndiAutoConnect(this);
         new IndiAutoGphotoSensorSize(this);
@@ -248,50 +257,44 @@ export default class IndiManager {
         }
     }
 
-    buildLifeCycle() {
-        const self = this;
-        return (
-            new Promises.Loop(
-                new Promises.Chain(
-                    new Promises.Cancelable((next) => {
-                        var indiConnection = new IndiConnection();
-                        self.connection = indiConnection;
-                        self.connection.deviceTree = this.currentStatus.deviceTree;
+    async lifecycle(ct: CancellationToken) {
+        while(true) {
+            let indiConnection = new IndiConnection();
+            this.connection = indiConnection;
+            this.connection.deviceTree = this.currentStatus.deviceTree;
 
-                        // start
-                        var listener = function() {
-                            self.refreshStatus();
-                        };
+            // start
+            var listener = ()=>{
+                this.refreshStatus();
+            };
 
-                        indiConnection.connect('127.0.0.1');
-                        indiConnection.addListener(listener);
-                        indiConnection.addMessageListener(function(msg) {
-                            var msgUid = self.nextMessageUid();
-                            console.log('Received message : ', JSON.stringify(msg));
-                            self.addMessage(msg);
-                            self.cleanupMessages();
-                        });
-                        next.done(indiConnection.wait(()=>{
-                            return indiConnection.isDead();
-                        }, true).then(() => {
-                            console.log('Indi connection disconnected');
-                            indiConnection.removeListener(listener);
-                            if (self.connection == indiConnection) {
-                                self.connection = undefined;
-                                self.refreshStatus();
-                            }
-                        }));
-                    }),
-                    new Promises.ExecutePromise(),
-                    new Promises.Sleep(2000)
-                )
-            )
-        );
+            indiConnection.connect('127.0.0.1');
+            indiConnection.addListener(listener);
+            indiConnection.addMessageListener((msg)=>{
+                console.log('Received message : ', JSON.stringify(msg));
+                this.addMessage(msg);
+                this.cleanupMessages();
+            });
+
+            await indiConnection.wait(ct,
+                () => indiConnection.isDead(),
+                true);
+
+                
+            console.log('Indi connection disconnected');
+            indiConnection.removeListener(listener);
+            if (this.connection === indiConnection) {
+                this.connection = undefined;
+                this.refreshStatus();
+            }
+
+            await Sleep(ct, 2000);
+        }
     }
 
     addMessage(m:IndiMessage)
     {
-        var uid = this.nextMessageUid();
+        const uid = this.nextMessageUid();
         this.currentStatus.messages.byUid[uid] = {...m, uid};
         this.cleanupMessages();
     }
@@ -318,116 +321,109 @@ export default class IndiManager {
     }
 
     // Return a promise that waits until the vector exists
-    waitForVectors<INPUT>(device:Promises.DynValueProvider<string,INPUT>, vectorFn: Promises.DynValueProvider<string|string[], INPUT>)
+    async waitForVectors(ct: CancellationToken, devId: string, vectorIds: string[])
     {
-        var self = this;
-        return new Promises.Builder<INPUT,void>((e:INPUT)=>
-        {
-            var connection = self.getValidConnection();
-            var devId = Promises.dynValue(device, e);
-            var dev = connection.getDevice(devId);
+        const connection = this.getValidConnection();
+        const dev = connection.getDevice(devId);
 
-            var vectorIds = Promises.dynValue(vectorFn, e);
-            if (!Array.isArray(vectorIds)) {
-                vectorIds = [vectorIds];
-            }
-            console.log('Sync with vectors:' + JSON.stringify(vectorIds));
-            for(var i = 0; i < vectorIds.length; ++i) {
-                var vectorId = vectorIds[i];
-                var vecInstance = dev.getVector(vectorId);
-                if (!vecInstance.exists()) {
-                    // FIXME: wait until ?
-                    console.log('Waiting for vector ' + vectorId + ' on ' + devId);
-                    return new Promises.Sleep(1000);
-                }
-            }
-            
-            return undefined;
-        });
+        console.log('Sync with vectors:' + JSON.stringify(vectorIds));
+
+        await Timeout(ct, async (ct: CancellationToken) => {
+                await connection.wait(ct, ()=> {
+                    let done = true;
+                    for(const vectorId of vectorIds) {
+                        const vecInstance = dev.getVector(vectorId);
+                        if (!vecInstance.exists()) {
+                            done = false;
+                            break;
+                        }
+                    }
+                    return done;
+                })
+            },
+            5000,
+            ()=>new Error("Timedout waiting for vectors " + JSON.stringify(vectorIds))
+        );
     }
 
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
-    setParam<INPUT>(device:Promises.DynValueProvider<string,INPUT>,
-                    vectorFn:Promises.DynValueProvider<string,INPUT>,
-                    valFn:Promises.DynValueProvider<{[id:string]:string|null|undefined}, Vector>,
+    async setParam(ct: CancellationToken,
+                    devId: string,
+                    vectorId: string,
+                    valueProvider: {[id:string]:string|null|undefined} | ((vec:Vector)=>{[id:string]:string|null|undefined}),
                     force?: boolean,
                     nowait?:boolean,
                     cancelator?: (connection:IndiConnection, devId:string, vectorId:string)=>(void))
+            :Promise<Array<{name:string, value:string}>>
     {
-        var self = this;
-        return new Promises.Builder<INPUT, void>((e)=>
-        {
-            var connection = self.getValidConnection();
-            var devId = Promises.dynValue(device, e);
-            
-            var dev = connection.getDevice(devId);
+        const connection = this.getValidConnection();
 
-            var vectorId = Promises.dynValue(vectorFn, e);
+
+        function getVec() {
+            const dev = connection.getDevice(devId);
 
             if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
                 throw new Error("Device is not connected : " + devId);
             }
 
-            function getVec() {
-                var dev = connection.getDevice(devId);
+            const vecInstance = dev.getVector(vectorId);
+            if (vecInstance === null) throw new Error("Property vanished: " + vectorId);
+            return vecInstance;
+        }
 
-                var vecInstance = dev.getVector(vectorId);
-                if (vecInstance === null) throw new Error("Property vanished: " + vectorId);
-                return vecInstance;
+        getVec();
+
+        await this.waitForVectors(ct, devId, [vectorId]);
+        if (!nowait) {
+            await connection.wait(ct, () => (getVec().getState() != "Busy"));
+        }
+
+        const vec = getVec();
+        if (vec.getState() === "Busy") {
+            throw new Error("Device is busy");
+        }
+        
+        const value = (typeof valueProvider === "function" ? valueProvider(vec) : valueProvider);
+        var todo = [];
+        for(const key of Object.keys(value).sort()) {
+            var v = value[key];
+            if (v === null || v === undefined) {
+                continue;
             }
+            console.log('Setting value: ' + v);
+            if (force || (vec.getPropertyValueIfExists(key) !== v)) {
+                todo.push({name: key, value: v});
+            }
+        }
 
-            return new Promises.Chain(
-                self.waitForVectors(devId, vectorId),
-                (!nowait) ? (connection.wait(() => (getVec().getState() != "Busy"))) : new Promises.Immediate(()=>{}),
-                new Promises.Builder(() => {
-                    var vec = getVec();
-                    if (vec.getState() === "Busy") {
-                        throw new Error("Device is busy");
-                    }
-                    var value = Promises.dynValue(valFn, vec);
-                    var diff = false;
-                    
-                    var todo = [];
-                    for(var key in value) {
-                        var v = value[key];
-                        if (v === null || v === undefined) {
-                            continue;
-                        }
-                        console.log('Setting value: ' + v);
-                        if (force || (vec.getPropertyValueIfExists(key) !== v)) {
-                            todo.push({name: key, value: v});
-                        }
-                    }
+        if (!todo.length) {
+            console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
+        } else {
+            vec.setValues(todo);
+            let cancelatorCancel = ()=>{};
+            if (cancelator) {
+                ct.throwIfCancelled();
+                cancelatorCancel = ct.onCancelled(()=>{
+                    cancelator(connection, devId, vectorId);
+                });
+            }
+            try {
+                await connection.wait(ct, () => (getVec().getState() !== "Busy"));
+                if (cancelator) {
+                    ct.throwIfCancelled();
+                }
+            } finally {
+                cancelatorCancel();
+            }
+        }
 
-                    if (!todo.length) {
-                        console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
-                        // Value is ready.
-                        return undefined;
-                    } else {
-                        vec.setValues(todo);
-                        const waiter = connection.wait<undefined, boolean>(() => {
-                            if (vectorId === 'EQUATORIAL_EOD_COORD') {
-                                console.log('is it busy now ?');
-                            }
-                            return (getVec().getState() != "Busy")
-                        });
-                        if (cancelator) {
-                            return new Promises.Cancelator<undefined, boolean>(()=> {
-                                cancelator(connection, devId, vectorId);
-                            }, waiter);
-                        } else {
-                            return waiter;
-                        }
-                    }
-                })
-            );
-        });
+        return todo;
     }
 
 
-    checkDeviceConnected(deviceId:string):Device {
+    public checkDeviceConnected=(deviceId:string):Device=>{
         const device = this.getValidConnection().getDevice(deviceId);
         if (device.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On') {
             throw new Error("Device " + deviceId + " is not connected");
@@ -435,94 +431,67 @@ export default class IndiManager {
         return device;
     }
 
-    connectDevice<INPUT>(deviceFn:Promises.DynValueProvider<string,INPUT>)
+    public connectDevice=async (ct: CancellationToken, device: string)=>
     {
-        var self = this;
+        const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
+        if (!vector.isReadyForOrder()) {
+            throw "Connection already pending";
+        }
+        if (vector.getPropertyValue('CONNECT') === 'On') {
+            return;
+        }
 
-        var device:string;
-        // Set connected to true, then wait for status, then load configuration
-        return new Promises.Chain<INPUT, void>(
-            new Promises.Conditional((e) => {
-                    device = Promises.dynValue(deviceFn, e);
-                    var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
-                    if (!vector.isReadyForOrder()) {
-                        throw "Connection already pending";
-                    }
-                    var perform = vector.getPropertyValue('CONNECT') != 'On';
-                    if (perform) {
-                        console.log('Connecting: ' + device);
-                    }
-                    return perform;
-                },
-                new Promises.Chain(
-                    this.setParam(()=>(device), 'CONNECTION', () => ({CONNECT: "On"})),
-                    this.setParam(()=>(device), 'CONFIG_PROCESS', () => ({CONFIG_LOAD: "On"}))
-                )
-            )
-        );
+        await this.setParam(ct, device, 'CONNECTION', {CONNECT: "On"});
+        await this.setParam(ct, device, 'CONFIG_PROCESS', {CONFIG_LOAD: "On"});
     }
 
-    disconnectDevice<INPUT>(deviceFn:Promises.DynValueProvider<string,INPUT>)
+    private disconnectDevice=async (ct: CancellationToken, device: string)=>
     {
-        var self = this;
 
-        var device:string;
-        return new Promises.Chain(
-            new Promises.Conditional((e: INPUT) => {
-                    device = Promises.dynValue(deviceFn, e);
-                    var vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
-                    if (!vector.isReadyForOrder()) {
-                        throw "Connection already pending";
-                    }
-                    var perform = vector.getPropertyValue('CONNECT') != 'Off';
-                    if (perform) {
-                        console.log('Connecting: ' + device);
-                    }
-                    return perform;
-                },
-                new Promises.Chain(
-                    this.setParam(()=>(device), 'CONNECTION', () => ({DISCONNECT: "On"}))
-                )
-            )
-        );
+        const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
+        if (!vector.isReadyForOrder()) {
+            throw "Connection already pending";
+        }
+        if (vector.getPropertyValue('CONNECT') === 'Off') {
+            return;
+        }
+
+        await this.setParam(ct, device, 'CONNECTION', {DISCONNECT: "On"});
     }
 
-    $api_connectDevice(message:IndiManagerConnectDeviceRequest, progress:any)
+    async $api_connectDevice(ct: CancellationToken, message:IndiManagerConnectDeviceRequest)
     {
-        return this.connectDevice(message.device);
+        return await this.connectDevice(ct, message.device);
     }
 
-    $api_disconnectDevice(message:IndiManagerDisconnectDeviceRequest, progress:any)
+    async $api_disconnectDevice(ct: CancellationToken, message:IndiManagerDisconnectDeviceRequest)
     {
-        return this.disconnectDevice(message.device);
+        return await this.disconnectDevice(ct, message.device);
     }
 
-    $api_setProperty(message:IndiManagerSetPropertyRequest, progress:any)
+    async $api_setProperty(ct: CancellationToken, message:IndiManagerSetPropertyRequest)
     {
-        return new Promises.Immediate(() => {
-            var dev = this.getValidConnection().getDevice(message.data.dev);
-            dev.getVector(message.data.vec).setValues( message.data.children);
-        });
+        const dev = this.getValidConnection().getDevice(message.data.dev);
+        dev.getVector(message.data.vec).setValues( message.data.children);
     }
 
-    $api_restartDriver(message:IndiManagerRestartDriverRequest, progress:any)
+    async $api_restartDriver(ct: CancellationToken, message:IndiManagerRestartDriverRequest)
     {
-        return new Promises.Immediate(() => {
-            this.indiServerStarter.restartDevice(message.driver);
-        });
+        if (this.indiServerStarter === null) {
+            throw new Error("no indiserver configured");
+        }
+        return await this.indiServerStarter.restartDevice(ct, message.driver);
     }
 
-    $api_updateDriverParam(message:IndiManagerUpdateDriverParamRequest, progress:any)
+    async $api_updateDriverParam(ct: CancellationToken, message:IndiManagerUpdateDriverParamRequest)
     {
-        return new Promises.Immediate(() => {
-            if (!Object.prototype.hasOwnProperty.call(this.currentStatus.configuration.indiServer.devices, message.driver)) {
-                throw new Error("Device not found");
-            }
-            const dev = this.currentStatus.configuration.indiServer.devices[message.driver];
-            if (!dev.options) {
-                dev.options = {};
-            }
-            dev.options[message.key] = message.value;
-        });
+        if (!has(this.currentStatus.configuration.indiServer.devices, message.driver)) {
+            throw new Error("Device not found");
+        }
+        const dev = this.currentStatus.configuration.indiServer.devices[message.driver];
+        if (!dev.options) {
+            dev.options = {};
+        }
+        dev.options[message.key] = message.value;
     }
 }

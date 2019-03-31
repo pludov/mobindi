@@ -1,19 +1,12 @@
 import MemoryStreams from 'memory-streams';
-import * as Promises from './Promises';
-import * as SystemPromises from './SystemPromises';
+import CancellationToken from 'cancellationtoken';
 
 import {ProcessorRequest} from './shared/ProcessorTypes';
-import JsonProxy from './JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
+import JsonProxy from './JsonProxy';
 import { AppContext } from './ModuleBase';
+import { Pipe } from './SystemPromise';
 
-
-// Ugggglyyy fix for end of stream
-MemoryStreams.ReadableStream.prototype._read = function(n) {
-    const self : any = this;
-    this.push(self._data);
-    self._data = null;
-  };
 
 export default class ImageProcessor
 {
@@ -25,54 +18,18 @@ export default class ImageProcessor
         this.context = context;
     }
 
-    compute(jsonRequest: ProcessorRequest):Promises.Cancelable<void, any> {
-        let writableStream: MemoryStreams.WritableStream;
-        let writableStreamDone: boolean = false;
-        let writableStreamCb:undefined|(()=>(void));
-
-        function captureDone()
-        {
-            writableStreamDone = true;
-            if (writableStreamCb) {
-                writableStreamCb();
-            }
-        }
-        return new Promises.Chain(
-            new Promises.Immediate(() => {
-                writableStream = new MemoryStreams.WritableStream();
-                writableStreamCb = undefined;
-                writableStreamDone = false;
-                writableStream.on('finish', ()=> {
-                    captureDone();
-                });
-            }),
-            new SystemPromises.Exec(()=>({
-                command: ["./fitsviewer/processor"],
-                options: {
-                    stdio: [
-                        'pipe',
-                        'pipe',
-                        'inherit'
-                    ],
-                    stdin: new MemoryStreams.ReadableStream(JSON.stringify(jsonRequest)),
-                    stdout: writableStream
-                }
-            })).setCancelable(true),
-            new Promises.Cancelable<void, void>((next)=> {
-                if (writableStreamDone) {
-                    next.done(undefined);
-                } else {
-                    writableStreamCb = ()=>next.done(undefined);
-                }
-            }),
-            new Promises.Immediate(()=> {
-                const result = writableStream.toString();
-                return JSON.parse(result);
-            })
+    async compute(ct: CancellationToken, jsonRequest: ProcessorRequest):Promise<any> {
+        const result = await Pipe(ct,
+            {
+                command: ["./fitsviewer/processor"]
+            },
+            new MemoryStreams.ReadableStream(JSON.stringify(jsonRequest))
         );
+
+        return JSON.parse(result);
     }
 
-    $api_compute(jsonRequest: any) {
-        return this.compute(jsonRequest.details);
+    async $api_compute(ct: CancellationToken, jsonRequest: any) {
+        return await this.compute(ct, jsonRequest.details);
     }
 }

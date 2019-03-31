@@ -33,10 +33,29 @@ export type IndiMessageWithUid = IndiMessage | {
     uid: string;
 };
 
+export type IndiDeviceConfiguration = {
+    driver: string;
+    config?: string;
+    skeleton?: string;
+    prefix?: string;
+    options: {[id:string]:string};
+};
+
+export type IndiServerConfiguration = {
+    path: null;
+    fifopath: null;
+    devices: {[id: string]: IndiDeviceConfiguration};
+    autorun: boolean;
+}
+
+export type IndiServerState = IndiServerConfiguration & {
+    restartList: string[];
+};
+
 export type IndiManagerStatus = {
     status: "error"|"connecting"|"connected";
     configuration: {
-        indiServer: any;
+        indiServer: IndiServerConfiguration;
         driverPath: string;
     };
     driverToGroup: {[driver: string]: string};
@@ -97,6 +116,37 @@ export type CameraStatus = {
     configuration: any;
 }
 
+export type AutoFocusSettings = {
+    range: number;
+    steps: number;
+    backlash: number;
+    lowestFirst : boolean;
+    targetCurrentPos: boolean;
+    targetPos: number;
+};
+
+export type AutoFocusStatus = {
+    status: "idle"|"running"|"done"|"error"|"interrupted";
+    error: null|string;
+    firstStep: null|number;
+    lastStep: null|number;
+    points: {[id:string]:{fwhm: number|null}};
+    predicted: {[id:string]:{fwhm: number}};
+    targetStep: null|number;
+}
+
+export type FocuserUpdateCurrentSettingsRequest = {
+    diff: any
+}
+
+export type FocuserStatus = {
+    selectedDevice: string|null;
+    preferedDevice: string|null;
+    availableDevices: string[];
+    currentSettings: AutoFocusSettings;
+    current: AutoFocusStatus;
+}
+
 export type AstrometrySettings = {
     initialFieldMin: number;
     initialFieldMax: number;
@@ -133,6 +183,73 @@ export type AstrometryStatus = {
     useNarrowedSearchRadius: boolean;
 }
 
+export type ProcessConfiguration = {
+    autorun: false;
+    path: string| null;
+    env: {[id:string]:string};
+}
+
+export type PhdGuideStep = {
+    Timestamp: null;
+    RADistanceRaw?: number,
+    DECDistanceRaw?: number,
+    settling?: boolean;
+}
+
+
+export type PhdSettling = {
+    running: boolean;
+    status?: boolean;
+    error?: any;
+}
+
+export type PhdStar = {
+    SNR: number;
+    StarMass: number;
+}
+
+export type PhdAppState ="NotConnected" | "Guiding" | "Paused" | "Calibrating" | "Looping" | "Stopped" | "LostLock"; 
+
+export type PhdStatus = {
+    phd_started: boolean;
+    connected: boolean;
+    AppState: PhdAppState;
+    settling: PhdSettling|null;
+    guideSteps: {[id:string]: PhdGuideStep};
+    configuration: ProcessConfiguration;
+    firstStepOfRun: string;
+    RADistanceRMS:number|null;
+    DECDistanceRMS:number|null;
+    RADECDistanceRMS:number|null;
+    RADistancePeak: number|null;
+    DECDistancePeak: number|null;
+    RADECDistancePeak: number|null;
+    star: PhdStar|null;
+};
+
+export type ToolConfig = {
+    desc?: string;
+    hidden?: boolean;
+    trigger?: "atstart";
+    confirm?: string;
+    cmd: string[];
+};
+
+export type ToolExecuterStatus = {
+    tools: {[id:string]:ToolConfig};
+};
+
+export type TriggerConfig = {
+    desc: string;
+    device: string;
+    vector: string;
+    property: string[]|string;
+    value: string[]|string;
+}
+
+export type TriggerExecuterStatus = {
+    triggers: {[id:string]:TriggerConfig};
+}
 
 export type AstrometryComputeRequest = {
     image: string;
@@ -156,9 +273,17 @@ export type AstrometryGotoScopeRequest = {
     dec:number;
 }
 
+export type ToolExecuterStartToolRequest = {
+    uid: string;
+}
+
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
     camera: CameraStatus;
     astrometry: AstrometryStatus;
+    focuser: FocuserStatus;
+    phd: PhdStatus;
+    toolExecuter: ToolExecuterStatus;
+    triggerExecuter: TriggerExecuterStatus;
 };

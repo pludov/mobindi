@@ -1,20 +1,24 @@
 import {Application as ExpressApplication} from "express-serve-static-core";
 
+import Phd from './Phd';
 import Camera from './Camera';
 import Astrometry from './Astrometry';
 import IndiManager from "./IndiManager";
 import ImageProcessor from "./ImageProcessor";
+import TriggerExecuter from "./TriggerExecuter";
+import ToolExecuter from "./ToolExecuter";
+import Focuser from "./Focuser";
 
 export type ExpressApplication = ExpressApplication;
 
 export type AppContext = {
     imageProcessor: ImageProcessor;
-    phd: any;
+    phd: Phd;
     indiManager: IndiManager;
     camera: Camera;
-    triggerExecuter: any;
-    toolExecuter: any;
-    focuser: any;
+    triggerExecuter: TriggerExecuter;
+    toolExecuter: ToolExecuter;
+    focuser: Focuser;
     astrometry: Astrometry;
 };
 

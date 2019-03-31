@@ -95,12 +95,12 @@ function compatibleStorage(a:any, b:any) {
     return Array.isArray(a) == Array.isArray(b);
 }
 
-type ComposedSerialSnapshot = {
+export type ComposedSerialSnapshot = {
     serial: number|null;
     childSerial: number|undefined|null;
     props: {[id: string]:SerialSnapshot};
 }
-type SerialSnapshot = ComposedSerialSnapshot | number;
+export type SerialSnapshot = ComposedSerialSnapshot | number;
 
 
 type SynchronizerTriggerCallback = {
@@ -774,7 +774,7 @@ export default class JsonProxy<CONTENTTYPE> {
     }
 
 
-    takeSerialSnapshot():SerialSnapshot
+    takeSerialSnapshot():ComposedSerialSnapshot
     {
         var self = this;
         if (this.currentSerialUsed) {
@@ -798,7 +798,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 return desc.serial;
             }
         }
-        return forObject(this.root);
+        return forObject(this.root) as ComposedSerialSnapshot;
     }
 
     // Update version and returns a list of op
@@ -925,7 +925,7 @@ export default class JsonProxy<CONTENTTYPE> {
         return this.root.proxy;
     }
 
-    fork():{data: CONTENTTYPE, serial: SerialSnapshot} {
+    fork():{data: CONTENTTYPE, serial: ComposedSerialSnapshot} {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;

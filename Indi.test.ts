@@ -1,12 +1,14 @@
+import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 import * as fs from 'fs';
-const {promisify} = require("util");
-
-const readFile = promisify(fs.readFile);
+import {promisify} from "util";
 
 import JsonProxy from './JsonProxy';
 import {IndiConnection} from './Indi';
+
+
+const readFile = promisify(fs.readFile);
 
 describe("Indi", () => {
     it("converts json to xml", () => {
@@ -32,7 +34,7 @@ describe("Indi", () => {
     it("Does device state transitions", async () => {
         const data = await readFile('testdata/heq5-init.indi.json');
 
-        var content = JSON.parse(data);
+        var content = JSON.parse(data.toString());
         assert.ok(content.length > 0, "Got data");
 
         var appStateManager = new JsonProxy();
@@ -44,7 +46,7 @@ describe("Indi", () => {
         console.log('Resulting device tree is :\n' + JSON.stringify(appStateManager.getTarget(), null, 2));
 
         const expectedData = await readFile('testdata/heq5-init.devicetree.json');
-        var expected = JSON.parse(expectedData);
+        var expected = JSON.parse(expectedData.toString());
         assert.deepEqual(appStateManager.getTarget(), expected);
     });
 });

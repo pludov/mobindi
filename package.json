@@ -12,6 +12,7 @@
   "main": "dist/app.js",
   "dependencies": {
     "body-parser": "^1.18.3",
+    "cancellationtoken": "^2.0.1",
     "cgi": "https://github.com/pludov/node-cgi/tarball/master",
     "cookie-parser": "~1.4.3",
     "cors": "^2.8.3",
@@ -50,6 +51,7 @@
     "@types/sax": "^1.0.1",
     "@types/session-file-store": "^1.2.0",
     "@types/sha1": "^1.1.1",
+    "@types/tmp": "0.0.34",
     "@types/ws": "^6.0.1",
     "@types/xmlbuilder": "0.0.34",
     "chai": "^4.2.0",

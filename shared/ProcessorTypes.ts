@@ -39,6 +39,8 @@ export type ProcessorAstrometryRequest = {
     numberOfBinInUniformize: 10;
     source: ProcessorStarFieldRequest;
 }
+
 export type ProcessorRequest = {
-    astrometry?: ProcessorAstrometryRequest
+    astrometry?: ProcessorAstrometryRequest;
+    starField?: ProcessorStarFieldRequest;
 }

@@ -4,7 +4,7 @@ import SAX from 'sax';
 import xmlbuilder from 'xmlbuilder';
 import net from 'net';
 
-import * as Promises from './Promises';
+import CancellationToken from 'cancellationtoken';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import { StringDecoder } from 'string_decoder';
 import { Buffer } from 'buffer';
@@ -13,8 +13,7 @@ import { IndiMessage } from "./shared/IndiTypes";
 export type IndiListener = ()=>(void);
 export type IndiMessageListener = (m:IndiMessage)=>(void);
 
-export type IndiPredicate<INPUT, OUTPUT>=(e:INPUT)=>OUTPUT;
-
+export type IndiPredicate<OUTPUT>=()=>OUTPUT|false;
 
 const socketEncoding = "utf-8";
 
@@ -227,7 +226,6 @@ export class Device {
 export class IndiConnection {
     deviceTree: any;
     connected: boolean;
-    private waiterId = 0;
     private dead: boolean;
     private socket?: net.Socket;
     private readonly listeners:IndiListener[];
@@ -329,64 +327,45 @@ export class IndiConnection {
         });
     }
 
-    // Return a Promises.Cancelable that wait until the predicate is true
-    // will be checked after every indi event
-    // allowDisconnectionState: if true, predicate will be checked event after disconnection
-    // The predicate will receive the promise input.
-    wait<INPUT, OUTPUT>(predicate:IndiPredicate<INPUT, OUTPUT>, allowDisconnectionState?:boolean, cancelable?:boolean):Promises.Cancelable<INPUT, OUTPUT> {
-        const self = this;
-        const waiterId = this.waiterId++;
-        return new Promises.Cancelable<INPUT, OUTPUT>(
-            function(next, input) {
-                var listener:IndiListener|undefined = undefined;
+    // Yield until the next event
+    async yield(ct: CancellationToken): Promise<void> {
+        ct.throwIfCancelled();
+        return new Promise<void>((resolve, reject)=> {
+            const removeCb = ct.onCancelled((reason)=>{
+                removeCb();
+                reject(new CancellationToken.CancellationError(reason));
+            });
 
-                function dettach()
-                {
-                    if (listener != undefined) {
-                        self.removeListener(listener);
-                        listener = undefined;
-                    }
-                }
+            const listenerFunc = ()=> {
+                cleanUp();
+                resolve();
+            };
 
-                if (cancelable) {
-                    next.setCancelFunc(() => {
-                        dettach();
-                        next.cancel();
-                    });
-                }
-
-                if (self.dead && !allowDisconnectionState) {
-                    next.error('Indi server disconnected');
-                    return;
-                }
-                var result = predicate(input);
-                if (!result) {
-                    console.log('predicate false');
-                    listener = function() {
-                        if (!next.isActive() && !next.cancelationPending()) return;
-                        var result;
-                        try {
-                            result = predicate(input);
-                            if (!result) {
-                                console.log('predicate ' + waiterId + ' still false');
-                                return;
-                            }
-                        } catch(e) {
-                            dettach();
-                            next.error(e);
-                            return;
-                        }
-                        dettach();
-                        next.done(result);
-                    };
-                    // Add a listener...
-                    self.addListener(listener);
-                } else {
-                    console.log('predicate ' + waiterId + ' true');
-                    next.done(result);
-                }
+            const cleanUp = ()=> {
+                removeCb();
+                this.removeListener(listenerFunc);
             }
-        );
+
+            this.addListener(listenerFunc);
+        });
+    }
+
+    // Wait until the predicate is true
+    // will be checked after every indi event
+    // allowDisconnectionState: if true, predicate will be checked event after disconnection (reject otherwise)
+    async wait<OUTPUT>(ct: CancellationToken, predicate:IndiPredicate<OUTPUT>, allowDisconnectionState?:boolean):Promise<OUTPUT> {
+        while(true) {
+            if (this.dead && !allowDisconnectionState) {
+                throw new Error('Indi server disconnected');
+            }
+
+            const result = predicate();
+            if (result !== false) {
+                return result;
+            }
+
+            await this.yield(ct);
+        }
     }
 
     dispatchMessage(m: IndiMessage)
@@ -491,7 +470,7 @@ export class IndiConnection {
         return xml.end({pretty: true});
     }
 
-    newParser(onMessage:any) {
+    newParser(onMessage:(node:any)=>(void)) {
         var parser = Xml2JSONParser(schema, 2, onMessage);
 
         var self = this;
@@ -629,84 +608,84 @@ export class IndiConnection {
 }
 
 
-function demo() {
+// function demo() {
 
-    var connection = new IndiConnection();
-    connection.connect('127.0.0.1');
+//     var connection = new IndiConnection();
+//     connection.connect('127.0.0.1');
 
-    var indiDevice = connection.getDevice("CCD Simulator");
+//     var indiDevice = connection.getDevice("CCD Simulator");
 
-    console.log('Waiting connection');
-    // connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
+//     console.log('Waiting connection');
+//     // connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
 
-    var shoot = new Promises.Chain(
-        connection.wait(function() {
-            var status = connection.getDevice("CCD Simulator").getVector('CONNECTION').getPropertyValueIfExists('CONNECT');
-            console.log('Status is : ' + status);
-            if (status != 'On') return false;
+//     var shoot = new Promises.Chain(
+//         connection.wait(function() {
+//             var status = connection.getDevice("CCD Simulator").getVector('CONNECTION').getPropertyValueIfExists('CONNECT');
+//             console.log('Status is : ' + status);
+//             if (status != 'On') return false;
 
-            return connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").getPropertyValueIfExists("CCD_EXPOSURE_VALUE") !== null;
-        }),
+//             return connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").getPropertyValueIfExists("CCD_EXPOSURE_VALUE") !== null;
+//         }),
 
-        new Promises.Immediate(() => {
-            console.log('Connection established');
-            connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues([{name: "CCD_EXPOSURE_VALUE", value: "10"}]);
-        }),
+//         new Promises.Immediate(() => {
+//             console.log('Connection established');
+//             connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues([{name: "CCD_EXPOSURE_VALUE", value: "10"}]);
+//         }),
 
-        connection.wait(function() {
-            console.log('Waiting for exposure end');
-            var vector = connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE");
-            if (vector.getState() == "Busy") {
-                return false;
-            }
+//         connection.wait(function() {
+//             console.log('Waiting for exposure end');
+//             var vector = connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE");
+//             if (vector.getState() == "Busy") {
+//                 return false;
+//             }
 
-            var value = vector.getPropertyValue("CCD_EXPOSURE_VALUE");
+//             var value = vector.getPropertyValue("CCD_EXPOSURE_VALUE");
 
-            return (parseFloat(value) === 0);
-        })
-    );
+//             return (parseFloat(value) === 0);
+//         })
+//     );
 
-    shoot.then(function() { console.log('SHOOT: done'); });
-    shoot.onError(function(e) { console.log('SHOOT: error ' + e)});
-    shoot.onCancel(function() { console.log('SHOOT: canceled')});
-    shoot.start({});
+//     shoot.then(function() { console.log('SHOOT: done'); });
+//     shoot.onError(function(e) { console.log('SHOOT: error ' + e)});
+//     shoot.onCancel(function() { console.log('SHOOT: canceled')});
+//     shoot.start({});
 
-    /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
+//     /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
 
-        if (status == 'Off') {
-        }
+//         if (status == 'Off') {
+//         }
 
-        connection.wait(function() {
-            return connection.properties['CONNECTION'].$$ == 'On';
-        }).then(function() {
-            console.log('connected !\n');
-        });*/
-
-
-    var infinite = connection.wait(function() {console.log('checking dummy cond'); return false});
-    infinite.onCancel(function() { console.log('canceled !') });
-
-    infinite = new Promises.Timeout(5000.0, infinite);
-    infinite.onError(console.warn);
-    infinite.start({});
+//         connection.wait(function() {
+//             return connection.properties['CONNECTION'].$$ == 'On';
+//         }).then(function() {
+//             console.log('connected !\n');
+//         });*/
 
 
+//     var infinite = connection.wait(function() {console.log('checking dummy cond'); return false});
+//     infinite.onCancel(function() { console.log('canceled !') });
+
+//     infinite = new Promises.Timeout(5000.0, infinite);
+//     infinite.onError(console.warn);
+//     infinite.start({});
 
 
 
-    /*  console.log('testing');
-      parser.write('<dummystartup>');
-
-      console.log('test ok');
-
-      var xml = "<start><a>plop</a><b>glop</b>\n";
 
 
-      parser.write(xml);
-      parser.write("<c>\n");
-      parser.write("coucou</c>");
-    */
-}
+//     /*  console.log('testing');
+//       parser.write('<dummystartup>');
+
+//       console.log('test ok');
+
+//       var xml = "<start><a>plop</a><b>glop</b>\n";
+
+
+//       parser.write(xml);
+//       parser.write("<c>\n");
+//       parser.write("coucou</c>");
+//     */
+// }
 
 export function timestampToEpoch(v:string):number
 {
