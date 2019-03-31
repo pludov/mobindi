@@ -522,10 +522,9 @@ export default class Camera {
                     // FIXME: no dithering for first shoot of sequence
                     console.log('Dithering required : ', Object.keys(this.context));
                     sequence.progress = "Dither " + shootTitle;
-                    await this.context.phd.dither();
+                    await this.context.phd.dither(ct);
                 }
 
-                    
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;
                 ct.throwIfCancelled();
                 const shootResult = await this.shoot(ct, sequence.camera, ()=>(settings));
