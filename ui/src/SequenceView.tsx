@@ -1,6 +1,4 @@
 import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
-import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 

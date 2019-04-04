@@ -3,6 +3,8 @@ import { connect } from 'react-redux';
 import * as Utils from './Utils';
 import './AppIcon.css';
 import * as Store from './Store';
+import * as Actions from './Actions';
+import * as BackendStore from './BackendStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 export type InputProps = {
@@ -40,8 +42,7 @@ class AppIcon extends React.PureComponent<Props> {
     }
 
     private activate=()=>{
-        console.log('Applicating');
-        Store.SwitchToApp.dispatch({value: this.props.appid});
+        Actions.dispatch<BackendStore.Actions>("SwitchToApp")({value: this.props.appid});
     }
 }
 

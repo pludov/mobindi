@@ -3,41 +3,13 @@
  */
 
 
-import { compose, createStore } from 'redux';
-import persistState from 'redux-localstorage'
+import * as BackendStore from './BackendStore';
+import { Store } from 'redux';
 import Notifier from './Notifier';
-import JsonProxy from './shared/JsonProxy';
-import { update } from './shared/Obj'
-import { atPath } from './shared/JsonPath'
-import * as Actions from './Actions';
-import * as ActionsRegistry from './ActionsRegistry';
-import { BackofficeStatus } from '@bo/BackOfficeStatus';
+import * as Promises from './shared/Promises';
 
-const BackendStatus = {
-    Idle: 0,
-    Connecting: 1,
-    Connected: 2,
-    Paused: 3,
-    Reconnecting: 4,        // Après la pause
-    Failed: 5
-}
-
-const initialState:Content =  {
-    backendStatus: BackendStatus.Idle,
-    backendError: null,
-    backend: {
-        apps: {}
-    },
-    indiManager: {},
-    currentApp: null,
-    appNotifications: {}
-};
-
-export type Content = {
+export type Content = BackendStore.Content & {
     currentApp: string|null;
-    backendStatus: number;
-    backendError: string|null;
-    backend: Partial<BackofficeStatus>;
     indiManager: {};
     appNotifications: {};
 };
@@ -75,160 +47,41 @@ function fork(state:Content, path?:string[], fn?:(t:any)=>any)
     return state;
 }
 
-function transform(state:Content, path?:string[], fn?:(t:any)=>any)
-{
-    return fork(state, path, fn);
+export type StoreManager = {
+    dispatch:(e: Object)=>(void);
+    dispatchUpdate: (e:Object)=>(void);
+    sendRequest: (e:Object)=>Promises.Cancelable<any, any>;
 }
 
+let store:Store;
+let notifier:Notifier;
+let storeManager: StoreManager;
 
-export const SwitchToApp = new Actions.Handler<{value: string},'SwitchToApp'>("SwitchToApp", (state, action)=>{
-    console.log('SwitchToApp', action);
-    var appid = action.value;
-    if (state.currentApp == appid) return state;
-    return {
-        ...state,
-        currentApp: appid
-    };
-});
+export function init(newStore:Store, newNotifier: Notifier, newStoreManager: StoreManager) {
+    store = newStore;
+    notifier = newNotifier;
+    storeManager = newStoreManager;
+}
 
-export const backendStatus = new Actions.Handler<{backendStatus: number, backendError?:string, data?:BackofficeStatus}, "backendStatus">("backendStatus",(state, action)=> {
-    state  = Object.assign({}, state);
-    state.backendStatus = action.backendStatus;
-    if (Object.prototype.hasOwnProperty.call(action, "backendError")) {
-        state.backendError = action.backendError || null;
+export function getStore() {
+    if (store === undefined) {
+        throw new Error("Store not initialized");
     }
-    switch (state.backendStatus) {
-        case BackendStatus.Connected:
-            state.backend = action.data!;
-            break;
-        case BackendStatus.Paused:
-        case BackendStatus.Reconnecting:
-            break;
-        default:
-            state.backend = {};
+    return store;
+}
+
+export function getNotifier() {
+    if (notifier === undefined) {
+        throw new Error("Notifier not initialized");
     }
-    return state;
-});
+    return notifier;
+}
 
-
-export const actions = ()=>({
-    SwitchToApp,
-    backendStatus,
-});
-
-
-var {reducer, storeManager } = function() {
-    var adjusters:Array<(state:Content)=>Content> = [];
-
-    var actionsByApp = {};
-
-    var reducer = function (state:Content = initialState, action:any) {
-        var prevJson = JSON.stringify(state);
-        var prevState = state;
-
-        var type = action.type;
-        if (type == "update") {
-            state = update(state, action.op);
-        } else if (type == "notification") {
-            // Mettre le status du backend
-            state = Object.assign({}, state);
-            if (state.backendStatus != BackendStatus.Connected || state.backendError != null) {
-                state.backendStatus = BackendStatus.Connected;
-                state.backendError = null;
-                state.backend = {};
-            }
-            if ('data' in action) {
-                state.backend = action.data;
-            } else if ('diff' in action) {
-                state.backend = JsonProxy.applyDiff(state.backend, action.diff);
-            } else if ('batch' in action) {
-                for(const diff of action.batch) {
-                    state.backend = JsonProxy.applyDiff(state.backend, diff);
-                }
-            }
-        } else if (type == "appAction") {
-            var nvArgs = action.args.slice();
-            nvArgs.unshift(state);
-            try {
-                state = actionsByApp[action.app][action.method].apply(null, nvArgs);
-            } catch(e) {
-                console.error('Error in ' + action.app + '.' + action.method, e);
-            }
-        } else {
-            const newState = ActionsRegistry.performDispatch(state, type, action);
-            if (newState === null || newState === undefined) {
-                console.log('invalid action: ' + type);
-            } else {
-                state = newState;
-            }
-        }
-        state = adjusters.reduce((state, func) => (func(state)), state);
-
-        return state;
+export function getStoreManager() {
+    if( storeManager === undefined) {
+        throw new Error("Notifier not initialized");
     }
-
-    return {reducer, storeManager: {
-        addAdjuster: (func:(s:Content)=>Content) => {adjusters.push(func);},
-
-        addActions: (id:string, obj:any) => {
-            if (!Object.prototype.hasOwnProperty.call(actionsByApp, id)) {
-                actionsByApp[id] = {};
-            }
-            Object.assign(actionsByApp[id], obj);
-        },
-        dispatch: (e:any):void=>{},
-        dispatchUpdate: (e:any):void=>{},
-        // FIXME: ça retourne une Promises.
-        sendRequest: (e:any):null=>null,
-
-    }};
-}();
-
-const enhancer = compose(
-    (persistState as any)(undefined, {
-            slicer: (paths:any)=> (state:any) => {
-                var rslt = Object.assign({}, state);
-                delete rslt.backend;
-                delete rslt.backendStatus;
-                delete rslt.backendError;
-                // console.log("WTF slicing result is " + JSON.stringify(rslt));
-                return rslt;
-            }
-        })
-);
-
-const store = createStore(reducer, initialState, enhancer);
-
-storeManager.dispatch = function(e) {
-    store.dispatch(e);
+    return storeManager;
 }
 
-storeManager.dispatchUpdate = function(e) {
-    store.dispatch({
-        type: 'update',
-        op: e});
-}
-
-const notifier = new Notifier();
-
-notifier.attachToStore(store);
-
-storeManager.sendRequest = notifier.sendRequest.bind(notifier);
-
-// Connect notifier to websocket
-function stripLastPart(url:string)
-{
-    var str = "" + url;
-    var lastSlash = str.lastIndexOf('/');
-    if (lastSlash == -1) return str;
-    return str.substring(0, lastSlash + 1);
-}
-
-const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
-    (window.location.protocol + '//' + window.location.hostname  + ':' + window.location.port + '/');
-//:*/ (stripLastPart(window.location) + 'api/');
-console.log('api root is at: ' + apiRoot);
-
-notifier.connect(apiRoot);
-
-export { store, notifier, BackendStatus, storeManager, fork }
+export { fork }

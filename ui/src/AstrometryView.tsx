@@ -7,7 +7,7 @@ import DeviceConnectBton from './DeviceConnectBton';
 import PropertyEditor from './PropertyEditor';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import BackendAccessor from './utils/BackendAccessor';
-import { notifier } from './Store';
+import * as Store from './Store';
 
 type Props = {
     app: AstrometryApp;
@@ -21,7 +21,7 @@ const ScopeSelector = connect((store:any)=> ({
 class AstrometryBackendAccessor extends BackendAccessor {
     apply(jsonDiff:any) {
         console.log('Sending changes: ' , jsonDiff);
-        return notifier.sendRequest({'target': 'astrometry',
+        return Store.getNotifier().sendRequest({'target': 'astrometry',
             method: 'updateCurrentSettings',
             diff: jsonDiff
         }).start(undefined) as any;

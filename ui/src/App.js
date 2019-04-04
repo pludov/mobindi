@@ -14,12 +14,14 @@ import AstrometryApp from './AstrometryApp';
 import MessageApp from './MessageApp';
 import ToolExecuterApp from './ToolExecuterApp';
 
-import { BackendStatus } from './Store';
+import { BackendStatus } from './BackendStore';
 
 import { update } from './shared/Obj'
+import * as StoreInitialiser from './StoreInitialiser';
 
 /** Affiche un état pendant la connection */
 
+StoreInitialiser.start();
 
 class App extends Component {
 
@@ -143,14 +145,5 @@ const mapStateToProps = function(store) {
     return result;
 }
 
-// FIXME: ça sert à quoi ?
-const mapDispatchToProps = (dispatch) => {
-    return {
-        UpdateSearch: (value) => {
-            dispatch({type: 'UpdateSearch', value: value});
-        }
-    };
-}
 
-
-export default connect(mapStateToProps, mapDispatchToProps)(App);
+export default connect(mapStateToProps)(App);

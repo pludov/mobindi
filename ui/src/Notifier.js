@@ -1,5 +1,7 @@
 // Detecter l'état de visibilité de la page
-import { BackendStatus } from './Store';
+import { BackendStatus } from './BackendStore';
+import * as Actions from './Actions';
+import * as BackendStore from './BackendStore';
 const Promises = require('./shared/Promises');
 
 

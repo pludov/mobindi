@@ -7,7 +7,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import './FitsViewerWithAstrometry.css'
 import FitsViewerInContext from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
-import { storeManager, store } from './Store';
+import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 
 
@@ -59,7 +59,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     private readonly move = (pos:any) => {
-        const state = store.getState();
+        const state = Store.getStore().getState();
         const astrometryResult = state.backend.astrometry!.result;
         console.log('move at ', pos);
         if (pos.imageX === undefined || pos.imageY === undefined) {

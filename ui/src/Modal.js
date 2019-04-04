@@ -1,6 +1,6 @@
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
-import { store, storeManager, notifier, BackendStatus } from './Store';
+import * as Store from './Store';
 import PropTypes from 'prop-types';
 
 
@@ -28,26 +28,26 @@ class Modal extends PureComponent {
     }
 
     open() {
-        if ((!getModalState(store.getState(), this.props.flagPath, this.props.flagValue)) && Modal.isDisplayable(store.getState(), this.props)) {
+        if ((!getModalState(Store.getStore().getState(), this.props.flagPath, this.props.flagValue)) && Modal.isDisplayable(Store.getStore().getState(), this.props)) {
             console.log('will dispatch');
-            store.dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, this.props.flagValue || ""]});
+            Store.getStore().dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, this.props.flagValue || ""]});
         }
     }
 
     close() {
-        store.dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, null]});
+        Store.getStore().dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, null]});
     }
 
     onStoreChange() {
-        const state = store.getState();
+        const state = Store.getStore().getState();
         if (getModalState(state, this.props.flagPath, this.props.flagValue) && !Modal.isDisplayable(state, this.props)) {
             // update the flag in the store
-            store.dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, null]});
+            Store.getStore().dispatch({type: 'appAction', 'app': 'modal', method:'switch', args: [this.props.flagPath, null]});
         }
     }
 
     componentWillMount() {
-        this.unsubscribe = store.subscribe(this.onStoreChange);
+        this.unsubscribe = Store.getStore().subscribe(this.onStoreChange);
         this.onStoreChange();
     }
 
@@ -146,8 +146,9 @@ function closeModal(store, path)
         modalStatus: modalStatusWithoutValue
     };
 }
-
-storeManager.addActions("modal", {
+// FIXME: ugly
+setTimeout(()=>
+Store.getStoreManager().addActions("modal", {
     "switch": function(store, path, value) {
         if (getRawModalState(store, path) === value) {
             console.log('Switch: not needed');
@@ -163,6 +164,7 @@ storeManager.addActions("modal", {
             return closeModal(store, path);
         };
     }
-});
+}), 
+0);
 
 export default Modal;

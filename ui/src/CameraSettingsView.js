@@ -1,5 +1,4 @@
 import React, { Component, PureComponent} from 'react';
-import { notifier, BackendStatus } from './Store';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import StatePropCond from './StatePropCond';

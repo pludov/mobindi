@@ -1,4 +1,4 @@
-import { notifier } from './Store';
+import * as Store from './Store';
 import { update } from './shared/Obj'
 
 /**
@@ -68,7 +68,7 @@ class BaseApp {
     // Except an object with at least method property
     // will call a $api_ method on server side
     appServerRequest(appId, content) {
-        return (notifier.sendRequest(Object.assign({'target': appId}, content))
+        return (Store.getNotifier().sendRequest(Object.assign({'target': appId}, content))
                     .onCancel(()=>{console.log('request canceled')})
                     .onError((e)=>{console.log('Request error:', e)}));
     }

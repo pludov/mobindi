@@ -2,7 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import { Line } from 'react-chartjs-2';
 
 import PropTypes from 'prop-types';
-import { notifier, BackendStatus } from './Store';
+import * as Store from './Store';
 import { connect } from 'react-redux';
 import JsonPath from './shared/JsonPath';
 import PromiseSelector from './PromiseSelector';
@@ -18,7 +18,7 @@ import './FocuserView.css';
 class FocuserBackendAccessor extends BackendAccessor {
     apply(jsonDiff) {
         console.log('Sending changes: ' , jsonDiff);
-        return notifier.sendRequest({'target': 'focuser', 
+        return Store.getNotifier().sendRequest({'target': 'focuser', 
             method: 'updateCurrentSettings',
             diff: jsonDiff
         }).start();

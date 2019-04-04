@@ -216,13 +216,4 @@ const mapStateToProps = function(store) {
     return result;
 }
 
-// FIXME: ça sert à quoi ?
-const mapDispatchToProps = (dispatch) => {
-    return {
-        UpdateSearch: (value) => {
-            dispatch({type: 'UpdateSearch', value: value});
-        }
-    };
-}
-
-export default connect(mapStateToProps, mapDispatchToProps)(PhdView);
+export default connect(mapStateToProps)(PhdView);
