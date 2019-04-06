@@ -8,12 +8,12 @@ import shallowequal from 'shallowequal';
 import Collapsible from 'react-collapsible';
 import "./Collapsible.css";
 import Led from "./Led";
-import Modal from './Modal.js';
-import TextEdit from "./TextEdit.js";
+import Modal from './Modal';
+import TextEdit from "./TextEdit";
 import "./IndiManagerView.css";
-import Icons from "./Icons.js"
-import IconButton from "./IconButton.js";
-import IndiDriverConfig from './IndiDriverConfig.js';
+import Icons from "./Icons"
+import IconButton from "./IconButton";
+import IndiDriverConfig from './IndiDriverConfig';
 
 // Return a function that will call the given function with the given args
 function closure() {

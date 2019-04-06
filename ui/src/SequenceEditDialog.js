@@ -9,7 +9,7 @@ import { atPath } from './shared/JsonPath';
 import './SequenceView.css';
 import './Modal.css';
 import StatePropCond from './StatePropCond';
-import TextEdit from "./TextEdit.js";
+import TextEdit from "./TextEdit";
 import DeviceConnectBton from './DeviceConnectBton';
 import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';

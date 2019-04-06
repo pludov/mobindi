@@ -9,7 +9,8 @@ type Props = {
 }
 
 export default class StatusLabel extends React.PureComponent<Props> {
-    readonly el: React.RefObject<HTMLSpanElement>
+    readonly el =  React.createRef<HTMLSpanElement>();
+
     render() {
         return <span
                     ref={this.el}
@@ -21,7 +22,7 @@ export default class StatusLabel extends React.PureComponent<Props> {
 
     componentDidMount() {
         // FIXME: ajouter un handler on touch
-        var elt = $(this.el);
+        var elt = $(this.el.current!);
         let moved:boolean = false, justAdded: boolean = false;
 
         elt.on('touchstart', function() {

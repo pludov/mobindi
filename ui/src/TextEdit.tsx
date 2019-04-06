@@ -1,50 +1,60 @@
-import React, { Component, PureComponent} from 'react';
+import * as React from 'react';
 import "./TextEdit.css"
 
-class FullScreenEdit extends PureComponent {
-    // props: value, onDone
+type FullScreenEditProps = {
+    value: string;
+    onDone: (s:string|null)=>(void);
+}
 
-    constructor(props) {
+class FullScreenEdit extends React.PureComponent<FullScreenEditProps> {
+    // props: value, onDone
+    readonly textArea = React.createRef<HTMLTextAreaElement>();
+
+    constructor(props:FullScreenEditProps) {
         super(props);
-        this.done = this.done.bind(this);
-        this.close = this.close.bind(this);
     }
 
-    stopEvent(e) {
+    stopEvent=(e:React.MouseEvent<HTMLDivElement>)=>{
         e.stopPropagation();
     }
 
     componentDidMount() {
-        this.textArea.focus();
+        this.textArea.current!.focus();
     }
 
     render() {
         return <div className="Dialog WithVirtualKeyboard" onClick={this.stopEvent}>
-            <textarea ref={(input) => { this.textArea = input; }} defaultValue={this.props.value}/>
+            <textarea ref={this.textArea} defaultValue={this.props.value}/>
             <br/>
             <input type="button" value="Ok" onClick={this.done}/>
             <input type="button" value="Cancel" onClick={this.close}/>
         </div>
     }
 
-    done() {
-        this.props.onDone(this.textArea.value);
+    done=()=>{
+        this.props.onDone(this.textArea.current!.value);
     }
 
-    close() {
+    close=()=>{
         this.props.onDone(null);
     }
 
 }
 
+type Props = {
+    value: string;
+    onChange: (s:string)=>(void);
+}
+
+type State = {
+    editor: number;
+}
 // Render text with edit possibility
 // props: value
 // props: onChange
-class TextEdit extends PureComponent {
-    constructor(props) {
+export default class TextEdit extends React.PureComponent<Props, State> {
+    constructor(props:Props) {
         super(props);
-        this.openEditor = this.openEditor.bind(this);
-        this.updateValue = this.updateValue.bind(this);
         this.state = {editor: 0};
     }
 
@@ -61,17 +71,14 @@ class TextEdit extends PureComponent {
         return <span className="TextEdit" tabIndex={0} onClick={this.openEditor}>{v}{editor}</span>
     }
 
-    openEditor() {
+    openEditor=()=>{
         this.setState({editor: 1});
     }
 
-    updateValue(e) {
-        var self = this;
+    updateValue=(e:string|null)=>{
         this.setState({editor: 0});
         if (e != null && this.props.onChange) {
             this.props.onChange(e);
         }
     }
 }
-
-export default TextEdit;
