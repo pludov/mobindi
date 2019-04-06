@@ -4,6 +4,9 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 
+import * as Actions from "./Actions";
+import * as Store from "./Store";
+import * as FitsViewerStore from "./FitsViewerStore";
 import FitsViewer from './FitsViewer/FitsViewer';
 
 
@@ -11,11 +14,13 @@ class FitsViewerInContext extends PureComponent {
     fitsViewer = React.createRef();
     constructor(props) {
         super(props);
-        this.saveViewSettings = this.saveViewSettings.bind(this);
     }
 
-    saveViewSettings(e) {
-        this.props.app.setViewerState(this.props.contextKey, e);
+    saveViewSettings=(e)=>{
+        Actions.dispatch/*<FitsViewerStore.Actions>*/("setViewerState")({
+            context: this.props.contextKey,
+            viewSettings: e
+        });
     }
 
     render() {
@@ -24,7 +29,7 @@ class FitsViewerInContext extends PureComponent {
 }
 
 FitsViewerInContext = connect((store, ownProps) => ({
-    viewSettings: ownProps.app.getViewerState(store, ownProps.contextKey)
+    viewSettings: FitsViewerStore.getViewerState(store, ownProps.contextKey)
 }), null, null, { forwardRef: true })(FitsViewerInContext);
 
 FitsViewerInContext.propTypes = {

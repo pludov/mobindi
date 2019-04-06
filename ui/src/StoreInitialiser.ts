@@ -16,7 +16,8 @@ export function start() {
         },
         indiManager: {},
         currentApp: null,
-        appNotifications: {}
+        appNotifications: {},
+        viewSettings: {},
     };
 
     var {reducer, storeManager } = function() {

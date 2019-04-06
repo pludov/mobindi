@@ -1,30 +1,27 @@
 import * as Store from './Store';
 import { update } from './shared/Obj'
+import * as React from 'react';
+
 
 /**
  * Created by ludovic on 25/07/17.
  */
-class BaseApp {
+export default class BaseApp {
+    readonly storeManager: Store.StoreManager;
+    readonly appId: string;
 
-    constructor(storeManager, appId) {
+    constructor(storeManager:Store.StoreManager, appId: string) {
         this.storeManager = storeManager;
         this.appId = appId;
-        this.setViewerState = this.bindStoreFunction(this.setViewerState, "setViewerState");
     }
 
-    declareActions(obj) {
-        this.storeManager.addActions(this.appId, obj);
-    }
-
-    bindStoreFunction(fn, fnname)
+    bindStoreFunction(fn:(store:Store.Content, ...rest: any)=>Store.Content, fnname:string)
     {
-        var self = this;
         this.storeManager.addActions(this.appId, {
             [fnname]: fn
         });
-        return function() {
-            var invocationArgs = Array.from(arguments);
-            return self.dispatchAction(fnname, invocationArgs)
+        return (...invocationArgs:any)=> {
+            return this.dispatchAction(fnname, invocationArgs)
         };
     }
 
@@ -32,7 +29,8 @@ class BaseApp {
         return this.appId;
     }
 
-    dispatchAction(method, args) {
+    // WTF. Go away !
+    dispatchAction(method:string, args:any) {
         if (!args) args = [];
         this.storeManager.dispatch({
             type: "appAction",
@@ -42,32 +40,16 @@ class BaseApp {
         });
     }
 
-    setViewerState($state, context, viewSettings) {
-        console.log('WTF: save context ' , context, ' parameters to ', viewSettings);
-        var result = update($state, {
-            $mergedeep: {
-                viewSettings: {
-                    [context]: viewSettings
-                }
-            }
-        });
-        return result;
-    }
 
-    getViewerState(store, context)
-    {
-        try {
-            return store.viewSettings[context];
-        }catch(error) {
-            return undefined;
-        }
+    getUi():null|React.ReactNode {
+        return null;
     }
 
     // Send a request to any server side app.
     // Returns a promise that will execute the request
     // Except an object with at least method property
     // will call a $api_ method on server side
-    async appServerRequest(appId, content) {
+    async appServerRequest(appId:string, content:any): Promise<any> {
         try {
             const ret = Store.getNotifier().sendRequest(Object.assign({'target': appId}, content));
             return ret;
@@ -81,9 +63,7 @@ class BaseApp {
     // Returns a promise that will execute the request
     // Except an object with at least method property
     // will call a $api_ method on server side
-    serverRequest(content) {
+    serverRequest(content:any) {
         return this.appServerRequest(this.appId, content);
     }
 }
-
-export default BaseApp;

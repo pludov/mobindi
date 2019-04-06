@@ -18,33 +18,55 @@ import { BackendStatus } from './BackendStore';
 
 import { update } from './shared/Obj'
 import * as StoreInitialiser from './StoreInitialiser';
+import * as Store from './Store';
+import BaseApp from './BaseApp';
 
 /** Affiche un état pendant la connection */
 
 StoreInitialiser.start();
 
-class App extends Component {
 
-    constructor(props) {
+type MappedProps = {
+    backendStatus: Store.Content["backendStatus"];
+    backendError: Store.Content["backendError"];
+    currentApp: Store.Content["currentApp"];
+}
+
+type InputProps = {
+    storeManager: Store.StoreManager;
+}
+
+type Props = InputProps&MappedProps;
+
+class App extends React.PureComponent<Props> {
+    readonly storeManager: Store.StoreManager;
+    apps: BaseApp[];
+
+    constructor(props:Props) {
         super(props);
 
         // FIXME: get a store manager ?
         this.storeManager = this.props.storeManager;
 
-        this.storeManager.addAdjuster((state) => {
+        // FIXME: move
+        this.storeManager.addAdjuster((state:Store.Content) => {
             // Assurer que l'app en cours est toujours autorisée
             if (state.backendStatus == BackendStatus.Connected &&
                 state.currentApp != null &&
-                ((!state.backend.apps) || (!(state.currentApp in state.backend.apps) || !state.backend.apps[state.currentApp].enabled))) {
-                state = update(state, {$mergedeep: {currentApp: null}});
+                (
+                        (!state.backend.apps)
+                        || (!(state.currentApp in state.backend.apps)
+                        || !state.backend.apps[state.currentApp].enabled)))
+            {
+                state = update(state, {$mergedeep: {currentApp: null}}  as any);
             }
             return state;
         });
 
-        this.storeManager.addAdjuster((state)=> {
+        this.storeManager.addAdjuster((state:Store.Content)=> {
             // Assurer qu'on ait une app en cours si possible
             if (state.backendStatus == BackendStatus.Connected &&
-                state.currentApp == null && state.backend.apps && state.backend.apps.length != 0) {
+                state.currentApp == null && state.backend.apps && Object.keys(state.backend.apps).length !== 0) {
 
                 // On prend la premiere... (FIXME: historique & co...)
                 var bestApp = null;
@@ -53,12 +75,12 @@ class App extends Component {
                     var app = state.backend.apps[key];
                     if (bestApp == null
                         || (bestApp.position > app.position)
-                        || (bestApp.position == app.position && bestKey < key)) {
+                        || (bestApp.position == app.position && bestKey! < key)) {
                         bestApp = app;
                         bestKey = key;
                     }
                 }
-                state = update(state,{$mergedeep:{currentApp: bestKey}});
+                state = update(state,{$mergedeep:{currentApp: bestKey}} as any);
             }
             return state;
         });
@@ -73,8 +95,6 @@ class App extends Component {
             new ToolExecuterApp(this.storeManager),
             new MessageApp(this.storeManager)
         ];
-
-
     }
 
     render() {
@@ -96,7 +116,7 @@ class App extends Component {
                             <h2>MOBINDI</h2>
                             <h4>Mobile Indi Control Panel</h4>
                             <img src={logo} className="App-logo" alt="logo"/>
-                            <h2>Backend problem {(this.props.backendStatusError ? " : " + this.props.backendStatusError : null)}</h2>
+                            <h2>Backend problem {(this.props.backendError ? " : " + this.props.backendError : null)}</h2>
                     </div>);
             case BackendStatus.Connected:
             case BackendStatus.Paused:
@@ -135,10 +155,10 @@ class App extends Component {
   }*/
 }
 
-const mapStateToProps = function(store) {
+const mapStateToProps = function(store:Store.Content):MappedProps {
     var result = {
         backendStatus: store.backendStatus,
-        backendStatusError: store.backendStatusError,
+        backendError: store.backendError,
         apps: ('backend' in store) ? store.backend.apps : null,
         currentApp: store.currentApp
     };
