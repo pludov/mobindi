@@ -6,6 +6,7 @@
 import * as BackendStore from './BackendStore';
 import * as FitsViewerStore from './FitsViewerStore';
 import { Store } from 'redux';
+import * as ReactRedux from "react-redux";
 import Notifier from './Notifier';
 import * as Promises from './shared/Promises';
 
@@ -86,5 +87,20 @@ export function getStoreManager() {
     }
     return storeManager;
 }
+
+type mapStateToPropsDirectFunc<TOwnProps, State, TStateProps> = (state: State, ownProps: TOwnProps)=>TStateProps;
+
+interface IMapStateToProps<TOwnProps, State, TStateProps> {
+    mapStateToProps : mapStateToPropsDirectFunc<TOwnProps, State, TStateProps> | (()=>(mapStateToPropsDirectFunc<TOwnProps, State, TStateProps>));
+}
+
+export function Connect<Class, TOwnProps, State, TStateProps >(
+            ctor : (new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>))&IMapStateToProps<TOwnProps,State, TStateProps>
+        )
+            : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>)
+{
+    return ReactRedux.connect(ctor.mapStateToProps, null, null, {forwardRef: true} as any)(ctor as any) as any;
+}
+
 
 export { fork }

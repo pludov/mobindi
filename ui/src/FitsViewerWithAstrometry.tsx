@@ -4,8 +4,8 @@ import { createSelector } from 'reselect'
 import { Connect } from './utils/Connect';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
-import './FitsViewerWithAstrometry.css'
-import FitsViewerInContext from './FitsViewerInContext';
+import './FitsViewerWithAstrometry.css';
+import FitsViewerInContext, {UnmappedFitsViewerInContext} from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
 import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
@@ -45,7 +45,7 @@ type State = {
 }
 
 class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
-    private readonly fitsViewer = React.createRef<FitsViewerInContext>();
+    private readonly fitsViewer = React.createRef<UnmappedFitsViewerInContext>();
 
     constructor(props:Props) {
         super(props);

@@ -1,7 +1,5 @@
 
 import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
 import $ from 'jquery';
 import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
@@ -25,7 +23,7 @@ export type Levels = {
     high: number;
 }
 
-type FullState = {
+export type FullState = {
     levels: Levels;
 }
 
