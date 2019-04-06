@@ -19,12 +19,12 @@ const ScopeSelector = connect((store:any)=> ({
 }))(PromiseSelector);
 
 class AstrometryBackendAccessor extends BackendAccessor {
-    apply(jsonDiff:any) {
+    public apply = async (jsonDiff:any):Promise<void>=>{
         console.log('Sending changes: ' , jsonDiff);
-        return Store.getNotifier().sendRequest({'target': 'astrometry',
+        await Store.getNotifier().sendRequest({'target': 'astrometry',
             method: 'updateCurrentSettings',
             diff: jsonDiff
-        }).start(undefined) as any;
+        });
     }
 }
 
@@ -38,7 +38,7 @@ export default class AstrometryView extends PureComponent<Props> {
     render() {
         return <div className="CameraView">
             <div>
-                <ScopeSelector setValue={(e:string)=>this.props.app.setScope({deviceId: e})}/>
+                <ScopeSelector setValue={async (e:string)=>await this.props.app.setScope({deviceId: e})}/>
                 <DeviceConnectBton
                         activePath="$.backend.astrometry.selectedScope"
                         app={this.props.app}/>

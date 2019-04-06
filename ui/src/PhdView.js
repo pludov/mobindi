@@ -16,16 +16,13 @@ const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 class PhdView extends Component {
     constructor(props) {
         super(props);
-        this.phdRequest = this.phdRequest.bind(this);
-
     }
 
-    phdRequest(method) {
-        var self = this;
-        return function() {
-            self.props.app.serverRequest({
+    phdRequest=(method)=>{
+        return async ()=>{
+            await this.props.app.serverRequest({
                 method: method
-            }).start();
+            });
         }
     }
 

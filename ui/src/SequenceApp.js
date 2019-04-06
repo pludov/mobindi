@@ -44,87 +44,82 @@ class SequenceApp extends BaseApp {
     }
 
     // Returns a promise that produce an uid
-    newSequenceStep(sequenceUid) {
-        return this.appServerRequest('camera', {method: 'newSequenceStep', sequenceUid: sequenceUid});
+    async newSequenceStep(sequenceUid) {
+        return await this.appServerRequest('camera', {method: 'newSequenceStep', sequenceUid: sequenceUid});
     }
 
-    deleteSequenceStep(sequenceUid, sequenceStepUid) {
-        return this.appServerRequest('camera', {
+    async deleteSequenceStep(sequenceUid, sequenceStepUid) {
+        return await this.appServerRequest('camera', {
             method: 'deleteSequenceStep', 
             sequenceUid: sequenceUid, 
             sequenceStepUid: sequenceStepUid
         });
     }
 
-    moveSequenceSteps(sequenceUid, sequenceStepUidList) {
-        return this.appServerRequest('camera', {
+    async moveSequenceSteps(sequenceUid, sequenceStepUidList) {
+        return await this.appServerRequest('camera', {
             method: 'moveSequenceSteps', 
             sequenceUid: sequenceUid,
             sequenceStepUidList: sequenceStepUidList
         });
     }
 
-    // Returns a promise
-    updateSequenceParam(sequenceUid, params) {
-        var args = Object.assign({
+    async updateSequenceParam(sequenceUid, params) {
+        const args = Object.assign({
             method:'updateSequenceParam',
             sequenceUid: sequenceUid
         }, params);
 
-        return this.appServerRequest('camera', args);
+        return await this.appServerRequest('camera', args);
     }
 
     closeSequenceEditor($store) {
         return fork($store, ['sequence', 'currentSequenceEdit'], ()=>undefined);
     }
 
-    newSequence() {
-        var self = this;
-        return new Promises.Chain(
-            this.appServerRequest('camera', {
+    async newSequence() {
+        const uid = await this.appServerRequest('camera', {
                 method: 'newSequence'
-            }),
-            new Promises.Immediate((uid)=> {
-                console.log('WTF new sequence: '+ uid);
-                self.setCurrentSequenceAndEdit(uid);
-            }));
+            });
+        
+        console.log('WTF new sequence: '+ uid);
+        self.setCurrentSequenceAndEdit(uid);
     }
 
     // Returns a promise
-    startSequence(sequenceUid) {
-        return this.appServerRequest('camera', {
+    async startSequence(sequenceUid) {
+        return await this.appServerRequest('camera', {
             method: 'startSequence',
             key: sequenceUid
         });
     }
 
-    stopSequence(sequenceUid) {
-        return this.appServerRequest('camera', {
+    async stopSequence(sequenceUid) {
+        return await this.appServerRequest('camera', {
             method: 'stopSequence',
             key: sequenceUid
         });
     }
 
-    dropSequence(sequenceUid) {
+    async dropSequence(sequenceUid) {
         console.log('drop sequence');
-        return this.appServerRequest('camera', {
+        return await this.appServerRequest('camera', {
             method: 'dropSequence',
             key: sequenceUid
         });
     }
 
-    resetSequence(sequenceUid) {
+    async resetSequence(sequenceUid) {
         console.log('reset sequence');
-        return this.appServerRequest('camera', {
+        return await this.appServerRequest('camera', {
             method: 'resetSequence',
             key: sequenceUid
         });
     }
 
     getUi() {
-        var self = this;
-        return (<div className="Page" key={self.appId}>
-                    <SequenceView app={self} />
+        return (<div className="Page" key={this.appId}>
+                    <SequenceView app={this} />
                 </div>);
     }
 }

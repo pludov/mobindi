@@ -14,7 +14,6 @@ export type State = {
 };
 
 export default class FWHMDisplayer extends PureComponent<Props, State> {
-    private request? : Promises.Cancelable<void, any>;
     constructor(props:Props) {
         super(props);
         this.state = {
@@ -24,7 +23,7 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
         }
     }
 
-    _loadData() {
+    async _loadData() {
         if (this.props.src === this.state.src) {
             return;
         }
@@ -38,10 +37,12 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
         });
         const self = this;
 
-        this.request = this.props.app.appServerRequest('imageProcessor', {
+        try {
+            const e = await this.props.app.appServerRequest('imageProcessor', {
                 method: 'compute',
                 details: {"starField":{ "source": { "path":this.props.src}}}
-        }).then((e)=>{
+            });
+
             let fwhmSum = 0;
             for(let star of e.stars) {
                 fwhmSum += star.fwhm
@@ -56,20 +57,17 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
                 value: stat,
                 loading: false
             });
-        }).onError((e)=> {
+        } catch(e) {
             this.setState({
                 value: null,
                 loading: false
             });
-        });
-        this.request.start(undefined);
+        };
     }
 
     _cancelLoadData() {
-        if (this.request !== undefined) {
-            this.request.cancel();
-            this.request = undefined;
-        }
+        // Not implemented
+        console.log('FIXME: canceling FWHMDisplayer is not implemented');
     }
 
     componentWillUnmount() {

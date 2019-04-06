@@ -15,7 +15,7 @@ export default class AstrometryApp extends BaseApp {
                 </div>);
     }
 
-    setScope(message:AstrometrySetScopeRequest) {
-        return this.serverRequest({method: 'setScope', ...message});
+    async setScope(message:AstrometrySetScopeRequest) {
+        return await this.serverRequest({method: 'setScope', ...message});
     }
 }

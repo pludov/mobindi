@@ -3,9 +3,9 @@
  * Start a promise and binds it to the state of component (a number of running promises)
  * 
  */
-function promiseToState(promise, component, prop='runningPromise')
+async function promiseToState<T>(promise:()=>Promise<T>, component: React.Component, prop='runningPromise'):Promise<T>
 {
-    function inc(value) {
+    function inc(value:number) {
         component.setState((prevState, props) => {
             var current = prevState[prop];
             if (!current) current = 0;
@@ -15,16 +15,17 @@ function promiseToState(promise, component, prop='runningPromise')
         });
     }
 
-    promise.onError(()=>inc(-1));
-    promise.onCancel(()=>inc(-1));
-    promise.then(()=>inc(-1));
-
-    inc(1);
-    promise.start();
+    try {
+        inc(1);
+        const t:T = await promise();
+        return t;
+    } finally {
+        inc(-1);
+    }
 }
 
 // Evaluate f function, but if fail, return def
-function noErr(f, def)
+function noErr<T,R>(f:()=>T, def:R):T|R
 {
     try  {
         return f();

@@ -61,10 +61,8 @@ class BackendAccessor {
     // Returns a promise that perform a change.
     // A change is a set of jsonPath=>operation
     // Changes has: path, value, delete
-    apply(changes:any) {
-        return new Promises.Immediate(()=>{
-            throw new Error("not implemented");
-        });
+    public apply = async(changes:any):Promise<void>=>{
+        throw new Error("not implemented");
     }
 
     child(path:string) {

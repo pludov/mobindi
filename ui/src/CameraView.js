@@ -43,27 +43,24 @@ class ShootBton extends PureComponent {
         </div>;
     }
 
-    shoot() {
+    async shoot() {
         // FIXME: the button should be disabled until ack from server
         // ack from server should arrive only when state has been updated, ...
         // This looks like a progress channel is required
-        var self = this;
-        this.props.app.serverRequest({
+        const rslt = await this.props.app.serverRequest({
             method: 'shoot'
-        }).then((rslt)=>
-        {
-            console.log('got rslt:' + JSON.stringify(rslt));
-            self.props.onSuccess(rslt);
-        }).start();
+        })
+
+        console.log('got rslt:' + JSON.stringify(rslt));
+        this.props.onSuccess(rslt);
     }
 
-    abort() {
-        this.props.app.serverRequest({
+    async abort() {
+        await this.props.app.serverRequest({
             method: 'abort'
-        }).then((rslt)=>
-        {
-            console.log('got rslt:' + JSON.stringify(rslt));
-        }).start();
+        })
+
+        console.log('got rslt:' + JSON.stringify(rslt));
     }
 
     static mapStateToProps(store, ownProps) {
@@ -119,16 +116,16 @@ class CameraView extends PureComponent {
         ];
     }
 
-    startAstrometry = () => {
+    startAstrometry = async () => {
         const computeRequest={
             image: this.props.url
         };
         
         console.log('Start astrometry ?' + this.props.url);
-        this.props.app.appServerRequest('astrometry', {
+        await this.props.app.appServerRequest('astrometry', {
             method: 'compute',
             ...computeRequest
-        }).start();
+        });
         console.log('done astrometry ?');
     };
 
@@ -138,7 +135,7 @@ class CameraView extends PureComponent {
 
         return(<div className="CameraView">
             <div>
-                <CameraSelector setValue={(e)=>this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
+                <CameraSelector setValue={async (e)=>await this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
                 <DeviceConnectBton
                         activePath="$.backend.camera.selectedDevice"
                         app={this.props.app}/>
@@ -146,7 +143,7 @@ class CameraView extends PureComponent {
             <CameraSettingsView
                 settingsPath="$.backend.camera.currentSettings"
                 activePath="$.backend.camera.selectedDevice"
-                setValue={(propName)=>((v)=>this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
+                setValue={(propName)=>(async (v)=>await this.props.app.serverRequest({method: 'setShootParam', data: {key: propName, value: v}}))}
                 />
             <FitsViewerWithAstrometry 
                 contextKey="default"
@@ -162,14 +159,11 @@ class CameraView extends PureComponent {
     setPhoto(rslt) {
     }
 
-    connect() {
-        var self = this;
-        this.props.app.serverRequest({
+    async connect() {
+        const rslt = await this.props.app.serverRequest({
             method: 'connect'
-        }).then((rslt)=>
-        {
-            console.log('got rslt:' + JSON.stringify(rslt));
-        }).start();
+        })
+        console.log('got rslt:' + JSON.stringify(rslt));
     }
 
     static mapStateToProps(store, ownProps) {

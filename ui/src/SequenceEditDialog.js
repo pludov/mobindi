@@ -102,7 +102,7 @@ class SequenceStepEdit extends PureComponent {
                 <CameraFrameTypeEditor
                         device={this.props.camera}
                         valuePath={settingsPath + '.type'}
-                        setValue={(e)=>this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'type', value: e})}
+                        setValue={async (e)=>await this.props.app.updateSequenceParam(this.props.sequenceUid, {sequenceStepUid: this.props.sequenceStepUid, param: 'type', value: e})}
                         />
             </div>
             <div className="IndiProperty">
@@ -239,17 +239,17 @@ class SequenceEditDialog extends PureComponent {
 
         var exposureParam = {
             valuePath: settingsPath + '.exposure',
-            set: (e)=>self.props.app.updateSequenceParam(self.props.uid, {param: 'exposure', value: e})
+            set: async (e)=>await self.props.app.updateSequenceParam(self.props.uid, {param: 'exposure', value: e})
         };
 
         var binningParam = {
             valuePath: settingsPath + '.binning',
-            set: (e)=>self.props.app.updateSequenceParam(self.props.uid, {param: 'binning', value: e})
+            set: async (e)=>await self.props.app.updateSequenceParam(self.props.uid, {param: 'binning', value: e})
         };
 
         var isoParam = {
             valuePath: settingsPath + '.iso',
-            set: (e)=>self.props.app.updateSequenceParam(self.props.uid, {param: 'iso', value: e})
+            set: async (e)=>await self.props.app.updateSequenceParam(self.props.uid, {param: 'iso', value: e})
         };
 
         function isParamOverride(store, param) {
@@ -270,7 +270,7 @@ class SequenceEditDialog extends PureComponent {
                         Camera:
                         <CameraSelector
                             getValue={(store)=>Utils.noErr(()=>store.backend.camera.sequences.byuuid[this.props.uid].camera)}
-                            setValue={(e)=>this.props.app.updateSequenceParam(this.props.uid, {param: 'camera', value: e})}
+                            setValue={async (e)=>await this.props.app.updateSequenceParam(this.props.uid, {param: 'camera', value: e})}
                         />
                         <DeviceConnectBton
                             activePath={"$.backend.camera.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}

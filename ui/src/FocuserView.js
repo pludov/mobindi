@@ -1,13 +1,8 @@
 import React, { Component, PureComponent} from 'react';
 import { Line } from 'react-chartjs-2';
 
-import PropTypes from 'prop-types';
 import * as Store from './Store';
 import { connect } from 'react-redux';
-import JsonPath from './shared/JsonPath';
-import PromiseSelector from './PromiseSelector';
-import CameraSettingsView from './CameraSettingsView';
-import DeviceConnectBton from './DeviceConnectBton';
 import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
@@ -16,9 +11,11 @@ import ScrollableText from './ScrollableText';
 import './FocuserView.css';
 
 class FocuserBackendAccessor extends BackendAccessor {
-    apply(jsonDiff) {
+    // public apply = async (jsonDiff:any):Promise<void>=>{
+    apply = async (jsonDiff)=>{
         console.log('Sending changes: ' , jsonDiff);
-        return Store.getNotifier().sendRequest({'target': 'focuser', 
+        return Store.getNotifier().sendRequest({
+            'target': 'focuser',
             method: 'updateCurrentSettings',
             diff: jsonDiff
         }).start();
@@ -135,16 +132,16 @@ class FocuserView extends PureComponent {
         this.stop = this.stop.bind(this);
     }
 
-    start() {
-        this.props.app.serverRequest({
+    async start() {
+        await this.props.app.serverRequest({
             method: 'focus'
-        }).start();
+        });
     }
 
-    stop() {
-        this.props.app.serverRequest({
+    async stop() {
+        await this.props.app.serverRequest({
             method: 'abort'
-        }).start();
+        });
     }
 
     render() {

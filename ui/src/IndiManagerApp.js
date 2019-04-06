@@ -56,15 +56,15 @@ class IndiManagerApp extends BaseApp {
     }
 
     // Returns a promise that needs start
-    restartDriver(driver) {
-        return this.serverRequest({
+    async restartDriver(driver) {
+        return await this.serverRequest({
             method: 'restartDriver',
             driver: driver
         });
     }
 
-    updateDriverParam(driver, key, value) {
-        return this.serverRequest({
+    async updateDriverParam(driver, key, value) {
+        return await this.serverRequest({
             method: 'updateDriverParam',
             driver,
             key,
@@ -73,8 +73,8 @@ class IndiManagerApp extends BaseApp {
     }
     
     // Returns a promise that needs start
-    rqtSwitchProperty(desc) {
-        return this.serverRequest({
+    async rqtSwitchProperty(desc) {
+        return await this.serverRequest({
             method: 'setProperty',
             data: desc
         });

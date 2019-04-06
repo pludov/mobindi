@@ -57,13 +57,13 @@ class DeviceConnectBton extends PureComponent {
         t.start();
     }
 
-    switchConnection() {
+    async switchConnection() {
         switch (this.props.state) {
             case 'On':
-                this.props.app.appServerRequest('indiManager', {method: 'disconnectDevice', device: this.props.currentDevice}).start();
+                await this.props.app.appServerRequest('indiManager', {method: 'disconnectDevice', device: this.props.currentDevice});
                 break;
             case 'Off':
-                this.props.app.appServerRequest('indiManager', {method: 'connectDevice', device: this.props.currentDevice}).start();
+                await this.props.app.appServerRequest('indiManager', {method: 'connectDevice', device: this.props.currentDevice});
                 break;
         }
     }

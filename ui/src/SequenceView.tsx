@@ -71,11 +71,11 @@ const SequenceSelector = connect(()=>{
     const controlSelector = createSelector(
             [ (state:any, ownProps:any) => ownProps.app ],
             app => ({
-                setValue:(id:string)=>(new Promises.Immediate(()=>app.setCurrentSequence(id))),
+                setValue:async (id:string)=>app.setCurrentSequence(id),
                 controls: [{
                     id:'new',
                     title:'New',
-                    run: ()=>app.newSequence()
+                    run: async ()=>app.newSequence()
                 }]
             }));
 

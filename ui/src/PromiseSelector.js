@@ -88,26 +88,27 @@ class PromiseSelector extends PureComponent {
         });
     }
 
-    selectEntry(d, generator) {
-        var self = this;
+    // FIXME: ici on veut des task
+    // Est-ce qu'on peut garder un promise + un CT ?
+    async selectEntry(d, generator) {
         if (generator === undefined) return;
 
         if (this.state.runningPromise) {
-            this.state.runningPromise.cancel();
+            // FIXME: this.state.runningPromise.cancel();
             this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));
         }
-        var treatment = generator(d);
 
-        function treatmentDone() {
-            self.asyncUpdatePromise(treatment, undefined, undefined);
+
+        let newpromise;
+        try {
+            newpromise = generator(d);
+            this.asyncUpdatePromise(undefined, newpromise, d);
+            
+            await newpromise;
+
+        } finally {
+            this.asyncUpdatePromise(newpromise, undefined, undefined);
         }
-
-        treatment.then(treatmentDone);
-        treatment.onError(treatmentDone);
-        treatment.onCancel(treatmentDone);
-        this.asyncUpdatePromise(undefined, treatment, d);
-
-        treatment.start();
     }
 }
 

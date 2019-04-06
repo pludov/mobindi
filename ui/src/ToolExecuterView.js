@@ -35,7 +35,6 @@ class ToolDisplay extends PureComponent {
     constructor(props) {
         super(props);
         this.startConfirm = this.startConfirm.bind(this);
-        this.start = this.start.bind(this);
         this.abort = this.abort.bind(this);
         this.state = {
             started: 0,
@@ -78,13 +77,14 @@ class ToolDisplay extends PureComponent {
         this.setState({started: 0});
     }
 
-    start() {
-        this.props.app.startTool(this.props.uid)
-            .then(()=>{this.setState({running: 0})})
-            .onError((e)=>{this.setState({running: 0, error: "" + e})})
-            .onCancel(()=>{this.setState({running: 0, error: null})})
-            .start();
+    start = async()=>{
         this.setState({running: 1, started: 0, error: null});
+        try {
+            await this.props.app.startTool(this.props.uid);
+            this.setState({running: 0});
+        } catch(e) {
+            this.setState({running: 0, error: "" + e});
+        }
     }
 
     static mapStateToProps(store, ownProps) {

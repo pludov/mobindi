@@ -52,13 +52,13 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         this.state = {fs: false};
     }
 
-    private readonly cancel = () => {
-        this.props.app.appServerRequest('astrometry', {
+    private readonly cancel = async () => {
+        return await this.props.app.appServerRequest('astrometry', {
             method: 'cancel'
-        }).start();
+        });
     }
 
-    private readonly move = (pos:any) => {
+    private readonly move = async (pos:any) => {
         const state = Store.getStore().getState();
         const astrometryResult = state.backend.astrometry!.result;
         console.log('move at ', pos);
@@ -82,33 +82,33 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
             dec: decnow,
         };
 
-        return this.props.app.appServerRequest('astrometry', {
+        return await this.props.app.appServerRequest('astrometry', {
             method: 'goto',
             ...gotoRequest
-        }).start();
+        });
     }
 
-    private readonly sync = () => {
+    private readonly sync = async () => {
         const syncRequest:BackOfficeStatus.AstrometrySyncScopeRequest = {
         };
 
-        return this.props.app.appServerRequest('astrometry', {
+        return await this.props.app.appServerRequest('astrometry', {
             method: 'sync',
             ...syncRequest
-        }).start();
+        });
     }
 
-    private readonly start=(forceWide?:boolean)=>
+    private readonly start=async (forceWide?:boolean)=>
     {
         const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
             image: this.props.src,
             forceWide:!!forceWide
         };
 
-        return this.props.app.appServerRequest('astrometry', {
+        return await this.props.app.appServerRequest('astrometry', {
             method: 'compute',
             ...computeRequest
-        }).start();
+        });
     }
 
     private readonly startWide = () => {

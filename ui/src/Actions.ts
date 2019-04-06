@@ -1,3 +1,4 @@
+import * as Redux from 'redux';
 import * as Store from './Store';
 
 
@@ -5,12 +6,15 @@ export type Handler<Payload>=(store:Store.Content, payload:Payload)=>(Store.Cont
 export type DictionaryDispatcher<Dictionary, id extends keyof Dictionary>
         = (payload: Dictionary[id] extends Handler<infer Payload> ? Payload : never)=>(void);
 
-function privateDispatch(id:string, payload:any) {
-    return Store.getStore().dispatch({type: id, ...payload})
+function privateDispatch(id:string, store:Redux.Store<Store.Content>, payload:any) {
+    return store.dispatch({type: id, ...payload})
 
 }
-export function dispatch<Dictionary>(id:keyof Dictionary):DictionaryDispatcher<Dictionary, typeof id> {
-    return (payload)=>privateDispatch(id as string, payload);
+export function dispatch<Dictionary>(id:keyof Dictionary, store?:Redux.Store<Store.Content>):DictionaryDispatcher<Dictionary, typeof id> {
+    if (store === undefined) {
+        store = Store.getStore();
+    }
+    return (payload)=>privateDispatch(id as string, store!, payload);
 }
 
 

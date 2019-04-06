@@ -67,10 +67,14 @@ class BaseApp {
     // Returns a promise that will execute the request
     // Except an object with at least method property
     // will call a $api_ method on server side
-    appServerRequest(appId, content) {
-        return (Store.getNotifier().sendRequest(Object.assign({'target': appId}, content))
-                    .onCancel(()=>{console.log('request canceled')})
-                    .onError((e)=>{console.log('Request error:', e)}));
+    async appServerRequest(appId, content) {
+        try {
+            const ret = Store.getNotifier().sendRequest(Object.assign({'target': appId}, content));
+            return ret;
+        } catch(e) {
+            console.log('Request to ' + appId + ' error:', e);
+            throw e;
+        }
     }
 
     // Send a request to the server side app counterpart

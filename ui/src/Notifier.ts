@@ -1,20 +1,29 @@
 // Detecter l'état de visibilité de la page
+import * as Redux from 'redux';
 import { BackendStatus } from './BackendStore';
 import * as Actions from './Actions';
 import * as BackendStore from './BackendStore';
-const Promises = require('./shared/Promises');
-
+import CancellationToken from "cancellationtoken";
+import * as Store from './Store';
 
 class Request {
+    readonly notifier: Notifier;
+    readonly requestData: any;
+    readonly requestId: number;
+    uid: string | undefined;
+    canceled: boolean;
+    readonly resolve: (e: any) => void;
+    readonly reject: (err: any) => void;
 
-    constructor(notifier, requestData, requestId, next) {
+    constructor(notifier: Notifier, requestData: any, requestId: number, resolve: (e:any)=>(void), reject:(err:any)=>(void)) {
         this.notifier = notifier;
 
         this.requestData = requestData;
         this.requestId = requestId;
 
         // Callback for done, onError, onCancel...
-        this.next = next;
+        this.resolve = resolve;
+        this.reject = reject;
 
         // Set when first send
         this.uid = undefined;
@@ -23,16 +32,38 @@ class Request {
         this.canceled = false;
     }
 
-    setClientId(clientId) {
+    setClientId(clientId:string) {
         this.uid = clientId + ':' + this.requestId;
     }
 
     wasSent() {
-        return this.uid != undefined;
+        return this.uid !== undefined;
     }
 }
 
-class Notifier {
+export default class Notifier {
+    connectionId: number;
+    sendingQueueMaxSize: number;
+    suspended: boolean;
+    uniqRequestId: number;
+    clientId: string|undefined;
+    serverId: string|undefined;
+    socket: WebSocket|undefined;
+    url: string|undefined;
+    toSendRequests: Request[];
+    toCancelRequests: Request[];
+    activeRequests: {[id:string]:Request};
+    resendTimer: number|undefined;
+    store: Redux.Store<Store.Content>;
+    handshakeOk: boolean|undefined;
+
+    readonly hidden: string;
+    readonly visibilityChange: string;
+    pendingMessageCount: number;
+    pendingUpdateAsk: {};
+    hidingTimeout: number | undefined;
+    // FIXME: not used
+    xmitTimeout: number | undefined;
 
     constructor() {
         this.socket = undefined;
@@ -64,10 +95,10 @@ class Notifier {
         if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
             this.hidden = "hidden";
             this.visibilityChange = "visibilitychange";
-        } else if (typeof document.msHidden !== "undefined") {
+        } else if (typeof (document as any).msHidden !== "undefined") {
             this.hidden = "msHidden";
             this.visibilityChange = "msvisibilitychange";
-        } else if (typeof document.webkitHidden !== "undefined") {
+        } else if (typeof (document as any).webkitHidden !== "undefined") {
             this.hidden = "webkitHidden";
             this.visibilityChange = "webkitvisibilitychange";
         }
@@ -75,40 +106,54 @@ class Notifier {
         document.addEventListener(this.visibilityChange, this.handleVisibilityChange.bind(this), false);
     }
 
-    attachToStore(store) {
+    attachToStore(store: Redux.Store<Store.Content>) {
         console.log('Websocket: attached to store');
         this.store = store;
         this.dispatchBackendStatus();
     }
 
-    dispatchBackendStatus(error)
+    dispatchBackendStatus(error?: string|null)
     {
         if (this.store == undefined) return;
 
-        if (error != undefined) {
-            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Failed, error: error});
+        if (error !== undefined && error !== null) {
+            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                backendStatus: BackendStatus.Failed,
+                backendError: error
+            });
             return;
         }
         if (this.handshakeOk) {
-            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Connected, error: null});
+            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                backendStatus: BackendStatus.Connected,
+                backendError: undefined
+            });
             return;
         }
         if (this.socket == null) {
             // On est caché: on est en pause
             if (document[this.hidden]) {
-                this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Paused, error: null});
+                Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                    backendStatus: BackendStatus.Paused,
+                    backendError: undefined
+                });
                 return;
             }
             // On devrait etre connecté
-            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Failed});
+            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                    backendStatus: BackendStatus.Failed
+            });
             return;
         } else {
-            this.store.dispatch({type: "backendStatus", backendStatus: BackendStatus.Connecting, error: null});
+            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                backendStatus: BackendStatus.Connecting,
+                backendError: undefined
+            });
         }
 
     }
 
-    resetHandshakeStatus(status, clientId)
+    resetHandshakeStatus(status:boolean, clientId?:string)
     {
         this.handshakeOk = status;
         this.pendingUpdateAsk = {};
@@ -122,30 +167,28 @@ class Notifier {
 
     sendingQueueReady() {
         return this.handshakeOk &&
-            this.socket.bufferedAmount < this.sendingQueueMaxSize;
+            this.socket!.bufferedAmount < this.sendingQueueMaxSize;
     }
 
     sendAsap() {
-        var self = this;
-
         if (this.resendTimer != undefined) {
             window.clearTimeout(this.resendTimer);
             this.resendTimer = undefined;
         }
 
-        var sthSent = false;
+        let sthSent = false;
         while((this.toSendRequests.length || this.toCancelRequests.length) && this.sendingQueueReady()) {
             sthSent = true;
             if (this.toCancelRequests.length) {
-                var toCancel = this.toCancelRequests.splice(0, 1)[0];
+                const toCancel = this.toCancelRequests.splice(0, 1)[0];
                 this.write({
                     'type': 'cancelRequest',
                     'uid': toCancel.uid
                 });
             } else {
-                var toSend = this.toSendRequests.splice(0, 1)[0];
-                toSend.setClientId(this.clientId);
-                this.activeRequests[toSend.uid] = toSend;
+                const toSend = this.toSendRequests.splice(0, 1)[0];
+                toSend.setClientId(this.clientId!);
+                this.activeRequests[toSend.uid!] = toSend;
                 this.write({
                     'type': 'startRequest',
                     id: toSend.requestId,
@@ -156,9 +199,9 @@ class Notifier {
         // Add a timer to restart asap
         // FIXME: would prefer a notification from websocket !
         if (this.toSendRequests.length || this.toCancelRequests.length) {
-            this.resendTimer = window.setTimeout(function() {
+            this.resendTimer = window.setTimeout(()=>{
                 this.resendTimer = undefined;
-                self.sendAsap();
+                this.sendAsap();
             }, 100);
         }
    }
@@ -168,30 +211,29 @@ class Notifier {
     // Except an object with at least target and method property set
     // will call a $api_ method on server side
     // Not cancelable
-    sendRequest(content) {
-        var self = this;
-        return new Promises.Cancelable((next, arg) => {
-            if (!self.handshakeOk) {
+    // GROS FIXME: propager promise here
+    public sendRequest<Q,R>(content:Q):Promise<R> {
+        return new Promise<R>((resolve, reject) => {
+            if (!this.handshakeOk) {
                 throw "Backend not connected";
             }
-            var effectiveContent = Object.assign({}, content);
-            var request = new Request(self, effectiveContent, self.uniqRequestId++, next);
-            self.toSendRequests.push(request);
-            self.sendAsap();
+            const request = new Request(this, {... content}, this.uniqRequestId++, resolve, reject);
+            this.toSendRequests.push(request);
+            this.sendAsap();
         });
     }
 
     // Called on reconnection when backend was restarted.
     // abort all pending requests
-    failStartedRequests(error) {
-        var toDrop = Object.keys(this.activeRequests);
-        for(var i = 0; i < toDrop.length; ++i) {
-            var uid = toDrop[i];
+    failStartedRequests(error:any) {
+        const toDrop = Object.keys(this.activeRequests);
+        for(let i = 0; i < toDrop.length; ++i) {
+            const uid = toDrop[i];
             if (!Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) continue;
-            var request = this.activeRequests[uid];
+            const request = this.activeRequests[uid];
             delete this.activeRequests[uid];
 
-            for(var j = 0 ; j < this.toCancelRequests;) {
+            for(let j = 0 ; this.toCancelRequests.length;) {
                 if (this.toCancelRequests[j] === request) {
                     this.toCancelRequests.splice(j, 1);
                 } else {
@@ -200,17 +242,17 @@ class Notifier {
             }
 
             try {
-                request.next.onError(error);
+                request.reject(error);
             } catch(e) {
                 console.error('onCancel error', e.stack || e);
             }
         }
     }
 
-    write(obj)
+    write(obj:any)
     {
         try {
-            this.socket.send(JSON.stringify(obj));
+            this.socket!.send(JSON.stringify(obj));
         } catch(e) {
             console.log('Websocket: write failed: ' + e);
             this._close();
@@ -236,11 +278,10 @@ class Notifier {
         if (document[this.hidden]) {
             console.log('Websocket: Became hidden');
             this.cancelHidingTimeout();
-            var self = this;
-            this.hidingTimeout = window.setTimeout(function() {
+            this.hidingTimeout = window.setTimeout(()=>{
                 console.log('Websocket: Hiding timeout expired');
-                self.hidingTimout = undefined;
-                self.updateState();
+                this.hidingTimeout = undefined;
+                this.updateState();
             }, 10000);
         } else {
             console.log('Websocket: Became visible');
@@ -249,8 +290,8 @@ class Notifier {
         }
     }
 
-    connect(apiRoot) {
-        var webSocketRoot = apiRoot + "notifications";
+    connect(apiRoot:string) {
+        let webSocketRoot = apiRoot + "notifications";
         webSocketRoot = "ws" + webSocketRoot.substr(4);
         this.url = webSocketRoot;
 
@@ -259,7 +300,7 @@ class Notifier {
 
     updateState()
     {
-        var wantedConn = !document[this.hidden];
+        const wantedConn = !document[this.hidden];
         if (wantedConn) {
             if (!this.socket) {
                 // FIXME: delay ?
@@ -276,11 +317,10 @@ class Notifier {
     }
 
     _open() {
-        var self = this;
         console.log('Websocket: connecting to ' + this.url);
         this.resetHandshakeStatus(false);
         try {
-            this.socket = new WebSocket(this.url);
+            this.socket = new WebSocket(this.url!);
             this.dispatchBackendStatus();
         } catch(e) {
             console.log('Websocket: failed to open: ' + e);
@@ -288,10 +328,10 @@ class Notifier {
             this.dispatchBackendStatus('' + e);
         }
 
-        let notifications = [];
-        let flushTimeout = undefined;
+        let notifications:any[] = [];
+        let flushTimeout: number|undefined = undefined;
 
-        function flushNotifications() {
+        const flushNotifications=()=>{
             if (flushTimeout !== undefined) {
                 clearTimeout(flushTimeout);
                 flushTimeout = undefined;
@@ -300,14 +340,14 @@ class Notifier {
                 const toSend = notifications;
                 notifications = [];
                 console.log('batching notifications: ', toSend.length);
-                self.store.dispatch({type: "notification", batch: toSend});
+                this.store.dispatch({type: "notification", batch: toSend});
             }
         }
 
-        function pushNotification(diff) {
+        const pushNotification=(diff:any)=>{
             notifications.push(diff);
             if (flushTimeout === undefined) {
-                flushTimeout = setTimeout(()=> {
+                flushTimeout = window.setTimeout(()=> {
                     flushTimeout = undefined;
                     flushNotifications();
                 }, 40);
@@ -315,41 +355,43 @@ class Notifier {
         }
 
         if (this.socket) {
-            this.socket.onopen = function(data) {
+            this.socket.onopen = (data)=>{
                 console.log('Websocket: connected');
             };
-            this.socket.onmessage = function(event) {
-                var data = JSON.parse(event.data);
+            this.socket.onmessage = (event)=>{
+                const data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
                     console.log('Websocket: welcomed', data);
-                    self.resetHandshakeStatus(true, data.clientId);
-                    var previousServerId = self.ServerId;
-                    self.serverId = data.serverId;
+                    this.resetHandshakeStatus(true, data.clientId);
+                    this.serverId = data.serverId;
 
-                    self.store.dispatch({type: 'notification', data: data.data});
+                    this.store.dispatch({type: 'notification', data: data.data});
                 }
 
 
                 if (data.type == 'requestEnd') {
                     flushNotifications();
-                    var uid = data.uid;
-                    if (Object.prototype.hasOwnProperty.call(self.activeRequests, uid)) {
-                        var request = self.activeRequests[uid];
-                        delete(self.activeRequests[uid]);
-                        self.toCancelRequests = self.toCancelRequests.filter((item)=>{item.uid != uid});
+                    const uid = data.uid;
+                    if (Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) {
+                        const request = this.activeRequests[uid];
+                        delete(this.activeRequests[uid]);
+                        this.toCancelRequests = this.toCancelRequests.filter((item)=>{item.uid != uid});
                         console.log('Request status is ' + data.status);
-                        switch(data.status) {
-                            case 'done':
-                                request.next.done(data.result);
-                                break;
-                            case 'canceled':
-                                request.next.error(new Error("Canceled on server side"));
-                                break;
-                            default:
-                                request.next.error(data.message);
-                                break;
+                        try {
+                            switch(data.status) {
+                                case 'done':
+                                    request.resolve(data.result);
+                                    break;
+                                case 'canceled':
+                                    request.reject(new Error("Canceled on server side"));
+                                    break;
+                                default:
+                                    request.reject(data.message);
+                                    break;
+                            }
+                        } catch(e) {
+                            console.log('Request end failed', e);
                         }
-
                     } else {
                         console.log('Request not found: ' + uid);
                     }
@@ -359,27 +401,26 @@ class Notifier {
                     pushNotification(data.diff);
                 }
             };
-            this.socket.onclose = function(data) {
+            this.socket.onclose = (data)=>{
                 console.log('Websocket: closed');
                 flushNotifications();
-                self.socket = undefined;
-                self.resetHandshakeStatus(false);
-                self.dispatchBackendStatus();
-                self.failStartedRequests("Backend disconnected");
-                window.setTimeout(function() {
-                    self.updateState();
-                }, 2000);
+                this.socket = undefined;
+                this.resetHandshakeStatus(false);
+                this.dispatchBackendStatus();
+                this.failStartedRequests("Backend disconnected");
+                window.setTimeout(()=>{
+                    this.updateState();
+                }, 1000);
             };
-            this.socket.onerror = function(error) {
+            this.socket.onerror = (error)=>{
                 console.log('Websocket: error: ' + JSON.stringify(error));
                 flushNotifications();
-                self._close();
-                self.dispatchBackendStatus('Connection aborted');
-                window.setTimeout(function() {
-                    self.updateState();
+                this._close();
+                this.dispatchBackendStatus('Connection aborted');
+                window.setTimeout(()=>{
+                    this.updateState();
                 }, 2000);
             };
-
         }
     }
 
@@ -396,5 +437,3 @@ class Notifier {
         this.socket = undefined;
     }
 }
-
-export default Notifier

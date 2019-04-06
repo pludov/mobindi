@@ -113,7 +113,7 @@ class IndiDriverControlPanel extends PureComponent {
                             onClick={() =>{this.modal.open()}}
                             value='...'/>
                 <input type='button'
-                            onClick={() => this.props.app.restartDriver(this.props.current).start()}
+                            onClick={async () => await this.props.app.restartDriver(this.props.current)}
                             className='IndiRestartButton'
                             value={'\u21bb'}/>
             </span>
@@ -178,7 +178,7 @@ class IndiSelectorPropertyView extends PureComponent {
                 vec: self.props.vec,
                 children: [
                     {name: e.target.value, value: 'On'}
-                ]}).start();
+                ]});
         }}>{options}</select>;
     }
 
@@ -483,8 +483,7 @@ class IndiVectorView extends PureComponent {
         this.cancelPendingChanges();
     }
 
-    pushMultiValue() {
-        var self = this;
+    async pushMultiValue() {
         var req = {
             dev: this.props.dev,
             vec: this.props.vec,
@@ -502,32 +501,28 @@ class IndiVectorView extends PureComponent {
 
         this.setState(newState);
         
-        this.props.app.rqtSwitchProperty(req)
-            .then(()=>{self.doneRequest(req)})
-            .start();
+        await this.props.app.rqtSwitchProperty(req)
+        this.doneRequest(req);
     }
 
-    changeCallback(id, immediate, value) {
-        var self = this;
-
-        if ((!immediate) && self.props.childs.length > 1) {
+    async changeCallback(id, immediate, value) {
+        if ((!immediate) && this.props.childs.length > 1) {
             // Do nothing for now
-            self.setState({
+            this.setState({
                 ["forced_" + id]: value,
                 pendingChange: true
             });
         } else {
             // Direct push of the value
-            var request = {
-                dev: self.props.dev,
-                vec: self.props.vec,
+            const request = {
+                dev: this.props.dev,
+                vec: this.props.vec,
                 children: [
                     {name: id, value: value}
                 ]
             };
-            self.props.app.rqtSwitchProperty(request)
-                .then(()=>{self.doneRequest(request)})
-                .start();
+            await this.props.app.rqtSwitchProperty(request);
+            this.doneRequest(request);
         }
     }
 
