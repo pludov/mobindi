@@ -29,7 +29,7 @@ export type Sequence = {
     storedImages?: ImageStatus[];
 }
 
-export type IndiMessageWithUid = IndiMessage | {
+export type IndiMessageWithUid = IndiMessage & {
     uid: string;
 };
 
