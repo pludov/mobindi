@@ -52,6 +52,23 @@ export type IndiServerState = IndiServerConfiguration & {
     restartList: string[];
 };
 
+export type IndiProperty = {
+    $_: string;
+}
+
+export type IndiVector = {
+    $state: "";
+    $timestamp: string;
+    $rev: string;
+    childs: {
+        [propId: string]: IndiProperty
+    };
+}
+
+export type IndiDevice = {
+    [vecId: string]: IndiVector
+}
+
 export type IndiManagerStatus = {
     status: "error"|"connecting"|"connected";
     configuration: {
@@ -59,7 +76,7 @@ export type IndiManagerStatus = {
         driverPath: string;
     };
     driverToGroup: {[driver: string]: string};
-    deviceTree: {[deviceId:string]:any}
+    deviceTree: {[deviceId:string]:IndiDevice}
     messages: {
         byUid: {[uuid:string]:IndiMessageWithUid}
     };
