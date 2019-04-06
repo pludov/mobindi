@@ -1,15 +1,18 @@
-import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
+import React from 'react';
 import $ from 'jquery';
 
 import './StatusLabel.css';
 
+type Props = {
+    className: string;
+    text: string;
+}
 
-class StatusLabel extends PureComponent {
-
+export default class StatusLabel extends React.PureComponent<Props> {
+    readonly el: React.RefObject<HTMLSpanElement>
     render() {
         return <span
-                    ref={el => this.el = el}
+                    ref={this.el}
                     className={this.props.className + " StatusLabel"}
                     title={this.props.text}>
                     {this.props.text}
@@ -19,7 +22,7 @@ class StatusLabel extends PureComponent {
     componentDidMount() {
         // FIXME: ajouter un handler on touch
         var elt = $(this.el);
-        var moved, justAdded;
+        let moved:boolean = false, justAdded: boolean = false;
 
         elt.on('touchstart', function() {
             if (!elt.hasClass('StatusLabelWithDetails')) {
@@ -29,7 +32,6 @@ class StatusLabel extends PureComponent {
                 justAdded = false;
             }
             moved = false;
-            
         });
         elt.on('touchmove', function() {
             moved = true;
@@ -41,14 +43,7 @@ class StatusLabel extends PureComponent {
                 elt.removeClass('StatusLabelWithDetails');
             }
         });
-        
         //elt.on('mousedown', toggleFunc);
     }
 }
 
-StatusLabel.propTypes = {
-    text: PropTypes.string.isRequired,
-    className: PropTypes.string
-}
-
-export default StatusLabel;

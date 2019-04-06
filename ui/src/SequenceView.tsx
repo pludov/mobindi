@@ -138,11 +138,11 @@ class DiscSequenceControler extends PureComponent<SequenceControlerProps, Sequen
             }
         }
 
-        var statusStr = !this.props.current
+        const statusStr:string = !this.props.current
                 ? ("")
                 : (
                     this.props.current.status == 'error'
-                    ? this.props.current.errorMessage
+                    ? '' + this.props.current.errorMessage
                     :  this.props.current.status);
         return(<div>
             <div className='messageContainer'>
