@@ -43,28 +43,28 @@ class Request {
 }
 
 export default class Notifier {
-    connectionId: number;
-    sendingQueueMaxSize: number;
-    suspended: boolean;
-    uniqRequestId: number;
-    clientId: string|undefined;
-    serverId: string|undefined;
-    socket: WebSocket|undefined;
-    url: string|undefined;
-    toSendRequests: Request[];
-    toCancelRequests: Request[];
-    activeRequests: {[id:string]:Request};
-    resendTimer: number|undefined;
-    store: Redux.Store<Store.Content>;
-    handshakeOk: boolean|undefined;
+    private connectionId: number;
+    private sendingQueueMaxSize: number;
+    private suspended: boolean;
+    private uniqRequestId: number;
+    private clientId: string|undefined;
+    private serverId: string|undefined;
+    private socket: WebSocket|undefined;
+    private url: string|undefined;
+    private toSendRequests: Request[];
+    private toCancelRequests: Request[];
+    private activeRequests: {[id:string]:Request};
+    private resendTimer: number|undefined;
+    private store: Redux.Store<Store.Content>;
+    private handshakeOk: boolean|undefined;
 
-    readonly hidden: string;
-    readonly visibilityChange: string;
-    pendingMessageCount: number;
-    pendingUpdateAsk: {};
-    hidingTimeout: number | undefined;
+    private readonly hidden: string;
+    private readonly visibilityChange: string;
+    private pendingMessageCount: number;
+    private pendingUpdateAsk: {};
+    private hidingTimeout: number | undefined;
     // FIXME: not used
-    xmitTimeout: number | undefined;
+    private xmitTimeout: number | undefined;
 
     constructor() {
         this.socket = undefined;
@@ -107,13 +107,13 @@ export default class Notifier {
         document.addEventListener(this.visibilityChange, this.handleVisibilityChange.bind(this), false);
     }
 
-    attachToStore(store: Redux.Store<Store.Content>) {
+    public attachToStore(store: Redux.Store<Store.Content>) {
         console.log('Websocket: attached to store');
         this.store = store;
         this.dispatchBackendStatus();
     }
 
-    dispatchBackendStatus(error?: string|null)
+    private dispatchBackendStatus(error?: string|null)
     {
         if (this.store == undefined) return;
 
@@ -154,7 +154,7 @@ export default class Notifier {
 
     }
 
-    resetHandshakeStatus(status:boolean, clientId?:string)
+    private resetHandshakeStatus(status:boolean, clientId?:string)
     {
         this.handshakeOk = status;
         this.pendingUpdateAsk = {};
@@ -166,12 +166,12 @@ export default class Notifier {
         this.clearXmitTimeout();
     }
 
-    sendingQueueReady() {
+    private sendingQueueReady() {
         return this.handshakeOk &&
             this.socket!.bufferedAmount < this.sendingQueueMaxSize;
     }
 
-    sendAsap() {
+    private sendAsap() {
         if (this.resendTimer != undefined) {
             window.clearTimeout(this.resendTimer);
             this.resendTimer = undefined;
@@ -226,7 +226,7 @@ export default class Notifier {
 
     // Called on reconnection when backend was restarted.
     // abort all pending requests
-    failStartedRequests(error:any) {
+    private failStartedRequests(error:any) {
         const toDrop = Object.keys(this.activeRequests);
         for(let i = 0; i < toDrop.length; ++i) {
             const uid = toDrop[i];
@@ -250,7 +250,7 @@ export default class Notifier {
         }
     }
 
-    write(obj:any)
+    private write(obj:any)
     {
         try {
             this.socket!.send(JSON.stringify(obj));
@@ -261,14 +261,14 @@ export default class Notifier {
         }
     }
 
-    clearXmitTimeout() {
+    private clearXmitTimeout() {
         if (this.xmitTimeout != undefined) {
             window.clearTimeout(this.xmitTimeout);
             this.xmitTimeout = undefined;
         }
     }
 
-    cancelHidingTimeout() {
+    private cancelHidingTimeout() {
         if (this.hidingTimeout != undefined) {
             window.clearTimeout(this.hidingTimeout);
             this.hidingTimeout = undefined;
@@ -291,7 +291,7 @@ export default class Notifier {
         }
     }
 
-    connect(apiRoot:string) {
+    public connect(apiRoot:string) {
         let webSocketRoot = apiRoot + "notifications";
         webSocketRoot = "ws" + webSocketRoot.substr(4);
         this.url = webSocketRoot;
@@ -299,7 +299,7 @@ export default class Notifier {
         this.updateState();
     }
 
-    updateState()
+    private updateState()
     {
         const wantedConn = !document[this.hidden];
         if (wantedConn) {
@@ -317,7 +317,7 @@ export default class Notifier {
         }
     }
 
-    _open() {
+    private _open() {
         console.log('Websocket: connecting to ' + this.url);
         this.resetHandshakeStatus(false);
         try {
@@ -425,7 +425,7 @@ export default class Notifier {
         }
     }
 
-    _close() {
+    private _close() {
         if (this.socket == undefined) return;
 
         console.log('Websocket: disconnecting');
