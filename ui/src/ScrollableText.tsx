@@ -4,7 +4,6 @@ import './ScrollableText.css';
 
 type Props = {
     className?: string;
-    title: string
 };
 
 export default class extends React.PureComponent<Props> {

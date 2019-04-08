@@ -1,32 +1,44 @@
-import React, { Component, PureComponent} from 'react';
+import * as React from 'react';
+import CancellationToken from 'cancellationtoken';
 import { Line } from 'react-chartjs-2';
 
+import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Store from './Store';
-import { connect } from 'react-redux';
 import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 import ScrollableText from './ScrollableText';
+import * as BackendRequest from "./BackendRequest";
 
 import './FocuserView.css';
 
 class FocuserBackendAccessor extends BackendAccessor {
     // public apply = async (jsonDiff:any):Promise<void>=>{
-    apply = async (jsonDiff)=>{
+    apply = async (jsonDiff:any)=>{
         console.log('Sending changes: ' , jsonDiff);
-        return Store.getNotifier().sendRequest({
-            'target': 'focuser',
-            method: 'updateCurrentSettings',
-            diff: jsonDiff
-        }).start();
+        await BackendRequest.RootInvoker("focuser")("updateCurrentSettings")(
+            CancellationToken.CONTINUE,
+            {diff: jsonDiff}
+        );
     }
 }
 
-class FocuserGraph extends PureComponent {
+type FocuserGraphInputProps = {
+}
+type FocuserGraphMappedProps = {
+    firstStep: BackOfficeStatus.AutoFocusStatus["firstStep"];
+    lastStep: BackOfficeStatus.AutoFocusStatus["lastStep"];
+    points: BackOfficeStatus.AutoFocusStatus["points"];
+    predicted: BackOfficeStatus.AutoFocusStatus["predicted"];
+    
+}
+type FocuserGraphProps = FocuserGraphInputProps & FocuserGraphMappedProps;
+
+class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
 
     render() {
         var chartData= {
-            datasets: []
+            datasets: [] as Array<any>
         };
         const propDefs = [
             {prop: 'fwhm', color:'#ff0000', source: this.props.points},
@@ -43,7 +55,7 @@ class FocuserGraph extends PureComponent {
                 pointRadius: 1.0,
                 cubicInterpolationMode: undefined,
                 showLines: false,
-                data: []
+                data: [] as Array<{x:number, y:number}>
             }
             for(var o of Object.keys(propDef)) {
                 if ((o == "prop" || o == "color")) continue;
@@ -76,7 +88,7 @@ class FocuserGraph extends PureComponent {
                     id: 'default',
                     type: 'linear',
                     ticks: {
-                        callback: e=>(typeof(e) == 'number') ? e.toFixed(1) : e
+                        callback: (e:any)=>(typeof(e) == 'number') ? e.toFixed(1) : e
                     //     beginAtZero: false,
                     //     min: -1.0,
                     //     max: 1.0
@@ -112,36 +124,46 @@ class FocuserGraph extends PureComponent {
         return <Line data={chartData} options={chartOptions} />;
     }
 
-    static mapStateToProps(store) {
+    static mapStateToProps(store:Store.Content) {
         var result = {
-            firstStep: store.backend.focuser.current.firstStep,
-            lastStep: store.backend.focuser.current.lastStep,
-            points: store.backend.focuser.current.points,
-            predicted: store.backend.focuser.current.predicted
+            firstStep: store.backend.focuser!.current.firstStep,
+            lastStep: store.backend.focuser!.current.lastStep,
+            points: store.backend.focuser!.current.points,
+            predicted: store.backend.focuser!.current.predicted
         };
         return result;
     }
 }
 
-FocuserGraph = connect(FocuserGraph.mapStateToProps)(FocuserGraph);
+const FocuserGraph = Store.Connect<UnmappedFocuserGraph, FocuserGraphInputProps, {}, FocuserGraphMappedProps>(UnmappedFocuserGraph);
 
-class FocuserView extends PureComponent {
-    constructor(props) {
+
+type InputProps = {}
+type MappedProps = {
+    status: BackOfficeStatus.AutoFocusStatus["status"];
+    error: BackOfficeStatus.AutoFocusStatus["error"];
+}
+type Props = InputProps & MappedProps;
+
+class UnmappedFocuserView extends React.PureComponent<Props> {
+    constructor(props: Props) {
         super(props);
-        this.start = this.start.bind(this);
-        this.stop = this.stop.bind(this);
     }
 
-    async start() {
-        await this.props.app.serverRequest({
-            method: 'focus'
-        });
+    start = async ()=>{
+        return await BackendRequest.RootInvoker("focuser")("focus")(
+            CancellationToken.CONTINUE,
+            {
+            }
+        );
     }
 
-    async stop() {
-        await this.props.app.serverRequest({
-            method: 'abort'
-        });
+    stop = async ()=>{
+        return await BackendRequest.RootInvoker("focuser")("abort")(
+            CancellationToken.CONTINUE,
+            {
+            }
+        );
     }
 
     render() {
@@ -167,13 +189,13 @@ class FocuserView extends PureComponent {
             </div>);
     }
 
-    static mapStateToProps(store) {
+    static mapStateToProps(store: Store.Content) {
         return {
-            status: store.backend.focuser.current.status,
-            error: store.backend.focuser.current.error
+            status: store.backend.focuser!.current.status,
+            error: store.backend.focuser!.current.error
         }
     }
 }
 
 
-export default connect(FocuserView.mapStateToProps)(FocuserView);
+export default Store.Connect<UnmappedFocuserView, InputProps, {}, MappedProps>(UnmappedFocuserView);

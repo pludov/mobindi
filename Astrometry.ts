@@ -11,7 +11,7 @@ import {Task, createTask} from "./Task.js";
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
-export default class Astrometry {
+export default class Astrometry implements RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryAPI>{
     appStateManager: JsonProxy<BackofficeStatus>;
     readonly context: AppContext;
     currentStatus: AstrometryStatus;
@@ -89,7 +89,7 @@ export default class Astrometry {
         }
     }
 
-    getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryApi> {
+    getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryAPI> {
         return {
             updateCurrentSettings: this.updateCurrentSettings,
             compute: this.compute,

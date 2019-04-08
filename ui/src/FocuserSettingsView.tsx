@@ -1,17 +1,14 @@
-import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import { atPath } from './shared/JsonPath';
-import StatePropCond from './StatePropCond';
-import TextEdit from './TextEdit';
+import * as React from 'react';
 import PropertyEditor from './PropertyEditor';
 import './CameraView.css'
+import BackendAccessor from './utils/BackendAccessor';
 
+type Props = {
+    accessor: BackendAccessor;
+}
 
-
-
-class FocuserSettingsView extends PureComponent {
-    constructor(props) {
+export default class FocuserSettingsView extends React.PureComponent<Props> {
+    constructor(props:Props) {
         super(props);
     }
 
@@ -41,18 +38,4 @@ class FocuserSettingsView extends PureComponent {
             </PropertyEditor.Conditional>
         </div>;
     }
-
-    static mapStateToProps(store, ownProps) {
-        return ({});
-    }
 }
-
-FocuserSettingsView = connect(FocuserSettingsView.mapStateToProps)(FocuserSettingsView);
-
-FocuserSettingsView.propTypes = {
-    // Path of the settings
-    accessor: PropTypes.object.isRequired
-}
-
-
-export default FocuserSettingsView;

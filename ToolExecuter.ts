@@ -114,7 +114,7 @@ export default class ToolExecuter
         }
     }
 
-    getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.ToolExecuterApi> {
+    getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.ToolExecuterAPI> {
         return {
             $api_startTool : async (ct:CancellationToken, message) => {
                 const which = message.uid;

@@ -125,6 +125,7 @@ context.focuser = new Focuser(app, appStateManager, context as AppContext);
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
 const apiRoot: RequestHandler.APIImplementor = {
+    focuser: context.focuser.getAPI(),
     toolExecuter: context.toolExecuter.getAPI(),
     astrometry: context.astrometry.getAPI(),
 };

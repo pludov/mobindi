@@ -1,6 +1,6 @@
 import * as ProcessorTypes from "./ProcessorTypes";
 
-export type ToolExecuterApi = {
+export type ToolExecuterAPI = {
     $api_startTool: (message:{uid: string})=>void;
 }
 
@@ -16,7 +16,7 @@ export type AstrometryGotoScopeRequest = {
     dec:number;
 }
 
-export type AstrometryApi = {
+export type AstrometryAPI = {
     updateCurrentSettings: (payload: {diff: any})=>void;
     compute: (payload: AstrometryComputeRequest)=>ProcessorTypes.AstrometryResult;
     cancel: (payload: {})=>void;
@@ -25,7 +25,14 @@ export type AstrometryApi = {
     sync: (payload:{})=>void;
 }
 
+export type FocuserAPI = {
+    updateCurrentSettings: (payload: {diff: any})=>void;
+    focus: (payload: {})=>number;
+    abort: (payload: {})=>void;
+}
+
 export type BackOfficeAPI = {
-    toolExecuter: ToolExecuterApi;
-    astrometry : AstrometryApi;
+    toolExecuter: ToolExecuterAPI;
+    astrometry : AstrometryAPI;
+    focuser: FocuserAPI;
 }
