@@ -3,12 +3,14 @@ import { createSelector } from 'reselect'
 
 import { Connect } from './utils/Connect';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
+import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
 import FitsViewerInContext, {UnmappedFitsViewerInContext} from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
 import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
+import CancellationToken from 'cancellationtoken';
 
 
 type InputProps = {
@@ -53,9 +55,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     private readonly cancel = async () => {
-        return await this.props.app.appServerRequest('astrometry', {
-            method: 'cancel'
-        });
+        return await BackendRequest.RootInvoker("astrometry")("cancel")(CancellationToken.CONTINUE, {});
     }
 
     private readonly move = async (pos:any) => {
@@ -77,38 +77,31 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         // compute JNOW center for last image.
         const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
 
-        const gotoRequest:BackOfficeStatus.AstrometryGotoScopeRequest = {
-            ra: ranow,
-            dec: decnow,
-        };
-
-        return await this.props.app.appServerRequest('astrometry', {
-            method: 'goto',
-            ...gotoRequest
-        });
+        return await BackendRequest.RootInvoker("astrometry")("goto")(
+            CancellationToken.CONTINUE,
+            {
+                ra: ranow,
+                dec: decnow,
+            }
+        );
     }
 
     private readonly sync = async () => {
-        const syncRequest:BackOfficeStatus.AstrometrySyncScopeRequest = {
-        };
-
-        return await this.props.app.appServerRequest('astrometry', {
-            method: 'sync',
-            ...syncRequest
-        });
+        return await BackendRequest.RootInvoker("astrometry")("sync")(
+            CancellationToken.CONTINUE,
+            {}
+        );
     }
 
     private readonly start=async (forceWide?:boolean)=>
     {
-        const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
-            image: this.props.src,
-            forceWide:!!forceWide
-        };
-
-        return await this.props.app.appServerRequest('astrometry', {
-            method: 'compute',
-            ...computeRequest
-        });
+        return await BackendRequest.RootInvoker("astrometry")("compute")(
+            CancellationToken.CONTINUE,
+            {
+                image: this.props.src,
+                forceWide:!!forceWide
+            }
+        );
     }
 
     private readonly startWide = () => {

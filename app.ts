@@ -126,6 +126,7 @@ context.astrometry = new Astrometry(app, appStateManager, context as AppContext)
 
 const apiRoot: RequestHandler.APIImplementor = {
     toolExecuter: context.toolExecuter.getAPI(),
+    astrometry: context.astrometry.getAPI(),
 };
 
 app.use(function(req, res:Response, next) {

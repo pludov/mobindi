@@ -1,12 +1,13 @@
-
+import CancellationToken from 'cancellationtoken';
+import * as BackOfficeAPI from './shared/BackOfficeAPI';
+import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, AstrometryComputeRequest, AstrometryCancelRequest, BackofficeStatus, AstrometrySetScopeRequest, AstrometrySyncScopeRequest, AstrometryGotoScopeRequest} from './shared/BackOfficeStatus';
+import { AstrometryStatus, BackofficeStatus } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface, IndiConnection } from './Indi';
 import SkyProjection from './ui/src/utils/SkyProjection';
 import {Task, createTask} from "./Task.js";
-import CancellationToken from 'cancellationtoken';
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
@@ -88,14 +89,24 @@ export default class Astrometry {
         }
     }
 
-    async $api_updateCurrentSettings(ct: CancellationToken, message:any)
-    {
-        const newSettings = JsonProxy.applyDiff(this.currentStatus.settings, message.diff);
+    getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryApi> {
+        return {
+            updateCurrentSettings: this.updateCurrentSettings,
+            compute: this.compute,
+            cancel: this.cancel,
+            setScope: this.setScope,
+            goto: this.goto,
+            sync: this.sync,
+        }
+    }
+
+    updateCurrentSettings = async (ct: CancellationToken, payload: {diff: any}) => {
+        const newSettings = JsonProxy.applyDiff(this.currentStatus.settings, payload.diff);
         // FIXME: do the checking !
         this.currentStatus.settings = newSettings;
     }
 
-    async $api_compute(ct: CancellationToken, message:AstrometryComputeRequest) {
+    compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
         return await createTask<AstrometryResult>(ct, async (task) => {
             console.log('Astrometry: compute for ' + message.image);
             if (this.currentProcess !== null) {
@@ -196,20 +207,20 @@ export default class Astrometry {
         });
     }
 
-    async $api_cancel(ct: CancellationToken, message: AstrometryCancelRequest) {
+    cancel = async (ct: CancellationToken, message: {})=>{
         if (this.currentProcess !== null) {
             this.currentProcess.cancel("user cancel");
         }
     }
 
-    async $api_setScope(ct: CancellationToken, message:AstrometrySetScopeRequest) {
+    setScope = async (ct: CancellationToken, message: {deviceId: string})=>{
         if (this.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
             throw new Error("device not available");
         }
         this.currentStatus.selectedScope = message.deviceId;
     }
 
-    async $api_goto(ct: CancellationToken, message:AstrometryGotoScopeRequest) {
+    goto = async (ct: CancellationToken, message:BackOfficeAPI.AstrometryGotoScopeRequest)=>{
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
@@ -273,7 +284,7 @@ export default class Astrometry {
         });
     }
 
-    async $api_sync(ct: CancellationToken, message:AstrometrySyncScopeRequest) {
+    sync = async (ct: CancellationToken, message: {})=>{
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");

@@ -2,6 +2,7 @@ import React, { Component, PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
+import * as BackendRequest from "./BackendRequest";
 import { atPath } from './shared/JsonPath';
 import FitsViewerInContext from './FitsViewerInContext';
 import PromiseSelector from './PromiseSelector';
@@ -117,15 +118,13 @@ class CameraView extends PureComponent {
     }
 
     startAstrometry = async () => {
-        const computeRequest={
-            image: this.props.url
-        };
-        
         console.log('Start astrometry ?' + this.props.url);
-        await this.props.app.appServerRequest('astrometry', {
-            method: 'compute',
-            ...computeRequest
-        });
+        await BackendRequest.RootInvoker("astrometry")("compute")(
+            CancellationToken.CONTINUE,
+            {
+                image: this.props.url
+            }
+        );
         console.log('done astrometry ?');
     };
 

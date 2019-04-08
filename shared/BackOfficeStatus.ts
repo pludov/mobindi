@@ -268,29 +268,6 @@ export type TriggerExecuterStatus = {
     triggers: {[id:string]:TriggerConfig};
 }
 
-export type AstrometryComputeRequest = {
-    image: string;
-    forceWide: boolean;
-}
-
-export type AstrometryCancelRequest = {
-}
-
-export type AstrometrySetScopeRequest = {
-    deviceId: string;
-}
-
-export type AstrometrySyncScopeRequest = {
-}
-
-export type AstrometryGotoScopeRequest = {
-    // 0 - 360 degrees
-    ra:number;
-    // -90 - 90 degrees
-    dec:number;
-}
-
-
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
