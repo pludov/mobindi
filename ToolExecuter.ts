@@ -1,9 +1,11 @@
 import CancellationToken from 'cancellationtoken';
 import * as Obj from './Obj';
 import JsonProxy from './JsonProxy';
-import { BackofficeStatus, ToolExecuterStartToolRequest, ToolConfig, ToolExecuterStatus } from './shared/BackOfficeStatus';
+import { BackofficeStatus, ToolConfig, ToolExecuterStatus } from './shared/BackOfficeStatus';
+import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import { AppContext } from './ModuleBase';
 import * as SystemPromise from './SystemPromise';
+import * as RequestHandler from "./RequestHandler";
 import ConfigStore from './ConfigStore';
 
 // Allow to start a script from the UI. 
@@ -69,24 +71,22 @@ export default class ToolExecuter
             params: params
         })
         if (params.trigger === "atstart") {
-            this.startTool(result);
+            this.runTool(result);
         }
         return result;
     }
 
     // Given a tool object, returns a promise for its execution
-    private startTool=(tool: InstanciatedTool)=>{
-        (async()=>{
-            try {
-                console.log('Will start ' + tool.id + ' as: ' + JSON.stringify(tool.params.cmd));
-                const ret = await SystemPromise.Exec(CancellationToken.CONTINUE, {
-                    command: tool.params.cmd
-                });
-                console.log('Task ' + tool.id + ' terminated with code : ', ret);
-            } catch(e) {
-                console.log('Task ' + tool.id + ' on error : ', e)
-            }
-        })();
+    private runTool=async (tool: InstanciatedTool)=>{
+        try {
+            console.log('Will start ' + tool.id + ' as: ' + JSON.stringify(tool.params.cmd));
+            const ret = await SystemPromise.Exec(CancellationToken.CONTINUE, {
+                command: tool.params.cmd
+            });
+            console.log('Task ' + tool.id + ' terminated with code : ', ret);
+        } catch(e) {
+            console.log('Task ' + tool.id + ' on error : ', e)
+        }
     }
 
     private syncTools=()=>
@@ -114,16 +114,20 @@ export default class ToolExecuter
         }
     }
 
-    public $api_startTool = async(ct:CancellationToken, message:ToolExecuterStartToolRequest)=> {
-        const which = message.uid;
-        if (!which) {
-            throw new Error("Invalid id");
-        }
-        if (!Obj.hasKey(this.instanciatedTools, which)) {
-            throw new Error("Unknown id");
-        }
+    getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.ToolExecuterApi> {
+        return {
+            $api_startTool : async (ct:CancellationToken, message) => {
+                const which = message.uid;
+                if (!which) {
+                    throw new Error("Invalid id");
+                }
+                if (!Obj.hasKey(this.instanciatedTools, which)) {
+                    throw new Error("Unknown id");
+                }
 
-        const toStart = this.instanciatedTools[which];
-        this.startTool(toStart);
+                const toStart = this.instanciatedTools[which];
+                this.runTool(toStart);
+            }
+        };
     }
 };

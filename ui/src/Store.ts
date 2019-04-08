@@ -74,7 +74,7 @@ export function getStore() {
     return store;
 }
 
-export function getNotifier() {
+export function getNotifier(): Notifier {
     if (notifier === undefined) {
         throw new Error("Notifier not initialized");
     }

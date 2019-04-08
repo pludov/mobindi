@@ -29,7 +29,9 @@ import ToolExecuter from './ToolExecuter';
 import Astrometry from './Astrometry';
 
 import { AppContext } from "./ModuleBase";
-import { BackofficeStatus } from "./shared/BackOfficeStatus.js";
+import { BackofficeStatus } from "./shared/BackOfficeStatus";
+import * as RequestHandler from "./RequestHandler";
+
 import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
@@ -122,6 +124,10 @@ context.focuser = new Focuser(app, appStateManager, context as AppContext);
 
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
+const apiRoot: RequestHandler.APIImplementor = {
+    toolExecuter: context.toolExecuter.getAPI(),
+};
+
 app.use(function(req, res:Response, next) {
     if (Object.prototype.hasOwnProperty.call(res, 'jsonResult')) {
         const jsonResult = (res as any).jsonResult;
@@ -161,8 +167,42 @@ wss.on('connection', (ws:WebSocket)=>{
             return;
         }
 
-        if (message.type == "startRequest") {
-            console.log('Got action message');
+        if (message.type === "api") {
+            console.log('Got API request');
+            var id = message.id;
+            if (id === undefined) id = null;
+
+            const globalUid = client.uid + ':' + id;
+
+            const request = new ClientRequest(globalUid, client);
+
+            createTask<any>(undefined, async (task)=> {
+                try {
+                    const _app:string = message.details._app;
+                    if (_app === undefined || ! Object.prototype.hasOwnProperty.call(apiRoot, _app)) {
+                        throw new Error("Invalid _app: " + _app);
+                    }
+                    const appImpl:RequestHandler.APIAppImplementor<any> = (apiRoot as any)[_app];
+
+                    const _func = message.details._func;
+                    if (_func === undefined || !Object.prototype.hasOwnProperty.call(appImpl, _func)) {
+                        throw new Error("Invalid _func: " + _app + "." + _func);
+                    }
+
+                    const funcImpl = appImpl[_func];
+                    const ret = await funcImpl(task.cancellation, message.details.payload);
+                    request.success(ret);
+                } catch(e) {
+                    if (e instanceof CancellationToken.CancellationError) {
+                        request.onCancel();
+                    } else {
+                        request.onError(e);
+                    }
+                }
+            });
+
+        } else if (message.type == "startRequest") {
+            console.log('Got action message - deprecated');
             var id = message.id;
             if (id === undefined) id = null;
 

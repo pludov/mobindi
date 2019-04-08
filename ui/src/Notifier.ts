@@ -10,14 +10,15 @@ class Request {
     readonly notifier: Notifier;
     readonly requestData: any;
     readonly requestId: number;
+    readonly type: string;
     uid: string | undefined;
     canceled: boolean;
     readonly resolve: (e: any) => void;
     readonly reject: (err: any) => void;
 
-    constructor(notifier: Notifier, requestData: any, requestId: number, resolve: (e:any)=>(void), reject:(err:any)=>(void)) {
+    constructor(notifier: Notifier, requestData: any, requestId: number, resolve: (e:any)=>(void), reject:(err:any)=>(void), type?: string) {
         this.notifier = notifier;
-
+        this.type = type || "startRequest";
         this.requestData = requestData;
         this.requestId = requestId;
 
@@ -190,7 +191,7 @@ export default class Notifier {
                 toSend.setClientId(this.clientId!);
                 this.activeRequests[toSend.uid!] = toSend;
                 this.write({
-                    'type': 'startRequest',
+                    'type': toSend.type,
                     id: toSend.requestId,
                     details: toSend.requestData
                 });
@@ -212,12 +213,12 @@ export default class Notifier {
     // will call a $api_ method on server side
     // Not cancelable
     // GROS FIXME: propager promise here
-    public sendRequest<Q,R>(content:Q):Promise<R> {
+    public sendRequest<Q,R>(content:Q, type?: string):Promise<R> {
         return new Promise<R>((resolve, reject) => {
             if (!this.handshakeOk) {
                 throw "Backend not connected";
             }
-            const request = new Request(this, {... content}, this.uniqRequestId++, resolve, reject);
+            const request = new Request(this, {... content}, this.uniqRequestId++, resolve, reject, type);
             this.toSendRequests.push(request);
             this.sendAsap();
         });

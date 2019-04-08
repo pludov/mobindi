@@ -290,9 +290,6 @@ export type AstrometryGotoScopeRequest = {
     dec:number;
 }
 
-export type ToolExecuterStartToolRequest = {
-    uid: string;
-}
 
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
