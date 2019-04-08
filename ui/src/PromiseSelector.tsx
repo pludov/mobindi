@@ -1,15 +1,47 @@
-import React, { Component, PureComponent} from 'react';
+import * as React from 'react';
 import PropTypes from 'prop-types';
+
+type Control = {
+    id: string;
+    title: string;
+    run: ()=>Promise<any>;
+}
+
+type Props<TYPE> = {
+    active: string|null;
+    nullAlwaysPossible?: boolean;
+    placeholder: string;
+    availablesGenerator: (props: Props<TYPE>)=>Array<TYPE>;
+    getId: (o: TYPE, props: Props<TYPE>)=>string;
+    getTitle: (o: TYPE, props: Props<TYPE>)=>string;
+    controls?: Array<Control>;
+    setValue:(d:string)=>Promise<any>;
+};
+type State<TYPE> = {
+    forcedValue: string|null;
+    runningPromise: Promise<any>|undefined;
+};
 
 /**
  * A selector that start a promise on update
  * 
  * Supported values: numbers, strings, booleans, null
  */
-class PromiseSelector extends PureComponent {
-    constructor(props) {
+export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYPE>, State<TYPE>> {
+    static defaultProps = {
+        getTitle: (e:any)=>'' + e,
+        getId: (e:any)=>e,
+        placeholder: 'Choose...',
+        availablesGenerator: (props:any)=>props.availables
+    }
+
+    constructor(props:Props<TYPE>) {
         super(props);
-        this.state = {};
+        this.state = {
+            forcedValue: null,
+            runningPromise: undefined,
+
+        };
     }
     render() {
         var active = this.props.active;
@@ -20,8 +52,9 @@ class PromiseSelector extends PureComponent {
         if (!availables) availables = [];
         var options = [];
 
-        if (this.state.forcedValue !== undefined) {
+        if (this.state.forcedValue !== null) {
             active = this.state.forcedValue;
+            console.log('Using forced value ' + active);
         }
 
         if (active == null || this.props.nullAlwaysPossible) {
@@ -40,13 +73,13 @@ class PromiseSelector extends PureComponent {
             }
         }
 
-        for(var v of availables) {
-            var id = JSON.stringify(this.props.getId(v, this.props));
+        for(const v of availables) {
+            const id = JSON.stringify(this.props.getId(v, this.props));
             options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
         }
 
         if (this.props.controls) {
-            for(var v of this.props.controls) {
+            for(const v of this.props.controls) {
                 var id = "ctrl:" + JSON.stringify(v.id);
                 options.push(<option value={id} key={id}>{v.title}</option>);
             }
@@ -59,14 +92,16 @@ class PromiseSelector extends PureComponent {
             </select>;
     }
 
-    clicked(value)
+    clicked(value:string)
     {
         if (value !== null && value !== undefined && value.startsWith("ctrl:")) {
             var id = JSON.parse(value.substring(5));
-            for(var v of this.props.controls) {
-                if (v.id == id) {
-                    
-                    this.selectEntry(null, v.run);
+            if (this.props.controls) {
+                for(const v of this.props.controls) {
+                    if (v.id == id) {
+                        console.log('select entry', id);
+                        this.selectEntry(null, v.run);
+                    }
                 }
             }
         } else {
@@ -74,28 +109,32 @@ class PromiseSelector extends PureComponent {
         }
     }
 
-    asyncUpdatePromise(from, to, forcedValue)
+    asyncUpdatePromise(from:Promise<any>|undefined, to:Promise<any>|undefined, forcedValue: string|null)
     {
-        this.setState(function(prevState) {
+        this.setState((prevState)=>{
             console.log('WTF Doing transition from ' + from + ' to ' + to);
             if (prevState.runningPromise === from) {
                 console.log('WTF Really Doing transition from ' + from + ' to ' + to);
-                return Object.assign({}, prevState, {
+                return {
+                    ...prevState,
                     runningPromise: to,
                     forcedValue: forcedValue
-                });
+                };
             }
+            return prevState;
         });
     }
 
     // FIXME: ici on veut des task
     // Est-ce qu'on peut garder un promise + un CT ?
-    async selectEntry(d, generator) {
+    async selectEntry(d:string|null, generator:(d:string|null)=>Promise<any>) {
         if (generator === undefined) return;
 
         if (this.state.runningPromise) {
             // FIXME: this.state.runningPromise.cancel();
-            this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));
+            // this.setState(this.updatePromise(this.state.runningPromise, undefined, undefined));
+
+            this.asyncUpdatePromise(this.state.runningPromise, undefined, null);
         }
 
 
@@ -107,34 +146,8 @@ class PromiseSelector extends PureComponent {
             await newpromise;
 
         } finally {
-            this.asyncUpdatePromise(newpromise, undefined, undefined);
+            this.asyncUpdatePromise(newpromise, undefined, null);
         }
     }
 }
 
-PromiseSelector.defaultProps = {
-    getTitle: (e)=>'' + e,
-    getId: (e)=>e,
-    placeholder: 'Choose...',
-    availablesGenerator: (props)=>props.availables
-}
-
-PromiseSelector.propTypes = {
-    active: PropTypes.oneOfType([
-        PropTypes.string,
-        PropTypes.number
-    ]),
-    availables: PropTypes.array,
-    availablesGenerator: PropTypes.func,
-    placeholder: PropTypes.string,
-    // entry from availables
-    getTitle: PropTypes.func,
-    getId: PropTypes.func,
-    // receive an id, must return a promise
-    setValue: PropTypes.func.isRequired,
-    // Keep "null" always possible
-    nullAlwaysPossible: PropTypes.bool
-}
-
-
-export default PromiseSelector;

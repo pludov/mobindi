@@ -83,7 +83,7 @@ class SequenceApp extends BaseApp {
             });
         
         console.log('WTF new sequence: '+ uid);
-        self.setCurrentSequenceAndEdit(uid);
+        this.setCurrentSequenceAndEdit(uid);
     }
 
     // Returns a promise
