@@ -5,8 +5,8 @@ import * as IndiUtils from './IndiUtils';
 import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
 
 type InputProps = {
-    overridePredicate: undefined | ((store: Store.Content, props: InputProps)=>(boolean|undefined));
-    condition: undefined | ((device:IndiVector|undefined)=>boolean);
+    overridePredicate?: ((store: Store.Content, props: InputProps)=>(boolean|undefined));
+    condition?: ((device:IndiVector|undefined)=>boolean);
     device: string;
     property: string;
 };
@@ -34,7 +34,7 @@ class StatePropCond extends React.PureComponent<Props> {
 
     static mapStateToProps = function(store: Store.Content, ownProps: InputProps) {
         if (ownProps.overridePredicate !== undefined) {
-            var override = ownProps.overridePredicate(store, ownProps);
+            const override = ownProps.overridePredicate(store, ownProps);
             if (override !== undefined) {
                 return {
                     active: override

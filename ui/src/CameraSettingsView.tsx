@@ -1,5 +1,5 @@
-import React, { Component, PureComponent} from 'react';
-import { connect } from 'react-redux';
+import * as React from 'react';
+import * as Store from './Store';
 import { atPath } from './shared/JsonPath';
 import StatePropCond from './StatePropCond';
 import CameraBinEditor from './CameraBinEditor';
@@ -7,15 +7,21 @@ import CameraIsoEditor from './CameraIsoEditor';
 import CameraExpEditor from './CameraExpEditor';
 import './CameraView.css'
 
+type InputProps = {
+    // path to currentSettings
+    activePath: string;
+    // path to the property that hold the camera id
+    settingsPath: string;
+    setValue: (propName:string)=>((value: any)=>Promise<void>);
+}
+type MappedProps = {
+    current: string;
+}
+type Props = InputProps & MappedProps;
 
 
-
-class CameraSettingsView extends PureComponent {
-    // props:
-    //      settingsPath: path to currentSettings,
-    //      activePath: path to the property that hold the camera id
-    //      setValue: (key)=>(value)=>promise
-    constructor(props) {
+class CameraSettingsView extends React.PureComponent<Props> {
+    constructor(props:Props) {
         super(props);
     }
 
@@ -50,12 +56,11 @@ class CameraSettingsView extends PureComponent {
         </div>;
     }
 
-    static mapStateToProps = function(store, ownProps) {
+    static mapStateToProps = function(store: Store.Content, ownProps: InputProps) {
         return ({
             current: atPath(store, ownProps.activePath)
         });
     }
 }
 
-
-export default connect(CameraSettingsView.mapStateToProps)(CameraSettingsView);
+export default Store.Connect(CameraSettingsView);
