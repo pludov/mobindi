@@ -54,7 +54,7 @@ class CameraView extends React.PureComponent<Props> {
             await BackendRequest.RootInvoker("camera")("setShootParam")(
                 CancellationToken.CONTINUE,
                 {
-                    key: propName,
+                    key: propName as any,
                     value: v
                 }
             );

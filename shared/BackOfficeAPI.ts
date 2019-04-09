@@ -1,4 +1,5 @@
 import * as ProcessorTypes from "./ProcessorTypes";
+import { ShootSettings } from './BackOfficeStatus';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -31,7 +32,7 @@ export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     abort: (payload: {})=>void;
     setCamera: (payload: {device: string})=>void;
-    setShootParam: (payload: {key: string, value: any})=>void;
+    setShootParam: <K extends keyof ShootSettings>(payload: {key: K, value: ShootSettings[K]})=>void;
 }
 
 export type AstrometryAPI = {

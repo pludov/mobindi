@@ -4,6 +4,9 @@ import { IndiMessage } from "./IndiTypes";
 export type ShootSettings = {
     prefix?:string;
     type?:string;
+    bin?: number;
+    exposure: number;
+    iso?: null|string;
 }
 
 export type Sequence = {
@@ -114,7 +117,7 @@ export type CameraStatus = {
     selectedDevice: string | null;
     preferedDevice: string | null;
     availableDevices: string [];
-    currentSettings: any;
+    currentSettings: ShootSettings;
     currentShoots: {[deviceId:string]:any};
     lastByDevices: {[deviceId:string]:string};
     images: {

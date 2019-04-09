@@ -347,7 +347,7 @@ export default class Camera
         this.currentStatus.selectedDevice = payload.device;
     }
 
-    setShootParam=async (ct: CancellationToken, payload:{key:string, value: any})=>{
+    setShootParam=async<K extends keyof ShootSettings> (ct: CancellationToken, payload:{key:K, value: ShootSettings[K]})=>{
         // FIXME: send the corresponding info ?
         console.log('Request to set setting: ', JSON.stringify(payload));
         var key = payload.key;
