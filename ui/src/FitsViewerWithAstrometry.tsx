@@ -14,7 +14,6 @@ import CancellationToken from 'cancellationtoken';
 
 
 type InputProps = {
-    app: any;
     src: string;
     contextKey: string;
 };
@@ -192,7 +191,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext contextKey={this.props.contextKey}
                         src={this.props.src}
-                        app={this.props.app}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
                 />

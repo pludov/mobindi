@@ -1,10 +1,9 @@
 import React, { Component, PureComponent} from 'react';
-import BaseApp from '../BaseApp';
-import * as Promises from '../shared/Promises';
+import * as BackendRequest from "../BackendRequest";
+import CancellationToken from 'cancellationtoken';
 
 export type Props = {
     src: string|null;
-    app: BaseApp;
 };
 
 export type State = {
@@ -38,10 +37,12 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
         const self = this;
 
         try {
-            const e = await this.props.app.appServerRequest('imageProcessor', {
-                method: 'compute',
-                details: {"starField":{ "source": { "path":this.props.src}}}
-            });
+            const e = await BackendRequest.ImageProcessor(
+                CancellationToken.CONTINUE,
+                {
+                    starField: { "source": { "path":this.props.src!}}
+                }
+            );
 
             let fwhmSum = 0;
             for(let star of e.stars) {

@@ -1,5 +1,6 @@
 import CancellationToken from 'cancellationtoken';
 import * as BackOfficeAPI from "@bo/BackOfficeAPI";
+import * as ProcessorTypes from "@bo/ProcessorTypes";
 import * as Store from "./Store";
 
 
@@ -25,4 +26,13 @@ export function RootInvoker<ID extends keyof BackOfficeAPI.BackOfficeAPI>(appId:
     return  ((methodId: string)=>{
         return (ct: CancellationToken, payload: any)=>privateCall(ct, appId, methodId, payload);
     }) as any;
+}
+
+export function ImageProcessor<K extends keyof ProcessorTypes.Request>
+                    (
+                        ct:CancellationToken,
+                        payload: Pick<ProcessorTypes.Request, K>
+                    ) : Promise<ProcessorTypes.Result[K]>
+{
+    return RootInvoker("imageProcessor")("compute")(ct, payload as any);
 }

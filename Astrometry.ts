@@ -193,7 +193,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
 
                 console.log('Starting astrometry with ' + JSON.stringify(astrometry));
-                result = await this.imageProcessor.compute(ct, {astrometry}) as AstrometryResult;
+                result = await this.imageProcessor.compute(ct, {astrometry});
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('empty', null, null);

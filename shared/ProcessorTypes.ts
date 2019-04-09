@@ -28,6 +28,10 @@ export type ProcessorStarFieldRequest = {
     source: ProcessorContentRequest;
 }
 
+export type ProcessorStarFieldResult = {
+    stars: Array<{fwhm: number}>;
+}
+
 export type ProcessorAstrometryRequest = {
     exePath: string;
     libraryPath: string;
@@ -40,7 +44,29 @@ export type ProcessorAstrometryRequest = {
     source: ProcessorStarFieldRequest;
 }
 
-export type ProcessorRequest = {
-    astrometry?: ProcessorAstrometryRequest;
-    starField?: ProcessorStarFieldRequest;
+export type ProcessorAstrometryResult = AstrometryResult;
+
+export type Order<Req, Res> = {
+    req: Req,
+    res: Res,
+};
+
+type OrderRequest<ORDER> = ORDER extends Order<infer Req, any> ? Req : never;
+type OrderResult<ORDER> = ORDER extends Order<any, infer Res> ? Res : never;
+
+export type Astrometry = Order<ProcessorAstrometryRequest, ProcessorAstrometryResult>;
+
+export type StarField = Order<ProcessorStarFieldRequest, ProcessorStarFieldResult>;
+
+type Registry = {
+    astrometry: Astrometry,
+    starField: StarField,
+}
+
+export type Request = {
+    [k in keyof Registry]: OrderRequest<Registry[k]>
+}
+
+export type Result = {
+    [k in keyof Registry]: OrderResult<Registry[k]>
 }

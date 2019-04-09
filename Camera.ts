@@ -339,22 +339,22 @@ export default class Camera
         }
     }
 
-    async $api_setCamera(ct: CancellationToken, message:any) {
-        console.log('Request to set device: ', JSON.stringify(message.data));
-        if (this.currentStatus.availableDevices.indexOf(message.data.device) == -1) {
+    setCamera=async (ct: CancellationToken, payload:{device:string})=>{
+        console.log('Request to set device: ', JSON.stringify(payload.device));
+        if (this.currentStatus.availableDevices.indexOf(payload.device) == -1) {
             throw "device not available";
         }
-        this.currentStatus.selectedDevice = message.data.device;
+        this.currentStatus.selectedDevice = payload.device;
     }
 
-    async $api_setShootParam(ct: CancellationToken, message:any) {
+    setShootParam=async (ct: CancellationToken, payload:{key:string, value: any})=>{
         // FIXME: send the corresponding info ?
-        console.log('Request to set setting: ', JSON.stringify(message.data));
-        var key = message.data.key;
+        console.log('Request to set setting: ', JSON.stringify(payload));
+        var key = payload.key;
         if (!Object.prototype.hasOwnProperty.call(this.currentStatus.currentSettings, key)) {
             throw "property not supported by device: " + key;
         }
-        this.currentStatus.currentSettings[key] = message.data.value;
+        this.currentStatus.currentSettings[key] = payload.value;
     }
 
     async $api_newSequence(ct: CancellationToken, message: any) {
@@ -917,6 +917,8 @@ export default class Camera
         return {
             shoot: this.shoot,
             abort: this.abort,
+            setCamera: this.setCamera,
+            setShootParam: this.setShootParam,
         }
     }
 }

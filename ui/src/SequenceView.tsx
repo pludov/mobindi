@@ -35,7 +35,6 @@ class DiscSequenceImageDetail extends PureComponent<SequenceImageDetailProps> {
     render() {
         return <FitsViewerWithAstrometry
                             contextKey="sequence"
-                            app={this.props.app}
                             src={this.props.url || ""}
                         />;
     }

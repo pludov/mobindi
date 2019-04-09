@@ -4,10 +4,11 @@ import CancellationToken from 'cancellationtoken';
 import { atPath } from "./shared/JsonPath";
 import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
+import { ShootResult } from '@bo/BackOfficeAPI';
 
 type InputProps = {
     activePath: string;
-    onSuccess: (t:any)=>void;
+    onSuccess: (t:ShootResult)=>void;
 }
 
 type MappedProps = {

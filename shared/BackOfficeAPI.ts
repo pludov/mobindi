@@ -6,7 +6,7 @@ export type ToolExecuterAPI = {
 
 export type AstrometryComputeRequest = {
     image: string;
-    forceWide: boolean;
+    forceWide?: boolean;
 }
 
 export type AstrometryGotoScopeRequest = {
@@ -30,6 +30,8 @@ export type ShootResult = {
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     abort: (payload: {})=>void;
+    setCamera: (payload: {device: string})=>void;
+    setShootParam: (payload: {key: string, value: any})=>void;
 }
 
 export type AstrometryAPI = {
@@ -47,10 +49,17 @@ export type FocuserAPI = {
     abort: (payload: {})=>void;
 }
 
+export type ImageProcessorAPI = {
+    compute: <K extends keyof ProcessorTypes.Request>
+            (payload: Pick<ProcessorTypes.Request, K>)
+                =>ProcessorTypes.Result[K];
+}
+
 export type BackOfficeAPI = {
     toolExecuter: ToolExecuterAPI;
     astrometry : AstrometryAPI;
     focuser: FocuserAPI;
     indi: IndiAPI;
     camera: CameraAPI;
+    imageProcessor: ImageProcessorAPI;
 }
