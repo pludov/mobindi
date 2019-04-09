@@ -88,14 +88,14 @@ export function getStoreManager() {
     return storeManager;
 }
 
-type mapStateToPropsDirectFunc<TOwnProps, State, TStateProps> = (state: State, ownProps: TOwnProps)=>TStateProps;
+type mapStateToPropsDirectFunc<TOwnProps, TStateProps> = (state: Content, ownProps: TOwnProps)=>TStateProps;
 
-interface IMapStateToProps<TOwnProps, State, TStateProps> {
-    mapStateToProps : mapStateToPropsDirectFunc<TOwnProps, State, TStateProps> | (()=>(mapStateToPropsDirectFunc<TOwnProps, State, TStateProps>));
+interface IMapStateToProps<TOwnProps, TStateProps> {
+    mapStateToProps : mapStateToPropsDirectFunc<TOwnProps, TStateProps> | (()=>(mapStateToPropsDirectFunc<TOwnProps, TStateProps>));
 }
 
 export function Connect<Class, TOwnProps, State, TStateProps >(
-            ctor : (new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>))&IMapStateToProps<TOwnProps,State, TStateProps>
+            ctor : (new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>))&IMapStateToProps<TOwnProps, TStateProps>
         )
             : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>)
 {
