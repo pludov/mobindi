@@ -66,7 +66,8 @@ class KeepValue extends PureComponent {
             this.setState({forceVisibility: true});
         } else {
             this.setState({forceVisibility: false});
-            this.props.setValue(null).start();
+            // FIXME: not promise ready
+            this.props.setValue(null);
         }
     }
 
@@ -222,11 +223,12 @@ class SequenceEditDialog extends PureComponent {
                         runningMoves: state.runningMoves + 1
                     }),
             ()=>{
+                // FIXME: not promise ready
                 this.props.app.moveSequenceSteps(this.props.uid, this.getCurrentStepList(this.state, this.props))
                     .then(this.moveStepsEnd)
                     .onError(this.moveStepsEnd)
-                    .onCancel(this.moveStepsEnd)
-                    .start();
+                    // .onCancel(this.moveStepsEnd)
+                    //.start();
             });
     }
 

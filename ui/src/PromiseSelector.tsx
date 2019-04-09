@@ -7,7 +7,7 @@ type Control = {
     run: ()=>Promise<any>;
 }
 
-type Props<TYPE> = {
+export type Props<TYPE> = {
     active: string|null;
     nullAlwaysPossible?: boolean;
     placeholder: string;
