@@ -75,7 +75,6 @@ type InputProps = {
 }
 
 type MappedProps = PromiseSelector.Props<string> & {
-  valuePath: string;
   $itemCount: number;
 } & {
   [id: string]:string;

@@ -1,6 +1,7 @@
 import * as Store from './Store';
+import { IndiDevice } from '@bo/BackOfficeStatus';
 
-export function getDeviceDesc(store:Store.Content, device:string)
+export function getDeviceDesc(store:Store.Content, device:string) : IndiDevice|undefined
 {
     try {
         return store.backend.indiManager!.deviceTree[device];

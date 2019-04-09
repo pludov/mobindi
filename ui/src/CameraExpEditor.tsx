@@ -16,8 +16,6 @@ type InputProps = {
 }
 
 type MappedProps = PromiseSelector.Props<number> & {
-    valuePath: string;
-} & {
     $min: undefined
 } & {
     $min: string;
