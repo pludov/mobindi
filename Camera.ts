@@ -3,7 +3,7 @@ const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, ShootResult, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
+import {CameraStatus, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
@@ -11,11 +11,15 @@ import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
 import {IdGenerator} from "./IdGenerator";
 import * as Obj from "./Obj";
+import * as RequestHandler from "./RequestHandler";
+import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 
-export default class Camera {
+export default class Camera
+        implements RequestHandler.APIAppProvider<BackOfficeAPI.CameraAPI>
+{
     appStateManager: JsonProxy<BackofficeStatus>;
-    shootPromises: {[camId: string]:Task<ShootResult>};
+    shootPromises: {[camId: string]:Task<BackOfficeAPI.ShootResult>};
     currentStatus: CameraStatus;
     context: AppContext;
     get indiManager() { return this.context.indiManager };
@@ -527,7 +531,7 @@ export default class Camera {
 
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;
                 ct.throwIfCancelled();
-                const shootResult = await this.shoot(ct, sequence.camera, ()=>(settings));
+                const shootResult = await this.doShoot(ct, sequence.camera, ()=>(settings));
                 
                 sequence.images.push(shootResult.uuid);
                 step.done++;
@@ -685,12 +689,12 @@ export default class Camera {
     }
 
     // Return a promise to shoot at the given camera (where)
-    async shoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:ShootSettings)=>ShootSettings):Promise<ShootResult>
+    async doShoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:ShootSettings)=>ShootSettings):Promise<BackOfficeAPI.ShootResult>
     {
         // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
         var connection:any;
         var ccdFilePathInitRevId:any;
-        let shootResult:ShootResult;
+        let shootResult:BackOfficeAPI.ShootResult;
 
         if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
             throw new Error("Shoot already started for " + device);
@@ -708,7 +712,7 @@ export default class Camera {
                     prefix: this.currentStatus.configuration.defaultImagePrefix || 'IMAGE_XXX'
                 }, settings);
 
-        return await createTask<ShootResult>(cancellation, async (task)=>{
+        return await createTask<BackOfficeAPI.ShootResult>(cancellation, async (task)=>{
             this.shootPromises[device] = task;
         
             try {
@@ -889,14 +893,15 @@ export default class Camera {
         });
     }
 
-    async $api_shoot(ct: CancellationToken, message:any, progress:any) {
+
+    shoot = async (ct: CancellationToken, message:{})=>{
         if (this.currentStatus.selectedDevice === null) {
             throw new Error("No camera selected");
         }
-        return await this.shoot(ct, this.currentStatus.selectedDevice);
+        return await this.doShoot(ct, this.currentStatus.selectedDevice);
     }
 
-    async $api_abort(ct: CancellationToken, message:any, progress:any) {
+    abort = async (ct: CancellationToken, message:{})=>{
         let currentDevice = this.currentStatus.selectedDevice;
         if (currentDevice === null) throw new Error("No camera selected");
 
@@ -908,4 +913,10 @@ export default class Camera {
         }
     }
 
+    getAPI() {
+        return {
+            shoot: this.shoot,
+            abort: this.abort,
+        }
+    }
 }

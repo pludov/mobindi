@@ -6,12 +6,6 @@ export type ShootSettings = {
     type?:string;
 }
 
-export type ShootResult = {
-    uuid: string;
-    path: string;
-    device: string;
-}
-
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
     progress: string | null;

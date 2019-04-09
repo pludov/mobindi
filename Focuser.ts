@@ -241,7 +241,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         while(!done(currentStep)) {
             
             console.log('AUTOFOCUS: shoot start');
-            const shootResult = await this.camera.shoot(ct, shootDevice,
+            const shootResult = await this.camera.doShoot(ct, shootDevice,
                         (settings)=>({
                             ...settings,
                             prefix: 'focus_ISO8601_step_' + Math.floor(currentStep)

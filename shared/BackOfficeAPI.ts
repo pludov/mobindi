@@ -21,6 +21,17 @@ export type IndiAPI = {
     disconnectDevice: (payload: {device: string})=>void;
 }
 
+export type ShootResult = {
+    uuid: string;
+    path: string;
+    device: string;
+}
+
+export type CameraAPI = {
+    shoot: (payload: {})=>ShootResult;
+    abort: (payload: {})=>void;
+}
+
 export type AstrometryAPI = {
     updateCurrentSettings: (payload: {diff: any})=>void;
     compute: (payload: AstrometryComputeRequest)=>ProcessorTypes.AstrometryResult;
@@ -41,4 +52,5 @@ export type BackOfficeAPI = {
     astrometry : AstrometryAPI;
     focuser: FocuserAPI;
     indi: IndiAPI;
+    camera: CameraAPI;
 }

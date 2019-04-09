@@ -129,6 +129,7 @@ const apiRoot: RequestHandler.APIImplementor = {
     toolExecuter: context.toolExecuter.getAPI(),
     astrometry: context.astrometry.getAPI(),
     indi: context.indiManager.getAPI(),
+    camera: context.camera.getAPI(),
 };
 
 app.use(function(req, res:Response, next) {

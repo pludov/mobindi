@@ -9,98 +9,13 @@ import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
 import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
-
+import ShootButton from "./ShootButton";
 import './CameraView.css'
 
 const CameraSelector = connect((store)=> ({
             active: store.backend && store.backend.camera ? store.backend.camera.selectedDevice : undefined,
             availables: store.backend && store.backend.camera ? store.backend.camera.availableDevices : []
 }))(PromiseSelector);
-
-class ShootBton extends PureComponent {
-    constructor(props) {
-        super(props);
-        this.shoot = this.shoot.bind(this);
-        this.abort = this.abort.bind(this);
-    }
-
-    render() {
-        var progress = 60;
-        progress = this.props.running ? 100.0 * this.props.elapsed / this.props.exposure : 0;
-        var title = !this.props.running ? '' :this.props.exposure + "s";
-
-        return <div className={'ShootBar' + (this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
-            <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot"/>
-            <div className='ShootProgress' style={{position: 'relative'}}>
-                <div style={{position: 'absolute', left: '0px', top: '0px', bottom:'0px', width: progress + '%'}}
-                    className='ShootProgressAdvance'>
-                </div>
-
-                <div style={{position: 'absolute', left: '0px', right: '0px', top: '0px', bottom:'0px', top:'0px'}} className='ShootProgressTitle'>
-                    {title}
-                </div>
-            </div>
-            <input disabled={(!this.props.available) || !this.props.running} type="button" onClick={this.abort} className="ShootAbortBton" value="Abort"/>
-        </div>;
-    }
-
-    async shoot() {
-        // FIXME: the button should be disabled until ack from server
-        // ack from server should arrive only when state has been updated, ...
-        // This looks like a progress channel is required
-        const rslt = await this.props.app.serverRequest({
-            method: 'shoot'
-        })
-
-        console.log('got rslt:' + JSON.stringify(rslt));
-        this.props.onSuccess(rslt);
-    }
-
-    async abort() {
-        await this.props.app.serverRequest({
-            method: 'abort'
-        })
-
-        console.log('got rslt:' + JSON.stringify(rslt));
-    }
-
-    static mapStateToProps(store, ownProps) {
-        var result = {
-            available: false
-        }
-        var active = atPath(store, ownProps.activePath);
-        if (active === undefined || active === null) return result;
-
-        // Check if exposure is present
-        var deviceNode = atPath(store, '$.backend.indiManager.deviceTree[' + JSON.stringify(active) + "].CCD_EXPOSURE");
-        if (deviceNode === undefined) return result;
-        
-        result.available = true;
-
-        var currentShoot = atPath(store, '$.backend.camera.currentShoots[' + JSON.stringify(active) + "]");
-
-        
-        result.running = (currentShoot != undefined);
-        if (result.running) {
-            if ('expLeft' in currentShoot) {
-                result.elapsed = currentShoot.exposure - currentShoot.expLeft;
-            } else {
-                result.elapsed = 0;
-            }
-            result.exposure = currentShoot.exposure;
-        }
-
-        return result;
-    }
-}
-
-ShootBton = connect(ShootBton.mapStateToProps)(ShootBton);
-
-ShootBton.propTypes = {
-    onSuccess: PropTypes.func.isRequired,
-    activePath: PropTypes.string.isRequired,
-    app: PropTypes.any.isRequired
-}
 
 class CameraView extends PureComponent {
 
@@ -147,7 +62,7 @@ class CameraView extends PureComponent {
                 contextKey="default"
                 src={this.props.url}
                 app={this.props.app}/>
-            <ShootBton
+            <ShootButton
                     activePath="$.backend.camera.selectedDevice"
                     onSuccess={this.setPhoto} value="Shoot"
                     app={this.props.app}/>

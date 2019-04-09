@@ -16,6 +16,7 @@ import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 
 import './SequenceView.css';
 import { has } from './shared/JsonProxy';
+import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 
 type SequenceImageDetailInputProps = {
     app: any;
@@ -239,7 +240,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     path: {
                         title:  'File',
                         defaultWidth: '15em',
-                        render: (o:BackOfficeStatus.ShootResult)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+                        render: (o:BackOfficeAPI.ShootResult)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
                     },
                     device: {
                         title:  'Device',

@@ -1,11 +1,11 @@
-import React, { Component, PureComponent} from 'react';
+import * as React from 'react';
+import * as Store from "./Store";
 import BaseApp from './BaseApp';
 import CameraView from './CameraView';
 
-
 class CameraApp extends BaseApp {
 
-    constructor(storeManager) {
+    constructor(storeManager: Store.StoreManager) {
         super(storeManager, "camera");
     }
 
