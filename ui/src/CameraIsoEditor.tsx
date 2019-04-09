@@ -1,10 +1,10 @@
 import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
-import PromiseSelector from './PromiseSelector';
 import * as Utils from './Utils';
 import * as IndiUtils from './IndiUtils';
+import * as PromiseSelector from './PromiseSelector';
+import * as Store from './Store';
 
 /*
     Unfortunately, iso are stored as meaningless strings. (ISO1, ISO2, ...)
@@ -65,52 +65,61 @@ import * as IndiUtils from './IndiUtils';
           },
 */
 
+type InputProps = {
+  // name of the device (indi id)
+  device: string;
+  // Location of the value in the store
+  valuePath: string;
+  // Function that build a promises
+  setValue: (e:string)=>Promise<void>;
+}
 
-function IsoValueGenerator(props) {
-    var result = [];
+type MappedProps = PromiseSelector.Props<string> & {
+  valuePath: string;
+  $itemCount: number;
+} & {
+  [id: string]:string;
+}
+
+type Props = InputProps & MappedProps;
+
+function IsoValueGenerator(props:Props) {
+    const result:string[] = [];
     for(var i = 0; i < props.$itemCount; ++i)
     {
-        result[i] = props['$item_' + i];
+        result.push(props['$item_' + i]);
     }
     
     return result;
 }
 
-function IsoTitle(x) {
+function IsoTitle(x:string) {
     return "" + x + " iso";
 }
 
-const CameraIsoEditor = connect((store, ownProps) => {
-    var desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device).CCD_ISO);
+const CameraIsoEditor = connect((store:Store.Content, ownProps:InputProps) => {
+    const desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)!.CCD_ISO, undefined);
 
-    var result = ({
+    var root = ({
         placeholder: 'ISO...',
         active: atPath(store, ownProps.valuePath),
         availablesGenerator: IsoValueGenerator,
-        getTitle: IsoTitle
+        getTitle: IsoTitle,
+        $itemCount: 0,
     });
 
-    if (desc) {
-        result.$itemCount = desc.childNames.length;
-        for(var i = 0; i < desc.childNames.length; ++i)
-        {
-            var childId = desc.childNames[i];
-            result['$item_' + i]= desc.childs[childId].$label;
-        }
-    } else {
-        result.$itemCount = 0;
+    if (!desc) {
+        return root;
+    }
+    
+    root.$itemCount = desc.childNames.length;
+    for(let i = 0; i < desc.childNames.length; ++i)
+    {
+        var childId = desc.childNames[i];
+        root['$item_' + i]= desc.childs[childId].$label;
     }
 
-    return result;
-})(PromiseSelector)
-
-CameraIsoEditor.propTypes = {
-  // name of the device (indi id)
-  device: PropTypes.string.isRequired,
-  // Location of the value in the store
-  valuePath: PropTypes.string.isRequired,
-  // Function that build a promises
-  setValue: PropTypes.func.isRequired
-}
+    return root;
+})(PromiseSelector.default)
 
 export default CameraIsoEditor;
