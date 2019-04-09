@@ -54,12 +54,14 @@ export type IndiServerState = IndiServerConfiguration & {
 
 export type IndiProperty = {
     $_: string;
+    $label: string;
 }
 
 export type IndiVector = {
     $state: "";
     $timestamp: string;
     $rev: string;
+    childNames: string[];
     childs: {
         [propId: string]: IndiProperty
     };
