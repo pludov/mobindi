@@ -276,7 +276,6 @@ class SequenceEditDialog extends PureComponent {
                         />
                         <DeviceConnectBton
                             activePath={"$.backend.camera.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
-                            app={this.props.app}
                         />
                 </div>
                 <StatePropCond

@@ -136,8 +136,7 @@ class CameraView extends PureComponent {
             <div>
                 <CameraSelector setValue={async (e)=>await this.props.app.serverRequest({method: 'setCamera', data: {device: e}})}/>
                 <DeviceConnectBton
-                        activePath="$.backend.camera.selectedDevice"
-                        app={this.props.app}/>
+                        activePath="$.backend.camera.selectedDevice"/>
             </div>
             <CameraSettingsView
                 settingsPath="$.backend.camera.currentSettings"

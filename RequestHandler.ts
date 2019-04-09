@@ -10,6 +10,10 @@ export type APIAppImplementor<API> = {
     [P in keyof API]: APIFunctionImplementor<API[P]>;
 }
 
+export type APIAppProvider<API> = APIAppImplementor<API> & {
+    getAPI:()=>APIAppImplementor<API>;
+}
+
 export type APIImplementor = {
     [P in keyof BackOfficeAPI.BackOfficeAPI]: APIAppImplementor<BackOfficeAPI.BackOfficeAPI[P]>
 };

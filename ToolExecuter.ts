@@ -17,7 +17,7 @@ type InstanciatedTool = {
     params: ToolConfig;
 }
 
-export default class ToolExecuter
+export default class ToolExecuter implements RequestHandler.APIAppProvider<BackOfficeAPI.ToolExecuterAPI>
 {
     private readonly jsonProxy: JsonProxy<BackofficeStatus>;
     private readonly context: AppContext;
@@ -114,20 +114,22 @@ export default class ToolExecuter
         }
     }
 
+    public startTool = async (ct: CancellationToken, message: {uid: string}) => {
+        const which = message.uid;
+        if (!which) {
+            throw new Error("Invalid id");
+        }
+        if (!Obj.hasKey(this.instanciatedTools, which)) {
+            throw new Error("Unknown id");
+        }
+
+        const toStart = this.instanciatedTools[which];
+        this.runTool(toStart);
+    }
+
     getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.ToolExecuterAPI> {
         return {
-            $api_startTool : async (ct:CancellationToken, message) => {
-                const which = message.uid;
-                if (!which) {
-                    throw new Error("Invalid id");
-                }
-                if (!Obj.hasKey(this.instanciatedTools, which)) {
-                    throw new Error("Unknown id");
-                }
-
-                const toStart = this.instanciatedTools[which];
-                this.runTool(toStart);
-            }
+            startTool : this.startTool,
         };
     }
 };

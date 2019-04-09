@@ -100,7 +100,7 @@ export default class IndiAutoConnect {
                     (async ()=> {
                         try {
                             debug('Starting...');
-                            await this.indiManager.connectDevice(CancellationToken.CONTINUE, devId);
+                            await this.indiManager.connectDevice(CancellationToken.CONTINUE, {device: devId});
                         } catch(e) {
                             debug('Failed to autostart ' + devId, e);
                         }

@@ -52,7 +52,7 @@ export default class AstrometryView extends PureComponent<Props> {
                 <ScopeSelector setValue={this.setScope}/>
                 <DeviceConnectBton
                         activePath="$.backend.astrometry.selectedScope"
-                        app={this.props.app}/>
+                        />
                 <AstrometrySettingsView
                         accessor={this.accessor}/>
             </div>

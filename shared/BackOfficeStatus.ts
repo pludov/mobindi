@@ -58,7 +58,7 @@ export type IndiProperty = {
 }
 
 export type IndiVector = {
-    $state: "";
+    $state: "Busy"|"";
     $timestamp: string;
     $rev: string;
     childNames: string[];

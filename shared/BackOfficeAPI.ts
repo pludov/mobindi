@@ -1,7 +1,7 @@
 import * as ProcessorTypes from "./ProcessorTypes";
 
 export type ToolExecuterAPI = {
-    $api_startTool: (message:{uid: string})=>void;
+    startTool: (message:{uid: string})=>void;
 }
 
 export type AstrometryComputeRequest = {
@@ -14,6 +14,11 @@ export type AstrometryGotoScopeRequest = {
     ra:number;
     // -90 - 90 degrees
     dec:number;
+}
+
+export type IndiAPI = {
+    connectDevice: (payload: {device: string})=>void;
+    disconnectDevice: (payload: {device: string})=>void;
 }
 
 export type AstrometryAPI = {
@@ -35,4 +40,5 @@ export type BackOfficeAPI = {
     toolExecuter: ToolExecuterAPI;
     astrometry : AstrometryAPI;
     focuser: FocuserAPI;
+    indi: IndiAPI;
 }

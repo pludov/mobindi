@@ -74,7 +74,7 @@ class UnmappedToolDisplay extends React.PureComponent<ToolDisplayProps, ToolDisp
     start = async()=>{
         this.setState({running: 1, started: 0, error: null});
         try {
-            await BackendRequest.RootInvoker("toolExecuter")("$api_startTool")(CancellationToken.CONTINUE, {uid: this.props.uid});
+            await BackendRequest.RootInvoker("toolExecuter")("startTool")(CancellationToken.CONTINUE, {uid: this.props.uid});
             this.setState({running: 0});
         } catch(e) {
             this.setState({running: 0, error: "" + e});

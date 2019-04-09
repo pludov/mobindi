@@ -15,7 +15,8 @@ import IndiServerStarter from './IndiServerStarter';
 import ConfigStore from './ConfigStore';
 import IndiAutoConnect from './IndiAutoConnect';
 import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
-
+import * as RequestHandler from "./RequestHandler";
+import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 
 function has(obj:any, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
@@ -39,7 +40,7 @@ const DriverXmlSchema:Schema = {
     }
 } as any;
 
-export default class IndiManager {
+export default class IndiManager implements RequestHandler.APIAppProvider<BackOfficeAPI.IndiAPI>{
     appStateManager: JsonProxy<BackofficeStatus>;
     currentStatus: IndiManagerStatus;
     lastMessageSerial: undefined|number;
@@ -112,6 +113,13 @@ export default class IndiManager {
 
         new IndiAutoConnect(this);
         new IndiAutoGphotoSensorSize(this);
+    }
+
+    public getAPI() {
+        return {
+            connectDevice: this.connectDevice,
+            disconnectDevice: this.disconnectDevice,
+        }
     }
 
     public createDeviceListSynchronizer(cb: (devices: string[])=>(void), driverClass?: string, interfaceMask?:number)
@@ -431,8 +439,9 @@ export default class IndiManager {
         return device;
     }
 
-    public connectDevice=async (ct: CancellationToken, device: string)=>
+    public connectDevice=async (ct:CancellationToken, payload: {device: string})=>
     {
+        const device = payload.device;
         const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
         if (!vector.isReadyForOrder()) {
             throw "Connection already pending";
@@ -445,9 +454,9 @@ export default class IndiManager {
         await this.setParam(ct, device, 'CONFIG_PROCESS', {CONFIG_LOAD: "On"});
     }
 
-    private disconnectDevice=async (ct: CancellationToken, device: string)=>
+    public disconnectDevice=async (ct:CancellationToken, payload: {device: string})=>
     {
-
+        const device = payload.device;
         const vector = this.getValidConnection().getDevice(device).getVector('CONNECTION');
         if (!vector.isReadyForOrder()) {
             throw "Connection already pending";
@@ -457,16 +466,6 @@ export default class IndiManager {
         }
 
         await this.setParam(ct, device, 'CONNECTION', {DISCONNECT: "On"});
-    }
-
-    async $api_connectDevice(ct: CancellationToken, message:IndiManagerConnectDeviceRequest)
-    {
-        return await this.connectDevice(ct, message.device);
-    }
-
-    async $api_disconnectDevice(ct: CancellationToken, message:IndiManagerDisconnectDeviceRequest)
-    {
-        return await this.disconnectDevice(ct, message.device);
     }
 
     async $api_setProperty(ct: CancellationToken, message:IndiManagerSetPropertyRequest)
