@@ -4,7 +4,6 @@ import React, { Component, PureComponent} from 'react';
 import AstrometryApp from './AstrometryApp';
 import PromiseSelector from './PromiseSelector';
 import DeviceConnectBton from './DeviceConnectBton';
-import PropertyEditor from './PropertyEditor';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import BackendAccessor from './utils/BackendAccessor';
 import * as Store from './Store';

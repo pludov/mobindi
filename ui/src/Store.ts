@@ -102,5 +102,9 @@ export function Connect<Class, TOwnProps, State, TStateProps >(
     return ReactRedux.connect(ctor.mapStateToProps, null, null, {forwardRef: true} as any)(ctor as any) as any;
 }
 
+export type Accessor<TYPE>={
+    fromStore: (s:Content)=>TYPE;
+    send: (t:TYPE)=>Promise<void>;
+}
 
 export { fork }
