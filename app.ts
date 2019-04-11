@@ -131,6 +131,7 @@ const apiRoot: RequestHandler.APIImplementor = {
     indi: context.indiManager.getAPI(),
     camera: context.camera.getAPI(),
     imageProcessor: context.imageProcessor.getAPI(),
+    phd: context.phd.getAPI(),
 };
 
 app.use(function(req, res:Response, next) {

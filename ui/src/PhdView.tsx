@@ -1,29 +1,39 @@
 /**
  * Created by ludovic on 18/07/17.
  */
-import React, { Component } from 'react';
-import { connect } from 'react-redux';
+import * as React from 'react';
 
-import { Line } from 'react-chartjs-2';
+import chartjs from "chart.js";
+import * as ReactChartJS from "react-chartjs-2";
 import moment from 'moment';
 
+import * as Store from "./Store";
+import * as BackendRequest from "./BackendRequest";
 import './PhdView.css';
+import { PhdStatus } from '@bo/BackOfficeStatus';
+import CancellationToken from 'cancellationtoken';
 
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 
 
+type InputProps = {}
+type MappedProps = {
+    phd: PhdStatus|undefined;
+}
+type Props = InputProps & MappedProps;
+
 // Afficher l'état de phd et permet de le controller
-class PhdView extends Component {
-    constructor(props) {
+class PhdView extends React.PureComponent<Props> {
+    constructor(props:Props) {
         super(props);
     }
 
-    phdRequest=(method)=>{
-        return async ()=>{
-            await this.props.app.serverRequest({
-                method: method
-            });
-        }
+    startGuide = async ()=> {
+        await BackendRequest.RootInvoker("phd")("startGuide")(CancellationToken.CONTINUE, {});
+    }
+
+    stopGuide = async ()=>{
+        await BackendRequest.RootInvoker("phd")("stopGuide")(CancellationToken.CONTINUE, {});
     }
 
     render() {
@@ -32,7 +42,7 @@ class PhdView extends Component {
             return null;
         }
 
-        function formatNumber(n)
+        function formatNumber(n:number|undefined|null)
         {
             if (n == undefined || n == null) return n;
             if (typeof(n) == 'number') {
@@ -41,7 +51,7 @@ class PhdView extends Component {
             return "?" + n;
         }
 
-        var chartData= {
+        var chartData: ReactChartJS.ChartData<chartjs.ChartData>= {
             datasets: []
         };
         const props = [
@@ -60,19 +70,19 @@ class PhdView extends Component {
                 }
             ];
 
-        var minMoment, maxMoment;
+        let minMoment: string|undefined, maxMoment: string|undefined;
 
         for(var propDef of props) {
             var prop = propDef.prop;
 
-            var data = {
+            var data:chartjs.ChartDataSets = {
                 label: prop,
                 borderWidth: 1.5,
                 borderColor: propDef.color,
                 lineTension: 0,
                 pointRadius: 1.0,
                 cubicInterpolationMode: undefined,
-                showLines: false,
+                showLine: false,
                 data: []
             }
             for(var o of Object.keys(propDef)) {
@@ -80,9 +90,9 @@ class PhdView extends Component {
                 data[o] = propDef[o];
             }
 
-            var rawDatas = this.props.phd.guideSteps;
+            var rawDatas = bs.guideSteps;
             var flipFlop = propDef.flipFlop;
-            var previous = undefined;
+            let previous:number|null|undefined = undefined;
             if (rawDatas) {
                 var keys = Array.from(Object.keys(rawDatas)).sort();
                 var prev = undefined;
@@ -91,28 +101,28 @@ class PhdView extends Component {
                     var entry = rawDatas[uid];
                     
                     var ts = entry.Timestamp;
-                    if (minMoment == undefined) {
+                    if (minMoment === undefined) {
                         minMoment = ts;
                         maxMoment = ts;
                     } else {
                         maxMoment = ts;
                     }
 
-                    var value = prop in entry ? entry[prop] : null;
+                    const value:number|null = prop in entry ? entry[prop] : null;
                     if (flipFlop) {
                         if ((previous !== undefined) && (previous === value)) {
                             continue;
                         }
-                        data.data.push({x:ts, y:previous});
+                        data.data!.push({x:ts!, y:previous!} as any);
                         previous = value;
                     }
-                    data.data.push({x:ts, y:value});
+                    data.data!.push({x:ts!, y:value} as any);
                 }
             }
-            chartData.datasets.push(data);
+            chartData.datasets!.push(data);
         }
 
-        var chartOptions= {
+        const chartOptions: chartjs.ChartOptions = {
 
             scales: {
                 yAxes: [
@@ -144,7 +154,7 @@ class PhdView extends Component {
                     },
                     time: {
                         parser: moment.unix,
-                        round: false,
+                        // round: false,
                         min: minMoment,
                         max: maxMoment
                     }
@@ -159,12 +169,12 @@ class PhdView extends Component {
 
         return (
             <div className="Page">
-                <div className={'PHDAppState PHDAppState_' + this.props.phd.AppState}>{this.props.phd.AppState}
+                <div className={'PHDAppState PHDAppState_' + bs.AppState}>{bs.AppState}
                 </div>
-                <div>SNR:{this.props.phd.star != null ? this.props.phd.star.SNR : null}</div>
+                <div>SNR:{bs.star != null ? bs.star.SNR : null}</div>
                 <div className="PhdGraph_Item">
                     <div className="PhdGraph_Container">
-                        <Line data={chartData} options={chartOptions} />
+                        <ReactChartJS.Line data={chartData} options={chartOptions} />
                     </div>
                 </div>
                 <div>
@@ -177,40 +187,40 @@ class PhdView extends Component {
                             </tr>
                             <tr>
                                 <td>RA</td>
-                                <td>{formatNumber(this.props.phd.RADistanceRMS)}</td>
-                                <td>{formatNumber(this.props.phd.RADistancePeak)}</td>
+                                <td>{formatNumber(bs.RADistanceRMS)}</td>
+                                <td>{formatNumber(bs.RADistancePeak)}</td>
                             </tr>
                             <tr>
                                 <td>DEC</td>
-                                <td>{formatNumber(this.props.phd.DECDistanceRMS)}</td>
-                                <td>{formatNumber(this.props.phd.DECDistancePeak)}</td>
+                                <td>{formatNumber(bs.DECDistanceRMS)}</td>
+                                <td>{formatNumber(bs.DECDistancePeak)}</td>
                             </tr>
                             <tr>
                                 <td>Total</td>
-                                <td>{formatNumber(this.props.phd.RADECDistanceRMS)}</td>
-                                <td>{formatNumber(this.props.phd.RADECDistancePeak)}</td>
+                                <td>{formatNumber(bs.RADECDistanceRMS)}</td>
+                                <td>{formatNumber(bs.RADECDistancePeak)}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <div className="ButtonBar">
-                <input type="button" value="Guide" onClick={this.phdRequest('startGuide')}
+                <input type="button" value="Guide" onClick={this.startGuide}
                     disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
                     />
-                <input type="button" value="Stop" onClick={this.phdRequest('stopGuide')}
+                <input type="button" value="Stop" onClick={this.stopGuide}
                     disabled={bs.AppState == "Stopped"}
                     />
                 </div>
             </div>);
     }
+
+    static mapStateToProps = (store:Store.Content, ownProps: InputProps):MappedProps=>{
+        var result = {
+            phd: store.backend.phd
+        };
+        return result;
+    }
 }
 
 
-const mapStateToProps = function(store) {
-    var result = {
-        phd: store.backend.phd
-    };
-    return result;
-}
-
-export default connect(mapStateToProps)(PhdView);
+export default Store.Connect(PhdView);

@@ -56,6 +56,12 @@ export type ImageProcessorAPI = {
                 =>ProcessorTypes.Result[K];
 }
 
+export type PhdAPI = {
+    connect: (payload: {})=>void;
+    startGuide: (payload: {})=>void;
+    stopGuide: (payload: {})=>void;
+}
+
 export type BackOfficeAPI = {
     toolExecuter: ToolExecuterAPI;
     astrometry : AstrometryAPI;
@@ -63,4 +69,5 @@ export type BackOfficeAPI = {
     indi: IndiAPI;
     camera: CameraAPI;
     imageProcessor: ImageProcessorAPI;
+    phd: PhdAPI;
 }

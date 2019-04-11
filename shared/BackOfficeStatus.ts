@@ -206,7 +206,7 @@ export type ProcessConfiguration = {
 }
 
 export type PhdGuideStep = {
-    Timestamp: null;
+    Timestamp: string;
     RADistanceRaw?: number,
     DECDistanceRaw?: number,
     settling?: boolean;
