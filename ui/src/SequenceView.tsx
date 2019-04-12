@@ -6,8 +6,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
-import * as Promises from './shared/Promises';
-import Table from './Table';
+import Table from './table/Table';
 import StatusLabel from './StatusLabel';
 import { atPath } from './shared/JsonPath';
 import SequenceEditDialog from './SequenceEditDialog';
