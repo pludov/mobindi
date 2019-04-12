@@ -5,15 +5,21 @@
 
 import * as BackendStore from './BackendStore';
 import * as FitsViewerStore from './FitsViewerStore';
+import * as MessageStore from './MessageStore';
+import * as NotificationStore from './NotificationStore';
 import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
 import Notifier from './Notifier';
 import * as Promises from './shared/Promises';
 
-export type Content = BackendStore.Content & FitsViewerStore.Content & {
+export type Content =
+            BackendStore.Content &
+            FitsViewerStore.Content &
+            MessageStore.Content &
+            NotificationStore.Content &
+{
     currentApp: string|null;
     indiManager: {};
-    appNotifications: {};
 };
 
 // Fork un état et des sous-objet (forcement des objets)

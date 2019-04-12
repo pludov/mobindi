@@ -7,6 +7,9 @@ import Notifier from './Notifier';
 import JsonProxy from './shared/JsonProxy';
 import { atPath } from './shared/JsonPath'
 
+import * as MessageStore from './MessageStore';
+import * as NotificationStore from './NotificationStore';
+
 export function start() {
     const initialState:Store.Content =  {
         backendStatus: 0,
@@ -16,12 +19,15 @@ export function start() {
         },
         indiManager: {},
         currentApp: null,
-        appNotifications: {},
         viewSettings: {},
+        ...NotificationStore.initialState,
+        ...MessageStore.initialState,
     };
 
     var {reducer, storeManager } = function() {
-        var adjusters:Array<(state:Store.Content)=>Store.Content> = [];
+        var adjusters:Array<(state:Store.Content)=>Store.Content> = [
+            ...MessageStore.adjusters(),
+        ];
 
         var actionsByApp = {};
 
