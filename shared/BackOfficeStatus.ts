@@ -53,9 +53,14 @@ export type IndiProperty = {
     $_: string;
     $name: string;
     $label: string;
+    $format: string;
 }
 
 export type IndiVector = {
+    $label: string;
+    $type: string;
+    $perm: string;
+    $rule: string;
     $state: "Busy"|"";
     $timestamp: string;
     $rev: string;
