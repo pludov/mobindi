@@ -121,6 +121,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             disconnectDevice: this.disconnectDevice,
             restartDriver: this.restartDriver,
             updateDriverParam: this.updateDriverParam,
+            updateVector: this.updateVector,
         }
     }
 
@@ -474,6 +475,12 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     {
         const dev = this.getValidConnection().getDevice(message.data.dev);
         dev.getVector(message.data.vec).setValues( message.data.children);
+    }
+
+    public updateVector = async (ct: CancellationToken, message:BackOfficeAPI.UpdateIndiVectorRequest)=>
+    {
+        const dev = this.getValidConnection().getDevice(message.dev);
+        dev.getVector(message.vec).setValues( message.children);
     }
 
     public restartDriver = async (ct: CancellationToken, message: {driver: string})=>

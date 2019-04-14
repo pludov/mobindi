@@ -10,6 +10,7 @@ import Icons from "../Icons"
 import IconButton from "../IconButton";
 import IndiDriverControlPanel from "./IndiDriverControlPanel";
 import IndiDriverSelector from "./IndiDriverSelector";
+import IndiSelectorPropertyView from "./IndiSelectorPropertyView";
 import "../Collapsible.css";
 import "./IndiManagerView.css";
 
@@ -22,50 +23,6 @@ const VectorStateToColor = {
     Alert: 'red'
 }
 
-// Render as a drop down selector
-class IndiSelectorPropertyView extends PureComponent {
-    // props: app, dev, vec
-    render() {
-        var self = this;
-        var options = [];
-        var currentOption = undefined;
-
-        for(var childId of this.props.childNames) {
-            var child = this.props.childs[childId];
-
-            options.push(<option key={child.$name} value={child.$name}>{child.$label}</option>);
-            if (child.$_ == 'On') {
-                currentOption = childId;
-            }
-        }
-
-        return <select value={currentOption} onChange={(e) => {
-            this.props.app.rqtSwitchProperty({
-                dev: self.props.dev,
-                vec: self.props.vec,
-                children: [
-                    {name: e.target.value, value: 'On'}
-                ]});
-        }}>{options}</select>;
-    }
-
-    static mapStateToProps(store, ownProps) {
-        var vec;
-        try {
-            vec = store.backend.indiManager.deviceTree[ownProps.dev][ownProps.vec];
-            if (vec == undefined) throw "vector not found";
-        } catch (e) {
-            throw new Error('One of many not found: ' + ownProps.dev + ' , ' + ownProps.vec + ' => ' + e);
-        }
-
-        return ({
-            childs: vec.childs,
-            childNames: vec.childNames
-        })
-    }
-}
-
-IndiSelectorPropertyView = connect(IndiSelectorPropertyView.mapStateToProps)(IndiSelectorPropertyView);
 
 const sexaFormatRe = /^%([0-9]*).([0-9]*)m$/;
 const floatFormatRe = /^%([0-9]*)\.([0-9]*)f$/;

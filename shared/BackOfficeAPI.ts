@@ -23,11 +23,18 @@ export type UpdateIndiDriverParamRequest = {
     value: number|boolean|string;
 }
 
+export type UpdateIndiVectorRequest = {
+    dev: string;
+    vec: string;
+    children: {name:string, value:string}[]
+}
+
 export type IndiAPI = {
     connectDevice: (payload: {device: string})=>void;
     disconnectDevice: (payload: {device: string})=>void;
     restartDriver: (payload: {driver: string})=>void;
     updateDriverParam: (payload: UpdateIndiDriverParamRequest)=>void;
+    updateVector: (payload: UpdateIndiVectorRequest)=>void;
 }
 
 export type ShootResult = {

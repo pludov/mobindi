@@ -51,6 +51,7 @@ export type IndiServerState = IndiServerConfiguration & {
 
 export type IndiProperty = {
     $_: string;
+    $name: string;
     $label: string;
 }
 
