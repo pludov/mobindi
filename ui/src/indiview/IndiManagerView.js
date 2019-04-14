@@ -3,83 +3,16 @@
  */
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
-import { atPath } from '../shared/JsonPath';
 import Collapsible from 'react-collapsible';
 import Led from "../Led";
-import Modal from '../Modal';
 import TextEdit from "../TextEdit";
 import Icons from "../Icons"
 import IconButton from "../IconButton";
-import IndiDriverConfig from '../IndiDriverConfig';
+import IndiDriverControlPanel from "./IndiDriverControlPanel";
 import IndiDriverSelector from "./IndiDriverSelector";
 import "../Collapsible.css";
 import "./IndiManagerView.css";
 
-// Return a function that will call the given function with the given args
-function closure() {
-    var func = arguments[0];
-    var args = Array.from(arguments).slice(1);
-    var self = this;
-
-    return ()=> {
-        return func.apply(self, args);
-    };
-}
-
-class IndiDriverControlPanel extends PureComponent {
-    constructor(props) {
-        super(props);
-    }
-
-    render() {
-        if (this.props.configured) {
-            return <span>
-                <Modal
-                    flagPath='IndiManagerView/driverModalEditor'
-                    flagValue={this.props.current}
-                    ref={modal=>this.modal=modal}>
-                    <IndiDriverConfig 
-                            driverId={this.props.current}
-                            app={this.props.app}/>
-                </Modal>
-                <input type='button'
-                            className='IndiConfigButton'
-                            onClick={() =>{this.modal.open()}}
-                            value='...'/>
-                <input type='button'
-                            onClick={async () => await this.props.app.restartDriver(this.props.current)}
-                            className='IndiRestartButton'
-                            value={'\u21bb'}/>
-            </span>
-        }
-        return null;
-    }
-
-    static mapStateToProps(store) {
-        var deviceSelectorOptions = [];
-
-        var backend = store.backend.indiManager;
-
-        var currentDeviceFound= false;
-
-        var currentDevice = store.indiManager.selectedDevice;
-        if (currentDevice == undefined) currentDevice = "";
-
-        var configured = false;
-        var configuredDevices = atPath(backend, '$.configuration.indiServer.devices');
-        if (configuredDevices && Object.prototype.hasOwnProperty.call(configuredDevices, currentDevice)) {
-            configured = true;
-        }
-
-        var result = {
-            current: currentDevice,
-            configured: configured
-        };
-        return result;
-    }
-}
-
-IndiDriverControlPanel = connect(IndiDriverControlPanel.mapStateToProps)(IndiDriverControlPanel);
 
 
 const VectorStateToColor = {

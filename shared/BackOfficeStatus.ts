@@ -81,24 +81,12 @@ export type IndiManagerStatus = {
     };
 }
 
-export type IndiManagerConnectDeviceRequest = {
-    device: string;
-}
-
-export type IndiManagerDisconnectDeviceRequest = {
-    device: string;
-}
-
 export type IndiManagerSetPropertyRequest = {
     data: {
         dev: string;
         vec: string;
         children: {name:string, value:string}[]
     }
-}
-
-export type IndiManagerRestartDriverRequest = {
-    driver: string;
 }
 
 export type ImageStatus = {

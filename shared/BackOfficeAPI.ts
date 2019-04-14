@@ -26,6 +26,7 @@ export type UpdateIndiDriverParamRequest = {
 export type IndiAPI = {
     connectDevice: (payload: {device: string})=>void;
     disconnectDevice: (payload: {device: string})=>void;
+    restartDriver: (payload: {driver: string})=>void;
     updateDriverParam: (payload: UpdateIndiDriverParamRequest)=>void;
 }
 
