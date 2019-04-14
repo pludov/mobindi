@@ -118,14 +118,14 @@ export default class Notifier {
         if (this.store == undefined) return;
 
         if (error !== undefined && error !== null) {
-            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
                 backendStatus: BackendStatus.Failed,
                 backendError: error
             });
             return;
         }
         if (this.handshakeOk) {
-            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
                 backendStatus: BackendStatus.Connected,
                 backendError: undefined
             });
@@ -134,19 +134,19 @@ export default class Notifier {
         if (this.socket == null) {
             // On est caché: on est en pause
             if (document[this.hidden]) {
-                Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+                Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
                     backendStatus: BackendStatus.Paused,
                     backendError: undefined
                 });
                 return;
             }
             // On devrait etre connecté
-            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
                     backendStatus: BackendStatus.Failed
             });
             return;
         } else {
-            Actions.dispatch<BackendStore.Actions>("backendStatus", this.store)({
+            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
                 backendStatus: BackendStatus.Connecting,
                 backendError: undefined
             });

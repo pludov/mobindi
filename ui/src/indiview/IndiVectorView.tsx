@@ -20,10 +20,6 @@ import Led from '../Led';
 type InputProps = {
     dev: string;
     vec: string;
-    prop:string;
-    showVecLabel: boolean;
-    forcedValue: boolean;
-    onChange: (prop:string, truc: boolean, value:string)=>(void);
 }
 
 type MappedProps = {

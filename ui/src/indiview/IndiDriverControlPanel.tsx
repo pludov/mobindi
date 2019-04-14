@@ -59,7 +59,7 @@ class IndiDriverControlPanel extends React.PureComponent<Props> {
         return null;
     }
 
-    static mapStateToProps(store:Store.Content):MappedProps {
+    static mapStateToProps(store:Store.Content, props: InputProps):MappedProps {
         const backend = store.backend.indiManager;
 
         const currentDevice = store.indiManager.selectedDevice || "";

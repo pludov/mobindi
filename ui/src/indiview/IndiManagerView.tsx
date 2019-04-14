@@ -2,29 +2,47 @@
  * Created by ludovic on 21/07/17.
  */
 import React, { Component, PureComponent} from 'react';
-import { connect } from 'react-redux';
 import Collapsible from 'react-collapsible';
-import Led from "../Led";
-import TextEdit from "../TextEdit";
-import Icons from "../Icons"
-import IconButton from "../IconButton";
-import IndiDriverControlPanel from "./IndiDriverControlPanel";
-import IndiDriverSelector from "./IndiDriverSelector";
-import IndiVectorView from "./IndiVectorView";
-import "../Collapsible.css";
+import CancellationToken from 'cancellationtoken';
+import * as Store from "../Store";
+import * as Actions from "../Actions";
+import * as BackendRequest from "../BackendRequest";
+import * as IndiManagerStore from "../IndiManagerStore";
+import * as Utils from "../Utils";
+import { IndiVector, IndiProperty, IndiManagerStatus } from '@bo/BackOfficeStatus';
+import * as BackOfficeAPI from '@bo/BackOfficeAPI';
+import IndiSelectorPropertyView from "./IndiSelectorPropertyView";
+import IndiPropertyView from "./IndiPropertyView";
 import "./IndiManagerView.css";
+import "../Collapsible.css";
+import IconButton from '../IconButton';
+import Icons from '../Icons';
+import Led from '../Led';
+import IndiDriverControlPanel from './IndiDriverControlPanel';
+import IndiDriverSelector from './IndiDriverSelector';
+import IndiVectorView from './IndiVectorView';
+
+type InputProps = {
+}
+
+type MappedProps = {
+    indiManager: IndiManagerStatus;
+    uiState: IndiManagerStore.IndiManagerStoreContent;
+}
+
+type Props = InputProps & MappedProps;
 
 
-
-
-
-
-
-class IndiManagerView extends Component {
-    constructor(props) {
+class IndiManagerView extends React.PureComponent<Props> {
+    constructor(props:Props) {
         super(props);
 
         this.state = { value: ''};
+    }
+
+    async setGroupState(dev: string, group: string, newState: boolean)
+    {
+        await Actions.dispatch<IndiManagerStore.Actions>()("setGroupState", {dev, group, newState});
     }
 
     render() {
@@ -34,9 +52,8 @@ class IndiManagerView extends Component {
         }
 
         var vectors = [];
-        var currentDevice = this.props.uiState.selectedDevice;
-        if (currentDevice == undefined) currentDevice = "";
-        if (currentDevice != "") {
+        const currentDevice = this.props.uiState.selectedDevice || "";
+        if (currentDevice !== "") {
             if (Object.prototype.hasOwnProperty.call(this.props.indiManager.deviceTree, currentDevice)) {
                 var deviceProps = this.props.indiManager.deviceTree[currentDevice];
 
@@ -56,14 +73,14 @@ class IndiManagerView extends Component {
                     var groupDesc = groups[group];
                     let childs = [];
                     for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
-                        childs.push(<IndiVectorView app={this.props.app} key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
+                        childs.push(<IndiVectorView key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
                     }
 
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
                         open={groupDesc.opened}
-                        onOpening={()=>this.props.app.setGroupState(currentDevice, group, true)}
-                        onClosing={()=>this.props.app.setGroupState(currentDevice, group, false)}
+                        onOpening={()=>this.setGroupState(currentDevice, group, true)}
+                        onClosing={()=>this.setGroupState(currentDevice, group, false)}
                         transitionTime={200}
                         trigger={group}
                         lazyRender={true}>{childs}</Collapsible>);
@@ -90,8 +107,8 @@ class IndiManagerView extends Component {
                 </div>
 
                 <div className="IndiDriverSelector">
-                    Driver: <IndiDriverSelector app={this.props.app}/>
-                    <IndiDriverControlPanel app={this.props.app}/>
+                    Driver: <IndiDriverSelector/>
+                    <IndiDriverControlPanel/>
                 </div>
 
                 <div className="IndiPropertyView">
@@ -99,15 +116,15 @@ class IndiManagerView extends Component {
                 </div>
             </div>);
     }
+
+    static mapStateToProps = (store:Store.Content, ownProps: InputProps)=>{
+        return {
+            indiManager: store.backend.indiManager,
+            uiState: store.indiManager
+        } as MappedProps;
+    }
 }
 
 
-const mapStateToProps = function(store) {
-    var result = {
-        indiManager: store.backend.indiManager,
-        uiState:store.indiManager
-    };
-    return result;
-}
 
-export default connect(mapStateToProps)(IndiManagerView);
+export default Store.Connect(IndiManagerView);

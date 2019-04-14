@@ -42,7 +42,7 @@ class AppIcon extends React.PureComponent<Props> {
     }
 
     private activate=()=>{
-        Actions.dispatch<BackendStore.Actions>("SwitchToApp")({value: this.props.appid});
+        Actions.dispatch<BackendStore.Actions>()("SwitchToApp", {value: this.props.appid});
     }
 }
 

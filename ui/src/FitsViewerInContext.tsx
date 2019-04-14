@@ -24,7 +24,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
     }
 
     saveViewSettings=(e:FitsViewerFullState)=>{
-        Actions.dispatch<FitsViewerStore.Actions>("setViewerState")({
+        Actions.dispatch<FitsViewerStore.Actions>()("setViewerState", {
             context: this.props.contextKey,
             viewSettings: e
         });

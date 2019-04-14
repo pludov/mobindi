@@ -34,4 +34,8 @@ function noErr<T,R>(f:()=>T, def:R):T|R
     }
 }
 
-export {promiseToState, noErr};
+function has(o: any, s: string) {
+    return Object.prototype.hasOwnProperty.call(o, s);
+}
+
+export {promiseToState, noErr, has};

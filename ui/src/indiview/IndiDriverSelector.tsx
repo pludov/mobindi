@@ -26,7 +26,7 @@ class IndiDriverSelector extends React.Component<Props> {
 
     updateDriver = (e:React.ChangeEvent<HTMLSelectElement>)=> {
         const target = e.target.value;
-        Actions.dispatch<IndiManagerStore.Actions>("switchToDevice")({dev: target});
+        Actions.dispatch<IndiManagerStore.Actions>()("switchToDevice", {dev: target});
     }
 
     render() {
@@ -55,7 +55,7 @@ class IndiDriverSelector extends React.Component<Props> {
         return false;
     }
 
-    static mapStateToProps(store: Store.Content):MappedProps {
+    static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {
         var deviceSelectorOptions:string[] = [];
 
         const backend = store.backend.indiManager;
