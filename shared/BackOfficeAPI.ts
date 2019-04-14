@@ -17,9 +17,16 @@ export type AstrometryGotoScopeRequest = {
     dec:number;
 }
 
+export type UpdateIndiDriverParamRequest = {
+    driver: string;
+    key: string;
+    value: number|boolean|string;
+}
+
 export type IndiAPI = {
     connectDevice: (payload: {device: string})=>void;
     disconnectDevice: (payload: {device: string})=>void;
+    updateDriverParam: (payload: UpdateIndiDriverParamRequest)=>void;
 }
 
 export type ShootResult = {

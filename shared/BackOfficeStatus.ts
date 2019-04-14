@@ -35,7 +35,7 @@ export type IndiDeviceConfiguration = {
     config?: string;
     skeleton?: string;
     prefix?: string;
-    options: {[id:string]:string};
+    options: {[id:string]:number|string|boolean};
 };
 
 export type IndiServerConfiguration = {
@@ -99,12 +99,6 @@ export type IndiManagerSetPropertyRequest = {
 
 export type IndiManagerRestartDriverRequest = {
     driver: string;
-}
-
-export type IndiManagerUpdateDriverParamRequest = {
-    driver: string;
-    key: string;
-    value: string;
 }
 
 export type ImageStatus = {

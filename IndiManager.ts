@@ -5,7 +5,7 @@ import fs from 'fs';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import {IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { IndiManagerStatus, IndiManagerConnectDeviceRequest, IndiManagerDisconnectDeviceRequest, IndiManagerSetPropertyRequest, IndiManagerRestartDriverRequest, IndiManagerUpdateDriverParamRequest, BackofficeStatus } from './shared/BackOfficeStatus';
+import { IndiManagerStatus, IndiManagerConnectDeviceRequest, IndiManagerDisconnectDeviceRequest, IndiManagerSetPropertyRequest, IndiManagerRestartDriverRequest, BackofficeStatus } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
 import JsonProxy from './JsonProxy';
 import CancellationToken from 'cancellationtoken';
@@ -119,6 +119,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return {
             connectDevice: this.connectDevice,
             disconnectDevice: this.disconnectDevice,
+            updateDriverParam: this.updateDriverParam,
         }
     }
 
@@ -482,7 +483,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return await this.indiServerStarter.restartDevice(ct, message.driver);
     }
 
-    async $api_updateDriverParam(ct: CancellationToken, message:IndiManagerUpdateDriverParamRequest)
+    public updateDriverParam = async (ct: CancellationToken, message: BackOfficeAPI.UpdateIndiDriverParamRequest)=>
     {
         if (!has(this.currentStatus.configuration.indiServer.devices, message.driver)) {
             throw new Error("Device not found");
