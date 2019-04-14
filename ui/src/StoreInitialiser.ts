@@ -4,11 +4,10 @@ import * as Actions from './Actions';
 import { compose, createStore } from 'redux';
 import persistState from 'redux-localstorage'
 import Notifier from './Notifier';
-import JsonProxy from './shared/JsonProxy';
-import { atPath } from './shared/JsonPath'
 
 import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
+import * as IndiManagerStore from './IndiManagerStore';
 
 export function start() {
     const initialState:Store.Content =  {
@@ -17,11 +16,11 @@ export function start() {
         backend: {
             apps: {}
         },
-        indiManager: {},
         currentApp: null,
         viewSettings: {},
         ...NotificationStore.initialState,
         ...MessageStore.initialState,
+        ...IndiManagerStore.initialState,
     };
 
     var {reducer, storeManager } = function() {

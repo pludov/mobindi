@@ -4,7 +4,7 @@
 import React, { Component } from 'react';
 import { update } from './shared/Obj'
 import BaseApp from './BaseApp';
-import IndiManagerView from './IndiManagerView';
+import IndiManagerView from './indiview/IndiManagerView';
 
 
 
@@ -36,23 +36,6 @@ class IndiManagerApp extends BaseApp {
             }
         });
         return result;
-    }
-
-    switchToDevice($state, dev) {
-        var emptyDev = {};
-        emptyDev[dev] = {};
-        var u = {
-            $mergedeep: {
-                indiManager: {
-                    selectedDevice: dev,
-                    expandedGroups: {
-                        [dev]: {}
-                    }
-                }
-            }
-        };
-
-        return update($state, u);
     }
 
     // Returns a promise that needs start

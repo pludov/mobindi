@@ -3,17 +3,17 @@
  */
 import React, { Component, PureComponent} from 'react';
 import { connect } from 'react-redux';
-import { atPath } from './shared/JsonPath';
-import shallowequal from 'shallowequal';
+import { atPath } from '../shared/JsonPath';
 import Collapsible from 'react-collapsible';
-import "./Collapsible.css";
-import Led from "./Led";
-import Modal from './Modal';
-import TextEdit from "./TextEdit";
+import Led from "../Led";
+import Modal from '../Modal';
+import TextEdit from "../TextEdit";
+import Icons from "../Icons"
+import IconButton from "../IconButton";
+import IndiDriverConfig from '../IndiDriverConfig';
+import IndiDriverSelector from "./IndiDriverSelector";
+import "../Collapsible.css";
 import "./IndiManagerView.css";
-import Icons from "./Icons"
-import IconButton from "./IconButton";
-import IndiDriverConfig from './IndiDriverConfig';
 
 // Return a function that will call the given function with the given args
 function closure() {
@@ -25,72 +25,6 @@ function closure() {
         return func.apply(self, args);
     };
 }
-
-class IndiDriverSelector extends Component {
-    constructor(props) {
-        super(props);
-    }
-
-    render() {
-        var deviceSelectorOptions = this.props.options.map((item) => <option key={item} value={item}>{item}</option>);
-        return (<select value={this.props.current} 
-            onChange={(e) => this.props.app.switchToDevice(e.target.value)}
-            placeholder="Select device...">
-            {deviceSelectorOptions}
-        </select>);
-
-    }
-
-    // Limit the refresh for the selector (would reset selection)
-    shouldComponentUpdate(nextProps, nextState) {
-        return !shallowequal(nextProps, this.props,(a, b, k)=>(k == "options" ? shallowequal(a, b) : undefined));
-    }
-
-    static mapStateToProps(store) {
-        var deviceSelectorOptions = [];
-
-        var backend = store.backend.indiManager;
-
-        var currentDeviceFound= false;
-
-        var currentDevice = store.indiManager.selectedDevice;
-        if (currentDevice == undefined) currentDevice = "";
-
-        var found = {};
-        if (Object.prototype.hasOwnProperty.call(backend, 'deviceTree')) {
-
-            for(var o of Object.keys(backend.deviceTree).sort()) {
-                if (o === currentDevice) currentDeviceFound = true;
-                deviceSelectorOptions.push(o);
-                found[o] = 1;
-            }
-        }
-
-        var configuredDevices = atPath(backend, '$.configuration.indiServer.devices');
-        if (configuredDevices) {
-            for(var o of Object.keys(configuredDevices).sort())
-            {
-                if (Object.prototype.hasOwnProperty.call(found, o)) {
-                    continue;
-                }
-                if (o === currentDevice) currentDeviceFound = true;
-                deviceSelectorOptions.push(o);
-            }
-        }
-
-        if (!currentDeviceFound) {
-            deviceSelectorOptions.splice(0,0, currentDevice);
-        }
-
-        var result = {
-            options: deviceSelectorOptions,
-            current:currentDevice
-        };
-        return result;
-    }
-}
-
-IndiDriverSelector = connect(IndiDriverSelector.mapStateToProps)(IndiDriverSelector);
 
 class IndiDriverControlPanel extends PureComponent {
     constructor(props) {

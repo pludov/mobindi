@@ -1,7 +1,6 @@
 import { update } from './shared/Obj';
 import * as Actions from "./Actions";
 import * as Store from "./Store";
-import * as JsonProxy from './shared/JsonProxy';
 
 export type Content = {
     viewSettings: {[id:string]: any};
