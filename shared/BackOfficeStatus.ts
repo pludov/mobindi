@@ -61,7 +61,7 @@ export type IndiVector = {
     $type: string;
     $perm: string;
     $rule: string;
-    $state: "Busy"|"";
+    $state: "Busy"|"Error"|"";
     $timestamp: string;
     $rev: string;
     childNames: string[];
