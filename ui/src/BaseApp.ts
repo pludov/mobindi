@@ -44,26 +44,4 @@ export default class BaseApp {
     getUi():null|React.ReactNode {
         return null;
     }
-
-    // Send a request to any server side app.
-    // Returns a promise that will execute the request
-    // Except an object with at least method property
-    // will call a $api_ method on server side
-    async appServerRequest(appId:string, content:any): Promise<any> {
-        try {
-            const ret = Store.getNotifier().sendRequest(Object.assign({'target': appId}, content));
-            return ret;
-        } catch(e) {
-            console.log('Request to ' + appId + ' error:', e);
-            throw e;
-        }
-    }
-
-    // Send a request to the server side app counterpart
-    // Returns a promise that will execute the request
-    // Except an object with at least method property
-    // will call a $api_ method on server side
-    serverRequest(content:any) {
-        return this.appServerRequest(this.appId, content);
-    }
 }

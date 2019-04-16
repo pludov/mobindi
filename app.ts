@@ -206,39 +206,6 @@ wss.on('connection', (ws:WebSocket)=>{
                     }
                 }
             });
-
-        } else if (message.type == "startRequest") {
-            console.log('Got action message - deprecated');
-            var id = message.id;
-            if (id === undefined) id = null;
-
-            const globalUid = client.uid + ':' + id;
-
-            const request = new ClientRequest(globalUid, client);
-
-
-            createTask<any>(undefined, async (task)=> {
-                try {
-                    if (!message.details) throw "missing details property";
-                    var target = message.details.target;
-                    if (!Object.prototype.hasOwnProperty.call(context, target)) {
-                        throw new Error('invalid target: ' + target);
-                    }
-                    const targetObj = (context as any)[target];
-                    const method = '$api_' + message.details.method;
-                    if (!(method in targetObj)) {
-                        throw new Error("Method does not exists: " + target + "." + method);
-                    }
-                    const ret = await targetObj[method](task.cancellation, message.details);
-                    request.success(ret);
-                } catch(e) {
-                    if (e instanceof CancellationToken.CancellationError) {
-                        request.onCancel();
-                    } else {
-                        request.onError(e);
-                    }
-                }
-            });
         }
     });
 

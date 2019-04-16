@@ -210,9 +210,8 @@ export default class Notifier {
 
     // Returns a promise that will execute the request
     // Except an object with at least target and method property set
-    // will call a $api_ method on server side
-    // Not cancelable
-    // GROS FIXME: propager promise here
+    // will call an API method on server side
+    // FIXME: make this cancelable
     public sendRequest<Q,R>(content:Q, type?: string):Promise<R> {
         return new Promise<R>((resolve, reject) => {
             if (!this.handshakeOk) {

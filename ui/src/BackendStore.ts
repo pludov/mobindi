@@ -5,6 +5,7 @@ import * as JsonProxy from './shared/JsonProxy';
 export type Content = {
     backendStatus: number;
     backendError: string|null;
+    // FIXME: switch that to nullable
     backend: Partial<BackofficeStatus>;
 }
 

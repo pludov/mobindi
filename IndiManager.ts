@@ -471,12 +471,6 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         await this.setParam(ct, device, 'CONNECTION', {DISCONNECT: "On"});
     }
 
-    async $api_setProperty(ct: CancellationToken, message:IndiManagerSetPropertyRequest)
-    {
-        const dev = this.getValidConnection().getDevice(message.data.dev);
-        dev.getVector(message.data.vec).setValues( message.data.children);
-    }
-
     public updateVector = async (ct: CancellationToken, message:BackOfficeAPI.UpdateIndiVectorRequest)=>
     {
         const dev = this.getValidConnection().getDevice(message.dev);

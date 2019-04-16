@@ -21,7 +21,7 @@ async function privateCall(ct: CancellationToken, appId: string, methodId: strin
     }, 'api');
 }
 
-// Usage: RootInvoker("toolExecuter")("$api_startTool")(CancellationToken.CONTINUE, {uid: ""});
+// Usage: RootInvoker("toolExecuter")("startTool")(CancellationToken.CONTINUE, {uid: ""});
 export function RootInvoker<ID extends keyof BackOfficeAPI.BackOfficeAPI>(appId:ID):AppInvoker<BackOfficeAPI.BackOfficeAPI[ID]> {
     return  ((methodId: string)=>{
         return (ct: CancellationToken, payload: any)=>privateCall(ct, appId, methodId, payload);
