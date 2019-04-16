@@ -1,7 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import AstrometryView from './AstrometryView';
-import { AstrometrySetScopeRequest } from '@bo/BackOfficeStatus';
+import * as BackendRequest from "./BackendRequest";
 
 
 export default class AstrometryApp extends BaseApp {
@@ -13,9 +13,5 @@ export default class AstrometryApp extends BaseApp {
         return (<div className="Page" key={this.appId}>
                     <AstrometryView app={this} />
                 </div>);
-    }
-
-    setScope(message:AstrometrySetScopeRequest) {
-        return this.serverRequest({method: 'setScope', ...message});
     }
 }

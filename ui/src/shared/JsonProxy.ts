@@ -516,7 +516,7 @@ type UpdateDiff = {
     delete?: string[];
 }
 
-type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
+export type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
 
 export default class JsonProxy<CONTENTTYPE> {
     root: JsonProxyNode;

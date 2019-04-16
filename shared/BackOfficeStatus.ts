@@ -4,12 +4,16 @@ import { IndiMessage } from "./IndiTypes";
 export type ShootSettings = {
     prefix?:string;
     type?:string;
+    bin?: number;
+    exposure: number;
+    iso?: null|string;
 }
 
-export type ShootResult = {
-    uuid: string;
-    path: string;
-    device: string;
+export type SequenceStep = {
+    count: number;
+    dither?: boolean;
+    done?: number;
+    type: string;
 }
 
 export type Sequence = {
@@ -22,14 +26,14 @@ export type Sequence = {
     done?:boolean;
     steps: {
         list: string[];
-        byuuid: {[uuid:string]:any}
+        byuuid: {[uuid:string]:SequenceStep}
     };
     // uuids of images
     images: string [];
     storedImages?: ImageStatus[];
 }
 
-export type IndiMessageWithUid = IndiMessage | {
+export type IndiMessageWithUid = IndiMessage & {
     uid: string;
 };
 
@@ -38,7 +42,7 @@ export type IndiDeviceConfiguration = {
     config?: string;
     skeleton?: string;
     prefix?: string;
-    options: {[id:string]:string};
+    options: {[id:string]:number|string|boolean};
 };
 
 export type IndiServerConfiguration = {
@@ -52,6 +56,32 @@ export type IndiServerState = IndiServerConfiguration & {
     restartList: string[];
 };
 
+export type IndiProperty = {
+    $_: string;
+    $name: string;
+    $label: string;
+    $format: string;
+}
+
+export type IndiVector = {
+    $label: string;
+    $type: string;
+    $perm: string;
+    $rule: string;
+    $group: string;
+    $state: "Busy"|"Error"|"";
+    $timestamp: string;
+    $rev: string;
+    childNames: string[];
+    childs: {
+        [propId: string]: IndiProperty
+    };
+}
+
+export type IndiDevice = {
+    [vecId: string]: IndiVector
+}
+
 export type IndiManagerStatus = {
     status: "error"|"connecting"|"connected";
     configuration: {
@@ -59,18 +89,10 @@ export type IndiManagerStatus = {
         driverPath: string;
     };
     driverToGroup: {[driver: string]: string};
-    deviceTree: {[deviceId:string]:any}
+    deviceTree: {[deviceId:string]:IndiDevice}
     messages: {
         byUid: {[uuid:string]:IndiMessageWithUid}
     };
-}
-
-export type IndiManagerConnectDeviceRequest = {
-    device: string;
-}
-
-export type IndiManagerDisconnectDeviceRequest = {
-    device: string;
 }
 
 export type IndiManagerSetPropertyRequest = {
@@ -79,16 +101,6 @@ export type IndiManagerSetPropertyRequest = {
         vec: string;
         children: {name:string, value:string}[]
     }
-}
-
-export type IndiManagerRestartDriverRequest = {
-    driver: string;
-}
-
-export type IndiManagerUpdateDriverParamRequest = {
-    driver: string;
-    key: string;
-    value: string;
 }
 
 export type ImageStatus = {
@@ -101,7 +113,7 @@ export type CameraStatus = {
     selectedDevice: string | null;
     preferedDevice: string | null;
     availableDevices: string [];
-    currentSettings: any;
+    currentSettings: ShootSettings;
     currentShoots: {[deviceId:string]:any};
     lastByDevices: {[deviceId:string]:string};
     images: {
@@ -190,7 +202,7 @@ export type ProcessConfiguration = {
 }
 
 export type PhdGuideStep = {
-    Timestamp: null;
+    Timestamp: string;
     RADistanceRaw?: number,
     DECDistanceRaw?: number,
     settling?: boolean;
@@ -249,32 +261,6 @@ export type TriggerConfig = {
 
 export type TriggerExecuterStatus = {
     triggers: {[id:string]:TriggerConfig};
-}
-
-export type AstrometryComputeRequest = {
-    image: string;
-    forceWide: boolean;
-}
-
-export type AstrometryCancelRequest = {
-}
-
-export type AstrometrySetScopeRequest = {
-    deviceId: string;
-}
-
-export type AstrometrySyncScopeRequest = {
-}
-
-export type AstrometryGotoScopeRequest = {
-    // 0 - 360 degrees
-    ra:number;
-    // -90 - 90 degrees
-    dec:number;
-}
-
-export type ToolExecuterStartToolRequest = {
-    uid: string;
 }
 
 export type BackofficeStatus = {

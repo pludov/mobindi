@@ -1,10 +1,9 @@
 import { connect } from 'react-redux';
 
 import React, { Component, PureComponent} from 'react';
-import AstrometryApp from './AstrometryApp';
-import PromiseSelector from './PromiseSelector';
-import DeviceConnectBton from './DeviceConnectBton';
-import PropertyEditor from './PropertyEditor';
+import Bool from './primitives/Bool';
+import Int from './primitives/Int';
+import Conditional from './primitives/Conditional';
 import BackendAccessor from './utils/BackendAccessor';
 
 type Props = {
@@ -21,33 +20,33 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
         return <div>
                 <div>
                     Initial field range (°):
-                    <PropertyEditor.Int accessor={this.props.accessor.child('$.initialFieldMin')}>
-                    </PropertyEditor.Int>
+                    <Int accessor={this.props.accessor.child('$.initialFieldMin')}>
+                    </Int>
                     to
-                    <PropertyEditor.Int accessor={this.props.accessor.child('$.initialFieldMax')}>
-                    </PropertyEditor.Int>
+                    <Int accessor={this.props.accessor.child('$.initialFieldMax')}>
+                    </Int>
                 </div>
 
-                <PropertyEditor.Int accessor={this.props.accessor.child('$.narrowedFieldPercent')}>
+                <Int accessor={this.props.accessor.child('$.narrowedFieldPercent')}>
                     Max field variation (%)
-                </PropertyEditor.Int>
+                </Int>
 
                 <div>
                     <div>
-                        <PropertyEditor.Bool accessor={this.props.accessor.child('$.useMountPosition')}>Use mount position</PropertyEditor.Bool>
+                        <Bool accessor={this.props.accessor.child('$.useMountPosition')}>Use mount position</Bool>
                     </div>
-                    <PropertyEditor.Conditional accessor={this.props.accessor.child("$.useMountPosition")} condition={(e:boolean)=>(!e)}>
+                    <Conditional accessor={this.props.accessor.child("$.useMountPosition")} condition={(e:boolean)=>(!e)}>
                     <div>
-                        <PropertyEditor.Int accessor={this.props.accessor.child('$.initialSearchRadius')}>
+                        <Int accessor={this.props.accessor.child('$.initialSearchRadius')}>
                             Initial search radius (°)
-                        </PropertyEditor.Int>
+                        </Int>
                     </div>
                     <div>
-                        <PropertyEditor.Int accessor={this.props.accessor.child('$.narrowedSearchRadius')}>
+                        <Int accessor={this.props.accessor.child('$.narrowedSearchRadius')}>
                             Synced search radius (°)
-                        </PropertyEditor.Int>
+                        </Int>
                     </div>
-                    </PropertyEditor.Conditional>
+                    </Conditional>
                 </div>
             </div>;
     }

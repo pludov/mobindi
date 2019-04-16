@@ -1,11 +1,13 @@
 import net from 'net';
+import CancellationToken from 'cancellationtoken';
 import * as Obj from './Obj.js';
 import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
 import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState } from './shared/BackOfficeStatus.js';
-import CancellationToken from 'cancellationtoken';
+import * as RequestHandler from "./RequestHandler";
+import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
 import { createTask } from './Task.js';
 
@@ -18,7 +20,9 @@ export type Listener = {
     test: ()=>(void);
 }
 
-export default class Phd {
+export default class Phd
+        implements RequestHandler.APIAppProvider<BackOfficeAPI.PhdAPI>
+{
     private appStateManager: JsonProxy<BackofficeStatus>;
     private running: boolean;
     private pendingRequests: {[id:string]:PhdRequest};
@@ -503,17 +507,27 @@ export default class Phd {
             });
     }
 
-    $api_connect = async(ct:CancellationToken)=>{
-        return await this.sendOrder(ct, {
+    public getAPI = ()=>{
+        const ret : RequestHandler.APIAppImplementor<BackOfficeAPI.PhdAPI> = {
+            connect: this.connect,
+            startGuide: this.startGuide,
+            stopGuide: this.stopGuide,
+
+        }
+        return ret;
+    };
+
+    connect = async(ct:CancellationToken)=>{
+        await this.sendOrder(ct, {
             method: "set_connected",
             params: [ true ]
         });
     }
 
-    $api_startGuide = async(ct:CancellationToken)=>{
-        await this.$api_connect(ct);
+    startGuide = async(ct:CancellationToken)=>{
+        await this.connect(ct);
 
-        return await this.sendOrder(ct, {
+        await this.sendOrder(ct, {
                 method: "guide",
                 params: [
                     {"pixels": 1.5, "time": 10, "timeout": 60},
@@ -522,9 +536,9 @@ export default class Phd {
             });
     }
 
-    $api_stopGuide = async(ct:CancellationToken)=>{
-        await this.$api_connect(ct);
-        return await this.sendOrder(ct, {
+    stopGuide = async(ct:CancellationToken)=>{
+        await this.connect(ct);
+        await this.sendOrder(ct, {
                 method: 'stop_capture',
             });
     }

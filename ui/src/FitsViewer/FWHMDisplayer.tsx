@@ -1,10 +1,9 @@
 import React, { Component, PureComponent} from 'react';
-import BaseApp from '../BaseApp';
-import * as Promises from '../shared/Promises';
+import * as BackendRequest from "../BackendRequest";
+import CancellationToken from 'cancellationtoken';
 
 export type Props = {
     src: string|null;
-    app: BaseApp;
 };
 
 export type State = {
@@ -14,7 +13,6 @@ export type State = {
 };
 
 export default class FWHMDisplayer extends PureComponent<Props, State> {
-    private request? : Promises.Cancelable<void, any>;
     constructor(props:Props) {
         super(props);
         this.state = {
@@ -24,7 +22,7 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
         }
     }
 
-    _loadData() {
+    async _loadData() {
         if (this.props.src === this.state.src) {
             return;
         }
@@ -38,10 +36,14 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
         });
         const self = this;
 
-        this.request = this.props.app.appServerRequest('imageProcessor', {
-                method: 'compute',
-                details: {"starField":{ "source": { "path":this.props.src}}}
-        }).then((e)=>{
+        try {
+            const e = await BackendRequest.ImageProcessor(
+                CancellationToken.CONTINUE,
+                {
+                    starField: { "source": { "path":this.props.src!}}
+                }
+            );
+
             let fwhmSum = 0;
             for(let star of e.stars) {
                 fwhmSum += star.fwhm
@@ -56,20 +58,17 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
                 value: stat,
                 loading: false
             });
-        }).onError((e)=> {
+        } catch(e) {
             this.setState({
                 value: null,
                 loading: false
             });
-        });
-        this.request.start(undefined);
+        };
     }
 
     _cancelLoadData() {
-        if (this.request !== undefined) {
-            this.request.cancel();
-            this.request = undefined;
-        }
+        // Not implemented
+        console.log('FIXME: canceling FWHMDisplayer is not implemented');
     }
 
     componentWillUnmount() {

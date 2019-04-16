@@ -4,10 +4,11 @@ import React, { Component, PureComponent} from 'react';
 import AstrometryApp from './AstrometryApp';
 import PromiseSelector from './PromiseSelector';
 import DeviceConnectBton from './DeviceConnectBton';
-import PropertyEditor from './PropertyEditor';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import BackendAccessor from './utils/BackendAccessor';
-import { notifier } from './Store';
+import * as Store from './Store';
+import * as BackendRequest from "./BackendRequest";
+import CancellationToken from 'cancellationtoken';
 
 type Props = {
     app: AstrometryApp;
@@ -19,12 +20,12 @@ const ScopeSelector = connect((store:any)=> ({
 }))(PromiseSelector);
 
 class AstrometryBackendAccessor extends BackendAccessor {
-    apply(jsonDiff:any) {
+    public apply = async (jsonDiff:any):Promise<void>=>{
         console.log('Sending changes: ' , jsonDiff);
-        return notifier.sendRequest({'target': 'astrometry',
-            method: 'updateCurrentSettings',
-            diff: jsonDiff
-        }).start(undefined) as any;
+        await BackendRequest.RootInvoker("astrometry")("updateCurrentSettings")(
+            CancellationToken.CONTINUE,
+            {diff: jsonDiff}
+        );
     }
 }
 
@@ -35,13 +36,22 @@ export default class AstrometryView extends PureComponent<Props> {
         this.accessor = new AstrometryBackendAccessor("$.astrometry.settings");
     }
 
+    private setScope = async(deviceId:string)=> {
+        return await BackendRequest.RootInvoker("astrometry")("setScope")(
+            CancellationToken.CONTINUE,
+            {
+                deviceId
+            }
+        );
+    }
+
     render() {
         return <div className="CameraView">
             <div>
-                <ScopeSelector setValue={(e:string)=>this.props.app.setScope({deviceId: e})}/>
+                <ScopeSelector setValue={this.setScope}/>
                 <DeviceConnectBton
                         activePath="$.backend.astrometry.selectedScope"
-                        app={this.props.app}/>
+                        />
                 <AstrometrySettingsView
                         accessor={this.accessor}/>
             </div>

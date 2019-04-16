@@ -1,9 +1,11 @@
 import CancellationToken from 'cancellationtoken';
 import * as Obj from './Obj';
 import JsonProxy from './JsonProxy';
-import { BackofficeStatus, ToolExecuterStartToolRequest, ToolConfig, ToolExecuterStatus } from './shared/BackOfficeStatus';
+import { BackofficeStatus, ToolConfig, ToolExecuterStatus } from './shared/BackOfficeStatus';
+import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import { AppContext } from './ModuleBase';
 import * as SystemPromise from './SystemPromise';
+import * as RequestHandler from "./RequestHandler";
 import ConfigStore from './ConfigStore';
 
 // Allow to start a script from the UI. 
@@ -15,7 +17,7 @@ type InstanciatedTool = {
     params: ToolConfig;
 }
 
-export default class ToolExecuter
+export default class ToolExecuter implements RequestHandler.APIAppProvider<BackOfficeAPI.ToolExecuterAPI>
 {
     private readonly jsonProxy: JsonProxy<BackofficeStatus>;
     private readonly context: AppContext;
@@ -69,24 +71,22 @@ export default class ToolExecuter
             params: params
         })
         if (params.trigger === "atstart") {
-            this.startTool(result);
+            this.runTool(result);
         }
         return result;
     }
 
     // Given a tool object, returns a promise for its execution
-    private startTool=(tool: InstanciatedTool)=>{
-        (async()=>{
-            try {
-                console.log('Will start ' + tool.id + ' as: ' + JSON.stringify(tool.params.cmd));
-                const ret = await SystemPromise.Exec(CancellationToken.CONTINUE, {
-                    command: tool.params.cmd
-                });
-                console.log('Task ' + tool.id + ' terminated with code : ', ret);
-            } catch(e) {
-                console.log('Task ' + tool.id + ' on error : ', e)
-            }
-        })();
+    private runTool=async (tool: InstanciatedTool)=>{
+        try {
+            console.log('Will start ' + tool.id + ' as: ' + JSON.stringify(tool.params.cmd));
+            const ret = await SystemPromise.Exec(CancellationToken.CONTINUE, {
+                command: tool.params.cmd
+            });
+            console.log('Task ' + tool.id + ' terminated with code : ', ret);
+        } catch(e) {
+            console.log('Task ' + tool.id + ' on error : ', e)
+        }
     }
 
     private syncTools=()=>
@@ -114,7 +114,7 @@ export default class ToolExecuter
         }
     }
 
-    public $api_startTool = async(ct:CancellationToken, message:ToolExecuterStartToolRequest)=> {
+    public startTool = async (ct: CancellationToken, message: {uid: string}) => {
         const which = message.uid;
         if (!which) {
             throw new Error("Invalid id");
@@ -124,6 +124,12 @@ export default class ToolExecuter
         }
 
         const toStart = this.instanciatedTools[which];
-        this.startTool(toStart);
+        this.runTool(toStart);
+    }
+
+    getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.ToolExecuterAPI> {
+        return {
+            startTool : this.startTool,
+        };
     }
 };

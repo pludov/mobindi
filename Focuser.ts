@@ -1,5 +1,7 @@
 const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
+import * as BackOfficeAPI from './shared/BackOfficeAPI';
+import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import ConfigStore from './ConfigStore';
 import JsonProxy from './JsonProxy';
@@ -9,7 +11,7 @@ import Camera from './Camera';
 import IndiManager from "./IndiManager";
 import ImageProcessor from "./ImageProcessor";
 
-export default class Focuser {
+export default class Focuser implements RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI>{
     readonly appStateManager: JsonProxy<BackofficeStatus>;
     readonly currentStatus: FocuserStatus;
     currentPromise: Task<number>|null;
@@ -85,6 +87,14 @@ export default class Focuser {
 
     }
 
+    getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI> {
+        return {
+            abort: this.abort,
+            focus: this.focus,
+            updateCurrentSettings: this.updateCurrentSettings,
+        }
+    }
+
     resetCurrent(status: AutoFocusStatus['status'])
     {
         this.currentStatus.current = {
@@ -121,7 +131,7 @@ export default class Focuser {
 
 
     // Adjust the focus
-    async focus(ct: CancellationToken, shootDevice:string):Promise<number> {
+    private async doFocus(ct: CancellationToken, shootDevice:string):Promise<number> {
         
         const amplitude = this.currentStatus.currentSettings.range;
         const stepCount = this.currentStatus.currentSettings.steps;
@@ -231,7 +241,7 @@ export default class Focuser {
         while(!done(currentStep)) {
             
             console.log('AUTOFOCUS: shoot start');
-            const shootResult = await this.camera.shoot(ct, shootDevice,
+            const shootResult = await this.camera.doShoot(ct, shootDevice,
                         (settings)=>({
                             ...settings,
                             prefix: 'focus_ISO8601_step_' + Math.floor(currentStep)
@@ -240,7 +250,7 @@ export default class Focuser {
             const moveFocuserPromise = done(nextStep()) ? undefined : moveFocuser(nextStep());
             try {
                 const starFieldResponse = await this.imageProcessor.compute(ct, {
-                    "starField":{ "source": { "path": shootResult.path}}
+                    starField: { source: { path: shootResult.path }}
                 });
                 
                 const starField = starFieldResponse.stars;
@@ -310,14 +320,14 @@ export default class Focuser {
         return bestPos!;
     }
 
-    $api_updateCurrentSettings=async(ct:CancellationToken, message:FocuserUpdateCurrentSettingsRequest)=>
+    updateCurrentSettings=async(ct:CancellationToken, message:FocuserUpdateCurrentSettingsRequest)=>
     {
         const newSettings = JsonProxy.applyDiff(this.currentStatus.currentSettings, message.diff);
         // FIXME: do the checking !
         this.currentStatus.currentSettings = newSettings;
     }
 
-    $api_focus=async(ct:CancellationToken, message:{}):Promise<number>=>{
+    focus=async(ct:CancellationToken, message:{}):Promise<number>=>{
         console.log('API focus called');
         return await createTask<number>(ct, async (task)=>{
             if (this.currentPromise !== null) {
@@ -330,7 +340,7 @@ export default class Focuser {
                 if (this.camera.currentStatus.selectedDevice === null) {
                     throw new Error("Select a camera first");
                 }
-                const ret:number = await this.focus(task.cancellation, this.camera.currentStatus.selectedDevice);
+                const ret:number = await this.doFocus(task.cancellation, this.camera.currentStatus.selectedDevice);
                 this.setCurrentStatus('done', null);
                 return ret;
             } catch(e) {
@@ -346,7 +356,7 @@ export default class Focuser {
         });
     }
 
-    $api_abort=async(ct:CancellationToken, message: {})=>{
+    abort=async(ct:CancellationToken, message: {})=>{
         if (this.currentPromise !== null) {
             this.currentPromise.cancel();
         }

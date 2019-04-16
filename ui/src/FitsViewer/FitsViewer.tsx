@@ -1,7 +1,5 @@
 
 import React, { Component, PureComponent} from 'react';
-import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
 import $ from 'jquery';
 import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
@@ -25,7 +23,7 @@ export type Levels = {
     high: number;
 }
 
-type FullState = {
+export type FullState = {
     levels: Levels;
 }
 
@@ -844,7 +842,6 @@ export type Props = {
     src: string|null;
     viewSettings?: Partial<FullState>;
     contextMenu?: ContextMenuEntry[];
-    app: BaseApp;
     onViewSettingsChange: (state: FullState)=>(void);
 };
 
@@ -988,7 +985,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
                     onFinishMove={this.flushView}
                     value={viewSettings.levels[this.state.histogramView]}/>;
         } else if (this.state.fwhm) {
-            histogramView = <FWHMDisplayer src={this.props.src} app={this.props.app}/>
+            histogramView = <FWHMDisplayer src={this.props.src}/>
         } else {
             histogramView = null;
         }

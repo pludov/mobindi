@@ -3,15 +3,17 @@ import { createSelector } from 'reselect'
 
 import { Connect } from './utils/Connect';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
+import * as BackendRequest from "./BackendRequest";
 
-import './FitsViewerWithAstrometry.css'
-import FitsViewerInContext from './FitsViewerInContext';
+import './FitsViewerWithAstrometry.css';
+import FitsViewerInContext, {UnmappedFitsViewerInContext} from './FitsViewerInContext';
 import SkyProjection from './utils/SkyProjection';
-import { storeManager, store } from './Store';
+import * as Store from './Store';
+import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
+import CancellationToken from 'cancellationtoken';
 
 
 type InputProps = {
-    app: any;
     src: string;
     contextKey: string;
 };
@@ -44,28 +46,29 @@ type State = {
 }
 
 class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
-    private readonly fitsViewer = React.createRef<FitsViewerInContext>();
+    private readonly fitsViewer = React.createRef<UnmappedFitsViewerInContext>();
 
     constructor(props:Props) {
         super(props);
         this.state = {fs: false};
     }
 
-    private readonly cancel = () => {
-        this.props.app.appServerRequest('astrometry', {
-            method: 'cancel'
-        }).start();
+    private readonly cancel = async () => {
+        return await BackendRequest.RootInvoker("astrometry")("cancel")(CancellationToken.CONTINUE, {});
     }
 
-    private readonly move = (pos:any) => {
-        const state = store.getState();
-        const astrometryResult = state.backend.astrometry.result;
+    private readonly move = async (pos:any) => {
+        const state = Store.getStore().getState();
+        const astrometryResult = state.backend.astrometry!.result;
         console.log('move at ', pos);
         if (pos.imageX === undefined || pos.imageY === undefined) {
             throw new Error("Wrong image position");
         }
+        if (astrometryResult === null) {
+            throw new Error("No astrometry result");
+        }
 
-        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
+        const skyProjection = SkyProjection.fromAstrometry(astrometryResult as SucceededAstrometryResult);
         // take the center of the image
         const center = [pos.imageX, pos.imageY];
         // Project to J2000
@@ -73,38 +76,31 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         // compute JNOW center for last image.
         const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
 
-        const gotoRequest:BackOfficeStatus.AstrometryGotoScopeRequest = {
-            ra: ranow,
-            dec: decnow,
-        };
-
-        return this.props.app.appServerRequest('astrometry', {
-            method: 'goto',
-            ...gotoRequest
-        }).start();
+        return await BackendRequest.RootInvoker("astrometry")("goto")(
+            CancellationToken.CONTINUE,
+            {
+                ra: ranow,
+                dec: decnow,
+            }
+        );
     }
 
-    private readonly sync = () => {
-        const syncRequest:BackOfficeStatus.AstrometrySyncScopeRequest = {
-        };
-
-        return this.props.app.appServerRequest('astrometry', {
-            method: 'sync',
-            ...syncRequest
-        }).start();
+    private readonly sync = async () => {
+        return await BackendRequest.RootInvoker("astrometry")("sync")(
+            CancellationToken.CONTINUE,
+            {}
+        );
     }
 
-    private readonly start=(forceWide?:boolean)=>
+    private readonly start=async (forceWide?:boolean)=>
     {
-        const computeRequest:BackOfficeStatus.AstrometryComputeRequest = {
-            image: this.props.src,
-            forceWide:!!forceWide
-        };
-
-        return this.props.app.appServerRequest('astrometry', {
-            method: 'compute',
-            ...computeRequest
-        }).start();
+        return await BackendRequest.RootInvoker("astrometry")("compute")(
+            CancellationToken.CONTINUE,
+            {
+                image: this.props.src,
+                forceWide:!!forceWide
+            }
+        );
     }
 
     private readonly startWide = () => {
@@ -195,7 +191,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext contextKey={this.props.contextKey}
                         src={this.props.src}
-                        app={this.props.app}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
                 />
