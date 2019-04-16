@@ -41,8 +41,6 @@ class IndiDriverControlPanel extends React.PureComponent<Props> {
         if (this.props.configured) {
             return <span>
                 <Modal
-                    flagPath='IndiManagerView/driverModalEditor'
-                    flagValue={this.props.current}
                     ref={this.modal}>
                     <IndiDriverConfig driverId={this.props.current} />
                 </Modal>
