@@ -7,7 +7,7 @@ import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
 type InputProps = {
     overridePredicate?: ((store: Store.Content, props: InputProps)=>(boolean|undefined));
     condition?: ((device:IndiVector|undefined)=>boolean);
-    device: string;
+    device: string|null;
     property: string;
 };
 
@@ -41,7 +41,7 @@ class StatePropCond extends React.PureComponent<Props> {
                 }
             }
         }
-        const desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)![ownProps.property], undefined);
+        const desc = ownProps.device === null ? undefined : Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device!)![ownProps.property], undefined);
         let result;
         if (ownProps.condition !== undefined) {
             result = ownProps.condition(desc);

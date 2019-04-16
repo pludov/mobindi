@@ -8,6 +8,7 @@ import * as FitsViewerStore from './FitsViewerStore';
 import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
 import * as IndiManagerStore from './IndiManagerStore';
+import * as SequenceStore from './SequenceStore';
 import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
 import Notifier from './Notifier';
@@ -19,6 +20,7 @@ export type Content =
             MessageStore.Content &
             NotificationStore.Content &
             IndiManagerStore.Content &
+            SequenceStore.Content &
 {
     currentApp: string|null;
 };

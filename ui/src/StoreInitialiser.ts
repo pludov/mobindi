@@ -8,6 +8,7 @@ import Notifier from './Notifier';
 import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
 import * as IndiManagerStore from './IndiManagerStore';
+import * as SequenceStore from './SequenceStore';
 
 export function start() {
     const initialState:Store.Content =  {
@@ -21,11 +22,13 @@ export function start() {
         ...NotificationStore.initialState,
         ...MessageStore.initialState,
         ...IndiManagerStore.initialState,
+        ...SequenceStore.initialState,
     };
 
     var {reducer, storeManager } = function() {
         var adjusters:Array<(state:Store.Content)=>Store.Content> = [
             ...MessageStore.adjusters(),
+            ...SequenceStore.adjusters(),
         ];
 
         var actionsByApp = {};

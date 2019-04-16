@@ -357,10 +357,9 @@ export default class Camera
         this.currentStatus.currentSettings[key] = payload.value;
     }
 
-    async $api_newSequence(ct: CancellationToken, message: any) {
-        console.log('Request to create sequence: ', JSON.stringify(message.data));
-        var key = uuid.v4();
-        var firstSeq = uuid.v4();
+    newSequence=async (ct: CancellationToken, message: {}):Promise<string>=>{
+        const key = uuid.v4();
+        const firstSeq = uuid.v4();
         this.currentStatus.sequences.byuuid[key] = {
             status: 'idle',
             title: 'New sequence',
@@ -382,7 +381,7 @@ export default class Camera
         return key;
     }
 
-    async $api_newSequenceStep(ct: CancellationToken, message:any) {
+    newSequenceStep=async (ct: CancellationToken, message:{sequenceUid: string})=>{
         console.log('Request to add step: ', JSON.stringify(message));
         var sequenceUid = message.sequenceUid;
         var sequenceStepUid = uuid.v4();
@@ -391,22 +390,7 @@ export default class Camera
         return sequenceStepUid;
     }
 
-    async $api_deleteSequenceStep(ct: CancellationToken, message:any) {
-        console.log('Request to drop step: ', JSON.stringify(message));
-        var sequenceUid = message.sequenceUid;
-        var sequenceStepUid = message.sequenceStepUid;
-        var sequenceStepUidList = this.currentStatus.sequences.byuuid[sequenceUid].steps.list;
-        var pos = sequenceStepUidList.indexOf(sequenceStepUid);
-        if (pos == -1) {
-            console.warn('step ' + sequenceStepUid + ' not found in ' + JSON.stringify(sequenceStepUidList));
-            throw new Error("Step not found");
-        }
-        sequenceStepUidList.splice(pos, 1);
-        delete this.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid];
-        return sequenceStepUid;
-    }
-
-    async $api_moveSequenceSteps(ct: CancellationToken, message:any) {
+    moveSequenceSteps=async (ct: CancellationToken, message:{sequenceUid:string, sequenceStepUidList: string[]})=>{
         console.log('Request to move steps: ', JSON.stringify(message));
         var sequenceUid = message.sequenceUid;
         var sequenceStepUidList = message.sequenceStepUidList;
@@ -428,20 +412,6 @@ export default class Camera
         this.currentStatus.sequences.byuuid[sequenceUid].steps.list = sequenceStepUidList;
     }
 
-    async $api_updateSequenceParam(ct: CancellationToken, message:any) {
-        console.log('Request to set setting: ', JSON.stringify(message));
-        var key = message.sequenceUid;
-        var param = message.param;
-        var value = message.value;
-
-        if ('sequenceStepUid' in message) {
-            var sequenceStepUid = message.sequenceStepUid;
-            this.currentStatus.sequences.byuuid[key].steps.byuuid[sequenceStepUid][param] = value;
-        } else {
-            (this.currentStatus.sequences.byuuid[key] as any)[param] = value;
-        }
-    }
-
     pauseRunningSequences()
     {
         for(var k of Object.keys(this.currentStatus.sequences.byuuid))
@@ -454,7 +424,34 @@ export default class Camera
         }
     }
 
-    private startSequence = async (ct: CancellationToken, uuid:string)=>{
+    public deleteSequenceStep = async(ct: CancellationToken, message:BackOfficeAPI.DeleteSequenceStepRequest)=>{
+        console.log('Request to drop step: ', JSON.stringify(message));
+        const {sequenceUid, sequenceStepUid} = message;
+        var sequenceStepUidList = this.currentStatus.sequences.byuuid[sequenceUid].steps.list;
+        var pos = sequenceStepUidList.indexOf(sequenceStepUid);
+        if (pos == -1) {
+            console.warn('step ' + sequenceStepUid + ' not found in ' + JSON.stringify(sequenceStepUidList));
+            throw new Error("Step not found");
+        }
+        sequenceStepUidList.splice(pos, 1);
+        delete this.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid];
+    }
+
+    public updateSequence = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceRequest)=>{
+        console.log('Request to set setting: ', JSON.stringify(message));
+        var key = message.sequenceUid;
+        var param = message.param;
+        var value = message.value;
+
+        if (message.sequenceStepUid !== undefined) {
+            var sequenceStepUid = message.sequenceStepUid;
+            (this.currentStatus.sequences.byuuid[key].steps.byuuid[sequenceStepUid] as any)[param] = value;
+        } else {
+            (this.currentStatus.sequences.byuuid[key] as any)[param] = value;
+        }
+    }
+
+    private doStartSequence = async (ct: CancellationToken, uuid:string)=>{
         const getSequence=()=>{
             var rslt = this.currentStatus.sequences.byuuid[uuid];
             if (!rslt) {
@@ -473,7 +470,7 @@ export default class Camera
                 if (!('done' in step)) {
                     step.done = 0;
                 }
-                if (step.done < step.count) {
+                if (step.done! < step.count) {
                     return {stepId: i, step};
                 }
             }
@@ -510,7 +507,7 @@ export default class Camera
                 this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
 
                 const shootTitle =
-                        (step.done + 1) + "/" + step.count +
+                        ((step.done || 0) + 1) + "/" + step.count +
                         (sequence.steps.list.length > 1 ?
                             " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
 
@@ -534,7 +531,7 @@ export default class Camera
                 const shootResult = await this.doShoot(ct, sequence.camera, ()=>(settings));
                 
                 sequence.images.push(shootResult.uuid);
-                step.done++;
+                step.done = (step.done || 0 ) + 1;
             }
         }
 
@@ -592,26 +589,21 @@ export default class Camera
         }));
     }
 
-    async $api_startSequence(ct: CancellationToken, message:any) {
-        console.log('Request to start sequence', JSON.stringify(message));
-        var key = message.key;
-
-        await this.startSequence(ct, key);
+    startSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
+        this.doStartSequence(ct, message.sequenceUid);
     }
 
-    async $api_stopSequence(ct: CancellationToken, message:any) {
-        console.log('Request to stop sequence', JSON.stringify(message));
-        var key = message.key;
-        if (this.currentSequenceUuid !== key) {
-            throw new Error("Sequence " + key + " is not running");
+    stopSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
+        if (this.currentSequenceUuid !== message.sequenceUid) {
+            throw new Error("Sequence " + message.sequenceUid + " is not running");
         }
         
         this.currentSequencePromise!.cancel();
     }
 
-    async $api_resetSequence(ct: CancellationToken, message:any) {
+    resetSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
         console.log('Request to reset sequence', JSON.stringify(message));
-        const key = message.key;
+        const key = message.sequenceUid;
         if (this.currentSequenceUuid === key) {
             throw new Error("Sequence " + key + " is running");
         }
@@ -631,9 +623,9 @@ export default class Camera
         }
     }
 
-    async $api_dropSequence(ct: CancellationToken, message:any) {
+    dropSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
         console.log('Request to drop sequence', JSON.stringify(message));
-        const key = message.key;
+        const key = message.sequenceUid;
         if (this.currentSequenceUuid === key) {
             throw new Error("Sequence " + key + " is running");
         }
@@ -919,6 +911,15 @@ export default class Camera
             abort: this.abort,
             setCamera: this.setCamera,
             setShootParam: this.setShootParam,
+            deleteSequenceStep: this.deleteSequenceStep,
+            updateSequence: this.updateSequence,
+            moveSequenceSteps: this.moveSequenceSteps,
+            newSequence: this.newSequence,
+            newSequenceStep: this.newSequenceStep,
+            startSequence: this.startSequence,
+            stopSequence: this.stopSequence,
+            resetSequence: this.resetSequence,
+            dropSequence: this.dropSequence,
         }
     }
 }

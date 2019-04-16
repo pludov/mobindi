@@ -43,11 +43,37 @@ export type ShootResult = {
     device: string;
 }
 
+export type UpdateSequenceRequest = {
+    sequenceUid: string;
+    sequenceStepUid?: string;
+    param: string;
+    value: any;
+}
+
+export type MoveSequenceStepsRequest = {
+    sequenceUid:string;
+    sequenceStepUidList: string[];
+}
+
+export type DeleteSequenceStepRequest = {
+    sequenceUid: string;
+    sequenceStepUid: string;
+}
+
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     abort: (payload: {})=>void;
     setCamera: (payload: {device: string})=>void;
     setShootParam: <K extends keyof ShootSettings>(payload: {key: K, value: ShootSettings[K]})=>void;
+    newSequence: (payload: {})=>string;
+    startSequence: (payload: {sequenceUid: string})=>void;
+    stopSequence: (payload: {sequenceUid: string})=>void;
+    resetSequence: (payload: {sequenceUid: string})=>void;
+    dropSequence: (payload: {sequenceUid: string})=>void;
+    updateSequence: (payload: UpdateSequenceRequest)=>void;
+    newSequenceStep: (payload: {sequenceUid:string})=>string;
+    moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
+    deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }
 
 export type AstrometryAPI = {

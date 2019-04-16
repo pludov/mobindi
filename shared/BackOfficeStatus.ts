@@ -9,6 +9,13 @@ export type ShootSettings = {
     iso?: null|string;
 }
 
+export type SequenceStep = {
+    count: number;
+    dither?: boolean;
+    done?: number;
+    type: string;
+}
+
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
     progress: string | null;
@@ -19,7 +26,7 @@ export type Sequence = {
     done?:boolean;
     steps: {
         list: string[];
-        byuuid: {[uuid:string]:any}
+        byuuid: {[uuid:string]:SequenceStep}
     };
     // uuids of images
     images: string [];

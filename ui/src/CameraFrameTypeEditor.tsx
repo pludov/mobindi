@@ -13,10 +13,10 @@ type InputProps = {
     // Location of the value in the store
     valuePath: string;
     // Function that build a promises
-    setValue: (e:number)=>Promise<void>;
+    setValue: (e:string)=>Promise<void>;
 }
 
-type MappedProps = PromiseSelector.Props<number> & {
+type MappedProps = PromiseSelector.Props<string> & {
     indiDeviceDesc: IndiDevice|undefined;
 }
 
