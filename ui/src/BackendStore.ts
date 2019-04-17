@@ -1,5 +1,6 @@
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import * as Actions from "./Actions";
+import * as Store from "./Store";
 import * as JsonProxy from './shared/JsonProxy';
 
 export type Content = {
@@ -7,6 +8,14 @@ export type Content = {
     backendError: string|null;
     // FIXME: switch that to nullable
     backend: Partial<BackofficeStatus>;
+}
+
+export const initialState:Content = {
+    backendStatus: 0,
+    backendError: null,
+    backend: {
+        apps: {}
+    },
 }
 
 export const BackendStatus = {
@@ -17,17 +26,6 @@ export const BackendStatus = {
     Reconnecting: 4,        // Après la pause
     Failed: 5
 }
-
-const SwitchToApp: Actions.Handler<{ value: string }>
-    = (state, action) => {
-        console.log('SwitchToApp', action);
-        var appid = action.value;
-        if (state.currentApp == appid) return state;
-        return {
-            ...state,
-            currentApp: appid
-        };
-    };
 
 const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: string, data?: BackofficeStatus }>
     = (state, action) => {
@@ -71,7 +69,6 @@ const notification : Actions.Handler<{data?:BackofficeStatus, diff?: JsonProxy.D
     }
 
 const actions = {
-    SwitchToApp,
     backendStatus,
     notification
 }
@@ -80,3 +77,7 @@ export type Actions = typeof actions;
 
 Actions.register<Actions>(actions);
 
+
+export function adjusters():Array<(state:Store.Content)=>Store.Content> {
+    return [];
+}

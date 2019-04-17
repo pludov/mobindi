@@ -3,6 +3,7 @@
  */
 
 
+import * as AppStore from './AppStore';
 import * as BackendStore from './BackendStore';
 import * as FitsViewerStore from './FitsViewerStore';
 import * as MessageStore from './MessageStore';
@@ -15,6 +16,7 @@ import Notifier from './Notifier';
 import * as Promises from './shared/Promises';
 
 export type Content =
+            AppStore.Content &
             BackendStore.Content &
             FitsViewerStore.Content &
             MessageStore.Content &
@@ -58,22 +60,12 @@ function fork(state:Content, path?:string[], fn?:(t:any)=>any)
     return state;
 }
 
-export type StoreManager = {
-    dispatch:(e: Object)=>(void);
-    dispatchUpdate: (e:Object)=>(void);
-    sendRequest: (e:Object)=>Promises.Cancelable<any, any>;
-    addAdjuster: (adjuster: (state:Content)=>Content) => (void);
-    addActions: (id: string, arg: {[id:string]:((state:Content, payload:any)=>Content)})=>(void);
-}
-
 let store:Store;
 let notifier:Notifier;
-let storeManager: StoreManager;
 
-export function init(newStore:Store, newNotifier: Notifier, newStoreManager: StoreManager) {
+export function init(newStore:Store, newNotifier: Notifier) {
     store = newStore;
     notifier = newNotifier;
-    storeManager = newStoreManager;
 }
 
 export function getStore() {
@@ -88,13 +80,6 @@ export function getNotifier(): Notifier {
         throw new Error("Notifier not initialized");
     }
     return notifier;
-}
-
-export function getStoreManager() {
-    if( storeManager === undefined) {
-        throw new Error("Notifier not initialized");
-    }
-    return storeManager;
 }
 
 type mapStateToPropsDirectFunc<TOwnProps, TStateProps> = (state: Content, ownProps: TOwnProps)=>TStateProps;

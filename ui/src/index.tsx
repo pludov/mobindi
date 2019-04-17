@@ -12,7 +12,7 @@ import * as Store from './Store';
 ReactDOM.render(
         <Provider store={Store.getStore()}>
             <Screen>
-                <App storeManager={Store.getStoreManager()}/>
+                <App/>
             </Screen>
         </Provider>, document.getElementById('root'));
 registerServiceWorker();

@@ -1,13 +1,12 @@
 import React, { Component } from 'react';
 import BaseApp from './BaseApp';
-import * as Store from "./Store";
 import PhdView from './PhdView';
 
 
 class PhdApp extends BaseApp {
 
-    constructor(storeManager: Store.StoreManager) {
-        super(storeManager, "phd");
+    constructor() {
+        super("phd");
     }
 
     getUi() {

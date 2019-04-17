@@ -5,29 +5,33 @@ import { compose, createStore } from 'redux';
 import persistState from 'redux-localstorage'
 import Notifier from './Notifier';
 
+import * as AppStore from './AppStore';
+import * as BackendStore from './BackendStore';
+import * as FitsViewerStore from './FitsViewerStore';
+import * as IndiManagerStore from './IndiManagerStore';
 import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
-import * as IndiManagerStore from './IndiManagerStore';
 import * as SequenceStore from './SequenceStore';
 
 export function start() {
     const initialState:Store.Content =  {
-        backendStatus: 0,
-        backendError: null,
-        backend: {
-            apps: {}
-        },
-        currentApp: null,
-        viewSettings: {},
-        ...NotificationStore.initialState,
-        ...MessageStore.initialState,
+        ...AppStore.initialState,
+        ...BackendStore.initialState,
+        ...FitsViewerStore.initialState,
         ...IndiManagerStore.initialState,
+        ...MessageStore.initialState,
+        ...NotificationStore.initialState,
         ...SequenceStore.initialState,
     };
 
-    var {reducer, storeManager } = function() {
+    var reducer = function() {
         var adjusters:Array<(state:Store.Content)=>Store.Content> = [
+            ...AppStore.adjusters(),
+            ...BackendStore.adjusters(),
+            ...FitsViewerStore.adjusters(),
+            ...IndiManagerStore.adjusters(),
             ...MessageStore.adjusters(),
+            ...NotificationStore.adjusters(),
             ...SequenceStore.adjusters(),
         ];
 
@@ -61,21 +65,7 @@ export function start() {
             return state;
         }
 
-        return {reducer, storeManager: {
-            addAdjuster: (func:(s:Store.Content)=>Store.Content) => {adjusters.push(func);},
-
-            addActions: (id:string, obj:any) => {
-                if (!Object.prototype.hasOwnProperty.call(actionsByApp, id)) {
-                    actionsByApp[id] = {};
-                }
-                Object.assign(actionsByApp[id], obj);
-            },
-            dispatch: (e:any):void=>{},
-            dispatchUpdate: (e:any):void=>{},
-            // FIXME: ça retourne une Promises.
-            sendRequest: (e:any):null=>null,
-
-        }};
+        return reducer;
     }();
 
     const enhancer = compose(
@@ -93,21 +83,9 @@ export function start() {
 
     const store = createStore(reducer, initialState, enhancer);
 
-    storeManager.dispatch = function(e) {
-        store.dispatch(e);
-    }
-
-    storeManager.dispatchUpdate = function(e) {
-        store.dispatch({
-            type: 'update',
-            op: e});
-    }
-
     const notifier = new Notifier();
 
     notifier.attachToStore(store);
-
-    (storeManager as any).sendRequest = notifier.sendRequest;
 
     // Connect notifier to websocket
     function stripLastPart(url:string)
@@ -125,5 +103,5 @@ export function start() {
 
     notifier.connect(apiRoot);
 
-    Store.init(store, notifier, storeManager as any);
+    Store.init(store, notifier);
 }

@@ -1,5 +1,4 @@
 import * as Store from "./Store";
-import * as Utils from "./Utils";
 
 export type Notification = {
     text: string,
@@ -17,4 +16,8 @@ export type Content = {
 export const initialState:Content = {
     appNotifications: {
     }
+}
+
+export function adjusters():Array<(state:Store.Content)=>Store.Content> {
+    return [];
 }

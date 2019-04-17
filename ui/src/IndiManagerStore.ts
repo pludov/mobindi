@@ -65,3 +65,7 @@ export const initialState:Content = {
         expandedGroups: {},
     }
 }
+
+export function adjusters():Array<(state:Store.Content)=>Store.Content> {
+    return [];
+}

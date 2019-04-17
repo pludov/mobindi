@@ -1,12 +1,11 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import AstrometryView from './AstrometryView';
-import * as BackendRequest from "./BackendRequest";
 
 
 export default class AstrometryApp extends BaseApp {
-    constructor(storeManager: any) {
-        super(storeManager, "astrometry");
+    constructor() {
+        super("astrometry");
     }
 
     getUi() {

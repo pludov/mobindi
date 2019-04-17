@@ -1,6 +1,5 @@
-import React, { Component } from 'react';
+import * as React from 'react';
 import logo from './logo.svg';
-import { connect } from 'react-redux';
 import './App.css';
 
 import AppIcon from './AppIcon';
@@ -16,7 +15,6 @@ import ToolExecuterApp from './ToolExecuterApp';
 
 import { BackendStatus } from './BackendStore';
 
-import { update } from './shared/Obj'
 import * as StoreInitialiser from './StoreInitialiser';
 import * as Store from './Store';
 import BaseApp from './BaseApp';
@@ -33,67 +31,25 @@ type MappedProps = {
 }
 
 type InputProps = {
-    storeManager: Store.StoreManager;
 }
 
 type Props = InputProps&MappedProps;
 
 class App extends React.PureComponent<Props> {
-    readonly storeManager: Store.StoreManager;
     apps: BaseApp[];
 
     constructor(props:Props) {
         super(props);
 
-        // FIXME: get a store manager ?
-        this.storeManager = this.props.storeManager;
-
-        // FIXME: move
-        this.storeManager.addAdjuster((state:Store.Content) => {
-            // Assurer que l'app en cours est toujours autorisée
-            if (state.backendStatus == BackendStatus.Connected &&
-                state.currentApp != null &&
-                (
-                        (!state.backend.apps)
-                        || (!(state.currentApp in state.backend.apps)
-                        || !state.backend.apps[state.currentApp].enabled)))
-            {
-                state = update(state, {$mergedeep: {currentApp: null}}  as any);
-            }
-            return state;
-        });
-
-        this.storeManager.addAdjuster((state:Store.Content)=> {
-            // Assurer qu'on ait une app en cours si possible
-            if (state.backendStatus == BackendStatus.Connected &&
-                state.currentApp == null && state.backend.apps && Object.keys(state.backend.apps).length !== 0) {
-
-                // On prend la premiere... (FIXME: historique & co...)
-                var bestApp = null;
-                var bestKey = null;
-                for (var key in state.backend.apps) {
-                    var app = state.backend.apps[key];
-                    if (bestApp == null
-                        || (bestApp.position > app.position)
-                        || (bestApp.position == app.position && bestKey! < key)) {
-                        bestApp = app;
-                        bestKey = key;
-                    }
-                }
-                state = update(state,{$mergedeep:{currentApp: bestKey}} as any);
-            }
-            return state;
-        });
-
         this.apps = [
-            new CameraApp(this.storeManager),
-            new SequenceApp(this.storeManager),
-            new PhdApp(this.storeManager),
-            new FocuserApp(this.storeManager),
-            new AstrometryApp(this.storeManager),
-            new IndiManagerApp(this.storeManager),
-            new ToolExecuterApp(this.storeManager),
-            new MessageApp(this.storeManager)
+            new CameraApp(),
+            new SequenceApp(),
+            new PhdApp(),
+            new FocuserApp(),
+            new AstrometryApp(),
+            new IndiManagerApp(),
+            new ToolExecuterApp(),
+            new MessageApp()
         ];
     }
 
@@ -140,30 +96,13 @@ class App extends React.PureComponent<Props> {
         }
     }
 
-
-/*    return (
-      <div className="App">
-        <div className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h2>Backend: {"#" + this.props.backendStatus}; Phd: {this.props.phd ? this.props.phd.AppState :""}</h2>
-        </div>
-        <p className="App-intro">
-          To get started, edit <code>src/App.js</code> and save to reload.
-        </p>
-      </div>
-    );
-  }*/
+    static mapStateToProps = function(store:Store.Content, props:InputProps):MappedProps {
+        return {
+            backendStatus: store.backendStatus,
+            backendError: store.backendError,
+            currentApp: store.currentApp
+        };
+    }
 }
 
-const mapStateToProps = function(store:Store.Content):MappedProps {
-    var result = {
-        backendStatus: store.backendStatus,
-        backendError: store.backendError,
-        apps: ('backend' in store) ? store.backend.apps : null,
-        currentApp: store.currentApp
-    };
-    return result;
-}
-
-
-export default connect(mapStateToProps)(App);
+export default Store.Connect(App);

@@ -4,7 +4,7 @@ import * as Utils from './Utils';
 import './AppIcon.css';
 import * as Store from './Store';
 import * as Actions from './Actions';
-import * as BackendStore from './BackendStore';
+import * as AppStore from './AppStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 export type InputProps = {
@@ -42,7 +42,7 @@ class AppIcon extends React.PureComponent<Props> {
     }
 
     private activate=()=>{
-        Actions.dispatch<BackendStore.Actions>()("SwitchToApp", {value: this.props.appid});
+        Actions.dispatch<AppStore.Actions>()("SwitchToApp", {value: this.props.appid});
     }
 }
 
