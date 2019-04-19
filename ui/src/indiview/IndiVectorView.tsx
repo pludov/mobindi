@@ -60,7 +60,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
     private pendingChangesIds=()=>{
         const rslt = [];
         for(const o of Object.keys(this.state)) {
-            if (o.startsWith("forced_")) {
+            if (o.startsWith("forced_") && this.state[o] !== undefined) {
                 const id = o.substring(7);
                 rslt.push(id);
             }
@@ -91,7 +91,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
         };
         const newState = {};
         for(const o of Object.keys(this.state)) {
-            if (o.startsWith("forced_")) {
+            if (o.startsWith("forced_") && this.state[o] !== undefined) {
                 const id = o.substring(7);
                 const value = this.state[o];
                 newState[o] = undefined;
