@@ -476,7 +476,7 @@ export default class Phd
                     1,/* ammount */
                     false, /* ra only */
                     {
-                        pixels: 1.5,
+                        pixels: 0.4,
                         time:   10,
                         timeout: 60
                     }
