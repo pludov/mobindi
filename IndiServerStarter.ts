@@ -118,8 +118,8 @@ export default class IndiServerStarter {
         {
             var rslt = start ? "start " : "stop ";
             rslt += details.driver;
-            rslt += " -n " + quote(devName);
             if (start) {
+                rslt += " -n " + quote(devName);
                 if (details.config) rslt += " -c " + quote(details.config);
                 if (details.skeleton) rslt += " -s " + quote(details.skeleton);
                 if (details.prefix) rslt += " -p " + quote(details.prefix);
