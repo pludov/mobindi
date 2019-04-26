@@ -12,6 +12,7 @@ import * as IndiManagerStore from './IndiManagerStore';
 import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
 import * as SequenceStore from './SequenceStore';
+import * as GeolocStore from './GeolocStore';
 
 export function start() {
     const initialState:Store.Content =  {
@@ -22,6 +23,7 @@ export function start() {
         ...MessageStore.initialState,
         ...NotificationStore.initialState,
         ...SequenceStore.initialState,
+        ...GeolocStore.initialState,
     };
 
     var reducer = function() {
@@ -33,6 +35,7 @@ export function start() {
             ...MessageStore.adjusters(),
             ...NotificationStore.adjusters(),
             ...SequenceStore.adjusters(),
+            ...GeolocStore.adjusters(),
         ];
 
         var actionsByApp = {};
@@ -75,8 +78,17 @@ export function start() {
                     delete rslt.backend;
                     delete rslt.backendStatus;
                     delete rslt.backendError;
+                    delete rslt.geoloc;
                     // console.log("WTF slicing result is " + JSON.stringify(rslt));
                     return rslt;
+                },
+                deserialize: (data:string)=>{
+                    const ret = JSON.parse(data);
+                    delete ret.backend;
+                    delete ret.backendStatus;
+                    delete ret.backendError;
+                    delete ret.geoloc;
+                    return ret;
                 }
             })
     );

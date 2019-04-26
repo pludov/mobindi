@@ -4,6 +4,7 @@ import React, { Component, PureComponent} from 'react';
 import AstrometryApp from './AstrometryApp';
 import PromiseSelector from './PromiseSelector';
 import DeviceConnectBton from './DeviceConnectBton';
+import DeviceGeolocBton from './DeviceGeolocBton';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import BackendAccessor from './utils/BackendAccessor';
 import * as Store from './Store';
@@ -50,6 +51,9 @@ export default class AstrometryView extends PureComponent<Props> {
             <div>
                 <ScopeSelector setValue={this.setScope}/>
                 <DeviceConnectBton
+                        activePath="$.backend.astrometry.selectedScope"
+                        />
+                <DeviceGeolocBton
                         activePath="$.backend.astrometry.selectedScope"
                         />
                 <AstrometrySettingsView

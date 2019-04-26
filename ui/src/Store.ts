@@ -10,6 +10,7 @@ import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
 import * as IndiManagerStore from './IndiManagerStore';
 import * as SequenceStore from './SequenceStore';
+import * as GeolocStore from './GeolocStore';
 import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
 import Notifier from './Notifier';
@@ -23,6 +24,7 @@ export type Content =
             NotificationStore.Content &
             IndiManagerStore.Content &
             SequenceStore.Content &
+            GeolocStore.Content &
 {
     currentApp: string|null;
 };
