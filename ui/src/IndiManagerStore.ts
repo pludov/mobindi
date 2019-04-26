@@ -1,6 +1,7 @@
 import * as Actions from "./Actions";
 import * as Store from "./Store";
 import * as Utils from "./Utils";
+
 export type IndiManagerStoreContent = {
     selectedDevice: string|undefined;
     expandedGroups: {[id: string]: {[id:string]:boolean}};

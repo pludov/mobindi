@@ -339,7 +339,7 @@ export default class Notifier {
             if (notifications.length) {
                 const toSend = notifications;
                 notifications = [];
-                console.log('batching notifications: ', toSend.length);
+                // console.log('batching notifications: ', toSend.length);
                 this.store.dispatch({type: "notification", batch: toSend});
             }
         }
