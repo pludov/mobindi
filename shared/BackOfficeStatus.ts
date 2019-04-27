@@ -172,6 +172,14 @@ export type AstrometrySettings = {
     narrowedSearchRadius: number|null;
     // Used after a successfull search
     narrowedFieldPercent: number;
+
+    polarAlign: PolarAlignSettings;
+}
+
+export type PolarAlignSettings = {
+    slewRate: string;
+    sampleCount: number;
+    angle: number;
 }
 
 export type PolarAlignStatus = {

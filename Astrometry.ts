@@ -44,7 +44,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 useMountPosition: true,
                 initialSearchRadius: 30,
                 narrowedSearchRadius: 4,
-                narrowedFieldPercent: 25
+                narrowedFieldPercent: 25,
+                polarAlign: {
+                    slewRate: "SLEW_FIND",
+                    sampleCount: 5,
+                    angle: 60,
+                },
             },
             narrowedField: null,
             useNarrowedSearchRadius: false,

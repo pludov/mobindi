@@ -3,11 +3,11 @@ import * as Store from '../Store';
 import * as BaseText from './BaseText';
 
 type Props = {
-    accessor: Store.Accessor<number>;
+    accessor: Store.Accessor<number|null>;
     min?: number;
 }
 
-const MappedNumber = Store.Connect<BaseText.default<number>, BaseText.InputProps<number>, {}, {}>(BaseText.default);
+const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, {}>(BaseText.default);
 
 class Int extends React.PureComponent<Props> {
     render() {

@@ -1,6 +1,7 @@
 import * as Promises from '../shared/Promises';
 import * as JsonPath from '../shared/JsonPath';
 import JsonProxy from '../shared/JsonProxy';
+import * as Store from "../Store"
 
 
 function asSubPath(path:string) {
@@ -12,11 +13,17 @@ function asSubPath(path:string) {
     return path;
 }
 
+export interface BackendAccessor<TYPE> {
+    child<PATH extends keyof TYPE & string>(path:PATH): BackendAccessor<TYPE[PATH]>;
+    send: (value:any)=>Promise<void>;
+    fromStore: (s:Store.Content)=>TYPE;
+};
+
 class BackendChildAccessor {
-    readonly root: BackendAccessor;
+    readonly root: BackendAccessorImpl<any>;
     readonly relpath: string; // startwith .
 
-    constructor(root: BackendAccessor, relpath: string)
+    constructor(root: BackendAccessorImpl<any>, relpath: string)
     {
         this.root = root;
         this.relpath = relpath;
@@ -41,7 +48,7 @@ class BackendChildAccessor {
         return new BackendChildAccessor(this.root, this.relpath + asSubPath(path));
     }
 
-    fromStore(store:any, defaultValue?:any)
+    fromStore(store:Store.Content, defaultValue?:any)
     {
         let root = this.root.fromStore(store);
         if (root === undefined) return defaultValue;
@@ -51,7 +58,7 @@ class BackendChildAccessor {
     }
 }
 
-class BackendAccessor {
+class BackendAccessorImpl<TYPE> implements BackendAccessor<TYPE> {
     backendPath: string;
     constructor(backendPath:string)
     {
@@ -65,7 +72,7 @@ class BackendAccessor {
         throw new Error("not implemented");
     }
 
-    child(path:string) {
+    child<PATH extends keyof TYPE & string>(path:PATH): BackendAccessor<TYPE[PATH]> {
         return new BackendChildAccessor(this, asSubPath(path));
     }
 
@@ -86,4 +93,4 @@ class BackendAccessor {
     }
 }
 
-export default BackendAccessor;
+export default BackendAccessorImpl;

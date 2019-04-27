@@ -10,6 +10,8 @@ import BackendAccessor from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
 import * as BackendRequest from "./BackendRequest";
+import AstrometryBackendAccessor from "./AstrometryBackendAccessor";
+import { AstrometrySettings } from '@bo/BackOfficeStatus';
 
 const ScopeSelector = connect((store:any)=> ({
     active: (store.backend && store.backend.astrometry) ? store.backend.astrometry.selectedScope : undefined,
@@ -17,22 +19,12 @@ const ScopeSelector = connect((store:any)=> ({
 }))(PromiseSelector);
 
 
-class AstrometryBackendAccessor extends BackendAccessor {
-    public apply = async (jsonDiff:any):Promise<void>=>{
-        console.log('Sending changes: ' , jsonDiff);
-        await BackendRequest.RootInvoker("astrometry")("updateCurrentSettings")(
-            CancellationToken.CONTINUE,
-            {diff: jsonDiff}
-        );
-    }
-}
-
 type Props = {
     close: ()=>(void);
 }
 
 export default class AstrometrySettingsView extends PureComponent<Props> {
-    accessor: BackendAccessor;
+    accessor: BackendAccessor<AstrometrySettings>;
     
     constructor(props:Props) {
         super(props);
@@ -65,29 +57,29 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                 <div>
                     <div>
                         Initial field range (°):
-                        <Int accessor={this.accessor.child('$.initialFieldMin')}>
+                        <Int accessor={this.accessor.child('initialFieldMin')}>
                         </Int>
                         to
-                        <Int accessor={this.accessor.child('$.initialFieldMax')}>
+                        <Int accessor={this.accessor.child('initialFieldMax')}>
                         </Int>
                     </div>
 
-                    <Int accessor={this.accessor.child('$.narrowedFieldPercent')}>
+                    <Int accessor={this.accessor.child('narrowedFieldPercent')}>
                         Max field variation (%)
                     </Int>
 
                     <div>
                         <div>
-                            <Bool accessor={this.accessor.child('$.useMountPosition')}>Use mount position</Bool>
+                            <Bool accessor={this.accessor.child('useMountPosition')}>Use mount position</Bool>
                         </div>
-                        <Conditional accessor={this.accessor.child("$.useMountPosition")} condition={(e:boolean)=>(!e)}>
+                        <Conditional accessor={this.accessor.child("useMountPosition")} condition={(e:boolean)=>(!e)}>
                         <div>
-                            <Int accessor={this.accessor.child('$.initialSearchRadius')}>
+                            <Int accessor={this.accessor.child('initialSearchRadius')}>
                                 Initial search radius (°)
                             </Int>
                         </div>
                         <div>
-                            <Int accessor={this.accessor.child('$.narrowedSearchRadius')}>
+                            <Int accessor={this.accessor.child('narrowedSearchRadius')}>
                                 Synced search radius (°)
                             </Int>
                         </div>

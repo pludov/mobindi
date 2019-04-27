@@ -6,6 +6,7 @@ import * as GenericUiStore from './GenericUiStore';
 
 type InputProps = {
     guid: string;
+    className?: string;
 };
 
 type MappedProps = {
@@ -34,6 +35,7 @@ class Panel extends React.PureComponent<Props> {
         const [head, ...children] = React.Children.toArray(this.props.children);
 
         return <Collapsible
+                        className={this.props.className}
                         open={this.props.state}
                         onOpening={this.open}
                         onClosing={this.close}

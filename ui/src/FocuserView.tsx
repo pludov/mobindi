@@ -12,7 +12,7 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FocuserView.css';
 
-class FocuserBackendAccessor extends BackendAccessor {
+class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.AutoFocusSettings> {
     // public apply = async (jsonDiff:any):Promise<void>=>{
     apply = async (jsonDiff:any)=>{
         console.log('Sending changes: ' , jsonDiff);

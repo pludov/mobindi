@@ -5,9 +5,10 @@ import Text from './primitives/Text';
 import Conditional from './primitives/Conditional';
 import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
+import { AutoFocusSettings } from '@bo/BackOfficeStatus';
 
 type Props = {
-    accessor: BackendAccessor;
+    accessor: BackendAccessor<AutoFocusSettings>;
 }
 
 export default class FocuserSettingsView extends React.PureComponent<Props> {
@@ -18,24 +19,24 @@ export default class FocuserSettingsView extends React.PureComponent<Props> {
     render() {
         // Range size
         return <div>
-            <Int accessor={this.props.accessor.child('$.steps')} min={3}>
+            <Int accessor={this.props.accessor.child('steps')} min={3}>
                 Steps#
             </Int>
-            <Int accessor={this.props.accessor.child("$.range")} min={10}>
+            <Int accessor={this.props.accessor.child("range")} min={10}>
                 Range
             </Int>
-            <Int accessor={this.props.accessor.child("$.backlash")} min={0}>
+            <Int accessor={this.props.accessor.child("backlash")} min={0}>
                 Backlash
             </Int>
 
-            <Bool accessor={this.props.accessor.child("$.lowestFirst")}>
+            <Bool accessor={this.props.accessor.child("lowestFirst")}>
                 Lowest first
             </Bool>
-            <Bool accessor={this.props.accessor.child("$.targetCurrentPos")}>
+            <Bool accessor={this.props.accessor.child("targetCurrentPos")}>
                 Start from current pos
             </Bool>
-            <Conditional accessor={this.props.accessor.child("$.targetCurrentPos")}>
-                <Int accessor={this.props.accessor.child("$.targetPos")} min={0}>
+            <Conditional accessor={this.props.accessor.child("targetCurrentPos")}>
+                <Int accessor={this.props.accessor.child("targetPos")} min={0}>
                     Target Pos
                 </Int>
             </Conditional>
