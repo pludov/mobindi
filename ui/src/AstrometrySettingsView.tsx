@@ -4,6 +4,7 @@ import React, { Component, PureComponent} from 'react';
 
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
+import Float from './primitives/Float';
 import Conditional from './primitives/Conditional';
 import PromiseSelector from './PromiseSelector';
 import BackendAccessor from './utils/BackendAccessor';
@@ -57,14 +58,12 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                 <div>
                     <div>
                         Initial field range (°):
-                        <Int accessor={this.accessor.child('initialFieldMin')}>
-                        </Int>
+                        <Float accessor={this.accessor.child('initialFieldMin')} min={0} max={90}/>
                         to
-                        <Int accessor={this.accessor.child('initialFieldMax')}>
-                        </Int>
+                        <Float accessor={this.accessor.child('initialFieldMax')} min={0} max={90}/>
                     </div>
 
-                    <Int accessor={this.accessor.child('narrowedFieldPercent')}>
+                    <Int accessor={this.accessor.child('narrowedFieldPercent')} min={0} max={100}>
                         Max field variation (%)
                     </Int>
 
@@ -74,12 +73,12 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                         </div>
                         <Conditional accessor={this.accessor.child("useMountPosition")} condition={(e:boolean)=>(!e)}>
                         <div>
-                            <Int accessor={this.accessor.child('initialSearchRadius')}>
+                            <Int accessor={this.accessor.child('initialSearchRadius')} min={0} max={180}>
                                 Initial search radius (°)
                             </Int>
                         </div>
                         <div>
-                            <Int accessor={this.accessor.child('narrowedSearchRadius')}>
+                            <Int accessor={this.accessor.child('narrowedSearchRadius')} min={0} max={180}>
                                 Synced search radius (°)
                             </Int>
                         </div>

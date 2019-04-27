@@ -6,6 +6,7 @@ import * as Store from "../../Store";
 import * as Utils from "../../Utils";
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
+import Float from '../../primitives/Float';
 
 import DeviceConnectBton from '../../DeviceConnectBton';
 import CameraSelector from "../../CameraSelector";
@@ -75,11 +76,11 @@ class InitialConfirm extends React.PureComponent<Props> {
                 <span>Scope moves</span>
                 <div>
                     Travel Angle (max 90°):
-                    <Int accessor={this.accessor.child('angle')}/>
+                    <Float accessor={this.accessor.child('angle')} min={0} max={90}/>
                 </div>
                 <div>
                     Number of samples:
-                    <Int accessor={this.accessor.child('sampleCount')}/>
+                    <Int accessor={this.accessor.child('sampleCount')} min={3} max={99}/>
                 </div>
                 <div>
                     Slew rate:

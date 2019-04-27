@@ -10,7 +10,7 @@ type Props = {
 
 const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, {}>(BaseText.default);
 
-class Int extends React.PureComponent<Props> {
+class Float extends React.PureComponent<Props> {
     render() {
         return <MappedNumber
                     accessor={this.props.accessor}
@@ -25,9 +25,9 @@ class Int extends React.PureComponent<Props> {
     }
 
     numberFromString=(s:string)=>{
-        const n = parseInt(s);
+        const n = parseFloat(s);
         if (isNaN(n)) {
-            throw new Error("int required");
+            throw new Error("float required");
         }
         if (this.props.min !== undefined && n < this.props.min) {
             throw new Error("Must be >= " + this.props.min);
@@ -39,4 +39,4 @@ class Int extends React.PureComponent<Props> {
     }
 }
 
-export default Int;
+export default Float;
