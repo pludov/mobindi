@@ -32,6 +32,7 @@ import { AppContext } from "./ModuleBase";
 import { BackofficeStatus } from "./shared/BackOfficeStatus";
 import * as RequestHandler from "./RequestHandler";
 
+import Sleep from "./Sleep";
 import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
@@ -196,7 +197,15 @@ wss.on('connection', (ws:WebSocket)=>{
                     }
 
                     const funcImpl = appImpl[_func];
-                    const ret = await funcImpl(task.cancellation, message.details.payload);
+                    let ret;
+                    try {
+                        ret = await funcImpl(task.cancellation, message.details.payload);
+                    } finally {
+                        // Wait here to avoid sending inconsistent state
+                        // (let all setimmediate settle down)
+                        await Sleep(CancellationToken.CONTINUE, 0);
+                    }
+
                     request.success(ret);
                 } catch(e) {
                     if (e instanceof CancellationToken.CancellationError) {
