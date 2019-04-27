@@ -2,12 +2,15 @@ import CancellationToken from 'cancellationtoken';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, BackofficeStatus } from './shared/BackOfficeStatus';
+import { AstrometryStatus, BackofficeStatus, AstrometryWizard } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface, IndiConnection } from './Indi';
 import SkyProjection from './ui/src/utils/SkyProjection';
-import {Task, createTask} from "./Task.js";
+import {Task, createTask} from "./Task";
+import Wizard from "./Wizard";
+import PolarAlignmentWizard from "./PolarAlignmentWizard";
+import Sleep from "./Sleep";
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
@@ -18,6 +21,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     currentProcess: Task<any>|null = null;
     get imageProcessor() { return this.context.imageProcessor };
 
+    runningWizard: null|Wizard = null;
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.appStateManager = appStateManager;
@@ -98,6 +102,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             setScope: this.setScope,
             goto: this.wizardProtectedApi(this.goto),
             sync: this.wizardProtectedApi(this.sync),
+            startPolarAlignmentWizard: this.startPolarAlignmentWizard,
+            wizardNext: this.wizardNext,
+            wizardInterrupt: this.wizardInterrupt,
+            wizardQuit: this.wizardQuit,
         }
     }
 
@@ -377,6 +385,76 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             this.currentStatus.useNarrowedSearchRadius = true;
             finish('idle', null);
         });
+    }
+
+    setWizard = (id: string, wizardBuilder:()=>Wizard) => {
+        if (this.currentProcess !== null) {
+            throw new Error("Astrometry is Busy");
+        }
+        if (this.currentStatus.runningWizard !== null) {
+            if (!this.currentStatus.runningWizard.paused) {
+                throw new Error(this.currentStatus.runningWizard.id + " already in progress");
+            }
+            this.runningWizard!.discard();
+            this.runningWizard = null;
+        }
+        this.currentStatus.runningWizard = {
+            id,
+            title: id,
+            paused: false,
+            interruptible: false,
+            hasNext: false,
+        };
+        try {
+            this.runningWizard = wizardBuilder();
+        } catch(e) {
+            this.currentStatus.runningWizard = null;
+            throw e;
+        }
+        this.runningWizard.start();
+    }
+
+    wizardQuit = async (ct:CancellationToken, message: {})=> {
+        if (!this.currentStatus.runningWizard) {
+            return;
+        }
+
+        if (!this.currentStatus.runningWizard.paused) {
+            throw new Error("Cannot quit: not paused");
+        }
+        try {
+            this.runningWizard!.discard();
+        } catch(e) {
+            console.warn("unable to discard", e);
+        }
+        this.runningWizard = null;
+        this.currentStatus.runningWizard = null;
+    }
+
+    wizardInterrupt = async(ct:CancellationToken, message:{})=> {
+        if (!this.currentStatus.runningWizard) {
+            return;
+        }
+
+        if (this.currentStatus.runningWizard.paused) {
+            return;
+        }
+        this.runningWizard!.interrupt();
+    }
+
+    wizardNext = async(ct:CancellationToken, message:{})=> {
+        if (!this.currentStatus.runningWizard) {
+            return;
+        }
+
+        if (!this.currentStatus.runningWizard.hasNext) {
+            return;
+        }
+        this.runningWizard!.next();
+    }
+
+    startPolarAlignmentWizard = async (ct: CancellationToken, message: {}) => {
+        this.setWizard("polarAlignment", ()=>new PolarAlignmentWizard(this));
     }
 }
 

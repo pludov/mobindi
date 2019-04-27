@@ -174,9 +174,21 @@ export type AstrometrySettings = {
     narrowedFieldPercent: number;
 }
 
+export type PolarAlignStatus = {
+    status: "initialConfirm"|"running"|"paused"|"done";
+}
+
 export type AstrometryWizard = {
     id: string;
+    title: string;
+
     paused: boolean;
+    // Valid when !paused
+    interruptible: boolean;
+    // Valid when paused
+    hasNext: boolean;
+
+    polarAlignment?: PolarAlignStatus;
 }
 
 export type AstrometryStatus = {

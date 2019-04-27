@@ -22,3 +22,31 @@
     white-space: nowrap;
     width: calc(100% - 1em);
 }
+
+.AstrometryWizardRootView {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.AstrometryWizardContent {
+    height: calc(100% - 2.2em);
+    overflow-y: scroll;
+    scrollbar-width: none
+}
+
+.AstrometryWizardContent::-webkit-scrollbar {
+    display: none;
+}
+
+.AstrometryWizardControls {
+    height: 2.2em;
+    overflow: hidden;
+}
+
+.WizardLeftButton {
+    float: left;
+}
+.WizardRightButton {
+    float: right;
+}

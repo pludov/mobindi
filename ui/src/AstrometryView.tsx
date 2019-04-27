@@ -2,9 +2,11 @@ import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import './AstrometryView.css';
 import AstrometrySettingsView from './AstrometrySettingsView';
+import AstrometryWizardBaseView from './AstrometryWizardBaseView';
 import * as Store from './Store';
 import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
+import { AstrometryWizards } from '@bo/BackOfficeAPI';
 
 type InputProps = {}
 
@@ -73,18 +75,49 @@ class AstrometryView extends React.PureComponent<Props, State> {
         this.setState({showProps: false});
     }
 
+    static startWizard(id:keyof AstrometryWizards) {
+        return async ()=> {
+            await BackendRequest.RootInvoker("astrometry")(id)(CancellationToken.CONTINUE, {});
+        };
+    };
+
+    readonly wizards = [
+        {
+            title: "Polar alignment",
+            start: AstrometryView.startWizard("startPolarAlignmentWizard")
+        }
+    ];
+
+    wizardUi(id: string) {
+        switch(id) {
+
+            default:
+                return <AstrometryWizardBaseView showSettings={this.showSettings}/>
+        }
+    }
+
     render() {
         return <div className="CameraView">
             { this.state.showProps
                 ? <AstrometrySettingsView close={this.closeSettings} />
-                :
-                /* Welcome screen */
-                <div>
-                    <div className="AstrometryWizardSelectTitle">Astrometry</div>
-                    
-                    <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
+                : this.props.currentWizard === null
+                    ?
+                        /* Welcome screen */
+                        <div>
+                            <div className="AstrometryWizardSelectTitle">Astrometry</div>
 
-                </div>
+                            <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
+                            {this.wizards.map(e=>
+                                <input type="button"
+                                        value={e.title}
+                                        className="AstrometryWizardSelectButton"
+                                        onClick={e.start}
+                                />
+                            )}
+
+                        </div>
+                    :
+                        this.wizardUi(this.props.currentWizard)
             }
         </div>;
     }

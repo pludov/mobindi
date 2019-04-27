@@ -76,13 +76,20 @@ export type CameraAPI = {
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }
 
-export type AstrometryAPI = {
+export type AstrometryWizards = {
+    startPolarAlignmentWizard: (payload:{})=>void;
+}
+
+export type AstrometryAPI = AstrometryWizards & {
     updateCurrentSettings: (payload: {diff: any})=>void;
     compute: (payload: AstrometryComputeRequest)=>ProcessorTypes.AstrometryResult;
     cancel: (payload: {})=>void;
     setScope: (payload: {deviceId: string})=>void;
     goto: (payload:AstrometryGotoScopeRequest)=>void;
     sync: (payload:{})=>void;
+    wizardQuit: (payload:{})=>void;
+    wizardInterrupt: (payload:{})=>void;
+    wizardNext: (payload:{})=>void;
 }
 
 export type FocuserAPI = {

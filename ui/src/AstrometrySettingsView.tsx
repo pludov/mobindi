@@ -50,51 +50,55 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
 
     public render() {
         return (
-        <div>
-            <div className="AstrometryWizardSelectTitle">Astrometry Settings</div>
+        <div className="AstrometryWizardRootView">
+            <div className="AstrometryWizardContent">
 
-            <ScopeSelector setValue={this.setScope}/>
-            <DeviceConnectBton
-                    activePath="$.backend.astrometry.selectedScope"
-                    />
-            <DeviceGeolocBton
-                    activePath="$.backend.astrometry.selectedScope"
-                    />
-            <div>
-                <div>
-                    Initial field range (°):
-                    <Int accessor={this.accessor.child('$.initialFieldMin')}>
-                    </Int>
-                    to
-                    <Int accessor={this.accessor.child('$.initialFieldMax')}>
-                    </Int>
-                </div>
+                <div className="AstrometryWizardSelectTitle">Astrometry Settings</div>
 
-                <Int accessor={this.accessor.child('$.narrowedFieldPercent')}>
-                    Max field variation (%)
-                </Int>
-
+                <ScopeSelector setValue={this.setScope}/>
+                <DeviceConnectBton
+                        activePath="$.backend.astrometry.selectedScope"
+                        />
+                <DeviceGeolocBton
+                        activePath="$.backend.astrometry.selectedScope"
+                        />
                 <div>
                     <div>
-                        <Bool accessor={this.accessor.child('$.useMountPosition')}>Use mount position</Bool>
-                    </div>
-                    <Conditional accessor={this.accessor.child("$.useMountPosition")} condition={(e:boolean)=>(!e)}>
-                    <div>
-                        <Int accessor={this.accessor.child('$.initialSearchRadius')}>
-                            Initial search radius (°)
+                        Initial field range (°):
+                        <Int accessor={this.accessor.child('$.initialFieldMin')}>
+                        </Int>
+                        to
+                        <Int accessor={this.accessor.child('$.initialFieldMax')}>
                         </Int>
                     </div>
+
+                    <Int accessor={this.accessor.child('$.narrowedFieldPercent')}>
+                        Max field variation (%)
+                    </Int>
+
                     <div>
-                        <Int accessor={this.accessor.child('$.narrowedSearchRadius')}>
-                            Synced search radius (°)
-                        </Int>
+                        <div>
+                            <Bool accessor={this.accessor.child('$.useMountPosition')}>Use mount position</Bool>
+                        </div>
+                        <Conditional accessor={this.accessor.child("$.useMountPosition")} condition={(e:boolean)=>(!e)}>
+                        <div>
+                            <Int accessor={this.accessor.child('$.initialSearchRadius')}>
+                                Initial search radius (°)
+                            </Int>
+                        </div>
+                        <div>
+                            <Int accessor={this.accessor.child('$.narrowedSearchRadius')}>
+                                Synced search radius (°)
+                            </Int>
+                        </div>
+                        </Conditional>
                     </div>
-                    </Conditional>
                 </div>
             </div>
-
-            <div>
-                <input type="button" value="Done" onClick={this.props.close}/>
+            <div className="AstrometryWizardControls">
+                <input type="button" value="Done" onClick={this.props.close}
+                       className="WizardRightButton"
+                    />
             </div>
         </div>);
     }
