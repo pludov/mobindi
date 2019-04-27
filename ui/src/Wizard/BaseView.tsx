@@ -1,10 +1,10 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
-import './AstrometryView.css';
-import AstrometrySettingsView from './AstrometrySettingsView';
-import * as Store from './Store';
-import * as IndiManagerStore from './IndiManagerStore';
-import * as BackendRequest from "./BackendRequest";
+import '../AstrometryView.css';
+import AstrometrySettingsView from '../AstrometrySettingsView';
+import * as Store from '../Store';
+import * as IndiManagerStore from '../IndiManagerStore';
+import * as BackendRequest from "../BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 
 type InputProps = {
@@ -23,7 +23,7 @@ type Props = InputProps & MappedProps;
 type State = {
 }
 
-class AstrometryWizardBaseView extends React.PureComponent<Props, State> {
+class BaseView extends React.PureComponent<Props, State> {
     quit = async ()=> {
         await BackendRequest.RootInvoker("astrometry")("wizardQuit")(CancellationToken.CONTINUE, {});
     }
@@ -40,6 +40,7 @@ class AstrometryWizardBaseView extends React.PureComponent<Props, State> {
         return <div className="AstrometryWizardRootView">
                     <div className="AstrometryWizardContent">
                         <div className="AstrometryWizardSelectTitle">{this.props.title}</div>
+                        {this.props.children}
                     </div>
 
                     <div className="AstrometryWizardControls">
@@ -84,4 +85,4 @@ class AstrometryWizardBaseView extends React.PureComponent<Props, State> {
     }
 }
 
-export default Store.Connect(AstrometryWizardBaseView);
+export default Store.Connect(BaseView);

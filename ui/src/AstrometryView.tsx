@@ -2,11 +2,12 @@ import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import './AstrometryView.css';
 import AstrometrySettingsView from './AstrometrySettingsView';
-import AstrometryWizardBaseView from './AstrometryWizardBaseView';
+import AstrometryWizardBaseView from './Wizard/BaseView';
 import * as Store from './Store';
 import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
+import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
 
 type InputProps = {}
 
@@ -90,9 +91,11 @@ class AstrometryView extends React.PureComponent<Props, State> {
 
     wizardUi(id: string) {
         switch(id) {
-
+            case "polarAlignment":
+                return <PolarAlignementView/>;
             default:
-                return <AstrometryWizardBaseView showSettings={this.showSettings}/>
+                console.log('unknown wizard', id);
+                return null;
         }
     }
 
@@ -117,7 +120,7 @@ class AstrometryView extends React.PureComponent<Props, State> {
 
                         </div>
                     :
-                        this.wizardUi(this.props.currentWizard)
+                    <AstrometryWizardBaseView showSettings={this.showSettings}>{this.wizardUi(this.props.currentWizard)}</AstrometryWizardBaseView>
             }
         </div>;
     }
