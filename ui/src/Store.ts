@@ -11,6 +11,7 @@ import * as NotificationStore from './NotificationStore';
 import * as IndiManagerStore from './IndiManagerStore';
 import * as SequenceStore from './SequenceStore';
 import * as GeolocStore from './GeolocStore';
+import * as GenericUiStore from './GenericUiStore';
 import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
 import Notifier from './Notifier';
@@ -25,6 +26,7 @@ export type Content =
             IndiManagerStore.Content &
             SequenceStore.Content &
             GeolocStore.Content &
+            GenericUiStore.Content &
 {
     currentApp: string|null;
 };

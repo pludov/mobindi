@@ -12,11 +12,7 @@ import './CameraView.css'
 import CancellationToken from 'cancellationtoken';
 import { noErr } from './Utils';
 import { ShootResult } from '@bo/BackOfficeAPI';
-
-const CameraSelector = connect((store:Store.Content)=> ({
-            active: store.backend && store.backend.camera ? store.backend.camera.selectedDevice : undefined,
-            availables: store.backend && store.backend.camera ? store.backend.camera.availableDevices : []
-}))(PromiseSelector);
+import CameraSelector from "./CameraSelector";
 
 
 type InputProps = {

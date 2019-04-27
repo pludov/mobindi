@@ -38,4 +38,11 @@ function has(o: any, s: string) {
     return Object.prototype.hasOwnProperty.call(o, s);
 }
 
+export function getOwnProp<T>(o: {[id: string]: T}, s: string):T|undefined {
+    if (has(o, s)) {
+        return o[s];
+    }
+    return undefined;
+}
+
 export {promiseToState, noErr, has};

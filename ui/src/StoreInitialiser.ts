@@ -13,6 +13,7 @@ import * as MessageStore from './MessageStore';
 import * as NotificationStore from './NotificationStore';
 import * as SequenceStore from './SequenceStore';
 import * as GeolocStore from './GeolocStore';
+import * as GenericUiStore from './GenericUiStore';
 
 export function start() {
     const initialState:Store.Content =  {
@@ -24,6 +25,7 @@ export function start() {
         ...NotificationStore.initialState,
         ...SequenceStore.initialState,
         ...GeolocStore.initialState,
+        ...GenericUiStore.initialState,
     };
 
     var reducer = function() {
@@ -36,6 +38,7 @@ export function start() {
             ...NotificationStore.adjusters(),
             ...SequenceStore.adjusters(),
             ...GeolocStore.adjusters(),
+            ...GenericUiStore.adjusters(),
         ];
 
         var actionsByApp = {};
