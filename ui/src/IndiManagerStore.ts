@@ -70,3 +70,28 @@ export const initialState:Content = {
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {
     return [];
 }
+
+export function hasConnectedDevice(state: Store.Content, devName: string):boolean
+{
+    const indiManager = state.backend.indiManager;
+    if (indiManager === undefined) {
+        return false;
+    }
+    if (!Utils.has(indiManager.deviceTree, devName)) {
+        return false;
+    }
+    const dtree = indiManager.deviceTree[devName];
+    if (!Utils.has(dtree, "CONNECTION")) {
+        return false;
+    }
+    const connVec = dtree["CONNECTION"];
+    if (!Utils.has(connVec.childs, "CONNECT")) {
+        return false;
+    }
+    const connectProp = connVec.childs["CONNECT"];
+    if (connectProp.$_ != 'On') {
+        return false;
+    }
+
+    return true;
+}

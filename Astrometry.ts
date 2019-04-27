@@ -44,6 +44,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             },
             narrowedField: null,
             useNarrowedSearchRadius: false,
+            runningWizard: null,
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
@@ -92,11 +93,11 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryAPI> {
         return {
             updateCurrentSettings: this.updateCurrentSettings,
-            compute: this.compute,
-            cancel: this.cancel,
+            compute: this.wizardProtectedApi(this.compute),
+            cancel: this.wizardProtectedApi(this.cancel),
             setScope: this.setScope,
-            goto: this.goto,
-            sync: this.sync,
+            goto: this.wizardProtectedApi(this.goto),
+            sync: this.wizardProtectedApi(this.sync),
         }
     }
 
@@ -104,6 +105,17 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         const newSettings = JsonProxy.applyDiff(this.currentStatus.settings, payload.diff);
         // FIXME: do the checking !
         this.currentStatus.settings = newSettings;
+    }
+
+    wizardProtectedApi = <A, B>(process: (ct: CancellationToken, message:A)=>Promise<B>)=>{
+        return async (ct: CancellationToken, message: A) => {
+            if (this.currentStatus.runningWizard !== null
+                && !this.currentStatus.runningWizard.paused) {
+                throw new Error(this.currentStatus.runningWizard.id + " in progress - can't continue");
+            }
+
+            return await process(ct, message);
+        }
     }
 
     compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
@@ -208,6 +220,9 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     }
 
     cancel = async (ct: CancellationToken, message: {})=>{
+        if (this.currentStatus.runningWizard !== null) {
+            throw new Error("Wizard is in progress");
+        }
         if (this.currentProcess !== null) {
             this.currentProcess.cancel("user cancel");
         }
@@ -221,6 +236,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     }
 
     goto = async (ct: CancellationToken, message:BackOfficeAPI.AstrometryGotoScopeRequest)=>{
+        if (this.currentStatus.runningWizard !== null ) {
+            throw new Error("Wizard is in progress");
+        }
+
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");

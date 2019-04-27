@@ -174,6 +174,11 @@ export type AstrometrySettings = {
     narrowedFieldPercent: number;
 }
 
+export type AstrometryWizard = {
+    id: string;
+    paused: boolean;
+}
+
 export type AstrometryStatus = {
     status: "empty"|"error"|"computing"|"ready";
     scopeStatus: "idle"|"moving"|"syncing";
@@ -193,6 +198,8 @@ export type AstrometryStatus = {
     narrowedField: number|null;
     // Set after one sync is ok (FIXME: should reset on mount/camera change)
     useNarrowedSearchRadius: boolean;
+
+    runningWizard: null|AstrometryWizard;
 }
 
 export type ProcessConfiguration = {

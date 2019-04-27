@@ -10,7 +10,7 @@ export default class AstrometryApp extends BaseApp {
 
     getUi() {
         return (<div className="Page" key={this.appId}>
-                    <AstrometryView app={this} />
+                    <AstrometryView />
                 </div>);
     }
 }

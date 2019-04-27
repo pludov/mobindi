@@ -1,0 +1,24 @@
+.AstrometryWizardSelectButton {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    margin-left: 2em;
+    margin-right: 2em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    white-space: nowrap;
+    width: calc(100% - 4em);
+
+}
+
+.AstrometryWizardSelectTitle {
+    text-overflow: ellipsis;
+    font-size: 1.5em;
+    text-align: center;
+    overflow: hidden;
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    margin-top: 0.05em;
+    margin-bottom: 0.1em;
+    white-space: nowrap;
+    width: calc(100% - 1em);
+}
