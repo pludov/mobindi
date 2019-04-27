@@ -7,7 +7,7 @@ import * as Store from './Store';
 import * as IndiUtils from './IndiUtils';
 import { IndiDevice } from '@bo/BackOfficeStatus';
 
-type InputProps = {
+export type InputProps = {
     // name of the device (indi id)
     device: string;
     // Location of the value in the store
