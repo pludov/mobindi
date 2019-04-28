@@ -36,9 +36,11 @@ export function createTask<T>(
                 try {
                     result = await code(ret);
                 } catch(e) {
+                    ret.cancel=()=>{};
                     reject!(e);
                     return;
                 }
+                ret.cancel=()=>{};
                 resolve!(result);
             }
         } finally {
