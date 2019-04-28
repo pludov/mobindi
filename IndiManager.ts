@@ -353,7 +353,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 })
             },
             5000,
-            ()=>new Error("Timedout waiting for vectors " + JSON.stringify(vectorIds))
+            ()=>new Error("Timedout waiting for vectors of " + devId + " : " + JSON.stringify(vectorIds))
         );
     }
 
@@ -433,6 +433,89 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return todo;
     }
 
+    // Set to on a property that keeps its vector busy.
+    // FIXME: cannot really detect errors here (busy can be set due to lost request)
+    async activate(ct: CancellationToken,
+                    devId: string,
+                    vectorId: string,
+                    propId: string)
+                :Promise<void>
+    {
+        const connection = this.getValidConnection();
+
+        function getVec() {
+            const dev = connection.getDevice(devId);
+
+            if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
+                throw new Error("Device is not connected : " + devId);
+            }
+
+            const vecInstance = dev.getVector(vectorId);
+            return vecInstance;
+        }
+
+        getVec();
+
+        await this.waitForVectors(ct, devId, [vectorId]);
+
+        const vec = getVec();
+        if (vec.getState() === "Busy") {
+            if (vec.getPropertyValue(propId) === 'On') {
+                return;
+            }
+            // Busy with the wrong value. Must still proceed
+        }
+        vec.setValues([{name: propId, value:'On'}]);
+        // Wait for the busy status to disappear
+        await connection.wait(ct, () => (getVec().getPropertyValue(propId) === "On"));
+    }
+
+    // Return a promise that activate a property (set to on) and wait while it is busy.
+    // The promise never ends unless it gets cancelled
+    async pulseParam(ct: CancellationToken,
+                    devId: string,
+                    vectorId: string,
+                    propId: string)
+                :Promise<void>
+    {
+        const connection = this.getValidConnection();
+
+        function getVec() {
+            const dev = connection.getDevice(devId);
+
+            if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
+                throw new Error("Device is not connected : " + devId);
+            }
+
+            const vecInstance = dev.getVector(vectorId);
+            return vecInstance;
+        }
+
+        getVec();
+
+        await this.waitForVectors(ct, devId, [vectorId]);
+        await connection.wait(ct, () => (getVec().getState() != "Busy"));
+
+        const vec = getVec();
+        if (vec.getState() === "Busy") {
+            throw new Error("Device is busy");
+        }
+
+        console.log('activating: ' + devId + "." + vectorId + "." + propId);
+        let selfStopped: boolean = false;
+        vec.setValues([{name: propId, value:'On'}]);
+        try {
+            // Wait for the busy status to disappear
+            await connection.wait(ct, () => (getVec().getState() !== "Busy"));
+            selfStopped = true;
+            throw new Error("Property stopped " + devId + "." + vectorId + "." + propId);
+        } finally {
+            if (!selfStopped) {
+                vec.setValues([{name: propId, value:'Off'}]);
+                await connection.wait(CancellationToken.CONTINUE, () => (getVec().getState() !== "Busy"));
+            }
+        }
+    }
 
     public checkDeviceConnected=(deviceId:string):Device=>{
         const device = this.getValidConnection().getDevice(deviceId);

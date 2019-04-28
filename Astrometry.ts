@@ -20,6 +20,8 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     currentStatus: AstrometryStatus;
     currentProcess: Task<any>|null = null;
     get imageProcessor() { return this.context.imageProcessor };
+    get indiManager() { return this.context.indiManager };
+    get camera() { return this.context.camera };
 
     runningWizard: null|Wizard = null;
 
