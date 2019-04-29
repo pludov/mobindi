@@ -9,7 +9,9 @@
     "allowJs": true,
     "jsx": "react",
     "moduleResolution": "node",
-    "rootDir": "..",
+    "rootDir": "../",
+    "rootDirs": ["./src"],
+
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
@@ -19,12 +21,14 @@
     "suppressImplicitAnyIndexErrors": true,
     "noUnusedLocals": false,
     "esModuleInterop": true,
+    "preserveSymlinks": false,
     "typeRoots" : ["./node_modules/@types"],
     "paths": {
         "@src/*": ["src/*"],
         "@bo/*": [
             "../shared/*"
-        ]
+        ],
+        "@SkyAlgo/*":["../SkyAlgorithms"],
     }
   },
   "exclude": [
@@ -35,6 +39,6 @@
     "webpack",
     "jest",
     "src/setupTests.ts",
-    "src/SkyAlgorithms/**/*.test.ts",
+    "src/SkyAlgorithms/*.test.ts",
   ]
 }
