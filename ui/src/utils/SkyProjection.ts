@@ -21,6 +21,8 @@ function radec2xyzarr(ra: number, dec: number): number[] {
     ];
 }
 
+const j2000Epoch = new Date('2000-01-01T11:58:55.816Z').getTime() / 1000;
+
 const raToRad = Math.PI / 180.0;
 const decToRad = Math.PI / 180.0;
 const epsilon = 1E-10;
@@ -1008,4 +1010,23 @@ export default class SkyProjection {
         /* Return J2000 coordinates */
         return [precession[0] * 15, precession[1]];
     }
+
+    // Usefull resources:
+    // - http://www.csgnetwork.com/siderealjuliantimecalc.html
+    // - http://neoprogrammics.com/sidereal_time_calculator/
+    //
+    public static getLocalSideralTime(time:number, long:number)
+    {
+        const d = (time - j2000Epoch) / 86400;
+        console.log('d=', d);
+        const UT = (time % 86400) / 3600.0;
+        console.log('ut=' + UT);
+
+        // Formula from http://www2.arnes.si/~gljsentvid10/altaz.html
+        return ((100.46+0.985647 * d+long + 15 *UT) / 15) % 24;
+
+        // https://astronomy.stackexchange.com/questions/24859/local-sidereal-time
+        // return ((100.4606184+0.9856473662862* d+long + 15 *UT) / 15) % 24;
+    }
+
 }
