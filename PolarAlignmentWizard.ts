@@ -156,7 +156,7 @@ export default class PolarAlignementWizard extends Wizard {
                     // Settle before shoot
                     await sleep(token, 500);
 
-                    const photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align'}));
+                    const photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align-ISO8601'}));
                     console.log('done photo', photo);
 
                     // FIXME: put in a resumable task queue
