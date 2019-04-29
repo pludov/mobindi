@@ -8,7 +8,7 @@
 #include "HistogramStorage.h"
 
 
-void HistogramChannelData::scanPlane(const u_int16_t * data, int interline, int w, int h)
+void HistogramChannelData::scanPlane(const u_int16_t * data, int w, int interline, int h)
 {
 	pixcount += w*h;
 	while(h > 0) {
@@ -42,7 +42,7 @@ void HistogramChannelData::scanBayer(const u_int16_t * data, int w, int interlin
 			data += 2;
 			tw--;
 		}
-		data += interline - w / 2;
+		data += 2 * interline - w;
 		th--;
 	}
 }
@@ -76,7 +76,7 @@ void HistogramChannelData::scanBayerMinMax(const u_int16_t * data, int w, int in
 			data += 2;
 			tw--;
 		}
-		data += interline - w / 2;
+		data += 2 * interline - w;
 		th--;
 	}
 }
