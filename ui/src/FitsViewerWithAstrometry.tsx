@@ -7,7 +7,7 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
 import FitsViewerInContext, {UnmappedFitsViewerInContext} from './FitsViewerInContext';
-import SkyProjection from './utils/SkyProjection';
+import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';

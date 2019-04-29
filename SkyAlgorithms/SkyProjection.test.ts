@@ -2,7 +2,7 @@ import "source-map-support/register";
 import * as assert from 'assert';
 import 'mocha';
 import { expect } from 'chai';
-import SkyProjection from "./ui/src/utils/SkyProjection";
+import SkyProjection from "./SkyProjection";
 
 
 describe("Astronomic computations", ()=> {

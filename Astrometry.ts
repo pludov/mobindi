@@ -6,7 +6,7 @@ import { AstrometryStatus, BackofficeStatus, AstrometryWizard } from './shared/B
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface, IndiConnection } from './Indi';
-import SkyProjection from './ui/src/utils/SkyProjection';
+import SkyProjection from './SkyAlgorithms/SkyProjection';
 import {Task, createTask} from "./Task";
 import Wizard from "./Wizard";
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
