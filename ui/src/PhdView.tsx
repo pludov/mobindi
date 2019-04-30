@@ -82,7 +82,7 @@ class PhdView extends React.PureComponent<Props> {
                 lineTension: 0,
                 pointRadius: 1.0,
                 cubicInterpolationMode: undefined,
-                showLine: false,
+                showLine: true,
                 data: []
             }
             for(var o of Object.keys(propDef)) {
@@ -108,15 +108,19 @@ class PhdView extends React.PureComponent<Props> {
                         maxMoment = ts;
                     }
 
-                    const value:number|null = prop in entry ? entry[prop] : null;
+                    const value:number|null = prop in entry ? flipFlop ? (entry[prop]?1:0) : entry[prop] : null;
                     if (flipFlop) {
                         if ((previous !== undefined) && (previous === value)) {
                             continue;
                         }
-                        data.data!.push({x:ts!, y:previous!} as any);
+                        data.data!.push({x:ts!, y:previous || 0} as any);
                         previous = value;
                     }
                     data.data!.push({x:ts!, y:value} as any);
+                }
+                if (flipFlop && previous !== undefined && previous !== null && previous > 0) {
+                    // Close
+                    data.data!.push({x:maxMoment, y:0} as any);
                 }
             }
             chartData.datasets!.push(data);
