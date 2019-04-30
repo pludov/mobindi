@@ -43,10 +43,20 @@ table.RADECTable tr td:first-child{
 .PhdGraph_Item {
     flex-grow: 1;
     flex-shrink: 1;
+    position: relative;
 }
 
 .PhdGraph_Container {
     position: relative;
     width: 100%;
     height: 100%;
+}
+
+.PhdRangeSelector {
+    display: block;
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    padding: 0px;
+    font-size: 0.6em;
 }

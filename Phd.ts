@@ -267,7 +267,9 @@ export default class Phd
             var statusUpdated = false;
             try {
                 var event = JSON.parse(data);
-
+                if (Obj.hasKey(event, 'Timestamp')) {
+                    event.TimeStamp = parseFloat(event.TimeStamp);
+                }
                 if ("Event" in event) {
                     const eventToStatus:{[id:string]:PhdAppState} = {
                         "GuideStep":                "Guiding",

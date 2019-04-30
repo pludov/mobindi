@@ -13,7 +13,8 @@
     }
   },
   "dependencies": {
-    "chart.js": "^2.7.3",
+    "chart.js": "^2.8.0",
+    "chartjs-plugin-zoom": "^0.7.0",
     "immutability-helper": "^2.8.1",
     "jquery": "^3.3.1",
     "jsonpath": "^1.0.1",
@@ -31,7 +32,7 @@
     "reselect": "^4.0.0"
   },
   "devDependencies": {
-    "@types/chart.js": "^2.7.40",
+    "@types/chart.js": "^2.7.52",
     "@types/jest": "^23.3.8",
     "@types/jquery": "^3.3.29",
     "@types/node": "^10.12.0",

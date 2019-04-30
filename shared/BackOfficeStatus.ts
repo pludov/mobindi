@@ -229,7 +229,7 @@ export type ProcessConfiguration = {
 }
 
 export type PhdGuideStep = {
-    Timestamp: string;
+    Timestamp: number;
     RADistanceRaw?: number,
     DECDistanceRaw?: number,
     settling?: boolean;
