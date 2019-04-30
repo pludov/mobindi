@@ -40,6 +40,74 @@ existing softwares. You can find full software stack for astro/PI in the followi
   * NAFABox : http://www.webastro.net/forum/showthread.php?t=148388
   * ...
 
+## Features
+
+### Camera handling
+
+The camera tab allow settings, display images in a very fast online fits viewer that adapts content to the resolution of the display and the wifi bandwith. It of course supports zoom/pan using finger touch.
+
+The levels are automatically optimized with auto dark/mid/white level according to histogram.
+
+The camera app can also display FWHM and trigger astrometry sync and goto (center).
+
+![The camera UI](docs/camera.png?raw=true "The camera UI")
+
+### Photo sequencer
+
+The sequence editor allows to program repeated shoots, possibily with various exposure and using dithering (with PHD2).
+
+![Sequence list UI](docs/sequence-view.png?raw=true "Sequence list UI")
+![Sequence editor UI](docs/sequence-edit.png?raw=true "Sequence editor UI")
+
+### Guiding using PHD2
+
+The guiding tab displays current status of PHD2 as well as guiding statistics (pixels drifts). The settling periods are displayed in green. The graph can be zoomed for inspection.
+
+It is possible to start/stop PHD2 from here, as long as it has a valid configuration. That method rely on automatic star selection from PHD2.
+
+![PHD2 UI](docs/phd2.png?raw=true "PHD2 UI")
+
+### Focusing
+
+In the focus tab, you'll be able to control your focuser, scanning a range of steps to find the optimal value of FWHM.
+
+### Astrometry
+
+The astrometry tab displays settings used for plate solving.
+
+Internally, the fantastic astrometry.net engine is used. Mobinding controls the search range passed to astrometry.net, in order to have super fast result on low hardware.
+
+It is also possible to push your phone GPS coordinates to INDI configuration from here. (the green button on the screenshot indicates that they are already in sync).
+
+![PHD2 UI](docs/astrometry-settings.png?raw=true "PHD2 UI")
+
+### Polar alignment
+
+*** THIS IS WORK IN PROGRESS ***
+
+With astrometry set up, Mobindi can help you align your mount.
+
+It will scan an arc doing astrometry at different steps, and deduce the location of your polar axis. You'll then be able to adjust and check the result.
+
+![Polar Align UI](docs/polar-align.png?raw=true "Polar Align")
+
+### Indi control panel
+
+The indi control panel gives access to all properties of your indi drivers, with a UI dedicated to mobile phone. Almost everything that is not natively covered by Mobindi can be done from here.
+
+You can as well restart stuck drivers here, configure auto restart/auto connect, but for now, it is not possible to add a new driver (this is done in a json config file : local/indi.json)
+
+![Indi control panel UI](docs/indi-panel.png?raw=true "Indi control panel ")
+
+### Indi messages
+
+Notifications from indi driver are visible here. The number of unread messages is displayed when the tab is not selected so you know when something is happening.
+
+![Indi control panel UI](docs/indi-messages.png?raw=true "Indi control panel ")
+
+
+
+
 ## Quick start
 
 Prior to using this software, you must have a working installation of Indi (server and drivers) and phd2 (so that clicking connect then guide actually starts guiding...).
