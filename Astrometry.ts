@@ -220,7 +220,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
 
                 console.log('Starting astrometry with ' + JSON.stringify(astrometry));
-                result = await this.imageProcessor.compute(ct, {astrometry});
+                result = await this.imageProcessor.compute(task.cancellation, {astrometry});
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('empty', null, null);
@@ -235,9 +235,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     }
 
     cancel = async (ct: CancellationToken, message: {})=>{
-        if (this.currentStatus.runningWizard !== null) {
-            throw new Error("Wizard is in progress");
-        }
         if (this.currentProcess !== null) {
             this.currentProcess.cancel("user cancel");
         }
@@ -251,10 +248,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     }
 
     goto = async (ct: CancellationToken, message:BackOfficeAPI.AstrometryGotoScopeRequest)=>{
-        if (this.currentStatus.runningWizard !== null ) {
-            throw new Error("Wizard is in progress");
-        }
-
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
