@@ -146,7 +146,13 @@ public:
         long naxes[2] = {1,1};
 
         FitsFile file;
-        file.open(path);
+        if (!file.openIfExists(path)) {
+            SharedCache::Messages::AstrometryResult result;
+            result.found = false;
+            result.width = starfield.width;
+            result.height = starfield.height;
+            return result;
+        }
 
         int status = 0;
         if (fits_get_img_param(file.fptr, 0, &bitpix, &naxis, naxes, &status) )

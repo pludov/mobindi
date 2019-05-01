@@ -13,6 +13,7 @@ public:
 	~FitsFile();
 
     void open(const std::string & path);
+    bool openIfExists(const std::string & path);
     void create(const std::string & path);
 
     // Error if not found

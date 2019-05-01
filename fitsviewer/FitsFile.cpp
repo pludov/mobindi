@@ -49,6 +49,19 @@ void FitsFile::open(const std::string & path) {
     }
 }
 
+bool FitsFile::openIfExists(const std::string & path) {
+    if (fptr) {
+        throw std::runtime_error("fits already opened");
+    }
+    int status = 0;
+	if (fits_open_file(&fptr, path.c_str(), READONLY, &status)) {
+        fptr = nullptr;
+        return false;
+    }
+    isnew = false;
+    return true;
+}
+
 double FitsFile::getDoubleKey(const std::string & key) {
 
     int status = 0;
