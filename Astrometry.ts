@@ -51,6 +51,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                     slewRate: "SLEW_FIND",
                     sampleCount: 5,
                     angle: 60,
+                    minAltitude: 10,
                 },
             },
             narrowedField: null,

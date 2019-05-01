@@ -12,6 +12,7 @@ function rad2deg(x: number): number {
     return x * DEG_PER_RAD;
 }
 
+// Radian ra/dec
 function radec2xyzarr(ra: number, dec: number): number[] {
     const cosdec: number = Math.cos(dec);
     return [
@@ -1011,6 +1012,24 @@ export default class SkyProjection {
         return [precession[0] * 15, precession[1]];
     }
 
+    // lstRelRa: lst - ra % 24
+    public static lstRelRaDecToAltAz(lstRelRaDec: {lstRelRa: number, dec: number}, geoCoords: {lat:number, long:number}): {alt: number, az:number}
+    {
+        let ha = lstRelRaDec.lstRelRa;
+        ha *= Math.PI/12.;
+        const phi = geoCoords.lat  *Math.PI/180.;
+        const dec = lstRelRaDec.dec*Math.PI/180.;
+        let altitude = Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(ha));
+        altitude *= 180.0/Math.PI;
+        let azimuth = Math.atan2(-Math.cos(dec)*Math.sin(ha), Math.sin(dec)*Math.cos(phi)-Math.sin(phi)*Math.cos(dec)*Math.cos(ha));
+        azimuth *= 180.0/Math.PI;
+
+        azimuth = Map360(azimuth);
+
+        return {alt: altitude, az: azimuth};
+    }
+
+
     // Usefull resources:
     // - http://www.csgnetwork.com/siderealjuliantimecalc.html
     // - http://neoprogrammics.com/sidereal_time_calculator/
@@ -1029,4 +1048,17 @@ export default class SkyProjection {
         // return ((100.4606184+0.9856473662862* d+long + 15 *UT) / 15) % 24;
     }
 
+
+    // Returns a - b in the range [-12, 12[
+    public static raDiff(a: number, b: number) {
+        let ret = (a - b) % 24;
+        // ret is in the range ]-24, 24[
+        if (ret < -12) {
+            ret += 24;
+        }
+        if (ret >= 12) {
+            ret -= 24;
+        }
+        return ret;
+    }
 }

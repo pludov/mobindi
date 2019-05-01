@@ -75,8 +75,12 @@ class InitialConfirm extends React.PureComponent<Props> {
             <Panel guid="astrom:polaralign:movements">
                 <span>Scope moves</span>
                 <div>
-                    Travel Angle (max 90°):
-                    <Float accessor={this.accessor.child('angle')} min={0} max={90}/>
+                    Max angle from zenith (°):
+                    <Float accessor={this.accessor.child('angle')} min={0} max={120}/>
+                </div>
+                <div>
+                    Min alt. above horizon (°):
+                    <Float accessor={this.accessor.child('minAltitude')} min={0} max={90}/>
                 </div>
                 <div>
                     Number of samples:

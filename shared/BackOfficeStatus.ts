@@ -180,10 +180,22 @@ export type PolarAlignSettings = {
     slewRate: string;
     sampleCount: number;
     angle: number;
+    minAltitude: number;
 }
 
 export type PolarAlignStatus = {
     status: "initialConfirm"|"running"|"paused"|"done";
+    data: {
+        [id: string]:{ra: number, dec: number}
+    };
+    stepId: number;
+    maxStepId: number;
+    astrometrySuccess: number;
+    astrometryFailed: number;
+    shootDone: number;
+    shootRunning: boolean;
+    scopeMoving: boolean;
+    astrometryRunning: boolean;
 }
 
 export type AstrometryWizard = {

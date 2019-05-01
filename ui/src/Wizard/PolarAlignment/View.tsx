@@ -8,7 +8,10 @@ import * as BackendRequest from "../../BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 import InitialConfirm from "./InitialConfirm";
+import Progress from "./Progress";
 
+require("chartjs-plugin-zoom");
+import * as ReactChartJS from "react-chartjs-2";
 
 type InputProps = {};
 type MappedProps = {
@@ -26,8 +29,12 @@ class View extends React.PureComponent<Props> {
         switch(this.props.status) {
             case "initialConfirm":
                 return <InitialConfirm/>;
+            case "running":
+            case "paused":
+            case "done":
+                return <Progress/>;
             default:
-            console.log('unknown status', this.props.status);
+                console.log('unknown status', this.props.status);
                 return null;
         }
     }
