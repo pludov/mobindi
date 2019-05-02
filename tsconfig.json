@@ -67,7 +67,7 @@
   },
   "include": [
     "*.js",
-    "*.ts"
+    "**/*.ts"
   ],
   "exclude": [
     "ui"
