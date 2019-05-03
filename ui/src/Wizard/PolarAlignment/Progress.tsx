@@ -41,7 +41,7 @@ class Progress extends React.PureComponent<Props> {
 
         for(const k of Object.keys(this.props.data).sort()) {
             const point = this.props.data[k];
-            data.data!.push({x:point.ra, y:point.dec} as any);
+            data.data!.push({x:point.relRaDeg, y:point.dec} as any);
         }
         chartData.datasets!.push(data);
 

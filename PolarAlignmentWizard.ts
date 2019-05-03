@@ -281,9 +281,11 @@ export default class PolarAlignementWizard extends Wizard {
                         console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
 
                         let photo;
+                        let photoTime = Date.now();
                         wizardReport.shootRunning = true;
                         try {
                             photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align-ISO8601'}));
+                            photoTime = (photoTime + Date.now()) / 2;
                             console.log('done photo', photo);
                             wizardReport.shootDone++;
                         } finally {
@@ -298,10 +300,13 @@ export default class PolarAlignementWizard extends Wizard {
                             console.log('done astrom', astrometry);
                             if (astrometry.found) {
                                 wizardReport.astrometrySuccess++;
-                                const raDecDegNow = SkyProjection.raDecEpochFromJ2000([astrometry.raCenter, astrometry.decCenter], Date.now());
+                                const raDecDegNow = SkyProjection.raDecEpochFromJ2000([astrometry.raCenter, astrometry.decCenter], photoTime!);
                                 const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
+
+                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, this.readGeoCoords().long);
+
                                 wizardReport.data[stortableStepId] = {
-                                    ra: raDecDegNow[0] / 15,
+                                    relRaDeg: 15 * this.raDistance(raDecDegNow[0] / 15, zenithRa),
                                     dec: raDecDegNow[1],
                                 };
                             } else {

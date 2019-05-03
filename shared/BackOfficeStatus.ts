@@ -186,7 +186,7 @@ export type PolarAlignSettings = {
 export type PolarAlignStatus = {
     status: "initialConfirm"|"running"|"paused"|"done";
     data: {
-        [id: string]:{ra: number, dec: number}
+        [id: string]:{relRaDeg: number, dec: number}
     };
     stepId: number;
     maxStepId: number;
