@@ -161,7 +161,7 @@ class AffineTransform3D {
 function Map24(hour: number): number {
     let n;
     if (hour < 0.0) {
-        n = Math.floor(hour / 24.0) - 1;
+        n = Math.floor(hour / 24.0);
         return (hour - n * 24.0);
     }
     else if (hour >= 24.0) {
@@ -179,10 +179,10 @@ function Map24(hour: number): number {
  * @param angle
  * @return modified angle in degrees
  */
-function Map360(angle: number): number {
+export function Map360(angle: number): number {
     let n;
     if (angle < 0.0) {
-        n = Math.floor(angle / 360.0) - 1;
+        n = Math.floor(angle / 360.0);
         return (angle - n * 360.0);
     }
     else if (angle >= 360.0) {
@@ -1013,9 +1013,9 @@ export default class SkyProjection {
     }
 
     // lstRelRa: lst - ra % 24
-    public static lstRelRaDecToAltAz(lstRelRaDec: {lstRelRa: number, dec: number}, geoCoords: {lat:number, long:number}): {alt: number, az:number}
+    public static lstRelRaDecToAltAz(lstRelRaDec: {relRaDeg: number, dec: number}, geoCoords: {lat:number, long:number}): {alt: number, az:number}
     {
-        let ha = lstRelRaDec.lstRelRa;
+        let ha = lstRelRaDec.relRaDeg / 15;
         ha *= Math.PI/12.;
         const phi = geoCoords.lat  *Math.PI/180.;
         const dec = lstRelRaDec.dec*Math.PI/180.;
@@ -1060,5 +1060,8 @@ export default class SkyProjection {
             ret -= 24;
         }
         return ret;
+    }
+    public static raDegDiff(a: number, b: number) {
+        return Map180(a - b);
     }
 }

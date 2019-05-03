@@ -183,6 +183,14 @@ export type PolarAlignSettings = {
     minAltitude: number;
 }
 
+export type PolarAlignAxisResult = {
+    relRaDeg: number;
+    dec: number;
+    deltaAlt: number;
+    deltaAz: number;
+    distance: number;
+}
+
 export type PolarAlignStatus = {
     status: "initialConfirm"|"running"|"paused"|"done";
     data: {
@@ -196,6 +204,8 @@ export type PolarAlignStatus = {
     shootRunning: boolean;
     scopeMoving: boolean;
     astrometryRunning: boolean;
+
+    axis?: PolarAlignAxisResult;
 }
 
 export type AstrometryWizard = {

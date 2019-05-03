@@ -2,12 +2,13 @@ import CancellationToken from 'cancellationtoken';
 import Wizard from "./Wizard";
 
 import sleep from "./Sleep";
-import { PolarAlignSettings } from './shared/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignAxisResult } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
+import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 
-export default class PolarAlignementWizard extends Wizard {
+export default class PolarAlignmentWizard extends Wizard {
     discard = ()=> {}
 
     getScope() {
@@ -168,7 +169,7 @@ export default class PolarAlignementWizard extends Wizard {
         let rangeDeg = 0;
         while(  (rangeDeg + step <= settings.angle)
                 && (rangeDeg+step <= 110)
-                && (SkyProjection.lstRelRaDecToAltAz({lstRelRa:(rangeDeg + step)/ 15, dec : raDecNow.dec}, geoCoords).alt >= Math.max(settings.minAltitude,5))
+                && (SkyProjection.lstRelRaDecToAltAz({relRaDeg:rangeDeg + step, dec : raDecNow.dec}, geoCoords).alt >= Math.max(settings.minAltitude,5))
                 )
         {
             rangeDeg += step;
@@ -200,6 +201,32 @@ export default class PolarAlignementWizard extends Wizard {
             end = 0;
         }
         return {start, end};
+    }
+
+    // Return coords of the axis in deg rel to zenith coords.
+    static findMountAxis(path:Array<{relRaDeg: number, dec:number}>):{relRaDeg: number, dec:number}
+    {
+        const points = path.map(e=>SkyProjection.convertRaDecTo3D([e.relRaDeg, e.dec]));
+        const equation = PlaneFinder.bestFit(points);
+        if (equation === null) {
+            throw new Error("Not enough points");
+        }
+        // We take the first vector, which is the normal of the plane, supposed to be the axis of the mount
+        const axisRelRaDeg = SkyProjection.convert3DToRaDec(equation);
+        return {relRaDeg: axisRelRaDeg[0], dec: axisRelRaDeg[1]};
+    }
+
+    static computeAxis(mountAxis: {relRaDeg: number, dec:number}, geoCoords: {lat:number, long:number}): PolarAlignAxisResult {
+
+        // FIXME: south ?
+        const altAzRes = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
+
+        return {
+            ...mountAxis,
+            deltaAz: SkyProjection.raDegDiff(altAzRes.az, 0),
+            deltaAlt: SkyProjection.raDegDiff(altAzRes.alt, geoCoords.lat),
+            distance: SkyProjection.getDegreeDistance([0, 90], [mountAxis.relRaDeg, mountAxis.dec])
+        }
     }
 
     start = async ()=> {
@@ -250,7 +277,7 @@ export default class PolarAlignementWizard extends Wizard {
                                 throw new Error("Need at least 3 samples");
                             }
 
-                            const raRange = PolarAlignementWizard.computeRaRange(
+                            const raRange = PolarAlignmentWizard.computeRaRange(
                                                     this.readGeoCoords(),
                                                     this.readScopePos(),
                                                     new Date().getTime() / 1000,
@@ -300,7 +327,12 @@ export default class PolarAlignementWizard extends Wizard {
                             console.log('done astrom', astrometry);
                             if (astrometry.found) {
                                 wizardReport.astrometrySuccess++;
-                                const raDecDegNow = SkyProjection.raDecEpochFromJ2000([astrometry.raCenter, astrometry.decCenter], photoTime!);
+
+                                const skyProjection = SkyProjection.fromAstrometry(astrometry);
+                                const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
+                                // compute JNOW center for last image.
+                                const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime!);
+
                                 const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 
                                 const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, this.readGeoCoords().long);
@@ -327,6 +359,15 @@ export default class PolarAlignementWizard extends Wizard {
                         }
                         status.stepId++;
                     }
+
+                    // We are done. Compute the regression
+                    console.log('Compute the regression for', JSON.stringify(wizardReport.data));
+                    
+                    const path = Object.keys(wizardReport.data).map(k=>wizardReport.data[k]);
+                    const mountAxis = PolarAlignmentWizard.findMountAxis(path);
+                    wizardReport.axis = PolarAlignmentWizard.computeAxis(mountAxis, this.readGeoCoords());
+
+                    console.log('result is ', JSON.stringify(wizardReport.axis));
                     break;
                 } finally {
                     this.setInterruptor(null);
