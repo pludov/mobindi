@@ -11,6 +11,15 @@ function hms(h:number, m:number, s:number):number {
     return sgn * (h + m / 60 + s /3600);
 }
 
+function dist(a: number[], b:number[]) {
+    let sum = 0;
+    for(let i = 0; i < a.length; ++i) {
+        const d = a[i] - b[i];
+        sum += d * d;
+    }
+    return Math.sqrt(sum);
+}
+
 describe("Polar Alignment", ()=> {
     const home = {lat: hms(48, 6, 8), long: hms(-1, 47, 50)};
     const vega = {ra: hms(18,37,36.18), dec: hms(38,48,14.8)};
@@ -128,11 +137,29 @@ describe("Polar Alignment", ()=> {
         expect(axis.dec).to.equal(mountAxis.dec);
 
         // Check plausible
-        expect(axis.deltaAz).to.be.closeTo(0, 1);
-        expect(axis.deltaAlt).to.be.closeTo(0, 1);
+        expect(axis.tooEast).to.be.closeTo(0, 1);
+        expect(axis.tooHigh).to.be.closeTo(0, 1);
         expect(axis.distance).to.be.closeTo(0, 1);
 
         // Check result
         console.log('axis is ', axis);
+    });
+
+    it("Can mock RA/DEC", ()=> {
+        const delta = 1e-5;
+        const geoloc = {lat: hms(48, 6, 8.28), long: -hms(1,47,50)};
+        const testTime = new Date("2019-05-03T20:14:40.000Z").getTime();
+        // (Errai)
+        const coords = [ 15 * hms(23,40,12.54) , hms(77,44,31.2) ];
+
+        const tooEast = PolarAlignmentWizard.applyMountShift(coords, geoloc, testTime, {tooEast: 1.0, tooHigh: 0})
+        const tooEastTarget = [ 351.2645785319827, 77.85628748524624 ];
+
+        expect(dist(tooEastTarget, tooEast)).to.be.closeTo(0, delta);
+
+        const tooLow = PolarAlignmentWizard.applyMountShift(coords, geoloc, testTime, {tooEast: 0.0, tooHigh: -1})
+        const tooLowTarget = [ 354.1853182560304, 76.7613936362115 ];
+
+        expect(dist(tooLowTarget, tooLow)).to.be.closeTo(0, delta);
     });
 });

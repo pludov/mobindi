@@ -9,6 +9,7 @@ import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 import InitialConfirm from "./InitialConfirm";
 import Progress from "./Progress";
+import Adjust from "./Adjust";
 
 require("chartjs-plugin-zoom");
 import * as ReactChartJS from "react-chartjs-2";
@@ -31,8 +32,9 @@ class View extends React.PureComponent<Props> {
                 return <InitialConfirm/>;
             case "running":
             case "paused":
-            case "done":
                 return <Progress/>;
+            case "adjusting":
+                return <Adjust/>;
             default:
                 console.log('unknown status', this.props.status);
                 return null;

@@ -181,18 +181,19 @@ export type PolarAlignSettings = {
     sampleCount: number;
     angle: number;
     minAltitude: number;
+    dyn_nextFrameIsReferenceFrame?: boolean;
 }
 
 export type PolarAlignAxisResult = {
     relRaDeg: number;
     dec: number;
-    deltaAlt: number;
-    deltaAz: number;
+    tooHigh: number;
+    tooEast: number;
     distance: number;
 }
 
 export type PolarAlignStatus = {
-    status: "initialConfirm"|"running"|"paused"|"done";
+    status: "initialConfirm"|"running"|"paused"|"adjusting"|"done";
     data: {
         [id: string]:{relRaDeg: number, dec: number}
     };
@@ -205,7 +206,18 @@ export type PolarAlignStatus = {
     scopeMoving: boolean;
     astrometryRunning: boolean;
 
-    axis?: PolarAlignAxisResult;
+    axis?: null | PolarAlignAxisResult;
+
+    adjustError: null|string|false;
+    adjusting: null|"frame"|"refframe";
+    tooHigh: number;
+    tooEast: number;
+    distance: number;
+
+    relFrame: null | {
+        raDeg : number;
+        dec:number;
+    };
 }
 
 export type AstrometryWizard = {

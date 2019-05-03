@@ -113,6 +113,12 @@ class Progress extends React.PureComponent<Props> {
                     shootRunning: false,
                     status: "running",
                     stepId: 0,
+                    distance: 0,
+                    tooEast: 0,
+                    tooHigh: 0,
+                    adjustError: null,
+                    adjusting: null,
+                    relFrame: null,
                 }
         return polarAlignment;
     }

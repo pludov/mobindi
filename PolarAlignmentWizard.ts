@@ -5,8 +5,14 @@ import sleep from "./Sleep";
 import { PolarAlignSettings, PolarAlignAxisResult } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
-import SkyProjection from './SkyAlgorithms/SkyProjection';
+import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
+import { SucceededAstrometryResult } from './shared/ProcessorTypes';
+
+export type MountShift = {
+            tooHigh: number;
+            tooEast: number;
+};
 
 export default class PolarAlignmentWizard extends Wizard {
     discard = ()=> {}
@@ -62,7 +68,7 @@ export default class PolarAlignmentWizard extends Wizard {
         });
     }
 
-    raDistance(a:number, b:number) {
+    static raDistance(a:number, b:number) {
         let result = (b - a) % 24;
         if (result > 12) {
             result -= 24;
@@ -73,13 +79,14 @@ export default class PolarAlignmentWizard extends Wizard {
         console.log('ra distance is ', result);
         return result;
     }
+
     // Stop at 1°
     private epsilon: number = 1/15;
 
     async slew(ct: CancellationToken, settings:PolarAlignSettings, targetRa:number) {
         // Read RA
         const startRa = this.readRa();
-        const initialDistance = this.raDistance(startRa, targetRa);
+        const initialDistance = PolarAlignmentWizard.raDistance(startRa, targetRa);
         if (Math.abs(initialDistance) < this.epsilon) {
             return;
         }
@@ -95,7 +102,7 @@ export default class PolarAlignmentWizard extends Wizard {
             while(true) {
                 await Sleep(task.cancellation, 100);
                 const newRa = this.readRa();
-                const newDistance = this.raDistance(newRa, targetRa);
+                const newDistance = PolarAlignmentWizard.raDistance(newRa, targetRa);
                 console.log('Pilot task: ', newDistance);
                 if (Math.abs(newDistance) < this.epsilon) {
                     break;
@@ -223,10 +230,81 @@ export default class PolarAlignmentWizard extends Wizard {
 
         return {
             ...mountAxis,
-            deltaAz: SkyProjection.raDegDiff(altAzRes.az, 0),
-            deltaAlt: SkyProjection.raDegDiff(altAzRes.alt, geoCoords.lat),
+            tooEast: SkyProjection.raDegDiff(altAzRes.az, 0),
+            tooHigh: SkyProjection.raDegDiff(altAzRes.alt, geoCoords.lat),
             distance: SkyProjection.getDegreeDistance([0, 90], [mountAxis.relRaDeg, mountAxis.dec])
         }
+    }
+
+    static centerFromAstrometry(astrometry: SucceededAstrometryResult, photoTime: number) {
+        const skyProjection = SkyProjection.fromAstrometry(astrometry);
+        const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
+        // compute JNOW center for last image.
+        const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime);
+
+        return raDecDegNow;
+    }
+
+    public static mountMock?:MountShift = undefined;
+    
+    static mockRaDecDeg(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number) {
+        if (PolarAlignmentWizard.mountMock) {
+            const mocked = PolarAlignmentWizard.applyMountShift(raDecDegNow, geoCoords, photoTime, PolarAlignmentWizard.mountMock);
+            raDecDegNow[0] = mocked[0];
+            raDecDegNow[1] = mocked[1];
+        }
+    }
+
+    static applyMountShift(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number, mountShift: MountShift) {
+        const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, geoCoords.long);
+        console.log('input = ', raDecDegNow);
+        let relRaDec = {
+            relRaDeg: Map180(raDecDegNow[0] - 15 * zenithRa),
+            dec: raDecDegNow[1],
+        };
+        console.log('relRaDec = ', relRaDec);
+        // Adjust for testing purpose
+        let altAz = SkyProjection.lstRelRaDecToAltAz(relRaDec, geoCoords);
+        console.log('altaz = ', altAz);
+        let xyz = SkyProjection.convertAltAzTo3D(altAz);
+        xyz = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toEast, -mountShift.tooEast);
+        xyz = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toSouth, mountShift.tooHigh);
+        altAz = SkyProjection.convert3DToAltAz(xyz);
+        console.log('altaz = ', altAz);
+        relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
+        console.log('relRaDec = ', relRaDec);
+        const output = [ Map360(zenithRa * 15 + relRaDec.relRaDeg), relRaDec.dec ];
+        console.log('output = ', output);
+        return output;
+    }
+
+    shoot = async (token: CancellationToken)=> {
+        let photoTime = Date.now();
+        this.wizardStatus.polarAlignment!.shootRunning = true;
+        try {
+            const photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align-ISO8601'}));
+            photoTime = (photoTime + Date.now()) / 2;
+            console.log('done photo', photo);
+            return { photo, photoTime };
+        } finally {
+            this.wizardStatus.polarAlignment!.shootRunning = false;
+        }
+    }
+
+    updateDistance = (refFrame: {raDeg:number, dec:number}, lastFrame: {raDeg:number, dec:number}, geoCoords: {lat:number, long:number}, photoTime: number)=> {
+        const zenithRaDeg = 15 * SkyProjection.getLocalSideralTime(photoTime / 1000, geoCoords.long);
+
+        const refAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(refFrame.raDeg - zenithRaDeg), dec: refFrame.dec}, geoCoords);
+        const lastAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(lastFrame.raDeg - zenithRaDeg), dec: lastFrame.dec}, geoCoords);
+
+        const movedEast = SkyProjection.raDegDiff(lastAltAz.az, refAltAz.az);
+        const movedHigh = SkyProjection.raDegDiff(lastAltAz.alt, refAltAz.alt);
+
+        this.wizardStatus.polarAlignment!.tooHigh -= movedHigh;
+        this.wizardStatus.polarAlignment!.tooEast -= movedEast;
+        this.wizardStatus.polarAlignment!.distance = SkyProjection.getDegreeDistance(
+                            [0, geoCoords.lat],
+                            [this.wizardStatus.polarAlignment!.tooEast, geoCoords.lat + this.wizardStatus.polarAlignment!.tooHigh]);
     }
 
     start = async ()=> {
@@ -243,9 +321,15 @@ export default class PolarAlignmentWizard extends Wizard {
             astrometryRunning: false,
             maxStepId: 0,
             stepId: 0,
+            tooHigh: 0,
+            tooEast: 0,
+            distance: 0,
+            adjustError: null,
+            adjusting: null,
+            relFrame: null,
         }
 
-        const wizardReport = this.wizardStatus.polarAlignment;
+        const wizardReport = this.wizardStatus.polarAlignment!;
 
         // RA relative to zenith
         let status: undefined | {start : number, end: number, stepSize: number, stepId: number, maxStepId: number};
@@ -307,17 +391,8 @@ export default class PolarAlignmentWizard extends Wizard {
                         }
                         console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
 
-                        let photo;
-                        let photoTime = Date.now();
-                        wizardReport.shootRunning = true;
-                        try {
-                            photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align-ISO8601'}));
-                            photoTime = (photoTime + Date.now()) / 2;
-                            console.log('done photo', photo);
-                            wizardReport.shootDone++;
-                        } finally {
-                            wizardReport.shootRunning = false;
-                        }
+                        const { photo, photoTime } = await this.shoot(token) ;
+                        wizardReport.shootDone++;
 
                         // FIXME: put in a resumable task queue
                         try {
@@ -327,18 +402,16 @@ export default class PolarAlignmentWizard extends Wizard {
                             console.log('done astrom', astrometry);
                             if (astrometry.found) {
                                 wizardReport.astrometrySuccess++;
-
-                                const skyProjection = SkyProjection.fromAstrometry(astrometry);
-                                const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
-                                // compute JNOW center for last image.
-                                const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime!);
+                                const geoCoords = this.readGeoCoords();
+                                const raDecDegNow = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!);
+                                PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
 
                                 const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 
-                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, this.readGeoCoords().long);
+                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, geoCoords.long);
 
                                 wizardReport.data[stortableStepId] = {
-                                    relRaDeg: 15 * this.raDistance(raDecDegNow[0] / 15, zenithRa),
+                                    relRaDeg: 15 * PolarAlignmentWizard.raDistance(raDecDegNow[0] / 15, zenithRa),
                                     dec: raDecDegNow[1],
                                 };
                             } else {
@@ -382,7 +455,63 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
             }
         }
-        this.wizardStatus.polarAlignment!.status = "done";
-        this.setPaused(true);
+        // We arrived here when user wants to adjust mount.
+        // We have a ref point and a correction to perform
+        // The tracking is on.
+        // For each new photo, we compute the alt-az distance between
+        //    (ra,dec) of the reference photo
+        //    (ra,dec) of the photo
+        this.wizardStatus.polarAlignment!.status = "adjusting";
+        wizardReport.tooEast = wizardReport.axis!.tooEast;
+        wizardReport.tooHigh = wizardReport.axis!.tooHigh;
+        wizardReport.distance =  wizardReport.axis!.distance;
+        wizardReport.adjustError = null;
+        while(true) {
+            wizardReport.adjusting = null;
+            // Always go back to normal frame
+            this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
+
+            await this.waitNext();
+            this.setPaused(false);
+            const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || !wizardReport.relFrame;
+            wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";
+            wizardReport.adjustError = null;
+
+            const {token, cancel} = CancellationToken.create();
+            this.setInterruptor(cancel);
+            try {
+                // FIXME: better progress report
+                const {photo, photoTime } = await this.shoot(token);
+
+                const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
+                console.log('done astrom', astrometry);
+                if (astrometry.found) {
+                    const geoCoords = this.readGeoCoords();
+                    const raDecDegNow = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!);
+                    PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
+
+                    if (takeRefFrame) {
+                        wizardReport.relFrame = {
+                            raDeg: raDecDegNow[0],
+                            dec: raDecDegNow[1],
+                        };
+                    } else {
+                        this.updateDistance(wizardReport.relFrame!, {raDeg: raDecDegNow[0], dec: raDecDegNow[1]}, geoCoords, photoTime);
+                        wizardReport.relFrame!.raDeg = raDecDegNow[0];
+                        wizardReport.relFrame!.dec = raDecDegNow[1];
+                    }
+                } else {
+                    throw new Error("Astrometry failed");
+                }
+            } catch(e) {
+                if (!(e instanceof CancellationToken.CancellationError)) {
+                    console.warn("failure", e);
+                    wizardReport.adjustError = e.message || ''+e;
+                } else {
+                    wizardReport.adjustError = "Interrupted";
+                }
+            }
+        }
+
     }
 }

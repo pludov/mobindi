@@ -1,6 +1,8 @@
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 
 
+type RotationDefinition = {id: number; sign:number};
+
 const RAD_PER_DEG = Math.PI / 180;
 const DEG_PER_RAD = 180 / Math.PI;
 
@@ -26,6 +28,8 @@ const j2000Epoch = new Date('2000-01-01T11:58:55.816Z').getTime() / 1000;
 
 const raToRad = Math.PI / 180.0;
 const decToRad = Math.PI / 180.0;
+const degToRad = Math.PI / 180.0;
+const radToDeg = 180.0 / Math.PI;
 const epsilon = 1E-10;
 
 const m11 = 0;
@@ -201,7 +205,7 @@ export function Map360(angle: number): number {
  * @param angle
  * @return modified angle in degrees
  */
-function Map180(angle: number): number {
+export function Map180(angle: number): number {
     let angle360;
     angle360 = Map360(angle);
     if (angle360 >= 180.0) {
@@ -237,6 +241,29 @@ export default class SkyProjection {
     public setTransform(af: AffineTransform3D) {
         this.transform = af;
         this.invertedTransform = af.invert();
+    }
+
+    /**
+	 * Project a start on the 3D sphere
+     * Alt: 0 = north, 90 = east
+     * 
+	 * In this projection, north pole is toward z axis (0,0,1). 
+     * x axis points to the zenith
+     * y axis points east
+     */
+    public static convertAltAzTo3D(i : {alt: number, az:number}) : number[] {
+        let x = Math.sin(i.alt * degToRad);
+        const cs = Math.cos(i.alt * degToRad)
+        let z = cs * Math.cos(degToRad * i.az);
+        let y = cs * Math.sin(degToRad * i.az);
+        return [x, y, z];
+    }
+
+    /** xyz must be normalized */
+    public static convert3DToAltAz(xyz : number[]):{alt: number, az:number} {
+        const az = Map360(Math.atan2(xyz[1], xyz[2]) * radToDeg);
+        const alt = Map180(Math.asin(xyz[0]) * radToDeg);
+        return {alt,az};
     }
 
     /**
@@ -1029,6 +1056,46 @@ export default class SkyProjection {
         return {alt: altitude, az: azimuth};
     }
 
+    // * In this projection, north pole is toward z axis (0,0,1). 
+    // * x axis points to the zenith
+    // * y axis points east
+    public static readonly altAzRotation = {
+        // Up/down
+        toNorth: {id: 1, sign: 1},
+        toSouth: {id: 1, sign: -1},
+
+        // Rotation of azimuth
+        toEast:  {id: 0, sign: -1},
+        toWest:  {id: 0, sign: 1},
+    };
+
+    public static rotate(xyz: number[], axis: RotationDefinition, angle:number)
+    {
+        const axes = [[1,2],[0,2],[0,1]];
+        const a = axes[axis.id][0];
+        const b = axes[axis.id][1];
+        angle = axis.sign * deg2rad(angle);
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const ret = [...xyz];
+
+        ret[a] = xyz[a] * cos - xyz[b] * sin;
+        ret[b] = xyz[b] * cos + xyz[a] * sin;
+
+        return ret;
+    }
+
+    public static altAzToLstRelRaDec(altAz: {alt: number, az:number}, geoCoords: {lat:number, long:number}): {relRaDeg: number, dec: number}
+    {
+        // Passer en 3D.
+        const xyz = SkyProjection.convertAltAzTo3D(altAz);
+        console.log("zenith is ", xyz);
+        const rotated = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toNorth, 90 + geoCoords.lat);
+        console.log("should be on [1,0,0] ", rotated);
+        const res = SkyProjection.convert3DToAltAz(rotated);
+
+        return {relRaDeg:Map180(-res.az), dec: -res.alt};
+    }
 
     // Usefull resources:
     // - http://www.csgnetwork.com/siderealjuliantimecalc.html
