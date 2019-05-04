@@ -455,6 +455,11 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
             }
         }
+
+        // Let the user review.
+        this.wizardStatus.polarAlignment!.status = "done";
+        await this.waitNext();
+
         // We arrived here when user wants to adjust mount.
         // We have a ref point and a correction to perform
         // The tracking is on.

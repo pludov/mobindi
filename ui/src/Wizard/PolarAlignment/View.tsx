@@ -32,6 +32,7 @@ class View extends React.PureComponent<Props> {
                 return <InitialConfirm/>;
             case "running":
             case "paused":
+            case "done":
                 return <Progress/>;
             case "adjusting":
                 return <Adjust/>;
