@@ -30,7 +30,7 @@ export default class Camera
     
     currentSequenceUuid:string|null = null;
     currentSequencePromise:Task<void>|null = null;
-
+    fakeImageId: number = 0;
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
@@ -834,7 +834,7 @@ export default class Camera
                 } finally {
                     doneWithExposure();
                 }
-
+                task.cancellation.throwIfCancelled();
                 if (ccdFilePathInitRevId === connection.getDevice(device).getVector("CCD_FILE_PATH").getRev())
                 {
                     throw new Error("CCD_FILE_PATH was not updated");
@@ -846,7 +846,7 @@ export default class Camera
 
                 if (this.currentStatus.configuration.fakeImages != null) {
                     var examples = this.currentStatus.configuration.fakeImages;
-                    value = examples[Math.floor(Math.random() * examples.length)];
+                    value = examples[(this.fakeImageId++)%examples.length];
                     if (this.currentStatus.configuration.fakeImagePath != null) {
                         value = this.currentStatus.configuration.fakeImagePath + value;
                     }
