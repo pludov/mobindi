@@ -232,7 +232,7 @@ export type AstrometryWizard = {
     // Valid when !paused
     interruptible: boolean;
     // Valid when paused
-    hasNext: boolean;
+    hasNext: null|string;
 
     polarAlignment?: PolarAlignStatus;
 }

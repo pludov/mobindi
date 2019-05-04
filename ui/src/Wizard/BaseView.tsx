@@ -14,7 +14,7 @@ type InputProps = {
 type MappedProps = {
     interruptible: boolean;
     paused: boolean;
-    hasNext: boolean;
+    hasNext: string | null;
     title: string;
 }
 
@@ -57,7 +57,7 @@ class BaseView extends React.PureComponent<Props, State> {
                         }
 
                         {this.props.hasNext
-                            ? <input type="button" value="Next" onClick={this.next} className="WizardRightButton"
+                            ? <input type="button" value={this.props.hasNext} onClick={this.next} className="WizardRightButton"
                             />
                             : null
                         }
@@ -71,7 +71,7 @@ class BaseView extends React.PureComponent<Props, State> {
             return {
                 interruptible: false,
                 paused: false,
-                hasNext: false,
+                hasNext: null,
                 title: "",
             }
         }

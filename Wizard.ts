@@ -48,13 +48,13 @@ export default abstract class Wizard {
         this.wizardStatus.paused = paused;
     }
 
-    async waitNext() {
+    async waitNext(nextTitle:string = "next") {
         this.setPaused(true);
-        this.wizardStatus.hasNext = true;
+        this.wizardStatus.hasNext = nextTitle;
         await new Promise((resolve)=> {
             this.onNext.push(resolve);
         });
-        this.wizardStatus.hasNext = false;
+        this.wizardStatus.hasNext = null;
     }
 };
 

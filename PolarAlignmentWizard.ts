@@ -335,7 +335,7 @@ export default class PolarAlignmentWizard extends Wizard {
         // RA relative to zenith
         let status: undefined | {start : number, end: number, stepSize: number, stepId: number, maxStepId: number};
         while(true) {
-            await this.waitNext();
+            await this.waitNext(wizardReport!.status === "initialConfirm" ? "Start >>" : "Resume");
             wizardReport!.status = "running";
             const {token, cancel} = CancellationToken.create();
             this.setInterruptor(cancel);
@@ -460,7 +460,7 @@ export default class PolarAlignmentWizard extends Wizard {
 
         // Let the user review.
         this.wizardStatus.polarAlignment!.status = "done";
-        await this.waitNext();
+        await this.waitNext("Next >>");
 
         // We arrived here when user wants to adjust mount.
         // We have a ref point and a correction to perform
@@ -478,7 +478,7 @@ export default class PolarAlignmentWizard extends Wizard {
             // Always go back to normal frame
             this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
 
-            await this.waitNext();
+            await this.waitNext("Shoot");
             this.setPaused(false);
             const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || !wizardReport.relFrame;
             wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";

@@ -404,7 +404,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             title: id,
             paused: false,
             interruptible: false,
-            hasNext: false,
+            hasNext: null,
         };
         try {
             this.runningWizard = wizardBuilder();
