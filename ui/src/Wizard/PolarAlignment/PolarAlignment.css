@@ -1,0 +1,23 @@
+.PolarAlignStatus {
+    overflow: hidden;
+    word-wrap: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+}
+
+.PolarAlignStatus_done {
+    color: lightgreen;
+}
+
+.PolarAlignStatus_paused {
+    color: lightgreen;
+}
+
+.PolarAlignStatus_running {
+    color: lightgreen;
+}
+
+.PolarAlignStatus_error {
+    color: red;
+}

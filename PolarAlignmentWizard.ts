@@ -327,6 +327,7 @@ export default class PolarAlignmentWizard extends Wizard {
             adjustError: null,
             adjusting: null,
             relFrame: null,
+            fatalError: null,
         }
 
         const wizardReport = this.wizardStatus.polarAlignment!;
@@ -451,6 +452,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 if (e instanceof CancellationToken.CancellationError) {
                     this.wizardStatus.polarAlignment!.status = "paused";
                 } else {
+                    this.wizardStatus.polarAlignment!.fatalError = e.message || "" + e;
                     throw e;
                 }
             }

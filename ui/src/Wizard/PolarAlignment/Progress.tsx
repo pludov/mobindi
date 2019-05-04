@@ -10,6 +10,7 @@ import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
 import * as Utils from "../../Utils";
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
+import StatusLabel from '@src/Sequence/StatusLabel';
 
 type InputProps = {};
 type MappedProps = PolarAlignStatus & {
@@ -19,6 +20,28 @@ type Props = InputProps & MappedProps;
 class Progress extends React.PureComponent<Props> {
     constructor(props:Props) {
         super(props);
+    }
+
+    getStatusClass = ()=> {
+        if (this.props.fatalError !== null) {
+            return "PolarAlignStatus_error";
+        }
+        return "PolarAlignStatus_" + this.props.status;
+    }
+
+    getStatusTitle = ()=> {
+        if (this.props.fatalError !== null) {
+            return "Failed: " + this.props.fatalError;
+        }
+        switch(this.props.status) {
+            case "done":
+                return "Success";
+            case "paused":
+                return "Paused";
+            case "running":
+                return "Running";
+        }
+        return "" + this.props.status;
     }
 
     render() {
@@ -74,6 +97,9 @@ class Progress extends React.PureComponent<Props> {
 
 
         return <>
+            <div className={"PolarAlignStatus " + this.getStatusClass()}>
+                <StatusLabel className="" text={this.getStatusTitle()}/>
+            </div>
             <div>
                 Step: {this.props.stepId + 1} / {this.props.maxStepId + 1}<br/>
             </div>
@@ -95,7 +121,10 @@ class Progress extends React.PureComponent<Props> {
                     {this.props.astrometryFailed > 0 ? " " + this.props.astrometryFailed + " Failed" : null}
             </div>
             <div >
-                    <ReactChartJS.Line  data={chartData} options={chartOptions} />
+                {data.data!.length > 0
+                    ? <ReactChartJS.Line  data={chartData} options={chartOptions} />
+                    : null
+                }
             </div>
         </>
     }
@@ -111,7 +140,7 @@ class Progress extends React.PureComponent<Props> {
                     scopeMoving: false,
                     shootDone: 0,
                     shootRunning: false,
-                    status: "running",
+                    status: "paused",
                     stepId: 0,
                     distance: 0,
                     tooEast: 0,
@@ -119,6 +148,7 @@ class Progress extends React.PureComponent<Props> {
                     adjustError: null,
                     adjusting: null,
                     relFrame: null,
+                    fatalError: "Wizard not ready",
                 }
         return polarAlignment;
     }

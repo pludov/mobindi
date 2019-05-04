@@ -197,6 +197,10 @@ export type PolarAlignStatus = {
     data: {
         [id: string]:{relRaDeg: number, dec: number}
     };
+
+    // Valid for status running, pause, done
+    fatalError: null|string;
+
     stepId: number;
     maxStepId: number;
     astrometrySuccess: number;
