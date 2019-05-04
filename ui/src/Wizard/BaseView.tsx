@@ -6,6 +6,7 @@ import * as Store from '../Store';
 import * as IndiManagerStore from '../IndiManagerStore';
 import * as BackendRequest from "../BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
+import "./BaseView.css";
 
 type InputProps = {
     showSettings : ()=>(void);

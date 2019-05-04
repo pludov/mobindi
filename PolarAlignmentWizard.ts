@@ -514,6 +514,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 if (!(e instanceof CancellationToken.CancellationError)) {
                     console.warn("failure", e);
                     wizardReport.adjustError = e.message || ''+e;
+                    await this.waitNext("Resume");
                 } else {
                     wizardReport.adjustError = "Interrupted";
                 }

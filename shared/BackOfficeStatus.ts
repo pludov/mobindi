@@ -212,7 +212,7 @@ export type PolarAlignStatus = {
 
     axis?: null | PolarAlignAxisResult;
 
-    adjustError: null|string|false;
+    adjustError: null|string;
     adjusting: null|"frame"|"refframe";
     tooHigh: number;
     tooEast: number;

@@ -15,6 +15,7 @@ import IndiSelectorEditor from '@src/IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import StatusLabel from '@src/Sequence/StatusLabel';
 
 type InputProps = {};
 type MappedProps = {
@@ -23,8 +24,8 @@ type MappedProps = {
     tooEast: number;
     tooHigh: number;
     distance: number;
-    error: string|null|false;
     adjusting: PolarAlignStatus["adjusting"];
+    adjustError: PolarAlignStatus["adjustError"];
     nextFrame: PolarAlignStatus["adjusting"];
 }
 
@@ -89,61 +90,73 @@ class Adjust extends React.PureComponent<Props> {
     render() {
         
         return <>
-            Adjusting the mount axe
-
+            <div className="Wizard_subtitle">
+                Adjusting the mount axe
+            </div>
+            <div className="PolarAlignDeltaDisplay">
+                <div>
+                    Δ toward east: {deltaTitle(Math.round(this.props.tooEast * 3600))}
+                </div>
+                <div>
+                    Δ toward zenith: {deltaTitle(Math.round(this.props.tooHigh * 3600))}
+                </div>
+            </div>
             <div>
                 {!!this.props.adjusting
-                    ? "Now taking " + this.props.adjusting == "frame" ? " adjustment frame" : " reference frame"
+                    ?
+                        <div className={"PolarAlignStatus "
+                                    + (this.props.adjustError === null ? "PolarAlignStatus_running" : "PolarAlignStatus_error")}>
+                            <StatusLabel
+                                className={this.props.adjustError === null ? "PolarAlignStatus_running" : "PolarAlignStatus_error"}
+                                text={this.props.adjustError === null
+                                        ? "Taking " + (this.props.adjusting === "frame" ? " adjustment frame" : " reference frame")
+                                        : this.props.adjustError}
+                            />
+                        </div>
                     :
-                        <>
-                            {this.props.error === "false" ? "DONE" : this.props.error}<br/>
-                            {this.props.canTakeMoveFrame ?
-                                    <>
-                                    Frame type: <select value={this.props.nextFrame!} onChange={this.setNextFrame}>
+                        <div>
+                            Next frame: {this.props.canTakeMoveFrame
+                                    ? <select value={this.props.nextFrame!} onChange={this.setNextFrame}>
                                         <option value="frame">Adjustment</option>
                                         <option value="refframe">Reference</option>
                                     </select>
-                                    </>
-                                :   "Reference frame required"
-                            }
-                        </>
+
+                                    :   <b>Reference (required)</b>
+                                }
+                        </div>
+                }
+                {this.props.nextFrame === "refframe"
+                    ? <div className="PolarAlignExplain">
+                        Click next to take a ref frame.<br/>
+                        You can move (slew) the scope to a region with more stars if required.<br/>
+                        If you just moved the polar axis of the mount, ensure that an adjustment frame has been completed before slewing the scope.
+                    </div>
+                    : null
+                }
+                {this.props.nextFrame === "frame"
+                    ? <div className="PolarAlignExplain">
+                        Move the polar axis of your mount in Alt and Az (no slew) to correct the deltas.
+                    </div>
+                    : null
                 }
             </div>
 
-            {this.props.nextFrame === "refframe"
-                ? <span>
-                    Click next to take a ref frame.<br/>
-                    You can move (slew) the scope to a region with more stars if required.<br/>
-                    If you touched the axes of the mount, ensure that an adjustment frame has been completed before slewing the scope.
-                </span>
-                : null
-            }
-            {this.props.nextFrame === "frame"
-                ? <span>
-                    Move the mount (and only the mount) to correct the deltas.
-                </span>
-                : null
-            }
-            <div>
-                Δ toward east: {deltaTitle(Math.round(this.props.tooEast * 3600))}
-            </div>
-            <div>
-                Δ toward zenith: {deltaTitle(Math.round(this.props.tooHigh * 3600))}
-            </div>
 
-            <Panel guid="astrom:polaralign:camera">
-                <span>Camera settings</span>
-                <div>
-                    <CameraSelector setValue={this.setCamera}/>
-                    <DeviceConnectBton
-                            activePath="$.backend.camera.selectedDevice"/>
-                </div>
-                <CameraSettingsView
-                    settingsPath="$.backend.camera.currentSettings"
-                    activePath="$.backend.camera.selectedDevice"
-                    setValue={this.settingSetter}
-                    />
-            </Panel>
+            <span style={{visibility: !!this.props.adjusting ? "hidden" : "unset"}}>
+                <Panel guid="astrom:polaralign:camera">
+                    <span>Camera settings</span>
+                    <div>
+                        <CameraSelector setValue={this.setCamera}/>
+                        <DeviceConnectBton
+                                activePath="$.backend.camera.selectedDevice"/>
+                    </div>
+                    <CameraSettingsView
+                        settingsPath="$.backend.camera.currentSettings"
+                        activePath="$.backend.camera.selectedDevice"
+                        setValue={this.settingSetter}
+                        />
+                </Panel>
+            </span>
         </>
     }
 
@@ -168,6 +181,7 @@ class Adjust extends React.PureComponent<Props> {
                     distance: status.distance,
                     error: status.adjustError,
                     adjusting: status.adjusting,
+                    adjustError: status.adjustError,
                     nextFrame
                 };
             }, {
@@ -177,6 +191,7 @@ class Adjust extends React.PureComponent<Props> {
                 tooHigh: 0,
                 distance: 0,
                 error: "Not running",
+                adjustError: null,
                 adjusting: null,
                 nextFrame: null,
             });

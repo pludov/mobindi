@@ -21,3 +21,12 @@
 .PolarAlignStatus_error {
     color: red;
 }
+
+.PolarAlignDeltaDisplay {
+    margin: 0.5em;
+}
+
+.PolarAlignExplain {
+    margin: 0.5em;
+    text-align: justify;
+}

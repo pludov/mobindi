@@ -97,6 +97,9 @@ class Progress extends React.PureComponent<Props> {
 
 
         return <>
+            <div className="Wizard_subtitle">
+                Sampling mount axis
+            </div>
             <div className={"PolarAlignStatus " + this.getStatusClass()}>
                 <StatusLabel className="" text={this.getStatusTitle()}/>
             </div>

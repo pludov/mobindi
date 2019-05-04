@@ -52,10 +52,11 @@ class InitialConfirm extends React.PureComponent<Props> {
 
     render() {
         return <>
+            <div className="PolarAlignExplain">
             This wizard will move the scope in RA and measure misalignment of the polar axis.<br/>
-            Please point the scope to the place of the sky where you’ll take image, then click next to proceed.<br/>
-            <br/>
-
+            Please point the scope to the place of the sky where you’ll take image, then click next to proceed.
+            </div>
+            
             <Panel guid="astrom:polaralign:camera">
                 <span>Camera settings</span>
 
