@@ -15,6 +15,8 @@ export type MountShift = {
 };
 
 export default class PolarAlignmentWizard extends Wizard {
+    sessionStartTimeStamp : string = "";
+
     discard = ()=> {}
 
     getScope() {
@@ -278,11 +280,19 @@ export default class PolarAlignmentWizard extends Wizard {
         return output;
     }
 
-    shoot = async (token: CancellationToken)=> {
+    shoot = async (token: CancellationToken, frameid: number, frametype:string)=> {
         let photoTime = Date.now();
         this.wizardStatus.polarAlignment!.shootRunning = true;
         try {
-            const photo = await this.astrometry.camera.doShoot(token, this.astrometry.camera.currentStatus.selectedDevice!, (s)=> ({...s, type: 'LIGHT', prefix: 'polar-align-ISO8601'}));
+            const photo = await this.astrometry.camera.doShoot(
+                            token,
+                            this.astrometry.camera.currentStatus.selectedDevice!,
+                            (s)=> ({
+                                ...s,
+                                type: 'LIGHT',
+                                prefix: `polar-align-${this.sessionStartTimeStamp}-${frameid}-${frametype}-ISO8601`
+                            })
+            );
             photoTime = (photoTime + Date.now()) / 2;
             console.log('done photo', photo);
             return { photo, photoTime };
@@ -334,9 +344,13 @@ export default class PolarAlignmentWizard extends Wizard {
 
         // RA relative to zenith
         let status: undefined | {start : number, end: number, stepSize: number, stepId: number, maxStepId: number};
+        let shootId = 0;
         while(true) {
             await this.waitNext(wizardReport!.status === "initialConfirm" ? "Start >>" : "Resume");
             wizardReport!.status = "running";
+            if (!this.sessionStartTimeStamp) {
+                this.sessionStartTimeStamp = new Date().toISOString().replace(/\.\d+|[-:]/g,'');
+            }
             const {token, cancel} = CancellationToken.create();
             this.setInterruptor(cancel);
             try {
@@ -392,7 +406,7 @@ export default class PolarAlignmentWizard extends Wizard {
                         }
                         console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
 
-                        const { photo, photoTime } = await this.shoot(token) ;
+                        const { photo, photoTime } = await this.shoot(token, ++shootId, "sampling");
                         wizardReport.shootDone++;
 
                         // FIXME: put in a resumable task queue
@@ -422,7 +436,6 @@ export default class PolarAlignmentWizard extends Wizard {
                             if (e instanceof CancellationToken.CancellationError) {
                                 throw e;
                             }
-                            // FIXME: should return failed result 
                             console.log('Ignoring astrometry problem', e);
                             wizardReport.astrometryFailed++;
                         } finally {
@@ -488,7 +501,7 @@ export default class PolarAlignmentWizard extends Wizard {
             this.setInterruptor(cancel);
             try {
                 // FIXME: better progress report
-                const {photo, photoTime } = await this.shoot(token);
+                const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "adjustment" : "reference");
 
                 const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
                 console.log('done astrom', astrometry);
