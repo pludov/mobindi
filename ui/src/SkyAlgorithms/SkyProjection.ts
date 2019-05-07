@@ -1,5 +1,6 @@
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
-
+//@ts-ignore
+const Quaternion = require("quaternion");
 
 type RotationDefinition = {id: number; sign:number};
 
@@ -361,6 +362,51 @@ export default class SkyProjection {
 
         const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
         return SkyProjection.convert3DToRaDec(pt3d);
+    }
+
+    /**
+     * Gives a quaternion that rotate from center of photo, oriented (x, y) to
+     * 3D space where north pole is toward z axis (0,0,1). and ra=0 point to the x axis
+     *
+     * Mapping is not perfect (probably because of orthogonality pb)
+     * Angle is mesured toward x axis.
+     */
+    public getQuaternionAtCenter(xy: number[]) {
+        const x = (xy[0] - this.centerx) * this.pixelRad;
+        const y = (xy[1] - this.centery) * this.pixelRad;
+
+        const z3d = 1.0 / Math.sqrt(y * y + x * x + 1.0);
+        const x3d = x * z3d;
+        const y3d = y * z3d;
+
+        // Center of the quaternion
+        const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
+        // console.log('center is ', pt3d);
+
+        let center =  Quaternion.fromBetweenVectors([0,0,1], pt3d);
+
+        const toLocal = center.inverse();
+        // const xpt3d = this.invertedTransform.convert([1000, y3d, z3d]);
+        // const localxpt3d = toLocal.rotateVector(xpt3d);
+
+        // const angle = Math.atan2(localxpt3d[1] - y3d, localxpt3d[0] - x3d);
+        // const angleFrom = Quaternion.fromBetweenVectors([x3d + 1000, y3d, z3d], [localxpt3d[0] , localxpt3d[1], localxpt3d[2]]);
+
+        const xpt3d = this.invertedTransform.convert([1, 0, 0]);
+        const localxpt3d = toLocal.rotateVector(xpt3d);
+
+        const angle = Math.atan2(localxpt3d[1], localxpt3d[0]);
+        // const angleFrom = Quaternion.fromBetweenVectors([1, 0, 0], localxpt3d);
+
+        const rotatedCenter = center.mul(Quaternion.fromAxisAngle([0, 0, 1], angle));
+        
+        // fromAxisAngle imprecis ? 
+        // const rotatedCenter = center.mul(angleFrom, angle);
+
+        // const originBack = rotatedCenter.inverse().rotateVector(xpt3d);
+        // console.log("originBack is ", originBack[0] - x3d, originBack[1] - y3d, originBack[2] - z3d);
+
+        return rotatedCenter;
     }
 
     public static fromAstrometry(input: SucceededAstrometryResult): SkyProjection {
@@ -1128,6 +1174,7 @@ export default class SkyProjection {
         }
         return ret;
     }
+
     public static raDegDiff(a: number, b: number) {
         return Map180(a - b);
     }

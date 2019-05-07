@@ -3,6 +3,8 @@ import * as assert from 'assert';
 import 'mocha';
 import { expect } from 'chai';
 import { default as SkyProjection, Map360, Map180 } from "./SkyProjection";
+import { SucceededAstrometryResult } from "@src/shared/ProcessorTypes";
+const Quaternion = require("quaternion");
 
 const hms = (h:number, m:number, s:number)=>(h + m / 60 + s / 3600);
 
@@ -252,6 +254,147 @@ describe("Astronomic computations", ()=> {
             SkyProjection.rotate(south, SkyProjection.altAzRotation.toEast, 90),
             west))
             .to.be.closeTo(0, delta);
+    });
+
+    it("converts astrometry to quaternion", ()=> {
+        const raDecDelta = 1e-7;
+        const delta = 1e-7;
+        const astrom: SucceededAstrometryResult = {
+            "found":true,
+            "cd1_1":-0.00016379701531,
+            "cd1_2":0.000747030024024,
+            "cd2_1":-0.000747131304567,
+            "cd2_2":-0.000165084805207,
+            "raCenter":149.502516809,
+            "decCenter":70.0465404471,
+            "width":4290,
+            "height":2856,
+            "refPixX":814.188110352,
+            "refPixY":1455.15181478,
+        };
+        const coords = {
+            ra: 148.83605877929057,
+            dec: 69.05553441221691,
+        }
+        const angle = 102.414;
+
+        const skyProj = SkyProjection.fromAstrometry(astrom);
+        
+        const thCoords = skyProj.pixToRaDec([astrom.width / 2, astrom.height / 2]);
+        console.log('coords vs thCoords', coords, thCoords);
+        expect(dist(thCoords, [coords.ra, coords.dec])).to.be.closeTo(0, raDecDelta, "pixToRaDec");
+
+
+
+        const quaternion = skyProj.getQuaternionAtCenter([astrom.width / 2, astrom.height / 2]);
+        const centerPt3d = SkyProjection.convertRaDecTo3D([coords.ra, coords.dec]);
+        // Check the center project back to good pos.
+        expect(dist(quaternion.rotateVector([0,0,1]), centerPt3d)).to.be.closeTo(0, delta, "quaternion at center");
+
+        // // Check the north project back to good pos.
+        // const topCoords = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([astrom.width / 2, 0]));
+        // console.log("skyProj.pixelRad", skyProj.pixelRad, topCoords);
+        // console.log("quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1])",quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1]));
+        // expect(dist(quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1]), topCoords)).to.be.closeTo(0, delta);
+
+        // const axe = (id:number, value:number)=>[
+        //     id == 0 ? value : 0,
+        //     id == 1 ? value : 0,
+        //     id == 2 ? value : 0,
+        // ];
+
+        // const expend=(d:number[]):Array<number[]>=>{
+        //     if (d.length === 0) {
+        //         return [[]];
+        //     }
+        //     if (d[0] === 0) {
+        //         return expend(d.slice(1)).map(e=>[0, ...e]);
+        //     }
+        //     const vals = [-2,-1,1,2];
+        //     const ret = [];
+        //     for(const i of expend(d.slice(1))) {
+        //         for(const v of vals) {
+        //             ret.push([v, ...i]);
+        //         }
+        //     }
+        //     return ret;
+        // }
+
+        // for(const order of [[0,1,2],[0,2,1],[1,2,0],[1,0,2],[2,0,1],[2,1,0]]) {
+        //     for(const bitAmmount of [[1,1,1],[1,1,0],[1,0,1],[0,1,1],[1,0,0],[0,1,0],[0,0,1]])
+        //         for(const ammount of expend(bitAmmount))
+        //         {
+        //             let axisQuat = Quaternion.fromBetweenVectors([0,0,1],[1,0,0]);
+        //             let quat = new Quaternion();
+        //             for(let i =0 ; i < 3; ++i) {
+        //                 if (ammount[i] === 0) {
+        //                     continue;
+        //                 }
+        //                 const ax = order[i];
+        //                 quat = quat.mul(Quaternion.fromAxisAngle(axe(ax,1), ammount[i]*Math.PI/2));
+        //             }
+        //             // quat = axisQuat.mul(quat);
+        //             const d = dst(
+        //                 // Quaternion.fromAxisAngle(axe(1,1), Math.PI/2)
+        //                 // .mul(Quaternion.fromAxisAngle(axe(d,1), Math.PI/2))
+        //                 quat
+        //                 .mul(quaternionAtRef.inverse())
+        //                 .mul(axisQuat)
+        //                 .rotateVector([0,0,1]));
+        //             if (d < 0.01) {
+        //                 console.log('ICI', order, ammount);
+        //             }
+        //             console.log('Candidatte ', dst(
+        //                         // Quaternion.fromAxisAngle(axe(1,1), Math.PI/2)
+        //                         // .mul(Quaternion.fromAxisAngle(axe(d,1), Math.PI/2))
+        //                         quat
+        //                         .mul(quaternionAtRef.inverse())
+        //                         .mul(axisQuat)
+        //                         .rotateVector([0,0,1])));
+        //         }
+        //     // console.log('Candidatte ', dst(quaternionAtRef.rotateVector([d*1,d*0,d*0])));
+        //     // console.log('Candidatte ', dst(quaternionAtRef.rotateVector([d*0,d*1,d*0])));
+        //     // console.log('Candidatte ', dst(quaternionAtRef.rotateVector([d*0,d*0,d*1])));
+
+        //     // console.log('Candidatte ', dst(quaternionAtRef.inverse().rotateVector([d*0,d*1,d*0])));
+        //     // console.log('Candidatte ', dst(quaternionAtRef.inverse().rotateVector([d*0,d*0,d*1])));
+        // }
+
+        const pixToImage3d = (xy:number[])=> {
+            const x = (xy[0] - skyProj.centerx) * skyProj.pixelRad;
+            const y = (xy[1] - skyProj.centery) * skyProj.pixelRad;
+    
+            const z3d = 1.0 / Math.sqrt(y * y + x * x + 1.0);
+            const x3d = x * z3d;
+            const y3d = y * z3d;
+            return [x3d, y3d, z3d];
+        }
+
+        for(const pos of [ [skyProj.centerx, skyProj.centery] ])
+        {
+
+            const quaternionAtRef = skyProj.getQuaternionAtCenter(pos);
+            // const refPt3d = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([skyProj.centerx, skyProj.centery]));
+            const refPt3d = skyProj.invertedTransform.convert(pixToImage3d(pos));
+
+            console.log('Looking for ', refPt3d);
+
+
+            const d = dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d);
+            console.log('Final dist ICI', d);
+
+            expect(dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d)).to.be.closeTo(0, delta, "getQuaternionAtCenter for " + JSON.stringify(pos));
+
+            for(const dlt of [ [1000,1000], [0,1000], [1000, 0], [-1000,0], [0,-1000] ]) {
+                // const refPtX = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([pos[0] + dlt[0], pos[1] + dlt[1]]));
+                const refPtX = skyProj.invertedTransform.convert(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]]));
+
+                const quadPtX = quaternionAtRef.rotateVector(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]]));
+                let dx = dist(quadPtX, refPtX);
+                console.log('dx (pixel) = ', dx / skyProj.pixelRad);
+                expect(dx / skyProj.pixelRad).to.be.closeTo(0, 2);
+            }
+        }
     });
 });
 
