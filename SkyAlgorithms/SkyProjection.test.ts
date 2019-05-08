@@ -63,6 +63,10 @@ describe("Astronomic computations", ()=> {
             
             expect(dist(e.eq3d, eq3d_computed)).to.be.closeTo(0, 1e-12, "radec=>eq3d:" + e.id);
             expect(degDist(e.raDec, raDec_computed)).to.be.closeTo(0, 1e-8, "eq3d=>radec:" + e.id);
+
+            const quaternion = SkyProjection.getEQ3DQuaternion(e.raDec);
+            const eq3d_fromq = quaternion.rotateVector([1, 0, 0]);
+            expect(dist(e.eq3d, eq3d_fromq)).to.be.closeTo(0, 1e-12, "eq3d_quaternion:" + e.id);
         }
     });
     
@@ -302,6 +306,57 @@ describe("Astronomic computations", ()=> {
             SkyProjection.rotate(south, SkyProjection.rotationsALTAZ3D.toEast, 90),
             west))
             .to.be.closeTo(0, delta);
+    });
+
+    it("Apply mount move", ()=> {
+        // Just check the quaternion translate from prev to next
+        // (the rotation is actually not checked)
+        const tests = [
+            {
+                name: "changing alt",
+                axe1: [40,50],
+                axe2: [45,50],
+            },
+            {
+                name: "changing az",
+                axe1: [0,50],
+                axe2: [0,70],
+            },
+            {
+                name: "alt keep west",
+                axe1: [45, 0],
+                axe2: [50, 0],
+
+                from: [0,90],
+                to: [0,90],
+            },
+            {
+                name: "alt keep ~west",
+                axe1: [45, 10],
+                axe2: [50, 10],
+
+                from: [0,100],
+                to: [0,100],
+            }
+        ];
+
+        for(const test of tests) {
+            let fromAltAz = test.from;
+            let toAltAz = test.to;
+
+            if (fromAltAz === undefined || toAltAz === undefined) {
+                fromAltAz = test.axe1;
+                toAltAz = test.axe2;
+            }
+            
+            const quat = SkyProjection.getALTAZ3DMountCorrectionQuaternion(test.axe1, test.axe2);
+
+            const from = SkyProjection.convertAltAzToALTAZ3D({alt: fromAltAz[0], az: fromAltAz[1]});
+            const to = SkyProjection.convertAltAzToALTAZ3D({alt: toAltAz[0], az: toAltAz[1]});
+            const rslt = quat.rotateVector(from);
+            expect(dist(rslt, to)).to.be.closeTo(0, 1e-8, test.name);
+        }
+
     });
 
     it("converts astrometry to quaternion", ()=> {

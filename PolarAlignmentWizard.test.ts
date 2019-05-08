@@ -5,6 +5,9 @@ import { expect } from 'chai';
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
 import SkyProjection from "./SkyAlgorithms/SkyProjection";
 
+//@ts-ignore
+const Quaternion = require("quaternion");
+
 function hms(h:number, m:number, s:number):number {
     const sgn = h < 0 ? -1 : 1;
     h = Math.abs(h);
@@ -131,10 +134,11 @@ describe("Polar Alignment", ()=> {
     it("compute alt/az delta", ()=> {
         const mountAxis = {"relRaDeg":37.01493070502396,"dec":89.7378684725588 };
         const geoCoords = {lat: 48.0833, long: 1.4 };
+        const mountAxisAltAz = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
 
-        const axis = PolarAlignmentWizard.computeAxis(mountAxis, geoCoords);
-        expect(axis.relRaDeg).to.equal(mountAxis.relRaDeg);
-        expect(axis.dec).to.equal(mountAxis.dec);
+        const axis = PolarAlignmentWizard.computeAxis(mountAxisAltAz, geoCoords);
+        expect(axis.alt).to.equal(mountAxisAltAz.alt);
+        expect(axis.az).to.equal(mountAxisAltAz.az);
 
         // Check plausible
         expect(axis.tooEast).to.be.closeTo(0, 1);
@@ -143,6 +147,98 @@ describe("Polar Alignment", ()=> {
 
         // Check result
         console.log('axis is ', axis);
+    });
+
+    it("report axis move", ()=> {
+
+        const tests = [
+            {
+                name: "equator az change",
+                geocoords: {lat: 0, long: 0},
+                refFrame: {alt: 0, az:0},
+                newFrame: {alt: 0, az: 2},
+                initialAxis: {alt:40, az: 60},
+                newAxis: {alt: 40, az: 62},
+                tracked: 0,
+            },
+            {
+                name: "equator alt change",
+                geocoords: {lat: 0, long: 0},
+                refFrame: {alt: 0, az:0},
+                newFrame: {alt: 2, az:0},
+                initialAxis: {alt:40, az: 0},
+                newAxis: {alt: 42, az: 0},
+                tracked: 0,
+            },
+            {
+                name: "lat45° alt change",
+                geocoords: {lat: 45, long: 0},
+                refFrame: {alt: 0, az:0},
+                newFrame: {alt: 1, az: 0},
+                initialAxis: {alt:40, az: 0},
+                newAxis: {alt: 41, az: 0},
+                tracked: 0,
+            },
+            {
+                name: "lat45° az change",
+                geocoords: {lat: 45, long: 0},
+                refFrame: {alt: 40, az: 30},
+                newFrame: {alt: 40, az: 32},
+                initialAxis: {alt:40, az: 4},
+                newAxis: {alt: 40, az: 6},
+                tracked: 0,
+            },
+            {
+                name: "equator track with good align",
+                geocoords: {lat: 0, long: 0},
+                refFrame: {alt: 40, az: 90}, //East
+                newFrame: {alt: 50, az: 90},
+                initialAxis: {alt:0, az: 0},
+                newAxis: {alt: 0, az: 0},
+                tracked: SkyProjection.SIDERAL_DAY_MS * 10 / 360,
+            },
+            {
+                name: "equator track and move with good align",
+                geocoords: {lat: 0, long: 0},
+                refFrame: {alt: 80, az: 90}, //East
+                newFrame: {alt: 80, az: 180}, // Now south (tracked led to zenith)
+                initialAxis: {alt:0, az: 0},
+                newAxis: {alt: 10, az: 0},
+                tracked: SkyProjection.SIDERAL_DAY_MS * 10 / 360,
+            }
+        ];
+
+        for(const test of tests) {
+            console.log(test.name);
+            
+            // const newFrameQuaternion = Quaternion.fromBetweenVectors([0,0,1], SkyProjection.convertAltAzToALTAZ3D(test.newFrame));
+            
+            const mountCorrection = SkyProjection.getALTAZ3DMountCorrectionQuaternion(
+                            [test.initialAxis.alt, test.initialAxis.az],
+                            [test.newAxis.alt, test.newAxis.az]
+            );
+
+            let refFrameQuaternion = Quaternion.fromBetweenVectors([0,0,1], SkyProjection.convertAltAzToALTAZ3D(test.refFrame));
+            
+            const tracking = Quaternion.fromAxisAngle(SkyProjection.convertAltAzToALTAZ3D(test.initialAxis), test.tracked * 2 * Math.PI /SkyProjection.SIDERAL_DAY_MS);
+            const refFrameQuaternionTracked = tracking.mul(refFrameQuaternion);
+            
+            const newFrameQuaternion = mountCorrection.mul(refFrameQuaternionTracked);
+
+            const newFrameExpectedCenter = SkyProjection.convertAltAzToALTAZ3D(test.newFrame);
+
+            const newFrameComputedCenter = newFrameQuaternion.rotateVector([0,0,1]);
+            console.log({mountCorrection, tracking, refFrameQuaternion, refFrameQuaternionTracked, newFrameQuaternion, newFrameExpectedCenter, newFrameComputedCenter});
+            expect(dist(newFrameComputedCenter , newFrameExpectedCenter)).to.be.closeTo(0, 1e-8, "new frame mapped back for " + test.name);
+
+
+            // const refFrameQuaternion = SkyProjection.getALTAZ3DMountCorrectionQuaternion([test.refFrame.alt, test.refFrame.az], [test.newFrame.alt, test.newFrame.az]);
+            // const newFrameQuaternion = SkyProjection.getEQ3DQuaternion([test.newFrame.az, test.newFrame.alt]);
+
+            const newAxis = PolarAlignmentWizard.updateAxis(test.initialAxis, refFrameQuaternion, newFrameQuaternion, test.tracked);
+            console.log({newAxis});
+            expect(SkyProjection.getDegreeDistanceAltAz(newAxis, test.newAxis)).to.be.closeTo(0, 1e-6, test.name);
+        }
     });
 
     it("Can mock RA/DEC", ()=> {

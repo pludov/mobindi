@@ -15,9 +15,14 @@ const Quaternion = require("quaternion");
 // ALTAZ3D: local to observer. For observer on the equator
 //     * In this projection, north pole is toward z axis (0,0,1).
 //     * x axis points to the zenith
-//     * y axis points west
+//     * y axis points west (az=-6h)
 
-
+export interface Quaternion {
+    x: number; y: number; w: number; h: number;
+    mul: (other:Quaternion)=>Quaternion;
+    div: (other:Quaternion)=>Quaternion;
+    rotateVector: (vec: number[])=>number[];
+}
 
 type RotationDefinition = {id: number; sign:number};
 
@@ -243,6 +248,8 @@ export default class SkyProjection {
     transform: AffineTransform3D;
     invertedTransform: AffineTransform3D;
 
+    public static readonly SIDERAL_DAY_MS = 1000 * (23 * 3600 + 56 * 60 + 4.09);
+
     constructor(pixelArcSec: number) {
         this.pixelRad = 2 * Math.PI * pixelArcSec / (3600 * 360);
         this.centerx = 0;
@@ -335,6 +342,13 @@ export default class SkyProjection {
         const angle = raAngle * 180 / Math.PI;
 
         return angle;
+    }
+
+    public static getDegreeDistanceAltAz(altAz1: {alt: number, az: number}, altAz2: {alt: number, az: number}): number {
+        return SkyProjection.getDegreeDistance(
+            [altAz1.az, altAz1.alt],
+            [altAz2.az, altAz2.alt]
+        );
     }
 
     /** Project RA/DEC (degrees) to the image (pixels). null if not visible */
@@ -1242,6 +1256,31 @@ export default class SkyProjection {
         return q2.mul(q1).neg();
     }
 
+    /**
+     * Returns a quaternion that transpose (ra=0, dec=0) to the given radec in EQ3D space.
+     * Orientations moves according to the moves of a mount
+     */
+    public static getEQ3DQuaternion(raDec: number[])
+    {
+        const decQ = Quaternion.fromAxisAngle([0,1,0], deg2rad(-raDec[1]));
+        const raQ = Quaternion.fromAxisAngle([0,0,1], deg2rad(raDec[0]));
+        return raQ.mul(decQ);
+    }
+
+    /**
+     * Returns a quaternion that transpose (alt=0, az=0) to the given altAz in ALTAZ3D space.
+     * Orientations moves according to the moves of a mount
+     */
+    public static getALTAZ3DMountCorrectionQuaternion(axe1AltAz: number[], axe2AltAz : number[])
+    {
+        const cleanAz = Quaternion.fromAxisAngle([1,0,0], -deg2rad(axe1AltAz[1]));
+        const applyAlt = Quaternion.fromAxisAngle([0,1,0], deg2rad(axe2AltAz[0] - axe1AltAz[0]));
+        const resetAz = Quaternion.fromAxisAngle([1,0,0], -deg2rad(-axe2AltAz[1]));
+
+        console.log({cleanAz, applyAlt, resetAz});
+        return resetAz.mul(applyAlt).mul(cleanAz);
+    }
+
     // Returns a - b in the range [-12, 12[
     public static raDiff(a: number, b: number) {
         let ret = (a - b) % 24;
@@ -1257,5 +1296,11 @@ export default class SkyProjection {
 
     public static raDegDiff(a: number, b: number) {
         return Map180(a - b);
+    }
+
+    public static getNorthPoleALTAZ3D(geoCoords: {lat: number, long:number})
+    {
+        const proj = SkyProjection.getEQ3DToALTAZ3DQuaternion(0, {lat: geoCoords.lat, long: 0});
+        return proj.rotateVector([0,0,1])
     }
 }

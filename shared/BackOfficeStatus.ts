@@ -185,8 +185,8 @@ export type PolarAlignSettings = {
 }
 
 export type PolarAlignAxisResult = {
-    relRaDeg: number;
-    dec: number;
+    alt: number;
+    az: number;
     tooHigh: number;
     tooEast: number;
     distance: number;
@@ -211,17 +211,10 @@ export type PolarAlignStatus = {
     astrometryRunning: boolean;
 
     axis?: null | PolarAlignAxisResult;
+    hasRefFrame: boolean;
 
     adjustError: null|string;
     adjusting: null|"frame"|"refframe";
-    tooHigh: number;
-    tooEast: number;
-    distance: number;
-
-    relFrame: null | {
-        raDeg : number;
-        dec:number;
-    };
 }
 
 export type AstrometryWizard = {

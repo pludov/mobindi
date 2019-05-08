@@ -21,9 +21,9 @@ type InputProps = {};
 type MappedProps = {
     canTakeMoveFrame: boolean;
     canChangeFrameType: boolean;
-    tooEast: number;
-    tooHigh: number;
-    distance: number;
+    tooEast: number|null;
+    tooHigh: number|null;
+    distance: number|null;
     adjusting: PolarAlignStatus["adjusting"];
     adjustError: PolarAlignStatus["adjustError"];
     nextFrame: PolarAlignStatus["adjusting"];
@@ -95,10 +95,10 @@ class Adjust extends React.PureComponent<Props> {
             </div>
             <div className="PolarAlignDeltaDisplay">
                 <div>
-                    Δ toward east: {deltaTitle(Math.round(this.props.tooEast * 3600))}
+                    Δ toward east: {this.props.tooEast === null ? "N/A" : deltaTitle(Math.round(this.props.tooEast * 3600))}
                 </div>
                 <div>
-                    Δ toward zenith: {deltaTitle(Math.round(this.props.tooHigh * 3600))}
+                    Δ toward zenith: {this.props.tooHigh === null ? "N/A" : deltaTitle(Math.round(this.props.tooHigh * 3600))}
                 </div>
             </div>
             <div>
@@ -167,18 +167,18 @@ class Adjust extends React.PureComponent<Props> {
                 if (status.adjusting) {
                     nextFrame = null;
                 } else {
-                    if (status.relFrame === undefined) {
+                    if (!status.hasRefFrame) {
                         nextFrame = "refframe";
                     } else {
                         nextFrame = store.backend.astrometry!.settings.polarAlign.dyn_nextFrameIsReferenceFrame ? "refframe" : "frame";
                     }
                 }
                 return {
-                    canTakeMoveFrame: status.relFrame !== undefined,
+                    canTakeMoveFrame: !!status.hasRefFrame,
                     canChangeFrameType: (!status.shootRunning) && (!status.astrometryRunning),
-                    tooEast: status.tooEast,
-                    tooHigh: status.tooHigh,
-                    distance: status.distance,
+                    tooEast: status.axis ? status.axis!.tooEast : null,
+                    tooHigh: status.axis ? status.axis!.tooHigh : null,
+                    distance: status.axis ? status.axis!.distance : null,
                     error: status.adjustError,
                     adjusting: status.adjusting,
                     adjustError: status.adjustError,
@@ -187,9 +187,9 @@ class Adjust extends React.PureComponent<Props> {
             }, {
                 canTakeMoveFrame: false,
                 canChangeFrameType: false,
-                tooEast: 0,
-                tooHigh: 0,
-                distance: 0,
+                tooEast: null,
+                tooHigh: null,
+                distance: null,
                 error: "Not running",
                 adjustError: null,
                 adjusting: null,

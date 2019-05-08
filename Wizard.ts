@@ -1,18 +1,19 @@
 import { AstrometryWizard } from './shared/BackOfficeStatus';
 import Astrometry from "./Astrometry";
+import CancellationToken from 'cancellationtoken';
 
 export default abstract class Wizard {
     readonly astrometry: Astrometry;
     cancelator: null | ((reason?:any)=>(void)) = null;
     wizardStatus: AstrometryWizard;
     private onNext: Array<()=>(void)> = [];
+    private onDiscard: Array<()=>(void)> = [];
 
     constructor(astrometry: Astrometry) {
         this.astrometry = astrometry;
         this.wizardStatus = this.astrometry.currentStatus.runningWizard!;
     }
 
-    abstract discard:()=>(void);
     abstract start: ()=>(Promise<void>);
 
     public interrupt() {
@@ -21,9 +22,23 @@ export default abstract class Wizard {
         }
     }
 
+    public discard=()=> {
+        const todo = this.onDiscard;
+        this.onNext = [];
+        this.onDiscard = [];
+        for(const t of todo) {
+            try {
+                t();
+            } catch(e) {
+                console.warn("Discard failed", e);
+            }
+        }
+    }
+
     public next() {
         const todo = this.onNext;
         this.onNext = [];
+        this.onDiscard = [];
         for(const t of todo) {
             try {
                 t();
@@ -51,8 +66,11 @@ export default abstract class Wizard {
     async waitNext(nextTitle:string = "next") {
         this.setPaused(true);
         this.wizardStatus.hasNext = nextTitle;
-        await new Promise((resolve)=> {
+        await new Promise((resolve, reject)=> {
             this.onNext.push(resolve);
+            this.onDiscard.push(()=> {
+                reject(new CancellationToken.CancellationError("User abort"));
+            });
         });
         this.wizardStatus.hasNext = null;
     }

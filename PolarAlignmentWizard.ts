@@ -5,9 +5,11 @@ import sleep from "./Sleep";
 import { PolarAlignSettings, PolarAlignAxisResult } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
-import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
+import { default as SkyProjection, Map360, Map180, Quaternion } from './SkyAlgorithms/SkyProjection';
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
+import ScopeTrackCounter from './ScopeTrackCounter';
+const Quaternion = require("quaternion");
 
 export type MountShift = {
             tooHigh: number;
@@ -16,8 +18,6 @@ export type MountShift = {
 
 export default class PolarAlignmentWizard extends Wizard {
     sessionStartTimeStamp : string = "";
-
-    discard = ()=> {}
 
     getScope() {
         const scope = this.astrometry.currentStatus.selectedScope;
@@ -225,26 +225,27 @@ export default class PolarAlignmentWizard extends Wizard {
         return {relRaDeg: axisRelRaDeg[0], dec: axisRelRaDeg[1]};
     }
 
-    static computeAxis(mountAxis: {relRaDeg: number, dec:number}, geoCoords: {lat:number, long:number}): PolarAlignAxisResult {
-
-        // FIXME: south ?
-        const altAzRes = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
+    static computeAxis(altAzMountAxis: {alt: number, az:number}, geoCoords: {lat:number, long:number}): PolarAlignAxisResult {
 
         return {
-            ...mountAxis,
-            tooEast: SkyProjection.raDegDiff(altAzRes.az, 0),
-            tooHigh: SkyProjection.raDegDiff(altAzRes.alt, geoCoords.lat),
-            distance: SkyProjection.getDegreeDistance([0, 90], [mountAxis.relRaDeg, mountAxis.dec])
+            ...altAzMountAxis,
+            tooEast: SkyProjection.raDegDiff(altAzMountAxis.az, 0),
+            tooHigh: SkyProjection.raDegDiff(altAzMountAxis.alt, geoCoords.lat),
+            distance: SkyProjection.getDegreeDistance([0, geoCoords.lat], [altAzMountAxis.az, altAzMountAxis.alt])
         }
     }
 
-    static centerFromAstrometry(astrometry: SucceededAstrometryResult, photoTime: number) {
+    static centerFromAstrometry(astrometry: SucceededAstrometryResult, photoTime: number, geoCoords: {lat:number, long:number}) : {raDecDegNow: number[], quatALTAZ3D: Quaternion}{
         const skyProjection = SkyProjection.fromAstrometry(astrometry);
         const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
         // compute JNOW center for last image.
         const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime);
+        console.log('raDecNow: ', raDecDegNow);
+        let quatALTAZ3D = skyProjection.getIMG3DToEQ3DQuaternion([astrometry.width / 2, astrometry.height / 2])
 
-        return raDecDegNow;
+        quatALTAZ3D = SkyProjection.getEQ3DToALTAZ3DQuaternion(photoTime, geoCoords).mul(quatALTAZ3D);
+
+        return {raDecDegNow, quatALTAZ3D };
     }
 
     public static mountMock?:MountShift = undefined;
@@ -301,21 +302,36 @@ export default class PolarAlignmentWizard extends Wizard {
         }
     }
 
-    updateDistance = (refFrame: {raDeg:number, dec:number}, lastFrame: {raDeg:number, dec:number}, geoCoords: {lat:number, long:number}, photoTime: number)=> {
-        const zenithRaDeg = SkyProjection.getLocalSideralTime(photoTime, geoCoords.long);
+    static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
+        const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
 
-        const refAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(refFrame.raDeg - zenithRaDeg), dec: refFrame.dec}, geoCoords);
-        const lastAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(lastFrame.raDeg - zenithRaDeg), dec: lastFrame.dec}, geoCoords);
+        const tracking = Quaternion.fromAxisAngle(previousAxeALTAZ3D, trackedMs * 2 * Math.PI / SkyProjection.SIDERAL_DAY_MS);
+        // Rotate previous Axe
+        const correctedRefALTAZ3D = tracking.mul(refALTAZ3D);
 
-        const movedEast = SkyProjection.raDegDiff(lastAltAz.az, refAltAz.az);
-        const movedHigh = SkyProjection.raDegDiff(lastAltAz.alt, refAltAz.alt);
+        const polarMove = quatALTAZ3D.div(correctedRefALTAZ3D);
 
-        this.wizardStatus.polarAlignment!.tooHigh -= movedHigh;
-        this.wizardStatus.polarAlignment!.tooEast -= movedEast;
-        this.wizardStatus.polarAlignment!.distance = SkyProjection.getDegreeDistance(
-                            [0, geoCoords.lat],
-                            [this.wizardStatus.polarAlignment!.tooEast, geoCoords.lat + this.wizardStatus.polarAlignment!.tooHigh]);
+        const newAxeALTAZ3D = polarMove.rotateVector(previousAxeALTAZ3D);
+
+        console.log({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
+        return SkyProjection.convertALTAZ3DToAltAz(newAxeALTAZ3D);
     }
+
+    // updateAxis = (refFrame: {raDeg:number, dec:number}, lastFrame: {raDeg:number, dec:number}, geoCoords: {lat:number, long:number}, photoTime: number)=> {
+    //     const zenithRaDeg = SkyProjection.getLocalSideralTime(photoTime, geoCoords.long);
+
+    //     const refAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(refFrame.raDeg - zenithRaDeg), dec: refFrame.dec}, geoCoords);
+    //     const lastAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(lastFrame.raDeg - zenithRaDeg), dec: lastFrame.dec}, geoCoords);
+
+    //     const movedEast = SkyProjection.raDegDiff(lastAltAz.az, refAltAz.az);
+    //     const movedHigh = SkyProjection.raDegDiff(lastAltAz.alt, refAltAz.alt);
+
+    //     this.wizardStatus.polarAlignment!.tooHigh -= movedHigh;
+    //     this.wizardStatus.polarAlignment!.tooEast -= movedEast;
+    //     this.wizardStatus.polarAlignment!.distance = SkyProjection.getDegreeDistance(
+    //                         [0, geoCoords.lat],
+    //                         [this.wizardStatus.polarAlignment!.tooEast, geoCoords.lat + this.wizardStatus.polarAlignment!.tooHigh]);
+    // }
 
     start = async ()=> {
         this.wizardStatus.title = "Polar alignment";
@@ -331,13 +347,10 @@ export default class PolarAlignmentWizard extends Wizard {
             astrometryRunning: false,
             maxStepId: 0,
             stepId: 0,
-            tooHigh: 0,
-            tooEast: 0,
-            distance: 0,
             adjustError: null,
             adjusting: null,
-            relFrame: null,
             fatalError: null,
+            hasRefFrame: false,
         }
 
         const wizardReport = this.wizardStatus.polarAlignment!;
@@ -345,194 +358,229 @@ export default class PolarAlignmentWizard extends Wizard {
         // RA relative to zenith
         let status: undefined | {start : number, end: number, stepSize: number, stepId: number, maxStepId: number};
         let shootId = 0;
-        while(true) {
-            await this.waitNext(wizardReport!.status === "initialConfirm" ? "Start >>" : "Resume");
-            wizardReport!.status = "running";
-            if (!this.sessionStartTimeStamp) {
-                this.sessionStartTimeStamp = new Date().toISOString().replace(/\.\d+|[-:]/g,'');
-            }
-            const {token, cancel} = CancellationToken.create();
-            this.setInterruptor(cancel);
-            try {
-                // Set scope track to off
-                // take a shoot and resolve
-                // compute the actual arc
-                // for(i = min to max)
-                //      slew to i
-                //      shoot
-                //      start astrometry
-                // then do a regression to compute error
-                // TODO: put the real code for polar alignment...
-                // TODO: deep copy parameters on the first pass
+        let scopeTrackCounter: ScopeTrackCounter|undefined;
+        try {
+            while(true) {
+                await this.waitNext(wizardReport!.status === "initialConfirm" ? "Start >>" : "Resume");
+                wizardReport!.status = "running";
+                if (!this.sessionStartTimeStamp) {
+                    this.sessionStartTimeStamp = new Date().toISOString().replace(/\.\d+|[-:]/g,'');
+                }
+                const {token, cancel} = CancellationToken.create();
+                this.setInterruptor(cancel);
                 try {
-                    while(true) {
-                        if (!this.astrometry.camera.currentStatus.selectedDevice) {
-                            throw new Error("No camera selected");
-                        }
-                        
-                        if (status === undefined) {
-                            const settings = this.astrometry.currentStatus.settings.polarAlign;
-                            if (settings.sampleCount < 3) {
-                                throw new Error("Need at least 3 samples");
+                    // Set scope track to off
+                    // take a shoot and resolve
+                    // compute the actual arc
+                    // for(i = min to max)
+                    //      slew to i
+                    //      shoot
+                    //      start astrometry
+                    // then do a regression to compute error
+                    // TODO: put the real code for polar alignment...
+                    // TODO: deep copy parameters on the first pass
+                    try {
+                        while(true) {
+                            const geoCoords = this.readGeoCoords();
+                    
+                            if (!this.astrometry.camera.currentStatus.selectedDevice) {
+                                throw new Error("No camera selected");
                             }
+                            
+                            if (status === undefined) {
+                                const settings = this.astrometry.currentStatus.settings.polarAlign;
+                                if (settings.sampleCount < 3) {
+                                    throw new Error("Need at least 3 samples");
+                                }
 
-                            const raRange = PolarAlignmentWizard.computeRaRange(
-                                                    this.readGeoCoords(),
-                                                    this.readScopePos(),
-                                                    new Date().getTime() / 1000,
-                                                    settings);
-                            status = {
-                                ...raRange,
-                                maxStepId: settings.sampleCount - 1,
-                                stepSize: (raRange.end - raRange.start) / (settings.sampleCount - 1),
-                                stepId: 0,
+                                const raRange = PolarAlignmentWizard.computeRaRange(
+                                                        geoCoords,
+                                                        this.readScopePos(),
+                                                        new Date().getTime() / 1000,
+                                                        settings);
+                                status = {
+                                    ...raRange,
+                                    maxStepId: settings.sampleCount - 1,
+                                    stepSize: (raRange.end - raRange.start) / (settings.sampleCount - 1),
+                                    stepId: 0,
+                                }
                             }
-                        }
-                        wizardReport.stepId = status.stepId;
-                        wizardReport.maxStepId = status.maxStepId;
+                            wizardReport.stepId = status.stepId;
+                            wizardReport.maxStepId = status.maxStepId;
 
-                        await this.prepareScope(token, this.astrometry.currentStatus.settings.polarAlign);
-                        
-                        const relRa = status.start + status.stepSize * status.stepId;
-                        const targetRa = SkyProjection.getLocalSideralTime(new Date().getTime(), this.readGeoCoords().long) / 15 + relRa;
+                            await this.prepareScope(token, this.astrometry.currentStatus.settings.polarAlign);
+                            
+                            const relRa = status.start + status.stepSize * status.stepId;
+                            const targetRa = SkyProjection.getLocalSideralTime(new Date().getTime(), geoCoords.long) / 15 + relRa;
 
-                        try {
-                            wizardReport.scopeMoving = true;
-                            await this.slew(token, this.astrometry.currentStatus.settings.polarAlign, targetRa);
-                            // Settle before shoot
-                            await sleep(token, 500);
-                        } finally {
-                            wizardReport.scopeMoving = false;
-                        }
-                        console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
+                            try {
+                                wizardReport.scopeMoving = true;
+                                await this.slew(token, this.astrometry.currentStatus.settings.polarAlign, targetRa);
+                                // Settle before shoot
+                                await sleep(token, 500);
+                            } finally {
+                                wizardReport.scopeMoving = false;
+                            }
+                            console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
 
-                        const { photo, photoTime } = await this.shoot(token, ++shootId, "sampling");
-                        wizardReport.shootDone++;
+                            const { photo, photoTime } = await this.shoot(token, ++shootId, "sampling");
+                            wizardReport.shootDone++;
 
-                        // FIXME: put in a resumable task queue
-                        try {
-                            wizardReport.astrometryRunning = true;
-                            const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
-                            // FIXME: convert to JNOW & put in queue
-                            console.log('done astrom', astrometry);
-                            if (astrometry.found) {
-                                wizardReport.astrometrySuccess++;
-                                const geoCoords = this.readGeoCoords();
-                                const raDecDegNow = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!);
-                                PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
+                            // FIXME: put in a resumable task queue
+                            try {
+                                wizardReport.astrometryRunning = true;
+                                const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
+                                // FIXME: convert to JNOW & put in queue
+                                console.log('done astrom', astrometry);
+                                if (astrometry.found) {
+                                    wizardReport.astrometrySuccess++;
+                                    const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
+                                    PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
 
-                                const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
+                                    const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 
-                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
+                                    const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
 
-                                wizardReport.data[stortableStepId] = {
-                                    relRaDeg: Map180(raDecDegNow[0] - zenithRa),
-                                    dec: raDecDegNow[1],
-                                };
-                            } else {
+                                    wizardReport.data[stortableStepId] = {
+                                        relRaDeg: Map180(raDecDegNow[0] - zenithRa),
+                                        dec: raDecDegNow[1],
+                                    };
+                                } else {
+                                    wizardReport.astrometryFailed++;
+                                }
+                            } catch(e) {
+                                if (e instanceof CancellationToken.CancellationError) {
+                                    throw e;
+                                }
+                                console.log('Ignoring astrometry problem', e);
                                 wizardReport.astrometryFailed++;
+                            } finally {
+                                wizardReport.astrometryRunning = false;
                             }
-                        } catch(e) {
-                            if (e instanceof CancellationToken.CancellationError) {
-                                throw e;
+                            if (status.stepId >= status.maxStepId) {
+                                break;
                             }
-                            console.log('Ignoring astrometry problem', e);
-                            wizardReport.astrometryFailed++;
-                        } finally {
-                            wizardReport.astrometryRunning = false;
+                            status.stepId++;
                         }
-                        if (status.stepId >= status.maxStepId) {
-                            break;
-                        }
-                        status.stepId++;
+
+                        // We are done. Compute the regression
+                        console.log('Compute the regression for', JSON.stringify(wizardReport.data));
+                        
+                        const path = Object.keys(wizardReport.data).map(k=>wizardReport.data[k]);
+                        const mountAxis = PolarAlignmentWizard.findMountAxis(path);
+                        const geoCoords = this.readGeoCoords();
+                        const altAzMountAxis = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
+                        wizardReport.axis = PolarAlignmentWizard.computeAxis(altAzMountAxis, geoCoords);
+
+                        console.log('result is ', JSON.stringify(wizardReport.axis));
+                        break;
+                    } finally {
+                        this.setInterruptor(null);
+                        this.setPaused(true);
                     }
 
-                    // We are done. Compute the regression
-                    console.log('Compute the regression for', JSON.stringify(wizardReport.data));
-                    
-                    const path = Object.keys(wizardReport.data).map(k=>wizardReport.data[k]);
-                    const mountAxis = PolarAlignmentWizard.findMountAxis(path);
-                    wizardReport.axis = PolarAlignmentWizard.computeAxis(mountAxis, this.readGeoCoords());
-
-                    console.log('result is ', JSON.stringify(wizardReport.axis));
-                    break;
-                } finally {
-                    this.setInterruptor(null);
-                    this.setPaused(true);
-                }
-
-            } catch(e) {
-                if (e instanceof CancellationToken.CancellationError) {
-                    this.wizardStatus.polarAlignment!.status = "paused";
-                } else {
-                    this.wizardStatus.polarAlignment!.fatalError = e.message || "" + e;
-                    throw e;
+                } catch(e) {
+                    if (e instanceof CancellationToken.CancellationError) {
+                        this.wizardStatus.polarAlignment!.status = "paused";
+                    } else {
+                        this.wizardStatus.polarAlignment!.fatalError = e.message || "" + e;
+                        throw e;
+                    }
                 }
             }
-        }
 
-        // Let the user review.
-        this.wizardStatus.polarAlignment!.status = "done";
-        await this.waitNext("Next >>");
+            // Let the user review.
+            this.wizardStatus.polarAlignment!.status = "done";
+            await this.waitNext("Next >>");
 
-        // We arrived here when user wants to adjust mount.
-        // We have a ref point and a correction to perform
-        // The tracking is on.
-        // For each new photo, we compute the alt-az distance between
-        //    (ra,dec) of the reference photo
-        //    (ra,dec) of the photo
-        this.wizardStatus.polarAlignment!.status = "adjusting";
-        wizardReport.tooEast = wizardReport.axis!.tooEast;
-        wizardReport.tooHigh = wizardReport.axis!.tooHigh;
-        wizardReport.distance =  wizardReport.axis!.distance;
-        wizardReport.adjustError = null;
-        while(true) {
-            wizardReport.adjusting = null;
-            // Always go back to normal frame
-            this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
-
-            await this.waitNext("Shoot");
-            this.setPaused(false);
-            const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || !wizardReport.relFrame;
-            wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";
+            // We arrived here when user wants to adjust mount.
+            // We have a ref point and a correction to perform
+            // The tracking is on.
+            // For each new photo, we compute the alt-az distance between
+            //    (ra,dec) of the reference photo
+            //    (ra,dec) of the photo
+            this.wizardStatus.polarAlignment!.status = "adjusting";
             wizardReport.adjustError = null;
 
-            const {token, cancel} = CancellationToken.create();
-            this.setInterruptor(cancel);
-            try {
-                // FIXME: better progress report
-                const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "adjustment" : "reference");
+            let badAxisAtRefAltAz = {alt: wizardReport.axis!.alt, az: wizardReport.axis!.az};
+            let badAxisLastAltAz = badAxisAtRefAltAz;
+            let refALTAZ3D : Quaternion | null = null;
+            while(true) {
+                wizardReport.adjusting = null;
+                // Always go back to normal frame
+                this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
 
-                const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
-                console.log('done astrom', astrometry);
-                if (astrometry.found) {
-                    const geoCoords = this.readGeoCoords();
-                    const raDecDegNow = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!);
-                    PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
+                await this.waitNext("Shoot");
+                this.setPaused(false);
+                const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || (refALTAZ3D === null);
+                wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";
+                wizardReport.adjustError = null;
 
+                const {token, cancel} = CancellationToken.create();
+                this.setInterruptor(cancel);
+                let tempScopeTrackCounter;
+                try {
                     if (takeRefFrame) {
-                        wizardReport.relFrame = {
-                            raDeg: raDecDegNow[0],
-                            dec: raDecDegNow[1],
-                        };
-                    } else {
-                        this.updateDistance(wizardReport.relFrame!, {raDeg: raDecDegNow[0], dec: raDecDegNow[1]}, geoCoords, photoTime);
-                        wizardReport.relFrame!.raDeg = raDecDegNow[0];
-                        wizardReport.relFrame!.dec = raDecDegNow[1];
+                        wizardReport.hasRefFrame = false;
+                        refALTAZ3D = null;
+                        badAxisAtRefAltAz = badAxisLastAltAz;
                     }
-                } else {
-                    throw new Error("Astrometry failed");
-                }
-            } catch(e) {
-                if (!(e instanceof CancellationToken.CancellationError)) {
-                    console.warn("failure", e);
-                    wizardReport.adjustError = e.message || ''+e;
-                    await this.waitNext("Resume");
-                } else {
-                    wizardReport.adjustError = "Interrupted";
+
+                    // FIXME: better progress report
+                    const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "adjustment" : "reference");
+                    let photoTrackSinceRef:number;
+                    if (takeRefFrame) {
+                        tempScopeTrackCounter = new ScopeTrackCounter(this.astrometry.indiManager, this.getScope());
+                        tempScopeTrackCounter.start();
+                        photoTrackSinceRef = 0;
+                    } else {
+                        photoTrackSinceRef = scopeTrackCounter!.getElapsed();
+                    }
+
+                    const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
+                    console.log('done astrom', astrometry);
+                    if (astrometry.found) {
+                        const geoCoords = this.readGeoCoords();
+                        const { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
+
+                        if (takeRefFrame) {
+                            refALTAZ3D = quatALTAZ3D;
+                            wizardReport.hasRefFrame = true;
+
+                            // Replace the tracker with this one.
+                            if (scopeTrackCounter !== undefined) {
+                                scopeTrackCounter.stop();
+                            }
+                            scopeTrackCounter = tempScopeTrackCounter;
+                            tempScopeTrackCounter = undefined;
+
+                        } else {
+                            badAxisLastAltAz = PolarAlignmentWizard.updateAxis(badAxisAtRefAltAz, refALTAZ3D!, quatALTAZ3D, photoTrackSinceRef);
+                            wizardReport.axis = PolarAlignmentWizard.computeAxis(badAxisLastAltAz, geoCoords);
+                        }
+                    } else {
+                        throw new Error("Astrometry failed");
+                    }
+                } catch(e) {
+                    if (!(e instanceof CancellationToken.CancellationError)) {
+                        console.warn("failure", e);
+                        wizardReport.adjustError = e.message || ''+e;
+                        await this.waitNext("Resume");
+                    } else {
+                        wizardReport.adjustError = "Interrupted";
+                    }
+                } finally {
+                    if (tempScopeTrackCounter !== undefined) {
+                        tempScopeTrackCounter.stop();
+                        tempScopeTrackCounter = undefined;
+                    }
                 }
             }
+        } finally {
+            if (scopeTrackCounter !== undefined) {
+                scopeTrackCounter.stop();
+                scopeTrackCounter = undefined;
+            }
         }
-
     }
 }

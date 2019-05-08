@@ -254,6 +254,18 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         this.currentStatus.driverToGroup = driverToGroup;
     }
 
+    private readonly connectionListener = new Set<()=>(void)>();
+
+    addConnectionListener(cb: ()=>(void))
+    {
+        this.connectionListener.add(cb);
+    }
+
+    removeConnectionListener(cb: ()=>(void))
+    {
+        this.connectionListener.delete(cb);
+    }
+
     refreshStatus()
     {
         if (this.connection == undefined) {
@@ -265,6 +277,15 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             clear(this.currentStatus.deviceTree);
         } else {
             this.currentStatus.status = "connected";
+        }
+        for(const o of Array.from(this.connectionListener)) {
+            if (this.connectionListener.has(o)) {
+                try {
+                    o();
+                } catch(e) {
+                    console.error("Error during indi cb", e);
+                }
+            }
         }
     }
 
