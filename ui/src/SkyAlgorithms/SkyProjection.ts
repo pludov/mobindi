@@ -1198,17 +1198,19 @@ export default class SkyProjection {
         return {relRaDeg:Map180(-res.az), dec: -res.alt};
     }
 
+    // Return local sideral time in degrees from time since epoch (ms)
     // Usefull resources:
     // - http://www.csgnetwork.com/siderealjuliantimecalc.html
     // - http://neoprogrammics.com/sidereal_time_calculator/
     //
-    public static getLocalSideralTime(time:number, long:number)
+    public static getLocalSideralTime(msTime:number, long:number)
     {
-        const d = (time - j2000Epoch) / 86400;
-        const UT = (time % 86400) / 3600.0;
+        msTime = msTime / 1000;
+        const d = (msTime - j2000Epoch) / 86400;
+        const UT = (msTime % 86400) / 3600.0;
 
         // Formula from http://www2.arnes.si/~gljsentvid10/altaz.html
-        return ((100.46+0.985647 * d+long + 15 *UT) / 15) % 24;
+        return Map360(100.46+0.985647 * d+long + 15 *UT);
 
         // https://astronomy.stackexchange.com/questions/24859/local-sidereal-time
         // return ((100.4606184+0.9856473662862* d+long + 15 *UT) / 15) % 24;
@@ -1216,9 +1218,9 @@ export default class SkyProjection {
 
     public static raDecToLstRel(raDecDegNow:number[], msTime: number, geoCoords: {lat:number, long:number})
     {
-        const zenithRa = SkyProjection.getLocalSideralTime(msTime / 1000, geoCoords.long);
+        const zenithRa = SkyProjection.getLocalSideralTime(msTime, geoCoords.long);
         return {
-            relRaDeg: Map180(raDecDegNow[0] - 15 * zenithRa),
+            relRaDeg: Map180(raDecDegNow[0] - zenithRa),
             dec: raDecDegNow[1],
         };
     }
@@ -1231,7 +1233,7 @@ export default class SkyProjection {
         /*
          * In this projection, north pole is toward z axis (0,0,1). and ra=0 point to the x axis
          */
-        const zenithRaDeg = 15 * SkyProjection.getLocalSideralTime(msTime / 1000, geoCoords.long);
+        const zenithRaDeg = SkyProjection.getLocalSideralTime(msTime, geoCoords.long);
         const q1 = Quaternion.fromAxisAngle([0,0,1], deg2rad(-zenithRaDeg));
 
         // Now rotate the pole according to latitude

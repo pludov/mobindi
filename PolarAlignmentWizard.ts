@@ -170,7 +170,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     minAltitude: number,    // Don't descend under this alt
                 }
     ) => {
-        const zenithRa = SkyProjection.getLocalSideralTime(epoch, geoCoords.long);
+        const zenithRa = SkyProjection.getLocalSideralTime(epoch * 1000, geoCoords.long);
         console.log('zenith ra is ', zenithRa);
 
         // Minimum RA step in °
@@ -192,7 +192,7 @@ export default class PolarAlignmentWizard extends Wizard {
 
         const startRelRa = SkyProjection.raDiff(
                                 raDecNow.ra,
-                                zenithRa
+                                zenithRa / 15
                                 );
 
         if (Math.abs(startRelRa) > 6) {
@@ -258,10 +258,10 @@ export default class PolarAlignmentWizard extends Wizard {
     }
 
     static applyMountShift(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number, mountShift: MountShift) {
-        const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, geoCoords.long);
+        const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
         console.log('input = ', raDecDegNow);
         let relRaDec = {
-            relRaDeg: Map180(raDecDegNow[0] - 15 * zenithRa),
+            relRaDeg: Map180(raDecDegNow[0] - zenithRa),
             dec: raDecDegNow[1],
         };
         console.log('relRaDec = ', relRaDec);
@@ -275,7 +275,7 @@ export default class PolarAlignmentWizard extends Wizard {
         console.log('altaz = ', altAz);
         relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
         console.log('relRaDec = ', relRaDec);
-        const output = [ Map360(zenithRa * 15 + relRaDec.relRaDeg), relRaDec.dec ];
+        const output = [ Map360(zenithRa + relRaDec.relRaDeg), relRaDec.dec ];
         console.log('output = ', output);
         return output;
     }
@@ -302,7 +302,7 @@ export default class PolarAlignmentWizard extends Wizard {
     }
 
     updateDistance = (refFrame: {raDeg:number, dec:number}, lastFrame: {raDeg:number, dec:number}, geoCoords: {lat:number, long:number}, photoTime: number)=> {
-        const zenithRaDeg = 15 * SkyProjection.getLocalSideralTime(photoTime / 1000, geoCoords.long);
+        const zenithRaDeg = SkyProjection.getLocalSideralTime(photoTime, geoCoords.long);
 
         const refAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(refFrame.raDeg - zenithRaDeg), dec: refFrame.dec}, geoCoords);
         const lastAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(lastFrame.raDeg - zenithRaDeg), dec: lastFrame.dec}, geoCoords);
@@ -394,7 +394,7 @@ export default class PolarAlignmentWizard extends Wizard {
                         await this.prepareScope(token, this.astrometry.currentStatus.settings.polarAlign);
                         
                         const relRa = status.start + status.stepSize * status.stepId;
-                        const targetRa = SkyProjection.getLocalSideralTime(new Date().getTime()/1000, this.readGeoCoords().long) + relRa;
+                        const targetRa = SkyProjection.getLocalSideralTime(new Date().getTime(), this.readGeoCoords().long) / 15 + relRa;
 
                         try {
                             wizardReport.scopeMoving = true;
@@ -423,10 +423,10 @@ export default class PolarAlignmentWizard extends Wizard {
 
                                 const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 
-                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime! / 1000, geoCoords.long);
+                                const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
 
                                 wizardReport.data[stortableStepId] = {
-                                    relRaDeg: 15 * PolarAlignmentWizard.raDistance(raDecDegNow[0] / 15, zenithRa),
+                                    relRaDeg: Map180(raDecDegNow[0] - zenithRa),
                                     dec: raDecDegNow[1],
                                 };
                             } else {

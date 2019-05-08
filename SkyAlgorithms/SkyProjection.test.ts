@@ -69,9 +69,9 @@ describe("Astronomic computations", ()=> {
     it("Compute lst", ()=>{
         const tol = 1/3600;
 
-        const lst = SkyProjection.getLocalSideralTime;
+        const lst = (a:number,b:number)=>SkyProjection.getLocalSideralTime(a,b)/15;
 
-        const utc2epoch = (s:string)=>new Date(s).getTime() / 1000.0;
+        const utc2epoch = (s:string)=>new Date(s).getTime();
 
         expect(lst(utc2epoch('2025-04-30T18:25:12.000Z'), 12)).to.be.closeTo(hms(9, 48, 58.262), tol);
 
@@ -79,7 +79,7 @@ describe("Astronomic computations", ()=> {
 
         expect(lst(utc2epoch('2019-04-28T16:23:42.000Z'), -76.8233055)).to.be.closeTo(hms(1, 41, 48), tol);
 
-        expect(lst(1556471378, 0.0)).to.be.closeTo(hms(7, 35, 10.6), 1.0/3600);
+        expect(lst(1556471378000, 0.0)).to.be.closeTo(hms(7, 35, 10.6), 1.0/3600);
 
         // This is ok (from http://neoprogrammics.com/sidereal_time_calculator/)
         expect(lst(utc2epoch('2000-01-01T12:00:00.000Z'), 0)).to.be.closeTo(hms(18, 41, 49.696), tol);
@@ -451,7 +451,7 @@ describe("Astronomic computations", ()=> {
         const geoCoords= {lat: 0, long: -341.3335788925829};
         const time = 1557301315714;
 
-        const lst = Map180(15 * SkyProjection.getLocalSideralTime(time / 1000, geoCoords.long));
+        const lst = Map180(SkyProjection.getLocalSideralTime(time, geoCoords.long));
         expect(lst).to.be.closeTo(0, 1e-8);
 
         // Get the quaternion.
