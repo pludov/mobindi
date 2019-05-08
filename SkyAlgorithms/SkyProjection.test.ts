@@ -8,6 +8,16 @@ const Quaternion = require("quaternion");
 
 const hms = (h:number, m:number, s:number)=>(h + m / 60 + s / 3600);
 
+function norm(a: number[]) {
+    let sum = 0;
+    for(let i = 0; i < a.length; ++i) {
+        const d = a[i];
+        sum += d * d;
+    }
+    return Math.sqrt(sum);
+}
+
+
 function dist(a: number[], b:number[]) {
     let sum = 0;
     for(let i = 0; i < a.length; ++i) {
@@ -17,7 +27,45 @@ function dist(a: number[], b:number[]) {
     return Math.sqrt(sum);
 }
 
+// Evaluation of angular distance, %360
+function degDist(a:number[], b: number[]) {
+    return dist([0,0], [
+                    Map180(a[0]-b[0]),
+                    Map180(a[1]-b[1]),
+    ]);
+}
+
 describe("Astronomic computations", ()=> {
+    it("[ra,dec]<=>EQ3D", ()=> {
+        const expectations = [
+            {
+                id: "north pole",
+                raDec: [0,90],
+                eq3d: [0,0,1],
+            },{
+                id: "ra = 0",
+                raDec: [0,0],
+                eq3d: [1,0,0],
+            },{
+                id: "ra = -6h",
+                raDec: [-90,0],
+                eq3d: [0,-1,0],
+            },{
+                id: "ra = +6h",
+                raDec: [90,0],
+                eq3d: [0,1,0],
+            },
+        ];
+        
+        for(const e of expectations) {
+            const eq3d_computed = SkyProjection.convertRaDecToEQ3D(e.raDec);
+            const raDec_computed = SkyProjection.convertEQ3DToRaDec(e.eq3d);
+            
+            expect(dist(e.eq3d, eq3d_computed)).to.be.closeTo(0, 1e-12, "radec=>eq3d:" + e.id);
+            expect(degDist(e.raDec, raDec_computed)).to.be.closeTo(0, 1e-8, "eq3d=>radec:" + e.id);
+        }
+    });
+    
     it("Compute lst", ()=>{
         const tol = 1/3600;
 
@@ -170,50 +218,50 @@ describe("Astronomic computations", ()=> {
         expect(coords.dec).to.be.closeTo(coordsExpected.dec, delta);
     });
 
-    it("project alt/az", ()=>{
+    it("[alt,az] => ALTAZ3D", ()=>{
         const delta = 1e-6;
 
         // In this projection, north pole is toward z axis (0,0,1). 
         // x axis points to the zenith
         // y axis points east
         
-        const zenith = SkyProjection.convertAltAzTo3D({alt: 90, az: 0});
+        const zenith = SkyProjection.convertAltAzToALTAZ3D({alt: 90, az: 0});
         expect(dist(zenith, [1,0,0])).to.be.closeTo(0, delta);
         
-        const north = SkyProjection.convertAltAzTo3D({alt: 0, az: 0});
+        const north = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 0});
         expect(dist(north, [0,0,1])).to.be.closeTo(0, delta);
         
-        const south = SkyProjection.convertAltAzTo3D({alt: 0, az: 180});
+        const south = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 180});
         expect(dist(south, [0,0,-1])).to.be.closeTo(0, delta);
         
-        const east = SkyProjection.convertAltAzTo3D({alt: 0, az: 90});
-        expect(dist(east, [0,1,0])).to.be.closeTo(0, delta);
+        const east = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 90});
+        expect(dist(east, [0,-1,0])).to.be.closeTo(0, delta);
         
-        const west = SkyProjection.convertAltAzTo3D({alt: 0, az: 270});
-        expect(dist(west, [0,-1,0])).to.be.closeTo(0, delta);
+        const west = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 270});
+        expect(dist(west, [0,1,0])).to.be.closeTo(0, delta);
     });
 
-    it("unproject alt/az", ()=>{
+    it("ALTAZ3D => [alt,az]", ()=>{
         const delta = 1e-6;
 
-        const zenith = SkyProjection.convert3DToAltAz([1, 0, 0]);
+        const zenith = SkyProjection.convertALTAZ3DToAltAz([1, 0, 0]);
         expect(zenith.alt).to.be.closeTo(90, delta);
         expect(zenith.az).to.be.gte(0);
         expect(zenith.az).to.be.lt(360);
 
-        const north = SkyProjection.convert3DToAltAz([0, 0, 1]);
+        const north = SkyProjection.convertALTAZ3DToAltAz([0, 0, 1]);
         expect(north.alt).to.be.closeTo(0, delta);
         expect(north.az).to.be.closeTo(0, delta);
 
-        const south = SkyProjection.convert3DToAltAz([0, 0, -1]);
+        const south = SkyProjection.convertALTAZ3DToAltAz([0, 0, -1]);
         expect(south.alt).to.be.closeTo(0, delta);
         expect(south.az).to.be.closeTo(180, delta);
 
-        const east = SkyProjection.convert3DToAltAz([0, 1, 0]);
+        const east = SkyProjection.convertALTAZ3DToAltAz([0, -1, 0]);
         expect(east.alt).to.be.closeTo(0, delta);
         expect(east.az).to.be.closeTo(90, delta);
 
-        const west = SkyProjection.convert3DToAltAz([0, -1, 0]);
+        const west = SkyProjection.convertALTAZ3DToAltAz([0, 1, 0]);
         expect(west.alt).to.be.closeTo(0, delta);
         expect(west.az).to.be.closeTo(270, delta);
     });
@@ -224,34 +272,34 @@ describe("Astronomic computations", ()=> {
         const zenith = [1, 0, 0];
         const north =  [0, 0, 1];
         const south =  [0, 0, -1];
-        const east =   [0, 1, 0];
-        const west =  [0, -1, 0];
+        const east =   [0, -1, 0];
+        const west =  [0, 1, 0];
 
         expect(dist(
-            SkyProjection.rotate(zenith, SkyProjection.altAzRotation.toNorth, 90),
+            SkyProjection.rotate(zenith, SkyProjection.rotationsALTAZ3D.toNorth, 90),
             north))
             .to.be.closeTo(0, delta);
 
         expect(dist(
-            SkyProjection.rotate(zenith, SkyProjection.altAzRotation.toSouth, 90),
+            SkyProjection.rotate(zenith, SkyProjection.rotationsALTAZ3D.toSouth, 90),
             south))
             .to.be.closeTo(0, delta);
 
         expect(dist(
-            SkyProjection.rotate(north, SkyProjection.altAzRotation.toWest, 90),
+            SkyProjection.rotate(north, SkyProjection.rotationsALTAZ3D.toWest, 90),
             west))
             .to.be.closeTo(0, delta);
         expect(dist(
-            SkyProjection.rotate(west, SkyProjection.altAzRotation.toWest, 90),
+            SkyProjection.rotate(west, SkyProjection.rotationsALTAZ3D.toWest, 90),
             south))
             .to.be.closeTo(0, delta);
 
         expect(dist(
-            SkyProjection.rotate(north, SkyProjection.altAzRotation.toEast, 90),
+            SkyProjection.rotate(north, SkyProjection.rotationsALTAZ3D.toEast, 90),
             east))
             .to.be.closeTo(0, delta);
         expect(dist(
-            SkyProjection.rotate(south, SkyProjection.altAzRotation.toEast, 90),
+            SkyProjection.rotate(south, SkyProjection.rotationsALTAZ3D.toEast, 90),
             west))
             .to.be.closeTo(0, delta);
     });
@@ -286,13 +334,13 @@ describe("Astronomic computations", ()=> {
 
 
 
-        const quaternion = skyProj.getQuaternionAtCenter([astrom.width / 2, astrom.height / 2]);
-        const centerPt3d = SkyProjection.convertRaDecTo3D([coords.ra, coords.dec]);
+        const quaternion = skyProj.getIMG3DToEQ3DQuaternion([astrom.width / 2, astrom.height / 2]);
+        const centerPt3d = SkyProjection.convertRaDecToEQ3D([coords.ra, coords.dec]);
         // Check the center project back to good pos.
         expect(dist(quaternion.rotateVector([0,0,1]), centerPt3d)).to.be.closeTo(0, delta, "quaternion at center");
 
         // // Check the north project back to good pos.
-        // const topCoords = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([astrom.width / 2, 0]));
+        // const topCoords = SkyProjection.convertRaDecToEQ3D(skyProj.pixToRaDec([astrom.width / 2, 0]));
         // console.log("skyProj.pixelRad", skyProj.pixelRad, topCoords);
         // console.log("quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1])",quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1]));
         // expect(dist(quaternion.rotateVector([0,astrom.height * skyProj.pixelRad / 2,1]), topCoords)).to.be.closeTo(0, delta);
@@ -360,9 +408,9 @@ describe("Astronomic computations", ()=> {
         //     // console.log('Candidatte ', dst(quaternionAtRef.inverse().rotateVector([d*0,d*0,d*1])));
         // }
 
-        const pixToImage3d = (xy:number[])=> {
-            const x = (xy[0] - skyProj.centerx) * skyProj.pixelRad;
-            const y = (xy[1] - skyProj.centery) * skyProj.pixelRad;
+        const pixToImage3d = (xy:number[], center:{centerx:number, centery:number})=> {
+            const x = (xy[0] - center.centerx) * skyProj.pixelRad;
+            const y = (xy[1] - center.centery) * skyProj.pixelRad;
     
             const z3d = 1.0 / Math.sqrt(y * y + x * x + 1.0);
             const x3d = x * z3d;
@@ -370,12 +418,12 @@ describe("Astronomic computations", ()=> {
             return [x3d, y3d, z3d];
         }
 
-        for(const pos of [ [skyProj.centerx, skyProj.centery] ])
+        for(const pos of [ [skyProj.centerx, skyProj.centery], [skyProj.centerx+1000, skyProj.centery], [skyProj.centerx, skyProj.centery+1000] ])
         {
 
-            const quaternionAtRef = skyProj.getQuaternionAtCenter(pos);
-            // const refPt3d = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([skyProj.centerx, skyProj.centery]));
-            const refPt3d = skyProj.invertedTransform.convert(pixToImage3d(pos));
+            const quaternionAtRef = skyProj.getIMG3DToEQ3DQuaternion(pos);
+            // const refPt3d = SkyProjection.convertRaDecToEQ3D(skyProj.pixToRaDec([skyProj.centerx, skyProj.centery]));
+            const refPt3d = skyProj.invertedTransform.convert(pixToImage3d(pos, skyProj));
 
             console.log('Looking for ', refPt3d);
 
@@ -383,18 +431,132 @@ describe("Astronomic computations", ()=> {
             const d = dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d);
             console.log('Final dist ICI', d);
 
-            expect(dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d)).to.be.closeTo(0, delta, "getQuaternionAtCenter for " + JSON.stringify(pos));
+            expect(dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d)).to.be.closeTo(0, delta, "getIMG3DToEQ3DQuaternion for " + JSON.stringify(pos));
 
             for(const dlt of [ [1000,1000], [0,1000], [1000, 0], [-1000,0], [0,-1000] ]) {
-                // const refPtX = SkyProjection.convertRaDecTo3D(skyProj.pixToRaDec([pos[0] + dlt[0], pos[1] + dlt[1]]));
-                const refPtX = skyProj.invertedTransform.convert(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]]));
+                // const refPtX = SkyProjection.convertRaDecToEQ3D(skyProj.pixToRaDec([pos[0] + dlt[0], pos[1] + dlt[1]]));
+                const refPtX = skyProj.invertedTransform.convert(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]], skyProj));
 
-                const quadPtX = quaternionAtRef.rotateVector(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]]));
+                const quadPtX = quaternionAtRef.rotateVector(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]], {centerx: pos[0], centery: pos[1]}));
                 let dx = dist(quadPtX, refPtX);
+                console.log({quadPtX, refPtX});
                 console.log('dx (pixel) = ', dx / skyProj.pixelRad);
-                expect(dx / skyProj.pixelRad).to.be.closeTo(0, 2);
+                expect(dx / skyProj.pixelRad).to.be.closeTo(0, 2, "For " + JSON.stringify({pos,dlt}));
             }
         }
     });
+
+    it("Basic alz-az with quaternion", ()=> {
+        // Equator, with ra = 0 on zenith
+        const geoCoords= {lat: 0, long: -341.3335788925829};
+        const time = 1557301315714;
+
+        const lst = Map180(15 * SkyProjection.getLocalSideralTime(time / 1000, geoCoords.long));
+        expect(lst).to.be.closeTo(0, 1e-8);
+
+        // Get the quaternion.
+        const nowAndHere = SkyProjection.getEQ3DToALTAZ3DQuaternion(time, geoCoords);
+
+        // From eq space : north pole is toward z axis (0,0,1). and ra=0 point to the x axis
+        // To alt-az, north pole is toward z axis (0,0,1), y axis points east
+        const expectations  = [
+            {
+                id: "north",
+                eq: [0, 0, 1],
+                altaz: [0, 0, 1]
+            },
+            {
+                id: "east",
+                eq: [0, 1, 0],
+                altaz: [0, 1, 0]
+            },
+            {
+                id: "west",
+                eq: [0, -1, 0],
+                altaz: [0, -1, 0]
+            }
+        ];
+
+        for(const e of expectations) {
+            const quatProj = nowAndHere.rotateVector(e.eq);
+            expect(dist(quatProj, e.altaz)).to.be.closeTo(0, 1e-8, e.id);
+        }
+    });
+    it("converts quaternion to alt/az", ()=> {
+        const raDecDelta = 1e-7;
+        const pixelDelta = 1e-2;
+        const astrom: SucceededAstrometryResult = {
+            "found":true,
+            "cd1_1":-0.00016379701531,
+            "cd1_2":0.000747030024024,
+            "cd2_1":-0.000747131304567,
+            "cd2_2":-0.000165084805207,
+            "raCenter":149.502516809,
+            "decCenter":70.0465404471,
+            "width":4290,
+            "height":2856,
+            "refPixX":814.188110352,
+            "refPixY":1455.15181478,
+        };
+
+        for(const deltaLat of [ 0, -45, 45, 89 ]) {
+            for(const deltaTime of [0, 3, 6, 9, 12]) {
+
+                const geoCoords= {lat: 0 + deltaLat, long: -341.3335788925829};
+                const time = 1557301315714 + deltaTime * 3600000;
+                const skyProj = SkyProjection.fromAstrometry(astrom);
+
+                // Take the center equatorial quaternion
+                // Convert it to alt-az space
+                // For various part of the photo:
+                //     - convert to alt-az space using quaternion
+                //     - convert to RA-DEC=>Alt-AZ->altAz Space
+                
+                const eqQuaternion = skyProj.getIMG3DToEQ3DQuaternion([astrom.width / 2, astrom.height / 2]);
+                const nowAndHere = SkyProjection.getEQ3DToALTAZ3DQuaternion(time, geoCoords);
+                console.log('nowAndHere=', nowAndHere);
+                console.log('identity=', Quaternion.ONE);
+                
+                const photoToAltAz = nowAndHere.mul(eqQuaternion);
+
+                // Various part of the photo
+                const pixToImage3d = (relxy:number[])=> {
+                    const x = (relxy[0]) * skyProj.pixelRad;
+                    const y = (relxy[1]) * skyProj.pixelRad;
+            
+                    const z3d = 1.0 / Math.sqrt(y * y + x * x + 1.0);
+                    const x3d = x * z3d;
+                    const y3d = y * z3d;
+                    return [x3d, y3d, z3d];
+                }
+
+                for(const xy of [[0,0],[2000,0],[0,2000],[2000,2000]]) {
+                
+                    const centerByQuaternion = photoToAltAz.rotateVector(pixToImage3d(xy));
+                    const centerByMatrix = SkyProjection.convertAltAzToALTAZ3D(
+                                                SkyProjection.lstRelRaDecToAltAz(
+                                                    SkyProjection.raDecToLstRel(
+                                                        skyProj.pixToRaDec([astrom.width / 2 + xy[0], astrom.height / 2 + xy[1]]),
+                                                        time,
+                                                        geoCoords,
+                                                    ),
+                                                    geoCoords
+                                                )
+                                            );
+                    console.log({centerByQuaternion});
+                    console.log({centerByMatrix});
+                    console.log(dist(centerByQuaternion, centerByMatrix));
+                    const delta = 0.01 + norm(xy) * 0.005;
+                    expect(dist(centerByQuaternion, centerByMatrix)/skyProj.pixelRad)
+                        .to.be.closeTo(0, delta, "For " + JSON.stringify({
+                            deltaLat,
+                            deltaTime,
+                            xy
+                        }));
+                }
+            }
+        }
+    });
+
 });
 

@@ -215,13 +215,13 @@ export default class PolarAlignmentWizard extends Wizard {
     // Return coords of the axis in deg rel to zenith coords.
     static findMountAxis(path:Array<{relRaDeg: number, dec:number}>):{relRaDeg: number, dec:number}
     {
-        const points = path.map(e=>SkyProjection.convertRaDecTo3D([e.relRaDeg, e.dec]));
+        const points = path.map(e=>SkyProjection.convertRaDecToEQ3D([e.relRaDeg, e.dec]));
         const equation = PlaneFinder.bestFit(points);
         if (equation === null) {
             throw new Error("Not enough points");
         }
         // We take the first vector, which is the normal of the plane, supposed to be the axis of the mount
-        const axisRelRaDeg = SkyProjection.convert3DToRaDec(equation);
+        const axisRelRaDeg = SkyProjection.convertEQ3DToRaDec(equation);
         return {relRaDeg: axisRelRaDeg[0], dec: axisRelRaDeg[1]};
     }
 
@@ -268,10 +268,10 @@ export default class PolarAlignmentWizard extends Wizard {
         // Adjust for testing purpose
         let altAz = SkyProjection.lstRelRaDecToAltAz(relRaDec, geoCoords);
         console.log('altaz = ', altAz);
-        let xyz = SkyProjection.convertAltAzTo3D(altAz);
-        xyz = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toEast, -mountShift.tooEast);
-        xyz = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toSouth, mountShift.tooHigh);
-        altAz = SkyProjection.convert3DToAltAz(xyz);
+        let xyz = SkyProjection.convertAltAzToALTAZ3D(altAz);
+        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toEast, -mountShift.tooEast);
+        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toSouth, mountShift.tooHigh);
+        altAz = SkyProjection.convertALTAZ3DToAltAz(xyz);
         console.log('altaz = ', altAz);
         relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
         console.log('relRaDec = ', relRaDec);

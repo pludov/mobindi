@@ -2,6 +2,23 @@ import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 //@ts-ignore
 const Quaternion = require("quaternion");
 
+
+// Definitions of various spaces:
+//
+// IMG3D: coordinate system where the image is projected at Z = 1.
+//        The reference point of the image is at [0,0,1]
+//        x and y axis are unchanged (normalized).
+// EQ3D: equatorial coordinates (mostly JNOW but can be used for J2000)
+//     * north pole is toward z axis (0,0,1)
+//     * ra=0 point to the x axis (1,0,0)
+//     * ra=6h (east) to the y axis (0,1,0)
+// ALTAZ3D: local to observer. For observer on the equator
+//     * In this projection, north pole is toward z axis (0,0,1).
+//     * x axis points to the zenith
+//     * y axis points west
+
+
+
 type RotationDefinition = {id: number; sign:number};
 
 const RAD_PER_DEG = Math.PI / 180;
@@ -245,36 +262,29 @@ export default class SkyProjection {
     }
 
     /**
-	 * Project a start on the 3D sphere
-     * Alt: 0 = north, 90 = east
-     * 
-	 * In this projection, north pole is toward z axis (0,0,1). 
-     * x axis points to the zenith
-     * y axis points east
+	 * Project to a point of the sphere in ATLAZ3D space
      */
-    public static convertAltAzTo3D(i : {alt: number, az:number}) : number[] {
+    public static convertAltAzToALTAZ3D(i : {alt: number, az:number}) : number[] {
         let x = Math.sin(i.alt * degToRad);
         const cs = Math.cos(i.alt * degToRad)
-        let z = cs * Math.cos(degToRad * i.az);
-        let y = cs * Math.sin(degToRad * i.az);
+        let z = cs * Math.cos(-degToRad * i.az);
+        let y = cs * Math.sin(-degToRad * i.az);
         return [x, y, z];
     }
 
-    /** xyz must be normalized */
-    public static convert3DToAltAz(xyz : number[]):{alt: number, az:number} {
-        const az = Map360(Math.atan2(xyz[1], xyz[2]) * radToDeg);
+    /**
+	 * Compute alt/az from point of the sphere in ATLAZ3D space (must be normalized)
+     */
+    public static convertALTAZ3DToAltAz(xyz : number[]):{alt: number, az:number} {
+        const az = Map360(-Math.atan2(xyz[1], xyz[2]) * radToDeg);
         const alt = Map180(Math.asin(xyz[0]) * radToDeg);
         return {alt,az};
     }
 
     /**
-	 * Project a start on the 3D sphere
-	 * In this projection, north pole is toward z axis (0,0,1). and ra=0 point to the x axis
-	 * @param ra degrees
-     * @param dec degrees
-     * @return 3D array
+	 * Project ra/dec to EQ3D space
 	 */
-    public static convertRaDecTo3D(i_radec: number[]): number[] {
+    public static convertRaDecToEQ3D(i_radec: number[]): number[] {
         const [ra, dec] = i_radec;
 
         let x = Math.cos(raToRad * ra);
@@ -287,8 +297,8 @@ export default class SkyProjection {
         return [x, y, z];
     }
 
-    /** Returns ra/dec as degrees */
-    public static convert3DToRaDec(i_pt3d: number[]): number[] {
+    /** Returns ra/dec as degrees from a point of the sphere in EQ3D space */
+    public static convertEQ3DToRaDec(i_pt3d: number[]): number[] {
         const [x, y, z] = i_pt3d;
 
         // z = cos((90 - dec) * decToRad)
@@ -312,9 +322,9 @@ export default class SkyProjection {
 	 * Compute distances in degrees between two points on the sky sphere
 	 */
     public static getDegreeDistance(raDec1: number[], raDec2: number[]): number {
-        const expected3d = SkyProjection.convertRaDecTo3D(raDec1);
+        const expected3d = SkyProjection.convertRaDecToEQ3D(raDec1);
 
-        const found3d = SkyProjection.convertRaDecTo3D(raDec2);
+        const found3d = SkyProjection.convertRaDecToEQ3D(raDec2);
 
         const dst = Math.sqrt(
             (expected3d[0] - found3d[0]) * (expected3d[0] - found3d[0])
@@ -329,7 +339,7 @@ export default class SkyProjection {
 
     /** Project RA/DEC (degrees) to the image (pixels). null if not visible */
     public raDecToPix(radec: number[]): number[] | null {
-        let pos3d = SkyProjection.convertRaDecTo3D(radec);
+        let pos3d = SkyProjection.convertRaDecToEQ3D(radec);
         let [x, y, z] = this.transform.convert(pos3d);
 
         if (z < epsilon) {
@@ -361,17 +371,17 @@ export default class SkyProjection {
         const y3d = y * z3d;
 
         const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
-        return SkyProjection.convert3DToRaDec(pt3d);
+        return SkyProjection.convertEQ3DToRaDec(pt3d);
     }
 
     /**
-     * Gives a quaternion that rotate from center of photo, oriented (x, y) to
-     * 3D space where north pole is toward z axis (0,0,1). and ra=0 point to the x axis
+     * Gives a quaternion that rotate from IMG3D space centered on xy pixel, to EQ3D space
      *
-     * Mapping is not perfect (probably because of orthogonality pb)
-     * Angle is mesured toward x axis.
+     * Angle of the quaternion is mesured toward x axis.
+     *
+     * Mapping is not perfect on y axis (probably because of orthonormality pb)
      */
-    public getQuaternionAtCenter(xy: number[]) {
+    public getIMG3DToEQ3DQuaternion(xy: number[]) {
         const x = (xy[0] - this.centerx) * this.pixelRad;
         const y = (xy[1] - this.centery) * this.pixelRad;
 
@@ -407,6 +417,54 @@ export default class SkyProjection {
         // console.log("originBack is ", originBack[0] - x3d, originBack[1] - y3d, originBack[2] - z3d);
 
         return rotatedCenter;
+    }
+
+    // FIXME: useless. Same result as getIMG3DToEQ3DQuaternion ?
+    public getQuaternionAtRef() {
+        const mat=(i:number,j:number)=>{
+            return this.transform.matrice[i * 4 + j];
+        }
+        console.log('Going quaternion with ', this.transform.matrice);
+        const m00 = mat(0,0);
+        const m01 = mat(0,1);
+        const m02 = mat(0,2);
+        const m10 = mat(1,0);
+        const m11 = mat(1,1);
+        const m12 = mat(1,2);
+        const m20 = mat(2,0);
+        const m21 = mat(2,1);
+        const m22 = mat(2,2);
+        
+        let t, q;
+        if (m22 < 0) {
+            if (m00 >m11) {
+                t = 1 + m00 -m11 -m22;
+                q = Quaternion( t, m01+m10, m20+m02, m12-m21 );
+            }
+            else {
+                t = 1 -m00 + m11 -m22;
+                q = Quaternion( m01+m10, t, m12+m21, m20-m02 );
+            }
+        }
+        else {
+            if (m00 < -m11) {
+                t = 1 -m00 -m11 + m22;
+                q = Quaternion( m20+m02, m12+m21, t, m01-m10 );
+            }
+            else {
+                t = 1 + m00 + m11 + m22;
+                q = Quaternion( m12-m21, m20-m02, m01-m10, t );
+            }
+        }
+        q = q .scale(0.5 / Math.sqrt(t));
+        
+
+        let axisQuat = Quaternion.fromBetweenVectors([0,0,1],[1,0,0]);
+
+        const quat = Quaternion.fromAxisAngle([0,1,0], Math.PI/2)
+                    .mul(q.inverse())
+                    .mul(axisQuat);
+        return quat;
     }
 
     public static fromAstrometry(input: SucceededAstrometryResult): SkyProjection {
@@ -1085,7 +1143,7 @@ export default class SkyProjection {
         return [precession[0] * 15, precession[1]];
     }
 
-    // lstRelRa: lst - ra % 24
+    /** Convert from LST relative ra/dec to alt/az  */
     public static lstRelRaDecToAltAz(lstRelRaDec: {relRaDeg: number, dec: number}, geoCoords: {lat:number, long:number}): {alt: number, az:number}
     {
         let ha = lstRelRaDec.relRaDeg / 15;
@@ -1102,17 +1160,15 @@ export default class SkyProjection {
         return {alt: altitude, az: azimuth};
     }
 
-    // * In this projection, north pole is toward z axis (0,0,1). 
-    // * x axis points to the zenith
-    // * y axis points east
-    public static readonly altAzRotation = {
+    // Rotations in ALTAZ3D space
+    public static readonly rotationsALTAZ3D = {
         // Up/down
         toNorth: {id: 1, sign: 1},
         toSouth: {id: 1, sign: -1},
 
         // Rotation of azimuth
-        toEast:  {id: 0, sign: -1},
-        toWest:  {id: 0, sign: 1},
+        toEast:  {id: 0, sign: 1},
+        toWest:  {id: 0, sign: -1},
     };
 
     public static rotate(xyz: number[], axis: RotationDefinition, angle:number)
@@ -1131,14 +1187,13 @@ export default class SkyProjection {
         return ret;
     }
 
+    /** Convert from alt/az to LST relative ra/dec */
     public static altAzToLstRelRaDec(altAz: {alt: number, az:number}, geoCoords: {lat:number, long:number}): {relRaDeg: number, dec: number}
     {
         // Passer en 3D.
-        const xyz = SkyProjection.convertAltAzTo3D(altAz);
-        console.log("zenith is ", xyz);
-        const rotated = SkyProjection.rotate(xyz, SkyProjection.altAzRotation.toNorth, 90 + geoCoords.lat);
-        console.log("should be on [1,0,0] ", rotated);
-        const res = SkyProjection.convert3DToAltAz(rotated);
+        const xyz = SkyProjection.convertAltAzToALTAZ3D(altAz);
+        const rotated = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toNorth, 90 + geoCoords.lat);
+        const res = SkyProjection.convertALTAZ3DToAltAz(rotated);
 
         return {relRaDeg:Map180(-res.az), dec: -res.alt};
     }
@@ -1150,9 +1205,7 @@ export default class SkyProjection {
     public static getLocalSideralTime(time:number, long:number)
     {
         const d = (time - j2000Epoch) / 86400;
-        console.log('d=', d);
         const UT = (time % 86400) / 3600.0;
-        console.log('ut=' + UT);
 
         // Formula from http://www2.arnes.si/~gljsentvid10/altaz.html
         return ((100.46+0.985647 * d+long + 15 *UT) / 15) % 24;
@@ -1161,6 +1214,31 @@ export default class SkyProjection {
         // return ((100.4606184+0.9856473662862* d+long + 15 *UT) / 15) % 24;
     }
 
+    public static raDecToLstRel(raDecDegNow:number[], msTime: number, geoCoords: {lat:number, long:number})
+    {
+        const zenithRa = SkyProjection.getLocalSideralTime(msTime / 1000, geoCoords.long);
+        return {
+            relRaDeg: Map180(raDecDegNow[0] - 15 * zenithRa),
+            dec: raDecDegNow[1],
+        };
+    }
+
+    /**
+     * Returns a quaternion that transpose from EQ coordinate to alt-az
+     */
+    public static getEQ3DToALTAZ3DQuaternion(msTime: number, geoCoords: {lat:number, long:number})
+    {
+        /*
+         * In this projection, north pole is toward z axis (0,0,1). and ra=0 point to the x axis
+         */
+        const zenithRaDeg = 15 * SkyProjection.getLocalSideralTime(msTime / 1000, geoCoords.long);
+        const q1 = Quaternion.fromAxisAngle([0,0,1], deg2rad(-zenithRaDeg));
+
+        // Now rotate the pole according to latitude
+        const q2 = Quaternion.fromAxisAngle([0,1,0], deg2rad(geoCoords.lat));
+
+        return q2.mul(q1).neg();
+    }
 
     // Returns a - b in the range [-12, 12[
     public static raDiff(a: number, b: number) {
