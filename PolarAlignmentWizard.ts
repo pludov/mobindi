@@ -235,51 +235,49 @@ export default class PolarAlignmentWizard extends Wizard {
         }
     }
 
+    static mockRaDecDegNow(raDecDegNow: number[], msTime: number, geoCoords: {lat:number, long:number}, mountMock?:MountShift): number[]
+    {
+        if (mountMock === undefined) {
+            return raDecDegNow;
+        }
+        const quat = SkyProjection.getALTAZ3DMountCorrectionQuaternion([geoCoords.lat, 0], [geoCoords.lat + mountMock.tooHigh, mountMock.tooEast]);
+        let zenithRa = SkyProjection.getLocalSideralTime(msTime, geoCoords.long);
+        let relRaDec = {dec: raDecDegNow[1], relRaDeg: Map180(raDecDegNow[0] - zenithRa)};
+        let altAz = SkyProjection.lstRelRaDecToAltAz(relRaDec, geoCoords);
+        let ptALTAZEQ3D = SkyProjection.convertAltAzToALTAZ3D(altAz);
+        ptALTAZEQ3D = quat.rotateVector(ptALTAZEQ3D);
+        altAz = SkyProjection.convertALTAZ3DToAltAz(ptALTAZEQ3D);
+        relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
+        return [Map360(relRaDec.relRaDeg + zenithRa), relRaDec.dec];
+    }
+
+    static mockALTAZ3D(msTime: number, geoCoords: {lat:number, long:number}, mountMock?:MountShift): Quaternion
+    {
+        if (mountMock === undefined) {
+            return Quaternion.one;
+        }
+        const quat = SkyProjection.getALTAZ3DMountCorrectionQuaternion([geoCoords.lat, 0], [geoCoords.lat + mountMock.tooHigh, mountMock.tooEast]);
+        return quat;
+    }
+
     static centerFromAstrometry(astrometry: SucceededAstrometryResult, photoTime: number, geoCoords: {lat:number, long:number}) : {raDecDegNow: number[], quatALTAZ3D: Quaternion}{
         const skyProjection = SkyProjection.fromAstrometry(astrometry);
         const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
         // compute JNOW center for last image.
-        const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime);
+        let raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime);
+        raDecDegNow = PolarAlignmentWizard.mockRaDecDegNow(raDecDegNow, photoTime, geoCoords, PolarAlignmentWizard.mountMock);
 
         let quatALTAZ3D = skyProjection.getIMG3DToEQ3DQuaternion([astrometry.width / 2, astrometry.height / 2])
 
         quatALTAZ3D = SkyProjection.getEQ3DToALTAZ3DQuaternion(photoTime, geoCoords).mul(quatALTAZ3D);
+
+        quatALTAZ3D = PolarAlignmentWizard.mockALTAZ3D(photoTime, geoCoords, PolarAlignmentWizard.mountMock).mul(quatALTAZ3D);
 
         return {raDecDegNow, quatALTAZ3D };
     }
 
     public static mountMock?:MountShift = undefined;
     
-    static mockRaDecDeg(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number) {
-        if (PolarAlignmentWizard.mountMock) {
-            const mocked = PolarAlignmentWizard.applyMountShift(raDecDegNow, geoCoords, photoTime, PolarAlignmentWizard.mountMock);
-            raDecDegNow[0] = mocked[0];
-            raDecDegNow[1] = mocked[1];
-        }
-    }
-
-    static applyMountShift(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number, mountShift: MountShift) {
-        const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
-
-        let relRaDec = {
-            relRaDeg: Map180(raDecDegNow[0] - zenithRa),
-            dec: raDecDegNow[1],
-        };
-
-        // Adjust for testing purpose
-        let altAz = SkyProjection.lstRelRaDecToAltAz(relRaDec, geoCoords);
-
-        let xyz = SkyProjection.convertAltAzToALTAZ3D(altAz);
-        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toEast, mountShift.tooEast);
-        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toSouth, mountShift.tooHigh);
-        altAz = SkyProjection.convertALTAZ3DToAltAz(xyz);
-
-        relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
-        const output = [ Map360(zenithRa + relRaDec.relRaDeg), relRaDec.dec ];
-
-        return output;
-    }
-
     shoot = async (token: CancellationToken, frameid: number, frametype:string)=> {
         let photoTime = Date.now();
         this.wizardStatus.polarAlignment!.shootRunning = true;
@@ -442,7 +440,6 @@ export default class PolarAlignmentWizard extends Wizard {
                                 if (astrometry.found) {
                                     wizardReport.astrometrySuccess++;
                                     const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
-                                    PolarAlignmentWizard.mockRaDecDeg(raDecDegNow, geoCoords, photoTime!);
 
                                     const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 

@@ -249,12 +249,12 @@ describe("Polar Alignment", ()=> {
         // (Errai)
         const coords = [ 15 * hms(23,40,12.54) , hms(77,44,31.2) ];
 
-        const tooEast = PolarAlignmentWizard.applyMountShift(coords, geoloc, testTime, {tooEast: 1.0, tooHigh: 0})
+        const tooEast = PolarAlignmentWizard.mockRaDecDegNow(coords, testTime, geoloc, {tooEast: 1.0, tooHigh: 0});
         const tooEastTarget = [ 351.2645785319827, 77.85628748524624 ];
 
         expect(dist(tooEastTarget, tooEast)).to.be.closeTo(0, delta);
 
-        const tooLow = PolarAlignmentWizard.applyMountShift(coords, geoloc, testTime, {tooEast: 0.0, tooHigh: -1})
+        const tooLow = PolarAlignmentWizard.mockRaDecDegNow(coords, testTime, geoloc, {tooEast: 0.0, tooHigh: -1})
         const tooLowTarget = [ 354.1853182560304, 76.7613936362115 ];
 
         expect(dist(tooLowTarget, tooLow)).to.be.closeTo(0, delta);
