@@ -15,7 +15,7 @@ const Quaternion = require("quaternion");
 // ALTAZ3D: local to observer. For observer on the equator
 //     * In this projection, north pole is toward z axis (0,0,1).
 //     * x axis points to the zenith
-//     * y axis points west (az=-6h)
+//     * y axis points east (az=6h)
 
 export interface Quaternion {
     x: number; y: number; w: number; h: number;
@@ -274,8 +274,8 @@ export default class SkyProjection {
     public static convertAltAzToALTAZ3D(i : {alt: number, az:number}) : number[] {
         let x = Math.sin(i.alt * degToRad);
         const cs = Math.cos(i.alt * degToRad)
-        let z = cs * Math.cos(-degToRad * i.az);
-        let y = cs * Math.sin(-degToRad * i.az);
+        let z = cs * Math.cos(degToRad * i.az);
+        let y = cs * Math.sin(degToRad * i.az);
         return [x, y, z];
     }
 
@@ -283,7 +283,7 @@ export default class SkyProjection {
 	 * Compute alt/az from point of the sphere in ATLAZ3D space (must be normalized)
      */
     public static convertALTAZ3DToAltAz(xyz : number[]):{alt: number, az:number} {
-        const az = Map360(-Math.atan2(xyz[1], xyz[2]) * radToDeg);
+        const az = Map360(Math.atan2(xyz[1], xyz[2]) * radToDeg);
         const alt = Map180(Math.asin(xyz[0]) * radToDeg);
         return {alt,az};
     }
@@ -328,11 +328,7 @@ export default class SkyProjection {
     /**
 	 * Compute distances in degrees between two points on the sky sphere
 	 */
-    public static getDegreeDistance(raDec1: number[], raDec2: number[]): number {
-        const expected3d = SkyProjection.convertRaDecToEQ3D(raDec1);
-
-        const found3d = SkyProjection.convertRaDecToEQ3D(raDec2);
-
+    public static getDegreeDistance3D(expected3d: number[], found3d: number[]): number {
         const dst = Math.sqrt(
             (expected3d[0] - found3d[0]) * (expected3d[0] - found3d[0])
             + (expected3d[1] - found3d[1]) * (expected3d[1] - found3d[1])
@@ -342,6 +338,17 @@ export default class SkyProjection {
         const angle = raAngle * 180 / Math.PI;
 
         return angle;
+    }
+
+    /**
+	 * Compute distances in degrees between two points on the sky sphere
+	 */
+    public static getDegreeDistance(raDec1: number[], raDec2: number[]): number {
+        const expected3d = SkyProjection.convertRaDecToEQ3D(raDec1);
+
+        const found3d = SkyProjection.convertRaDecToEQ3D(raDec2);
+
+        return SkyProjection.getDegreeDistance3D(expected3d, found3d);
     }
 
     public static getDegreeDistanceAltAz(altAz1: {alt: number, az: number}, altAz2: {alt: number, az: number}): number {
@@ -405,7 +412,6 @@ export default class SkyProjection {
 
         // Center of the quaternion
         const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
-        // console.log('center is ', pt3d);
 
         let center =  Quaternion.fromBetweenVectors([0,0,1], pt3d);
 
@@ -438,7 +444,6 @@ export default class SkyProjection {
         const mat=(i:number,j:number)=>{
             return this.transform.matrice[i * 4 + j];
         }
-        console.log('Going quaternion with ', this.transform.matrice);
         const m00 = mat(0,0);
         const m01 = mat(0,1);
         const m02 = mat(0,2);
@@ -1169,7 +1174,7 @@ export default class SkyProjection {
         let azimuth = Math.atan2(-Math.cos(dec)*Math.sin(ha), Math.sin(dec)*Math.cos(phi)-Math.sin(phi)*Math.cos(dec)*Math.cos(ha));
         azimuth *= 180.0/Math.PI;
 
-        azimuth = Map360(azimuth);
+        azimuth = Map360(-azimuth);
 
         return {alt: altitude, az: azimuth};
     }
@@ -1181,8 +1186,8 @@ export default class SkyProjection {
         toSouth: {id: 1, sign: -1},
 
         // Rotation of azimuth
-        toEast:  {id: 0, sign: 1},
-        toWest:  {id: 0, sign: -1},
+        toEast:  {id: 0, sign: -1},
+        toWest:  {id: 0, sign: 1},
     };
 
     public static rotate(xyz: number[], axis: RotationDefinition, angle:number)
@@ -1209,7 +1214,7 @@ export default class SkyProjection {
         const rotated = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toNorth, 90 + geoCoords.lat);
         const res = SkyProjection.convertALTAZ3DToAltAz(rotated);
 
-        return {relRaDeg:Map180(-res.az), dec: -res.alt};
+        return {relRaDeg:Map180(res.az), dec: -res.alt};
     }
 
     // Return local sideral time in degrees from time since epoch (ms)
@@ -1273,11 +1278,10 @@ export default class SkyProjection {
      */
     public static getALTAZ3DMountCorrectionQuaternion(axe1AltAz: number[], axe2AltAz : number[])
     {
-        const cleanAz = Quaternion.fromAxisAngle([1,0,0], -deg2rad(axe1AltAz[1]));
+        const cleanAz = Quaternion.fromAxisAngle([1,0,0], deg2rad(axe1AltAz[1]));
         const applyAlt = Quaternion.fromAxisAngle([0,1,0], deg2rad(axe2AltAz[0] - axe1AltAz[0]));
-        const resetAz = Quaternion.fromAxisAngle([1,0,0], -deg2rad(-axe2AltAz[1]));
+        const resetAz = Quaternion.fromAxisAngle([1,0,0], deg2rad(-axe2AltAz[1]));
 
-        console.log({cleanAz, applyAlt, resetAz});
         return resetAz.mul(applyAlt).mul(cleanAz);
     }
 

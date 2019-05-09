@@ -35,6 +35,20 @@ function degDist(a:number[], b: number[]) {
     ]);
 }
 
+function altazDist(a:{alt: number, az:number}, b: {alt: number, az:number}) {
+    return dist([0,0], [
+                    Map180(a.alt-b.alt),
+                    Map180(a.az-b.az),
+    ]);
+}
+
+function relRaDecDist(a:{relRaDeg: number, dec:number}, b: {relRaDeg: number, dec:number}) {
+    return dist([0,0], [
+                    Map180(a.relRaDeg-b.relRaDeg),
+                    Map180(a.dec-b.dec),
+    ]);
+}
+
 describe("Astronomic computations", ()=> {
     it("[ra,dec]<=>EQ3D", ()=> {
         const expectations = [
@@ -108,8 +122,8 @@ describe("Astronomic computations", ()=> {
         const equator = {lat: 0, long: 0 };
 
         const zenith = {relRaDeg: 0, dec: 0};
-        const west = {relRaDeg: 90, dec: 0};
-        const east = {relRaDeg: -90, dec: 0};
+        const west = {relRaDeg: -90, dec: 0};
+        const east = {relRaDeg: 90, dec: 0};
         const north = {relRaDeg: 0, dec: 90};
         const south = {relRaDeg: 0, dec: -90};
         
@@ -133,8 +147,8 @@ describe("Astronomic computations", ()=> {
     it("compute alt az at 60° north", ()=> {
         const loc = {lat: 60, long: 0 };
 
-        const west = {relRaDeg: 90, dec: 0};
-        const east = {relRaDeg: -90, dec: 0};
+        const west = {relRaDeg: -90, dec: 0};
+        const east = {relRaDeg: 90, dec: 0};
         const north = {relRaDeg: 0, dec: 90};
 
         const delta = 1e-6;
@@ -144,20 +158,6 @@ describe("Astronomic computations", ()=> {
 
         expect(SkyProjection.lstRelRaDecToAltAz(east, loc).az).to.be.closeTo(90, delta);
         expect(SkyProjection.lstRelRaDecToAltAz(west, loc).az).to.be.closeTo(270, delta);
-    });
-
-
-    it("compute random alt/az", ()=> {
-        const pos = {"relRaDeg":37.01493070502396,"dec":89.7378684725588};
-        const altAz = SkyProjection.lstRelRaDecToAltAz(pos, {lat: hms(48,5,0), long: hms(1,24,0)});
-
-        expect(altAz.az).to.be.gte(0);
-        expect(altAz.az).to.be.lt(360);
-        expect(altAz.alt).to.be.gte(-90);
-        expect(altAz.alt).to.be.lte(90);
-
-        expect(altAz.az).to.be.closeTo(359.7628105234194, 0.001);
-        expect(altAz.alt).to.be.closeTo(hms(48,5,0) + 0.20906310251646687, 0.001);
     });
 
 
@@ -177,11 +177,11 @@ describe("Astronomic computations", ()=> {
 
         const east = SkyProjection.altAzToLstRelRaDec({alt:0, az:90}, equator);
         expect(east.dec).to.be.closeTo(0, delta);
-        expect(east.relRaDeg).to.be.closeTo(-90, delta);
+        expect(east.relRaDeg).to.be.closeTo(90, delta);
 
         const west = SkyProjection.altAzToLstRelRaDec({alt:0, az:270}, equator);
         expect(west.dec).to.be.closeTo(0, delta);
-        expect(west.relRaDeg).to.be.closeTo(90, delta);
+        expect(west.relRaDeg).to.be.closeTo(-90, delta);
     });
 
     it("Compute RA/DEC from alt az at 60° north", ()=> {
@@ -198,36 +198,33 @@ describe("Astronomic computations", ()=> {
         expect(Map180(north.relRaDeg - 180)).to.be.closeTo(0, delta);
 
         const east = SkyProjection.altAzToLstRelRaDec({alt:0, az:90}, equator);
-        expect(east.relRaDeg).to.be.closeTo(-90, delta);
+        expect(east.relRaDeg).to.be.closeTo(90, delta);
         expect(east.dec).to.be.closeTo(0, delta);
 
         const west = SkyProjection.altAzToLstRelRaDec({alt:0, az:270}, equator);
-        expect(west.relRaDeg).to.be.closeTo(90, delta);
+        expect(west.relRaDeg).to.be.closeTo(-90, delta);
         expect(west.dec).to.be.closeTo(0, delta);
     });
 
-    it("Compute Random RA/DEC <=> alt az", ()=> {
-        const delta = 1e-5;
-        const geoloc = {lat: hms(48, 6, 8.28), long: -hms(1,47,50)};
-        // (Arcturus)
-        const coordsExpected = {relRaDeg: hms(20,36,43.64) * 15, dec: hms(19,5,41.7)};
-        const altAzExpected = {alt: hms(39,57,19.4), az: hms(107,8,29.2)};
-        
-        const altAz = SkyProjection.lstRelRaDecToAltAz(coordsExpected, geoloc);
-        expect(altAz.alt).to.be.closeTo(altAzExpected.alt, delta);
-        expect(altAz.az).to.be.closeTo(altAzExpected.az, delta);
+    it("compute random alt/az", ()=> {
+        // const msTime = new Date("2019-05-09T12:32:03.000Z").getTime();
+        const geoCoords = {lat:hms(48,6,8), long:-hms(1,47,50)};
+        const lst = 15 * hms(3,32,59.97);
 
-        const coords = SkyProjection.altAzToLstRelRaDec(altAzExpected, geoloc);
-        expect(coords.relRaDeg).to.be.closeTo(Map180(coordsExpected.relRaDeg), delta);
-        expect(coords.dec).to.be.closeTo(coordsExpected.dec, delta);
+        const raDec = {ra: 15 * hms(7,46,31.08), dec: hms(27,58,32.1)};
+        const altAz = {alt: hms(37,50,15.7), az:hms(88,38,31.5) };
+
+        const computedAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDec.ra - lst, dec: raDec.dec}, geoCoords);
+
+        expect(altazDist(computedAltAz, altAz)).to.be.closeTo(0, 1e-4);
+
+        const computedRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
+        
+        expect(relRaDecDist(computedRaDec, {relRaDeg: raDec.ra - lst, dec: raDec.dec})).to.be.closeTo(0, 1e-4);
     });
 
     it("[alt,az] => ALTAZ3D", ()=>{
         const delta = 1e-6;
-
-        // In this projection, north pole is toward z axis (0,0,1). 
-        // x axis points to the zenith
-        // y axis points east
         
         const zenith = SkyProjection.convertAltAzToALTAZ3D({alt: 90, az: 0});
         expect(dist(zenith, [1,0,0])).to.be.closeTo(0, delta);
@@ -239,10 +236,10 @@ describe("Astronomic computations", ()=> {
         expect(dist(south, [0,0,-1])).to.be.closeTo(0, delta);
         
         const east = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 90});
-        expect(dist(east, [0,-1,0])).to.be.closeTo(0, delta);
+        expect(dist(east, [0,1,0])).to.be.closeTo(0, delta);
         
         const west = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 270});
-        expect(dist(west, [0,1,0])).to.be.closeTo(0, delta);
+        expect(dist(west, [0,-1,0])).to.be.closeTo(0, delta);
     });
 
     it("ALTAZ3D => [alt,az]", ()=>{
@@ -261,11 +258,11 @@ describe("Astronomic computations", ()=> {
         expect(south.alt).to.be.closeTo(0, delta);
         expect(south.az).to.be.closeTo(180, delta);
 
-        const east = SkyProjection.convertALTAZ3DToAltAz([0, -1, 0]);
+        const east = SkyProjection.convertALTAZ3DToAltAz([0, 1, 0]);
         expect(east.alt).to.be.closeTo(0, delta);
         expect(east.az).to.be.closeTo(90, delta);
 
-        const west = SkyProjection.convertALTAZ3DToAltAz([0, 1, 0]);
+        const west = SkyProjection.convertALTAZ3DToAltAz([0, -1, 0]);
         expect(west.alt).to.be.closeTo(0, delta);
         expect(west.az).to.be.closeTo(270, delta);
     });
@@ -276,8 +273,8 @@ describe("Astronomic computations", ()=> {
         const zenith = [1, 0, 0];
         const north =  [0, 0, 1];
         const south =  [0, 0, -1];
-        const east =   [0, -1, 0];
-        const west =  [0, 1, 0];
+        const east =   [0, 1, 0];
+        const west =  [0, -1, 0];
 
         expect(dist(
             SkyProjection.rotate(zenith, SkyProjection.rotationsALTAZ3D.toNorth, 90),
@@ -384,7 +381,6 @@ describe("Astronomic computations", ()=> {
         const skyProj = SkyProjection.fromAstrometry(astrom);
         
         const thCoords = skyProj.pixToRaDec([astrom.width / 2, astrom.height / 2]);
-        console.log('coords vs thCoords', coords, thCoords);
         expect(dist(thCoords, [coords.ra, coords.dec])).to.be.closeTo(0, raDecDelta, "pixToRaDec");
 
 
@@ -480,11 +476,7 @@ describe("Astronomic computations", ()=> {
             // const refPt3d = SkyProjection.convertRaDecToEQ3D(skyProj.pixToRaDec([skyProj.centerx, skyProj.centery]));
             const refPt3d = skyProj.invertedTransform.convert(pixToImage3d(pos, skyProj));
 
-            console.log('Looking for ', refPt3d);
-
-
             const d = dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d);
-            console.log('Final dist ICI', d);
 
             expect(dist(quaternionAtRef.rotateVector([0,0,1]), refPt3d)).to.be.closeTo(0, delta, "getIMG3DToEQ3DQuaternion for " + JSON.stringify(pos));
 
@@ -494,8 +486,6 @@ describe("Astronomic computations", ()=> {
 
                 const quadPtX = quaternionAtRef.rotateVector(pixToImage3d([pos[0] + dlt[0], pos[1] + dlt[1]], {centerx: pos[0], centery: pos[1]}));
                 let dx = dist(quadPtX, refPtX);
-                console.log({quadPtX, refPtX});
-                console.log('dx (pixel) = ', dx / skyProj.pixelRad);
                 expect(dx / skyProj.pixelRad).to.be.closeTo(0, 2, "For " + JSON.stringify({pos,dlt}));
             }
         }
@@ -512,8 +502,7 @@ describe("Astronomic computations", ()=> {
         // Get the quaternion.
         const nowAndHere = SkyProjection.getEQ3DToALTAZ3DQuaternion(time, geoCoords);
 
-        // From eq space : north pole is toward z axis (0,0,1). and ra=0 point to the x axis
-        // To alt-az, north pole is toward z axis (0,0,1), y axis points east
+        // From EQ3D to ALTAZ3D
         const expectations  = [
             {
                 id: "north",
@@ -569,8 +558,6 @@ describe("Astronomic computations", ()=> {
                 
                 const eqQuaternion = skyProj.getIMG3DToEQ3DQuaternion([astrom.width / 2, astrom.height / 2]);
                 const nowAndHere = SkyProjection.getEQ3DToALTAZ3DQuaternion(time, geoCoords);
-                console.log('nowAndHere=', nowAndHere);
-                console.log('identity=', Quaternion.ONE);
                 
                 const photoToAltAz = nowAndHere.mul(eqQuaternion);
 
@@ -598,9 +585,6 @@ describe("Astronomic computations", ()=> {
                                                     geoCoords
                                                 )
                                             );
-                    console.log({centerByQuaternion});
-                    console.log({centerByMatrix});
-                    console.log(dist(centerByQuaternion, centerByMatrix));
                     const delta = 0.01 + norm(xy) * 0.005;
                     expect(dist(centerByQuaternion, centerByMatrix)/skyProj.pixelRad)
                         .to.be.closeTo(0, delta, "For " + JSON.stringify({

@@ -240,7 +240,7 @@ export default class PolarAlignmentWizard extends Wizard {
         const [ra2000, dec2000] = skyProjection.pixToRaDec([astrometry.width / 2, astrometry.height / 2]);
         // compute JNOW center for last image.
         const raDecDegNow = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], photoTime);
-        console.log('raDecNow: ', raDecDegNow);
+
         let quatALTAZ3D = skyProjection.getIMG3DToEQ3DQuaternion([astrometry.width / 2, astrometry.height / 2])
 
         quatALTAZ3D = SkyProjection.getEQ3DToALTAZ3DQuaternion(photoTime, geoCoords).mul(quatALTAZ3D);
@@ -260,24 +260,23 @@ export default class PolarAlignmentWizard extends Wizard {
 
     static applyMountShift(raDecDegNow:number[], geoCoords: {lat:number, long:number}, photoTime: number, mountShift: MountShift) {
         const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
-        console.log('input = ', raDecDegNow);
+
         let relRaDec = {
             relRaDeg: Map180(raDecDegNow[0] - zenithRa),
             dec: raDecDegNow[1],
         };
-        console.log('relRaDec = ', relRaDec);
+
         // Adjust for testing purpose
         let altAz = SkyProjection.lstRelRaDecToAltAz(relRaDec, geoCoords);
-        console.log('altaz = ', altAz);
+
         let xyz = SkyProjection.convertAltAzToALTAZ3D(altAz);
-        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toEast, -mountShift.tooEast);
+        xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toEast, mountShift.tooEast);
         xyz = SkyProjection.rotate(xyz, SkyProjection.rotationsALTAZ3D.toSouth, mountShift.tooHigh);
         altAz = SkyProjection.convertALTAZ3DToAltAz(xyz);
-        console.log('altaz = ', altAz);
+
         relRaDec = SkyProjection.altAzToLstRelRaDec(altAz, geoCoords);
-        console.log('relRaDec = ', relRaDec);
         const output = [ Map360(zenithRa + relRaDec.relRaDeg), relRaDec.dec ];
-        console.log('output = ', output);
+
         return output;
     }
 
@@ -305,33 +304,41 @@ export default class PolarAlignmentWizard extends Wizard {
     static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
         const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
 
-        const tracking = Quaternion.fromAxisAngle(previousAxeALTAZ3D, trackedMs * 2 * Math.PI / SkyProjection.SIDERAL_DAY_MS);
+        const tracking = Quaternion.fromAxisAngle(previousAxeALTAZ3D, -trackedMs * 2 * Math.PI / SkyProjection.SIDERAL_DAY_MS);
         // Rotate previous Axe
-        const correctedRefALTAZ3D = tracking.mul(refALTAZ3D);
+        const trackedRefALTAZ3D = tracking.mul(refALTAZ3D);
 
-        const polarMove = quatALTAZ3D.div(correctedRefALTAZ3D);
+        // We could divied quat/corrected.
+        // This is more stable but less precise since field rotation is very imprecise compared to astrometry resolution
+        // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
+        const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
+        const correctedALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
+        console.log('Alt-az move is ' + SkyProjection.getDegreeDistance3D(trackedRefALTAZ3Dvec, correctedALTAZ3Dvec) + "°");
 
-        const newAxeALTAZ3D = polarMove.rotateVector(previousAxeALTAZ3D);
+        // Check that axis are not too close to the pole
+        const trackedRefAltAz = SkyProjection.convertALTAZ3DToAltAz(trackedRefALTAZ3Dvec);
+        const correctedAltAz = SkyProjection.convertALTAZ3DToAltAz(correctedALTAZ3Dvec);
+        
+        const move1 = {az: Map180(correctedAltAz.az - trackedRefAltAz.az), alt: Map180(correctedAltAz.alt - trackedRefAltAz.alt)};
+        const invertedCorrectedAltAz = {
+            az: Map360(correctedAltAz.az + 180),
+            alt: correctedAltAz.alt >=0 ? 180 - correctedAltAz.alt : (-180) - correctedAltAz.alt
+        };
+        const move2 = {az: Map180(invertedCorrectedAltAz.az - trackedRefAltAz.az), alt: Map180(invertedCorrectedAltAz.alt - trackedRefAltAz.alt)};
 
-        console.log({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
-        return SkyProjection.convertALTAZ3DToAltAz(newAxeALTAZ3D);
+        const move = Math.abs(move1.az)+Math.abs(move1.alt) <= Math.abs(move2.az)+Math.abs(move2.alt) ? move1 : move2;
+        
+        // FIXME: alt can go above 90...
+        return {alt: previousAxe.alt + move.alt, az: previousAxe.az + move.az};
+
+        // const polarMove = Quaternion.fromBetweenVectors(refALTAZ3Dvec, correctedALTAZ3Dvec);
+        
+        // // const newAxeALTAZ3D = polarMove.rotateVector(previousAxeALTAZ3D);
+
+        // console.log({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
+        // return SkyProjection.convertALTAZ3DToAltAz(newAxeALTAZ3D);
     }
 
-    // updateAxis = (refFrame: {raDeg:number, dec:number}, lastFrame: {raDeg:number, dec:number}, geoCoords: {lat:number, long:number}, photoTime: number)=> {
-    //     const zenithRaDeg = SkyProjection.getLocalSideralTime(photoTime, geoCoords.long);
-
-    //     const refAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(refFrame.raDeg - zenithRaDeg), dec: refFrame.dec}, geoCoords);
-    //     const lastAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: Map360(lastFrame.raDeg - zenithRaDeg), dec: lastFrame.dec}, geoCoords);
-
-    //     const movedEast = SkyProjection.raDegDiff(lastAltAz.az, refAltAz.az);
-    //     const movedHigh = SkyProjection.raDegDiff(lastAltAz.alt, refAltAz.alt);
-
-    //     this.wizardStatus.polarAlignment!.tooHigh -= movedHigh;
-    //     this.wizardStatus.polarAlignment!.tooEast -= movedEast;
-    //     this.wizardStatus.polarAlignment!.distance = SkyProjection.getDegreeDistance(
-    //                         [0, geoCoords.lat],
-    //                         [this.wizardStatus.polarAlignment!.tooEast, geoCoords.lat + this.wizardStatus.polarAlignment!.tooHigh]);
-    // }
 
     start = async ()=> {
         this.wizardStatus.title = "Polar alignment";
