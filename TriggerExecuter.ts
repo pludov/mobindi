@@ -125,7 +125,6 @@ class IndiNewProperty
     check(newState: BackofficeStatus)
     {
         var newValue = this.getCurrentValue(newState);
-        console.log('trigger:' + this.key + "=> " + JSON.stringify(newValue));
         if (!Obj.deepEqual(this.last, newValue)) {
             console.log('Activating trigger:' + this.key);
             

@@ -51,7 +51,6 @@ export default class Client {
             clearTimeout(this.sendingTimer);
             this.sendingTimer = undefined;
         }
-        console.log('Client: sending diff after ' + this.pendingDiffs + ' notifications');
         this.pendingDiffs = 0;
         var patch = this.jsonProxy.diff(this.jsonSerial);
         if (patch !== undefined) {
@@ -96,7 +95,6 @@ export default class Client {
     }
 
     public notify=(changeEvent:any)=>{
-        console.log('Sending notification to '+ this.uid + ': ' + JSON.stringify(changeEvent, null, 2));
         this.write(changeEvent);
     }
 
