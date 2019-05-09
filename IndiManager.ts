@@ -254,14 +254,14 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         this.currentStatus.driverToGroup = driverToGroup;
     }
 
-    private readonly connectionListener = new Set<()=>(void)>();
+    private readonly connectionListener = new Set<(cnx:undefined|IndiConnection)=>(void)>();
 
-    addConnectionListener(cb: ()=>(void))
+    addConnectionListener(cb: (cnx:undefined|IndiConnection)=>(void))
     {
         this.connectionListener.add(cb);
     }
 
-    removeConnectionListener(cb: ()=>(void))
+    removeConnectionListener(cb: (cnx:undefined|IndiConnection)=>(void))
     {
         this.connectionListener.delete(cb);
     }
@@ -281,7 +281,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         for(const o of Array.from(this.connectionListener)) {
             if (this.connectionListener.has(o)) {
                 try {
-                    o();
+                    o(this.connection);
                 } catch(e) {
                     console.error("Error during indi cb", e);
                 }
