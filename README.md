@@ -83,11 +83,13 @@ It is also possible to push your phone GPS coordinates to INDI configuration fro
 
 ### Polar alignment
 
-*** THIS IS WORK IN PROGRESS ***
-
 With astrometry set up, Mobindi can help you align your mount.
 
-It will scan an arc doing astrometry at different steps, and deduce the location of your polar axis. You'll then be able to check the result and adjust the polar axis of the mount.
+It will scan an arc of the sky in right ascension, doing photo+astrometry at different locations, and deduce from that data the location of your polar axis. At least 3 points are required, but more can be used to improve accuracy !
+
+The wizard displays DEC varations corresponding to RA move. A perfect alignement will lead to an horizontal graph (but pay attention to the scale of the vertical axis !)
+
+You'll then be able to adjust your alignment and use the wizard to precisely measure the progress using astrometry.
 
 ![Polar Align UI](docs/polar-align.png?raw=true "Polar Align")
 
