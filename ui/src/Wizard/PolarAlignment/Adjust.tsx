@@ -14,7 +14,7 @@ import CameraSettingsView from '../../CameraSettingsView';
 import IndiSelectorEditor from '@src/IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
 import StatusLabel from '@src/Sequence/StatusLabel';
 
 type InputProps = {};
@@ -27,6 +27,10 @@ type MappedProps = {
     adjusting: PolarAlignStatus["adjusting"];
     adjustError: PolarAlignStatus["adjustError"];
     nextFrame: PolarAlignStatus["adjusting"];
+
+    adjustPositionWarningId: null|PolarAlignPositionWarning["id"];
+    adjustPositionWarningDst: null|PolarAlignPositionWarning["dst"];
+    adjustPositionError: PolarAlignStatus["adjustPositionError"];
 }
 
 type Props = InputProps & MappedProps;
@@ -101,6 +105,26 @@ class Adjust extends React.PureComponent<Props> {
                     Δ toward zenith: {this.props.tooHigh === null ? "N/A" : deltaTitle(Math.round(this.props.tooHigh * 3600))}
                 </div>
             </div>
+            {this.props.adjustPositionError !== null
+                    ? <div className="PolarAlignExplainError">{this.props.adjustPositionError}</div>
+                    : null
+            }
+            {this.props.adjustPositionWarningId !== null && this.props.adjustPositionWarningDst === 0
+                ? <div className="PolarAlignExplainBigWarning">
+                        The position of the scope is not suitable for adjustment:
+                        <span className="PolarAlignExplainBigWarningEmphasis">
+                            too close to {this.props.adjustPositionWarningId}
+                        </span>.<br/>
+                        Please slew somewhere else then take a new reference frame.
+                    </div>
+                :null
+            }
+            {this.props.adjustPositionWarningId !== null && this.props.adjustPositionWarningDst !== 0
+                ? <div className="PolarAlignExplainWarning">
+                        The precision of the adjustment may be increased by moving the scope further away from {this.props.adjustPositionWarningId}.
+                    </div>
+                :null
+            }
             <div>
                 {!!this.props.adjusting
                     ?
@@ -182,7 +206,10 @@ class Adjust extends React.PureComponent<Props> {
                     error: status.adjustError,
                     adjusting: status.adjusting,
                     adjustError: status.adjustError,
-                    nextFrame
+                    nextFrame,
+                    adjustPositionWarningId: status.adjustPositionWarning ? status.adjustPositionWarning.id : null,
+                    adjustPositionWarningDst: status.adjustPositionWarning ? status.adjustPositionWarning.dst : null,
+                    adjustPositionError: status.adjustPositionError,
                 };
             }, {
                 canTakeMoveFrame: false,
@@ -194,6 +221,9 @@ class Adjust extends React.PureComponent<Props> {
                 adjustError: null,
                 adjusting: null,
                 nextFrame: null,
+                adjustPositionWarningId: null,
+                adjustPositionWarningDst: null,
+                adjustPositionError: null,
             });
     }
 }

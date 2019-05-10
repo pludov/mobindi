@@ -2,19 +2,82 @@ import CancellationToken from 'cancellationtoken';
 import Wizard from "./Wizard";
 
 import sleep from "./Sleep";
-import { PolarAlignSettings, PolarAlignAxisResult } from './shared/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionWarning } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import { default as SkyProjection, Map360, Map180, Quaternion } from './SkyAlgorithms/SkyProjection';
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
 import ScopeTrackCounter from './ScopeTrackCounter';
+import Astrometry from './Astrometry';
+import { SynchronizerTriggerCallback } from './JsonProxy';
 const Quaternion = require("quaternion");
 
 export type MountShift = {
             tooHigh: number;
             tooEast: number;
 };
+
+
+class ImpreciseDirectionChecker {
+    astrometry: Astrometry;
+    wizard: PolarAlignmentWizard;
+    listener: SynchronizerTriggerCallback|undefined;
+    constructor(wizard: PolarAlignmentWizard) {
+        this.astrometry = wizard.astrometry;
+        this.wizard = wizard;
+    }
+
+    getWarn = ()=> {
+        const raDec = this.wizard.readScopePos();
+        // FIXME: in degrees please
+        raDec.ra *= 15;
+
+        const geoCoords = this.wizard.readGeoCoords();
+
+        const zenithRa = SkyProjection.getLocalSideralTime(new Date().getTime(), geoCoords.long);
+        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDec.ra - zenithRa, dec: raDec.dec}, geoCoords);
+        return this.wizard.getAltAzWarningForAdjust(scopeAltAz);
+    }
+
+    check = ()=> {
+        try {
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = this.getWarn();
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionError = null;
+        } catch(e) {
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = null;
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionError = e.message || "" + e;
+        }
+    }
+
+    start() {
+        this.check();
+        this.listener = this.astrometry.appStateManager.addSynchronizer(
+                [
+                    [
+                        [
+                        'astrometry', 'selectedScope'
+                        ],
+                        [
+                            'indiManager', 'deviceTree', null,
+                                [
+                                    [ 'EQUATORIAL_EOD_COORD', 'childs', null, '$_' ],
+                                    [ 'GEOGRAPHIC_COORD', 'childs', null, '$_' ]
+                                ]
+                        ],
+                    ]
+                ],
+                this.check,
+                false
+        );
+    }
+
+    stop() {
+        this.astrometry.appStateManager.removeSynchronizer(this.listener!);
+        this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = null;
+        this.wizard.wizardStatus.polarAlignment!.adjustPositionError = null;
+    }
+}
 
 export default class PolarAlignmentWizard extends Wizard {
     sessionStartTimeStamp : string = "";
@@ -44,6 +107,50 @@ export default class PolarAlignmentWizard extends Wizard {
         
         console.log('current scope pos', ra, dec);
         return {ra, dec};
+    }
+
+    getAltAzWarningForAdjust(scopeAltAz: {alt:number, az:number}) : null|PolarAlignPositionWarning
+    {
+        function acceptAbove(v: number, min: number, max: number):number|undefined
+        {
+            if (v <= min) {
+                return 0;
+            }
+            if (v >= max) {
+                return undefined;
+            }
+            return (v - min) / (max - min);
+        }
+
+        let distances = [
+            {
+                id: "zenith",
+                dst: acceptAbove(90 - scopeAltAz.alt, 10, 20),
+            },
+            {
+                id: "west",
+                dst: acceptAbove(SkyProjection.getDegreeDistanceAltAz(scopeAltAz, {alt:0, az:-90}), 15, 25)
+            },
+            {
+                id: "east",
+                dst: acceptAbove(SkyProjection.getDegreeDistanceAltAz(scopeAltAz, {alt:0, az:90}), 15, 25)
+            },
+            {
+                id: "horizon",
+                dst : acceptAbove(scopeAltAz.alt, 10, 20)
+            },
+        ];
+
+        let worstC = null;
+        for(const c of distances) {
+            if (c.dst === 0) {
+                return {id: c.id, dst:c.dst};
+            }
+            if (c.dst !== undefined && (worstC === null || c.dst < worstC.dst!)) {
+                worstC = c;
+            }
+        }
+        return worstC as null|PolarAlignPositionWarning;
     }
 
     readGeoCoords = () => {
@@ -254,7 +361,7 @@ export default class PolarAlignmentWizard extends Wizard {
     static mockALTAZ3D(msTime: number, geoCoords: {lat:number, long:number}, mountMock?:MountShift): Quaternion
     {
         if (mountMock === undefined) {
-            return Quaternion.one;
+            return Quaternion.ONE;
         }
         const quat = SkyProjection.getALTAZ3DMountCorrectionQuaternion([geoCoords.lat, 0], [geoCoords.lat + mountMock.tooHigh, mountMock.tooEast]);
         return quat;
@@ -356,6 +463,8 @@ export default class PolarAlignmentWizard extends Wizard {
             adjusting: null,
             fatalError: null,
             hasRefFrame: false,
+            adjustPositionError: null,
+            adjustPositionWarning: null,
         }
 
         const wizardReport = this.wizardStatus.polarAlignment!;
@@ -513,8 +622,13 @@ export default class PolarAlignmentWizard extends Wizard {
                 wizardReport.adjusting = null;
                 // Always go back to normal frame
                 this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
-
-                await this.waitNext("Shoot");
+                const posChecker = new ImpreciseDirectionChecker(this);
+                posChecker.start();
+                try {
+                    await this.waitNext("Shoot");
+                } finally {
+                    posChecker.stop();
+                }
                 this.setPaused(false);
                 const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || (refALTAZ3D === null);
                 wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";

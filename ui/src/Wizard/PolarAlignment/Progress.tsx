@@ -149,6 +149,8 @@ class Progress extends React.PureComponent<Props> {
                     adjusting: null,
                     hasRefFrame: false,
                     fatalError: "Wizard not ready",
+                    adjustPositionError: null,
+                    adjustPositionWarning: null,
                 }
         return polarAlignment;
     }

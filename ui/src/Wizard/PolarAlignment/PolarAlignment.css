@@ -29,4 +29,31 @@
 .PolarAlignExplain {
     margin: 0.5em;
     text-align: justify;
+    font-size: 0.8em;
+}
+
+
+.PolarAlignExplainWarning {
+    margin: 0.5em;
+    text-align: justify;
+    color: yellow;
+    font-size: 0.8em;
+}
+
+.PolarAlignExplainBigWarning {
+    margin: 0.5em;
+    text-align: justify;
+    color: orange;
+    font-size: 0.8em;
+}
+
+.PolarAlignExplainBigWarningEmphasis {
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.PolarAlignExplainError {
+    margin: 0.5em;
+    text-align: justify;
+    color: red;
 }
