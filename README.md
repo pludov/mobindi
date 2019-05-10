@@ -6,8 +6,6 @@
 
 Monitor and control an astrophotography session from a mobile phone !
 
-![Screenshots of the UI](docs/screenshots.png?raw=true "Screenshots of the UI")
-
 This software is intended to be used for nomade astronomy, where size and power consumption matters.
 It will typically run on a Raspberry PI or equivalent, using the Indi drivers, and phd2 for guiding.
 
@@ -71,6 +69,8 @@ It is possible to start/stop PHD2 from here, as long as it has a valid configura
 
 In the focus tab, you'll be able to control your focuser, scanning a range of steps to find the optimal value of FWHM.
 
+![Focuser UI](docs/focuser.png?raw=true "Focuser UI")
+
 ### Astrometry
 
 The astrometry tab displays settings used for plate solving.
@@ -79,7 +79,7 @@ Internally, the fantastic astrometry.net engine is used. Mobinding controls the 
 
 It is also possible to push your phone GPS coordinates to INDI configuration from here. (the green button on the screenshot indicates that they are already in sync).
 
-![PHD2 UI](docs/astrometry-settings.png?raw=true "PHD2 UI")
+![Astrometry settings](docs/astrometry-settings.png?raw=true "Astrometry settings")
 
 ### Polar alignment
 
@@ -105,7 +105,7 @@ You can as well restart stuck drivers here, configure auto restart/auto connect,
 
 Notifications from indi driver are visible here. The number of unread messages is displayed when the tab is not selected so you know when something is happening.
 
-![Indi control panel UI](docs/indi-messages.png?raw=true "Indi control panel ")
+![Indi message board](docs/indi-messages.png?raw=true "Indi message board")
 
 
 
