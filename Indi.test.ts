@@ -6,6 +6,7 @@ import {promisify} from "util";
 
 import JsonProxy from './JsonProxy';
 import {IndiConnection} from './Indi';
+import { IndiDevice } from "./shared/BackOfficeStatus";
 
 
 const readFile = promisify(fs.readFile);
@@ -37,7 +38,7 @@ describe("Indi", () => {
         var content = JSON.parse(data.toString());
         assert.ok(content.length > 0, "Got data");
 
-        var appStateManager = new JsonProxy();
+        var appStateManager = new JsonProxy<{[deviceId:string]:IndiDevice}>();
         var indiConnection = new IndiConnection();
         indiConnection.deviceTree = appStateManager.getTarget();
         for(var i = 0 ; i < content.length; ++i) {

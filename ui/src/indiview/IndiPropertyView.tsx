@@ -253,9 +253,10 @@ class IndiPropertyView extends PureComponent<Props> {
         if (vec === undefined || prop === undefined) {
             return {
                 vecLabel: "",
-                vecType: "",
+                vecType: "Switch",
                 vecPerm: "",
                 propLabel: "",
+                vecRule: "",
                 value: "",
                 format: "",
             } as MappedProps

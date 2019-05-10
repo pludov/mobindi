@@ -738,7 +738,7 @@ export default class Camera
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',
                         // FIXME : support cb for setParam
                         (vector:Vector) => {
-                            const vec = vector.getVectorInTree();
+                            const vec = vector.getExistingVectorInTree();
                             const v = currentShootSettings.iso;
                             var childToSet = undefined;
                             for(var id of vec.childNames)

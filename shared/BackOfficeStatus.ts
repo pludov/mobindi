@@ -65,13 +65,14 @@ export type IndiProperty = {
 
 export type IndiVector = {
     $label: string;
-    $type: string;
+    $type: "Number"|"Text"|"Switch"|"BLOB"|"Light",
     $perm: string;
     $rule: string;
     $group: string;
-    $state: "Busy"|"Error"|"";
+    $state: "Busy"|"Error"|"Ok"|"Idle"|"";
     $timestamp: string;
-    $rev: string;
+    $message: string;
+    $rev: number;
     childNames: string[];
     childs: {
         [propId: string]: IndiProperty

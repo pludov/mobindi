@@ -196,7 +196,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
                 state: 'Error',
                 perm: "",
                 rule: "",
-                type: "",
+                type: "Switch",
                 childs: []
             }
         }

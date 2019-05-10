@@ -9,6 +9,7 @@ import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import { StringDecoder } from 'string_decoder';
 import { Buffer } from 'buffer';
 import { IndiMessage } from "./shared/IndiTypes";
+import { IndiDevice } from './shared/BackOfficeStatus';
 
 export type IndiListener = ()=>(void);
 export type IndiMessageListener = (m:IndiMessage)=>(void);
@@ -86,7 +87,7 @@ const schema: Schema = {
 
 
 // Each change/notification will increment this by one
-var globalRevisionId = 0;
+let globalRevisionId:number = 0;
 
 function has(obj:any, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
@@ -224,7 +225,7 @@ export class Device {
 }
 
 export class IndiConnection {
-    deviceTree: any;
+    deviceTree: {[deviceId:string]:IndiDevice};
     connected: boolean;
     private dead: boolean;
     private socket?: net.Socket;
@@ -539,6 +540,9 @@ export class IndiConnection {
                 message.childNames[i] = child.$name;
             }
             delete message[childsProps];
+
+            message.$timeout = parseFloat(message.$timeout)||0;
+
             message.$rev = globalRevisionId;
             this.getDeviceInTree(message.$device)[message.$name] = message;
         }
@@ -577,11 +581,13 @@ export class IndiConnection {
 
             var prop = dev[message.$name];
             prop.$state = message.$state;
-            prop.$timeout = has(message, '$timeout') ? message.$timeout : 0;
+            message.$timeout = parseFloat(message.$timeout)||0;
             prop.$timestamp = message.$timestamp;
             prop.$rev = globalRevisionId;
             if (message.$message != undefined) {
                 prop.$message = message.$message;
+            } else {
+                prop.$message = "";
             }
 
             var updates = message['one' + kind];
