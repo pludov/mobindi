@@ -103,10 +103,11 @@ export type ComposedSerialSnapshot = {
 export type SerialSnapshot = ComposedSerialSnapshot | number;
 
 
-type SynchronizerTriggerCallback = {
+export type SynchronizerTriggerCallback = {
     pending: boolean;
     func: ()=>(void);
     dead: boolean;
+    path: any;
 };
 
 type JsonProxyNode = {
@@ -125,12 +126,17 @@ class SynchronizerTrigger {
     minSerial: number|undefined;
     minChildSerial: number|undefined;
     minSerialValue: number|undefined;
-    childsByProp?: {[id:string]:SynchronizerTrigger};
+    readonly childsByProp?: {[id:string]:SynchronizerTrigger};
     callback: SynchronizerTriggerCallback | undefined;
-    listeners?: SynchronizerTrigger[];
-    wildcardChilds?: SynchronizerTrigger[];
-    wildcardOrigin: any;
-    wildcardAppliedToChilds: any;
+    readonly listeners?: SynchronizerTrigger[];
+    readonly wildcardChilds?: SynchronizerTrigger[];
+
+    // When the node is a wildcard root, keep track of the cb
+    wildcardCallback: SynchronizerTriggerCallback | undefined;
+    // When the node is a wildcard root, keep track of which childs have been applied
+    wildcardAppliedToChilds?: {[id:string]:boolean};
+    // For nodes created from wildcards
+    wildcardOrigin: SynchronizerTrigger | undefined;
 
     constructor(cb: SynchronizerTriggerCallback | undefined) {
         // The min of all childs (listeners, childsByProp, wildcardChilds)
@@ -253,6 +259,7 @@ class SynchronizerTrigger {
         // Wildcard
         if (step === null || step === undefined) {
             let wildcardChild = new SynchronizerTrigger(undefined);
+            wildcardChild.wildcardCallback = cb;
             wildcardChild.wildcardAppliedToChilds = {};
             wildcardChild.addToPath(undefined, cb, path, startAt + 1, false);
 
@@ -269,6 +276,103 @@ class SynchronizerTrigger {
         // named child
         var childContent = this.getContentChild(parentContent, step);
         this.getChild(step).addToPath(childContent, cb, path, startAt + 1, forceInitialTrigger);
+    }
+
+    killListenersOf(triggers: Array<SynchronizerTrigger>, cb: SynchronizerTriggerCallback): boolean {
+        let ret = false;
+        for(let i = 0; i < triggers.length;) {
+            const t = triggers[i];
+            if (t.callback === cb) {
+                ret = true;
+                triggers.splice(i, 1);
+            } else {
+                i++;
+            }
+        }
+        return ret && triggers.length === 0;
+    }
+
+    killWildcardListenersOf(triggers: Array<SynchronizerTrigger>, cb: SynchronizerTriggerCallback): boolean {
+        let ret = false;
+        for(let i = 0; i < triggers.length;) {
+            const t = triggers[i];
+            if (t.wildcardCallback === cb) {
+                ret = true;
+                triggers.splice(i, 1);
+            } else {
+                i++;
+            }
+        }
+        return ret && triggers.length === 0;
+    }
+
+    // Check if there are still valid listener
+    isEmpty() {
+        if (this.callback !== undefined) {
+            return false;
+        }
+
+        if (this.listeners!.length) {
+            return false;
+        }
+        if (this.wildcardChilds!.length) {
+            return false;
+        }
+        if (Object.keys(this.childsByProp!).length) {
+            return false;
+        }
+        return true;
+    }
+
+    // Return true if the node may have become empty
+    removeListener(cb: SynchronizerTriggerCallback, path:any, startAt:number) {
+        let ret: boolean = false;
+        if (startAt == path.length) {
+            return this.killListenersOf(this.listeners!, cb);
+        }
+
+        var step = path[startAt];
+        if (Array.isArray(step)) {
+            for(let o of step) {
+                if (!Array.isArray(o)) {
+                    throw new Error("invalid path in multi-path. Array of array");
+                }
+                if (this.removeListener(cb, o, 0)) {
+                    ret = true;
+                }
+            }
+            return ret;
+        }
+        // Wildcard
+        if (step === null || step === undefined) {
+            for(const childId of Object.keys(this.childsByProp!)) {
+                const child = this.childsByProp![childId];
+                if (child.removeListener(cb, path, startAt + 1)) {
+                    if (child.isEmpty()) {
+                        delete this.childsByProp![childId];
+                        ret = true;
+                    }
+                }
+            }
+
+            if (this.killWildcardListenersOf(this.wildcardChilds!, cb)) {
+                ret = ret || this.wildcardChilds!.length === 0;
+            }
+
+            return ret;
+        }
+
+        // named child
+        if (Object.prototype.hasOwnProperty.call(this.childsByProp, step)) {
+            const child = this.childsByProp![step];
+            if (child.removeListener(cb, path, startAt + 1)) {
+                if (child.isEmpty()) {
+                    delete this.childsByProp![step];
+                    ret = true;
+                }
+            }
+        }
+        return ret;
     }
 
     updateMin(prop:'minSerial' | 'minChildSerial') {
@@ -404,7 +508,7 @@ class SynchronizerTrigger {
                 for(let o of this.getContentChilds(content)) {
                     // Create triggers that must trigger if key exists
                     if (!Object.prototype.hasOwnProperty.call(wildcardChild.wildcardAppliedToChilds, o)) {
-                        wildcardChild.wildcardAppliedToChilds[o] = true;
+                        wildcardChild.wildcardAppliedToChilds![o] = true;
                         wildcardChild.cloneInto(this.getChild(o), this.getContentChild(content, o), wildcardChild, null);
                     }
                 }
@@ -427,7 +531,7 @@ class SynchronizerTrigger {
 
                             var wildcardChanged = childSynchronizerTrigger.removeFromWildcard(wildcard);
 
-                            delete wildcard.wildcardAppliedToChilds[childId];
+                            delete wildcard.wildcardAppliedToChilds![childId];
 
                             // Adjust serial required ?
                             changed = changed || !!wildcardChanged;
@@ -573,23 +677,22 @@ export default class JsonProxy<CONTENTTYPE> {
     // Example: to be called on every change of the connected property in indiManager
     // addSynchronizer({'indiManager':{deviceTree':{$@: {'CONNECTION':{'childs':{'CONNECT':{'$_': true}}}} )
     // forceInitialTriggering
-    addSynchronizer(path: any, callback: ()=>(void), forceInitialTrigger:boolean) {
+    addSynchronizer(path: any, callback: ()=>(void), forceInitialTrigger:boolean):SynchronizerTriggerCallback {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
         }
-        var listener = {
+        const listener = {
             func: callback,
             pending: false,
-            dead: false
+            dead: false,
+            path
         };
 
         this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger);
 
         return listener;
     }
-
-
 
     // Call untils no more synchronizer is available
     flushSynchronizers() {
@@ -614,8 +717,12 @@ export default class JsonProxy<CONTENTTYPE> {
         } while(true);
     }
 
-    removeSynchronizer(listenerId: ListenerId) {
-        throw new Error("not implemented");
+    removeSynchronizer(trigger: SynchronizerTriggerCallback) {
+        if (trigger === undefined || trigger.dead) {
+            return;
+        }
+        trigger.dead = true;
+        this.synchronizerRoot.removeListener(trigger, trigger.path, 0);
     }
 
     addListener(listener:Callback): ListenerId{

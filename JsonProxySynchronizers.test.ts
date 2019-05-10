@@ -2,7 +2,7 @@ import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy from './JsonProxy';
+import JsonProxy, { SynchronizerTriggerCallback } from './JsonProxy';
 import * as Obj from './Obj';
 
 class TestContext{
@@ -43,7 +43,7 @@ class TestContext{
         }
         this.checkCallNumber = checkCallNumber.bind(this);
 
-        function checkCallbackCount(listener: { pending: boolean; func: () => void; dead: boolean; }, v: string | number) {
+        function checkCallbackCount(listener: SynchronizerTriggerCallback, v: string | number) {
             var installedCallbacks = changeTracker.synchronizerRoot.getInstalledCallbacks(listener);
             if (installedCallbacks.length != v) {
                 console.error(STEP + ': Installed callback mismatch = ' + JSON.stringify(installedCallbacks));
@@ -460,5 +460,81 @@ describe("JsonProxySynchronizers", ()=>{
         assert.ok(numberOfCall.plop >= 7, "Delete parent => call");
         assert.ok(numberOfCall.plop == 7, "Delete parent => only one call");
 
+    });
+
+    it("remove synchronizer", () => {
+        var changeTracker = new JsonProxy<any>();
+        var root = changeTracker.getTarget();
+
+        root.plop = { child1: {} };
+
+        var numberOfCall = {keptListener: 0, removedListener:0};
+
+        assert.ok(changeTracker.synchronizerRoot.isEmpty(), "Wildcard instancied on installation");
+
+        var removedListener = changeTracker.addSynchronizer(['plop', null, 'c'], function() {
+                numberOfCall.removedListener++;
+            },
+            false
+        );
+        var keptListener = changeTracker.addSynchronizer(['plop', null, 'd'], function() {
+                numberOfCall.keptListener++;
+            },
+            false
+        );
+
+        assert.ok(numberOfCall.removedListener == 0, "No initial call");
+        assert.ok(numberOfCall.keptListener == 0, "No initial call");
+
+        root.plop.child1.c = 1;
+        root.plop.child1.d = 1;
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 1, "First call");
+        assert.ok(numberOfCall.keptListener == 1, "First call");
+
+        root.plop.child2 = {c : 1, d:1};
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 2, "Wildcard call ok");
+        assert.ok(numberOfCall.keptListener == 2, "Wildcard call ok");
+
+
+        root.plop.child2.c++;
+        root.plop.child2.d++;
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 3, "Second wildcard call ok");
+        assert.ok(numberOfCall.keptListener == 3, "Second wildcard call ok");
+
+        root.plop.child1.c++;
+        root.plop.child1.d++;
+
+        changeTracker.removeSynchronizer(removedListener);
+
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 3, "Synchronizer not called on removal");
+        assert.ok(numberOfCall.keptListener == 4, "Kept synchronizer still called");
+
+
+        root.plop.child4 = {c: 1, d:1};
+
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 3, "Synchronizer not called on removal");
+        assert.ok(numberOfCall.keptListener == 5, "Kept synchronizer still called");
+
+
+        changeTracker.removeSynchronizer(keptListener);
+
+        root.plop.child1.c++;
+        root.plop.child1.d++;
+
+        changeTracker.flushSynchronizers();
+
+        assert.ok(numberOfCall.removedListener == 3, "Synchronizer still not called on removal");
+        assert.ok(numberOfCall.keptListener == 5, "Last synchronizer not called");
+        assert.ok(changeTracker.synchronizerRoot.isEmpty(), "Synchronizer clean");
     });
 });
