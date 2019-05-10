@@ -149,6 +149,20 @@ export class Vector {
     setValues(affectations:{name:string, value:string}[]) {
         console.log('Received affectations: ' + JSON.stringify(affectations));
         var vecDef = this.getExistingVectorInTree();
+        if (vecDef.$type === "Number" || vecDef.$type === "Text") {
+            affectations = [...affectations];
+            const known = new Set<string>();
+            affectations.forEach(e=>{known.add(e.name)});
+            // Send other known values
+            for(const child of vecDef.childNames) {
+                if (!known.has(child)) {
+                    affectations.push({
+                        name: child,
+                        value: vecDef.childs[child].$_,
+                    });
+                }
+            }
+        }
         var msg = {
             $$: 'new' + vecDef.$type + 'Vector',
             $device: this.device,
