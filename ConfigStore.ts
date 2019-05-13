@@ -11,14 +11,14 @@ if (!fs.existsSync(configDir)){
     fs.mkdirSync(configDir);
 }
 
-export default class ConfigStore<T> {
+export default class ConfigStore<T, STORED=T> {
     readonly appStateManager: JsonProxy<BackofficeStatus>;
     private saveRunning: boolean;
     private saveMustRestart: boolean;
-    private readCb?: (content:T)=>T;
-    private writeCb?: (content:T)=>T;
+    private readCb?: (content:STORED)=>T;
+    private writeCb?: (content:T)=>STORED;
     private readonly currentContent: T;
-    private defaultContent: T;
+    private defaultContent: STORED;
     private lastPatch: {};
     private readonly fileName: string;
     private readonly localPath: string;
@@ -26,10 +26,10 @@ export default class ConfigStore<T> {
     constructor(appStateManager: JsonProxy<BackofficeStatus>,
                 fileName:string,
                 path:string[],
-                defaultContent:T,
-                exampleContent:T,
-                readCb?: (content:T)=>T,
-                writeCb?: (content:T)=>T)
+                defaultContent:STORED,
+                exampleContent:STORED,
+                readCb?: (content:STORED)=>T,
+                writeCb?: (content:T)=>STORED)
     {
         this.appStateManager = appStateManager;
         
@@ -47,7 +47,9 @@ export default class ConfigStore<T> {
                 }
                 target = target[pathItem];
             }
-            Object.assign(target, defaultContent);
+            if (defaultContent !== null && defaultContent !== undefined) {
+                Object.assign(target, defaultContent);
+            }
             this.currentContent = target as T;
         }
         this.lastPatch = {};
@@ -132,9 +134,11 @@ export default class ConfigStore<T> {
             return result;
         }
 
-        let toSave = this.currentContent;
+        let toSave:STORED;
         if (this.writeCb) {
-            toSave = this.writeCb(toSave);
+            toSave = this.writeCb(this.currentContent);
+        } else {
+            toSave = this.currentContent as any as STORED;
         }
         return compareObject(toSave, this.defaultContent);
     }

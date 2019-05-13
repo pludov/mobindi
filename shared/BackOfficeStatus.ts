@@ -109,10 +109,17 @@ export type ImageStatus = {
     device: string;
 }
 
+export type CameraConfiguration = {
+    defaultImagePath?: string;
+    defaultImagePrefix?: string;
+    fakeImages?: string[];
+    fakeImagePath?: string;
+    preferedDevice: string | null;
+};
+
 export type CameraStatus = {
     status: string;
     selectedDevice: string | null;
-    preferedDevice: string | null;
     availableDevices: string [];
     currentSettings: ShootSettings;
     currentShoots: {[deviceId:string]:any};
@@ -126,7 +133,7 @@ export type CameraStatus = {
         list: string[],
         byuuid: {[uuid: string]:Sequence}
     };
-    configuration: any;
+    configuration: CameraConfiguration;
 }
 
 export type AutoFocusSettings = {

@@ -125,6 +125,43 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         }
     }
 
+    public createPreferredDeviceSelector<T>(basePath : string[],
+                                    availablePathName: string[], preferedPathName: string[], currentPathName: string[],
+                                    read:()=>{available: string[], current: string|null, prefered: string|null},
+                                    set:(p:{current?: string|null, prefered?: string|null})=>(void))
+    {
+        const update = ()=>{
+            const status = read();
+            let newCurrent: string|null|undefined;
+            let newPrefered: string|null|undefined;
+            if (status.current !== null) {
+                if (status.available.indexOf(status.current) === -1) {
+                    newCurrent = null;
+                    status.current = null;
+                } else {
+                    if (status.prefered !== status.current) {
+                        newPrefered = status.current;
+                    }
+                }
+            }
+            if (status.current === null) {
+                if (status.prefered !== null && status.available.indexOf(status.prefered) !== -1) {
+                    newCurrent = status.prefered;
+                    status.current = newCurrent;
+                }
+            }
+            if (newCurrent !== undefined || newPrefered !== undefined) {
+                set({current: newCurrent, prefered: newPrefered});
+            }
+        };
+
+        this.appStateManager.addSynchronizer(
+            [...basePath, [ availablePathName , currentPathName, preferedPathName]],
+            update,
+            true
+        );
+    }
+
     public createDeviceListSynchronizer(cb: (devices: string[])=>(void), driverClass?: string, interfaceMask?:number)
     {
         const updateAvailableDevices = () => {

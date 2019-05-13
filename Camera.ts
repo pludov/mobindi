@@ -36,14 +36,11 @@ export default class Camera
         this.appStateManager.getTarget().camera = {
             status: "idle",
             selectedDevice: null,
-            preferedDevice: null,
             availableDevices: [],
 
             // The settings, some may not be available
             currentSettings: {
-                bin: 1,
-                exposure: 1.0,
-                iso: null
+                exposure: 1
             },
 
             // Device => duration
@@ -86,7 +83,9 @@ export default class Camera
 
 
 
-            configuration: {}
+            configuration: {
+                preferedDevice: null,
+            }
         };
 
         // Device => promise
@@ -164,7 +163,26 @@ export default class Camera
         context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
             this.currentStatus.availableDevices = devs;
         }, undefined, DriverInterface.CCD);
-        
+
+        context.indiManager.createPreferredDeviceSelector<CameraStatus>(
+                [ 'camera' ],
+                ['availableDevices'],
+                ['configuration', 'preferedDevice'],
+                ['selectedDevice'],
+                ()=> ({
+                    available: this.currentStatus.availableDevices,
+                    prefered: this.currentStatus.configuration.preferedDevice,
+                    current: this.currentStatus.selectedDevice,
+                }),
+                (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
+                    if (s.prefered !== undefined) {
+                        this.currentStatus.configuration.preferedDevice = s.prefered;
+                    }
+                    if (s.current !== undefined) {
+                        this.currentStatus.selectedDevice = s.current;
+                    }
+                });
+
         // Update shoots
         this.appStateManager.addSynchronizer(
             [
