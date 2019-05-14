@@ -175,7 +175,7 @@ class Adjust extends React.PureComponent<Props> {
                                 activePath="$.backend.camera.selectedDevice"/>
                     </div>
                     <CameraSettingsView
-                        settingsPath="$.backend.camera.currentSettings"
+                        settingsPath="$.backend.camera.currentSettings.configuration.deviceSettings"
                         activePath="$.backend.camera.selectedDevice"
                         setValue={this.settingSetter}
                         />

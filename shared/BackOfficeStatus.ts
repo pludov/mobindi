@@ -115,13 +115,13 @@ export type CameraConfiguration = {
     fakeImages?: string[];
     fakeImagePath?: string;
     preferedDevice: string | null;
+    deviceSettings : {[id: string] : ShootSettings};
 };
 
 export type CameraStatus = {
     status: string;
     selectedDevice: string | null;
     availableDevices: string [];
-    currentSettings: ShootSettings;
     currentShoots: {[deviceId:string]:any};
     lastByDevices: {[deviceId:string]:string};
     images: {

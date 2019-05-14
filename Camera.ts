@@ -38,11 +38,6 @@ export default class Camera
             selectedDevice: null,
             availableDevices: [],
 
-            // The settings, some may not be available
-            currentSettings: {
-                exposure: 1
-            },
-
             // Device => duration
             currentShoots: {
 
@@ -85,6 +80,7 @@ export default class Camera
 
             configuration: {
                 preferedDevice: null,
+                deviceSettings: {},
             }
         };
 
@@ -182,6 +178,20 @@ export default class Camera
                         this.currentStatus.selectedDevice = s.current;
                     }
                 });
+        // Update configuration
+        this.appStateManager.addSynchronizer(
+            [ 'camera', 'availableDevices' ],
+            ()=> {
+                const settingRoot = this.currentStatus.configuration.deviceSettings;
+                for(const o of this.currentStatus.availableDevices) {
+                    if (!Obj.hasKey(settingRoot, o)) {
+                        settingRoot[o] = {
+                            exposure: 1.0,
+                        }
+                    }
+                }
+            },
+            true);
 
         // Update shoots
         this.appStateManager.addSynchronizer(
@@ -369,10 +379,18 @@ export default class Camera
         // FIXME: send the corresponding info ?
         console.log('Request to set setting: ', JSON.stringify(payload));
         var key = payload.key;
-        if (!Object.prototype.hasOwnProperty.call(this.currentStatus.currentSettings, key)) {
-            throw "property not supported by device: " + key;
+
+        const deviceId = this.currentStatus.selectedDevice;
+        if (deviceId === null) {
+            throw new Error("no device selected");
         }
-        this.currentStatus.currentSettings[key] = payload.value;
+        const allSettings = this.currentStatus.configuration.deviceSettings;
+        if (!Obj.hasKey(allSettings, deviceId)) {
+            console.log("Internal error - device has no settings");
+            throw new Error("Device has no settings");
+        }
+        const deviceSettings = allSettings[deviceId];
+        deviceSettings[key] = payload.value;
     }
 
     newSequence=async (ct: CancellationToken, message: {}):Promise<string>=>{
@@ -710,7 +728,11 @@ export default class Camera
             throw new Error("Shoot already started for " + device);
         }
 
-        var settings = Object.assign({}, this.currentStatus.currentSettings);
+        if (!Obj.hasKey(this.currentStatus.configuration.deviceSettings, device)) {
+            throw new Error("Device has no settings");
+        }
+
+        var settings = Object.assign({}, this.currentStatus.configuration.deviceSettings[device]);
         if (settingsProvider !== undefined) {
             settings = settingsProvider(settings);
         }

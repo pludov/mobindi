@@ -26,12 +26,16 @@ class CameraSettingsView extends React.PureComponent<Props> {
     }
 
     render() {
+        if (this.props.current === null) {
+            return null;
+        }
+        const deviceId = "[" + JSON.stringify(this.props.current)+"]"
         return <div>
             <StatePropCond device={this.props.current} property="CCD_BINNING">
                     <span className='cameraSetting'>
                         <CameraBinEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + '.bin'}
+                            valuePath={this.props.settingsPath + deviceId + '.bin'}
                             setValue={this.props.setValue('bin')}/>
                     </span>
             </StatePropCond>
@@ -40,7 +44,7 @@ class CameraSettingsView extends React.PureComponent<Props> {
                     <span className='cameraSetting'>
                         <CameraIsoEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + '.iso'}
+                            valuePath={this.props.settingsPath + deviceId + '.iso'}
                             setValue={this.props.setValue('iso')} />
                     </span>
             </StatePropCond>
@@ -49,7 +53,7 @@ class CameraSettingsView extends React.PureComponent<Props> {
                     <span className='cameraSetting'>Exp:
                         <CameraExpEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + '.exposure'}
+                            valuePath={this.props.settingsPath + deviceId + '.exposure'}
                             setValue={this.props.setValue('exposure')}/>
                     </span>
             </StatePropCond>

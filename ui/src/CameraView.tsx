@@ -65,10 +65,10 @@ class CameraView extends React.PureComponent<Props> {
                         activePath="$.backend.camera.selectedDevice"/>
             </div>
             <CameraSettingsView
-                settingsPath="$.backend.camera.currentSettings"
+                settingsPath={"$.backend.camera.configuration.deviceSettings"}
                 activePath="$.backend.camera.selectedDevice"
                 setValue={this.settingSetter}
-                />
+            />
             <FitsViewerWithAstrometry
                 contextKey="default"
                 src={this.props.url}/>
@@ -86,7 +86,9 @@ class CameraView extends React.PureComponent<Props> {
         try {
             const camera = noErr(()=>store.backend.camera!.selectedDevice, undefined);
             if (!camera) {
-                return {url: null};
+                return {
+                    url: null,
+                };
             }
             if (Object.prototype.hasOwnProperty.call(store.backend.camera!.lastByDevices, camera)) {
                 return {url: store.backend.camera!.lastByDevices[camera]};
