@@ -102,10 +102,17 @@ export type ComposedSerialSnapshot = {
 }
 export type SerialSnapshot = ComposedSerialSnapshot | number;
 
+export const NoWildcard = Symbol("TriggeredHere");
+
+export type TriggeredWildcard = {
+    [NoWildcard]?: boolean;
+    [id:string]: TriggeredWildcard;
+}
 
 export type SynchronizerTriggerCallback = {
     pending: boolean;
-    func: ()=>(void);
+    func: (where: TriggeredWildcard|undefined)=>(void);
+    triggered: undefined | TriggeredWildcard;
     dead: boolean;
     path: any;
 };
@@ -116,6 +123,14 @@ type JsonProxyNode = {
     serial : number;
     childSerial: number | undefined;
     proxy?: any;
+}
+
+function completeWildcardPath(path:string[] | undefined, n:string)
+{
+    if (path === undefined) {
+        return path;
+    }
+    return path.concat([n]);
 }
 
 // Records all synchronizer listening for a node path
@@ -131,6 +146,9 @@ class SynchronizerTrigger {
     readonly listeners?: SynchronizerTrigger[];
     readonly wildcardChilds?: SynchronizerTrigger[];
 
+    // When node is a wildcard root under a wildcard root, hold the values for wildcards
+    callbackWildcardPath?: string[];
+
     // When the node is a wildcard root, keep track of the cb
     wildcardCallback: SynchronizerTriggerCallback | undefined;
     // When the node is a wildcard root, keep track of which childs have been applied
@@ -138,13 +156,16 @@ class SynchronizerTrigger {
     // For nodes created from wildcards
     wildcardOrigin: SynchronizerTrigger | undefined;
 
-    constructor(cb: SynchronizerTriggerCallback | undefined) {
+    constructor(cb: SynchronizerTriggerCallback | undefined, callbackWildcardPath?: string[]) {
         // The min of all childs (listeners, childsByProp, wildcardChilds)
         this.minSerial = undefined;
         this.minChildSerial = undefined;
 
         // Pour les listeners qui sont en fait des callback
         this.callback = cb;
+        if (callbackWildcardPath) {
+            this.callbackWildcardPath = callbackWildcardPath;
+        }
 
         // The wildcard node that created this node
         // Valid for final and nodes in wildcardChilds
@@ -171,9 +192,9 @@ class SynchronizerTrigger {
      * @param wildcardOrigin: wildcardChild that creates the callbacks
      * @param forceInitialTrigger: true/false/null(means only for existing nodes)
      */
-    cloneInto(target:SynchronizerTrigger, content:any, wildcardOrigin: any, forceInitialTrigger: boolean|null) {
+    cloneInto(target:SynchronizerTrigger, content:any, wildcardOrigin: any, forceInitialTrigger: boolean|null, wildcardPath?:string[]) {
         for(var o of this.listeners!) {
-            var copy = new SynchronizerTrigger(o.callback);
+            var copy = new SynchronizerTrigger(o.callback, wildcardPath);
             copy.wildcardOrigin = wildcardOrigin;
             copy.copySerialFromContent(content, forceInitialTrigger);
             target.listeners!.push(copy);
@@ -182,7 +203,7 @@ class SynchronizerTrigger {
         for(var childId of Object.keys(this.childsByProp!)) {
             var childContent = this.getContentChild(content, childId);
             var childSynchronizerTrigger = this.childsByProp![childId];
-            childSynchronizerTrigger.cloneInto(target.getChild(childId),childContent, wildcardOrigin, forceInitialTrigger);
+            childSynchronizerTrigger.cloneInto(target.getChild(childId),childContent, wildcardOrigin, forceInitialTrigger, wildcardPath);
         }
 
         for(var wildcard of this.wildcardChilds!) {
@@ -190,10 +211,9 @@ class SynchronizerTrigger {
             var wildcardCopy = new SynchronizerTrigger(undefined);
             wildcardCopy.wildcardOrigin = wildcard;
             wildcardCopy.wildcardAppliedToChilds = {};
-
             target.wildcardChilds!.push(wildcardCopy);
 
-            wildcard.cloneInto(wildcardCopy, undefined, wildcardOrigin, false);
+            wildcard.cloneInto(wildcardCopy, undefined, wildcardOrigin, false, wildcardPath);
         }
 
         target.updateMins();
@@ -232,7 +252,7 @@ class SynchronizerTrigger {
         }
     }
 
-    addToPath(parentContent: any, cb: SynchronizerTriggerCallback, path:any, startAt:number, forceInitialTrigger:boolean) {
+    addToPath(parentContent: any, cb: SynchronizerTriggerCallback, path:any, startAt:number, forceInitialTrigger:boolean, callbackWildcardPath?: string[]) {
         if (forceInitialTrigger) {
             this.minChildSerial = -1;
             this.minSerial = -1;
@@ -240,7 +260,7 @@ class SynchronizerTrigger {
 
         if (startAt == path.length) {
             // Add a listener
-            const nv = new SynchronizerTrigger(cb);
+            const nv = new SynchronizerTrigger(cb, callbackWildcardPath);
             this.listeners!.push(nv);
             this.copySerialFromContent(parentContent, forceInitialTrigger);
 
@@ -252,7 +272,7 @@ class SynchronizerTrigger {
                 if (!Array.isArray(o)) {
                     throw new Error("invalid path in multi-path. Array of array");
                 }
-                this.addToPath(parentContent, cb, o, 0, forceInitialTrigger);
+                this.addToPath(parentContent, cb, o, 0, forceInitialTrigger, callbackWildcardPath);
             }
             return;
         }
@@ -261,12 +281,13 @@ class SynchronizerTrigger {
             let wildcardChild = new SynchronizerTrigger(undefined);
             wildcardChild.wildcardCallback = cb;
             wildcardChild.wildcardAppliedToChilds = {};
+            wildcardChild.callbackWildcardPath = callbackWildcardPath;
             wildcardChild.addToPath(undefined, cb, path, startAt + 1, false);
 
             for(let o of this.getContentChilds(parentContent)) {
                 // Create triggers that must trigger depending on forceInitialTrigger
                 wildcardChild.wildcardAppliedToChilds[o] = true;
-                wildcardChild.cloneInto(this.getChild(o), this.getContentChild(parentContent, o), wildcardChild, forceInitialTrigger);
+                wildcardChild.cloneInto(this.getChild(o), this.getContentChild(parentContent, o), wildcardChild, forceInitialTrigger, completeWildcardPath(callbackWildcardPath, o));
             }
 
             this.wildcardChilds!.push(wildcardChild);
@@ -275,7 +296,7 @@ class SynchronizerTrigger {
         }
         // named child
         var childContent = this.getContentChild(parentContent, step);
-        this.getChild(step).addToPath(childContent, cb, path, startAt + 1, forceInitialTrigger);
+        this.getChild(step).addToPath(childContent, cb, path, startAt + 1, forceInitialTrigger, callbackWildcardPath);
     }
 
     killListenersOf(triggers: Array<SynchronizerTrigger>, cb: SynchronizerTriggerCallback): boolean {
@@ -489,6 +510,20 @@ class SynchronizerTrigger {
         if (this.callback !== undefined) {
             this.minSerial = contentSerial;
             this.minChildSerial = contentChildSerial;
+            if (this.callbackWildcardPath !== undefined) {
+                let root = this.callback.triggered;
+                if (root === undefined) {
+                    root = {};
+                    this.callback.triggered = root;
+                }
+                for(const o of this.callbackWildcardPath) {
+                    if (!has(root, o)) {
+                        root[o] = {};
+                    }
+                    root = root[o];
+                }
+                root[NoWildcard] = true;
+            }
             if (!this.callback.pending) {
                 this.callback.pending = true;
                 result.push(this.callback);
@@ -509,7 +544,7 @@ class SynchronizerTrigger {
                     // Create triggers that must trigger if key exists
                     if (!Object.prototype.hasOwnProperty.call(wildcardChild.wildcardAppliedToChilds, o)) {
                         wildcardChild.wildcardAppliedToChilds![o] = true;
-                        wildcardChild.cloneInto(this.getChild(o), this.getContentChild(content, o), wildcardChild, null);
+                        wildcardChild.cloneInto(this.getChild(o), this.getContentChild(content, o), wildcardChild, null, completeWildcardPath(wildcardChild.callbackWildcardPath, o));
                     }
                 }
             }
@@ -674,22 +709,26 @@ export default class JsonProxy<CONTENTTYPE> {
     }
 
 
+    addSynchronizer(path: any, callback: (to:TriggeredWildcard)=>(void), forceInitialTrigger: boolean, locateWidlcards: true):SynchronizerTriggerCallback
+    addSynchronizer(path: any, callback: ()=>(void), forceInitialTrigger: boolean):SynchronizerTriggerCallback
+
     // Example: to be called on every change of the connected property in indiManager
     // addSynchronizer({'indiManager':{deviceTree':{$@: {'CONNECTION':{'childs':{'CONNECT':{'$_': true}}}} )
     // forceInitialTriggering
-    addSynchronizer(path: any, callback: ()=>(void), forceInitialTrigger:boolean):SynchronizerTriggerCallback {
+    addSynchronizer(path: any, callback: (to:TriggeredWildcard)=>(void), forceInitialTrigger:boolean, locateWidlcards?: boolean):SynchronizerTriggerCallback {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
         }
-        const listener = {
-            func: callback,
+        const listener : SynchronizerTriggerCallback = {
+            func: callback as any,
             pending: false,
             dead: false,
+            triggered: {},
             path
         };
 
-        this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger);
+        this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger, locateWidlcards ? [] : undefined);
 
         return listener;
     }
@@ -712,7 +751,9 @@ export default class JsonProxy<CONTENTTYPE> {
                     continue;
                 }
                 cb.pending = false;
-                cb.func();
+                const triggered = cb.triggered;
+                cb.triggered = undefined;
+                cb.func(triggered);
             }
         } while(true);
     }

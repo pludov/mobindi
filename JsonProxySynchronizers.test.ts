@@ -2,7 +2,7 @@ import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy, { SynchronizerTriggerCallback } from './JsonProxy';
+import JsonProxy, { SynchronizerTriggerCallback, TriggeredWildcard, NoWildcard } from './JsonProxy';
 import * as Obj from './Obj';
 
 class TestContext{
@@ -461,6 +461,57 @@ describe("JsonProxySynchronizers", ()=>{
         assert.ok(numberOfCall.plop == 7, "Delete parent => only one call");
 
     });
+
+    it("gives wildcard values on trigger",  ()=> {
+        var changeTracker = new JsonProxy<any>();
+        var root = changeTracker.getTarget();
+        let triggered : TriggeredWildcard | undefined;
+
+        changeTracker.addSynchronizer([ [ ['plop', null, 'machin'], ['truc'] ] ],
+            (where:TriggeredWildcard)=> {
+                console.log(where);
+                triggered = where;
+            },
+            false,
+            true
+        );
+
+        triggered = undefined;
+        root.plop = {};
+        root.plop.a= {machin: 1000};
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['a'], 'one change');
+
+        triggered = undefined;
+        root.plop.b= {machin: 2000};
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['b'], 'second change');
+
+        triggered = undefined;
+        root.plop.a.machin=3000;
+        root.plop.b.machin=5000;
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['a', 'b'], 'two changes');
+
+        triggered = undefined;
+        root.plop.a.machin=5000;
+        root.plop.b.machin=7000;
+        root.truc=10000;
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['a', 'b', NoWildcard], 'three changes');
+
+        triggered = undefined;
+        delete root.plop.a;
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['a'], 'one delete');
+
+        triggered = undefined;
+        delete root.plop.b;
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['b'], 'second delete');
+
+    });
+
 
     it("remove synchronizer", () => {
         var changeTracker = new JsonProxy<any>();
