@@ -3,7 +3,7 @@ const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, ShootSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
+import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
@@ -77,7 +77,7 @@ export default class Camera
             },
 
 
-
+            dynStateByDevices: {},
             configuration: {
                 preferedDevice: null,
                 deviceSettings: {},
@@ -160,25 +160,29 @@ export default class Camera
             this.currentStatus.availableDevices = devs;
         }, undefined, DriverInterface.CCD);
 
-        context.indiManager.createPreferredDeviceSelector<CameraStatus>(
-                [ 'camera' ],
-                ['availableDevices'],
-                ['configuration', 'preferedDevice'],
-                ['selectedDevice'],
-                ()=> ({
+        context.indiManager.createPreferredDeviceSelector<CameraStatus>({
+                availablePreferedCurrentPath: [
+                    [
+                        [ 'camera' , 'availableDevices'],
+                        [ 'camera' , 'configuration', 'preferedDevice'],
+                        [ 'camera' , 'selectedDevice'],
+                    ]
+                ],
+                read: ()=> ({
                     available: this.currentStatus.availableDevices,
                     prefered: this.currentStatus.configuration.preferedDevice,
                     current: this.currentStatus.selectedDevice,
                 }),
-                (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
+                set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
                     if (s.prefered !== undefined) {
                         this.currentStatus.configuration.preferedDevice = s.prefered;
                     }
                     if (s.current !== undefined) {
                         this.currentStatus.selectedDevice = s.current;
                     }
-                });
-        // Update configuration
+                }
+        });
+        // Update configuration/dyn states
         this.appStateManager.addSynchronizer(
             [ 'camera', 'availableDevices' ],
             ()=> {
@@ -188,6 +192,13 @@ export default class Camera
                         settingRoot[o] = {
                             exposure: 1.0,
                         }
+                    }
+                }
+
+                const dynStateRoot = this.currentStatus.dynStateByDevices;
+                for(const o of this.currentStatus.availableDevices) {
+                    if (!Obj.hasKey(dynStateRoot, o)) {
+                        dynStateRoot[o] = {}
                     }
                 }
             },
@@ -375,13 +386,13 @@ export default class Camera
         this.currentStatus.selectedDevice = payload.device;
     }
 
-    setShootParam=async<K extends keyof ShootSettings> (ct: CancellationToken, payload:{key:K, value: ShootSettings[K]})=>{
+    setShootParam=async<K extends keyof CameraDeviceSettings> (ct: CancellationToken, payload:{camera?: string, key:K, value: CameraDeviceSettings[K]})=>{
         // FIXME: send the corresponding info ?
         console.log('Request to set setting: ', JSON.stringify(payload));
         var key = payload.key;
 
-        const deviceId = this.currentStatus.selectedDevice;
-        if (deviceId === null) {
+        const deviceId = payload.camera !== undefined ? payload.camera : this.currentStatus.selectedDevice;
+        if (deviceId === null || this.currentStatus.availableDevices.indexOf(deviceId) === -1) {
             throw new Error("no device selected");
         }
         const allSettings = this.currentStatus.configuration.deviceSettings;
@@ -547,7 +558,7 @@ export default class Camera
                         (sequence.steps.list.length > 1 ?
                             " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
 
-                var settings:ShootSettings = Object.assign({}, sequence) as any;
+                var settings:CameraDeviceSettings = Object.assign({}, sequence) as any;
                 delete (settings as any).steps;
                 delete (settings as any).errorMessage;
                 settings = Object.assign(settings, step);
@@ -717,7 +728,7 @@ export default class Camera
     }
 
     // Return a promise to shoot at the given camera (where)
-    async doShoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:ShootSettings)=>ShootSettings):Promise<BackOfficeAPI.ShootResult>
+    async doShoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings):Promise<BackOfficeAPI.ShootResult>
     {
         // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
         var connection:any;

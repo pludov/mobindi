@@ -7,7 +7,7 @@ import {IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { IndiManagerStatus, IndiManagerSetPropertyRequest, BackofficeStatus } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
-import JsonProxy from './JsonProxy';
+import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import Timeout from './Timeout';
 import Sleep from './Sleep';
@@ -125,13 +125,33 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         }
     }
 
-    public createPreferredDeviceSelector<T>(basePath : string[],
-                                    availablePathName: string[], preferedPathName: string[], currentPathName: string[],
-                                    read:()=>{available: string[], current: string|null, prefered: string|null},
-                                    set:(p:{current?: string|null, prefered?: string|null})=>(void))
+    public createPreferredDeviceSelector<T>(params: {
+                        availablePreferedCurrentPath: any,
+                        read:()=>{available: string[], current: string|null, prefered: string|null},
+                        set:(p:{current?: string|null, prefered?: string|null})=>(void)})
     {
-        const update = ()=>{
-            const status = read();
+        return this.createMultiPreferredDeviceSelector(
+                {
+                    availablePreferedCurrentPath: params.availablePreferedCurrentPath,
+                    list: ()=>[""],
+                    read: ()=>params.read(),
+                    set: (id:string, p)=>params.set(p)
+                });
+    }
+
+    // availablePreferedCurrentPath: a json synchronizer path that match available, prefered and current properties.
+    //                               it can contain one wildcard for available and current
+    public createMultiPreferredDeviceSelector<T>(params: {
+                        availablePreferedCurrentPath: any,
+                        list:()=>string[],
+                        read:(id:string)=>{available: string[], current: string|null, prefered: string|null}|null,
+                        set:(id:string, p:{current?: string|null, prefered?: string|null})=>(void)})
+    {
+        const update = (id:string)=>{
+            const status = params.read(id);
+            if (status === null) {
+                return;
+            }
             let newCurrent: string|null|undefined;
             let newPrefered: string|null|undefined;
             if (status.current !== null) {
@@ -151,13 +171,25 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 }
             }
             if (newCurrent !== undefined || newPrefered !== undefined) {
-                set({current: newCurrent, prefered: newPrefered});
+                params.set(id, {current: newCurrent, prefered: newPrefered});
             }
         };
 
+        const wildcardUpdate = (wildcards: TriggeredWildcard)=> {
+            if (wildcards[NoWildcard]) {
+                for(const id of params.list()) {
+                    update(id);
+                }
+            } else {
+                for(const id of Object.keys(wildcards)) {
+                    update(id);
+                }
+            }
+        }
         this.appStateManager.addSynchronizer(
-            [...basePath, [ availablePathName , currentPathName, preferedPathName]],
-            update,
+            params.availablePreferedCurrentPath,
+            wildcardUpdate,
+            true,
             true
         );
     }

@@ -11,3 +11,7 @@
 .FocuserState_error {
     color: red;
 }
+
+.FocuserGraph {
+    height: calc( 100% - 8em );
+}

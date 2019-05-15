@@ -236,6 +236,18 @@ export class Device {
     {
         return new Vector(this.connection, this.device, vectorId);
     }
+
+    isConnected() {
+        const vec = this.getVector('CONNECTION');
+        if (!vec.exists()) {
+            return false;
+        }
+
+        if (vec.getState() === "Busy") {
+            return false;
+        }
+        return (vec.getPropertyValueIfExists("CONNECT") === "On");
+    }
 }
 
 export class IndiConnection {

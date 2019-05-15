@@ -1,18 +1,24 @@
 import * as React from 'react';
+import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
 import { Line } from 'react-chartjs-2';
 
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Store from './Store';
+import * as Utils from './Utils';
+import PromiseSelector from './PromiseSelector';
 import './CameraView.css'
+import CameraSettingsView from './CameraSettingsView';
+import DeviceConnectBton from './DeviceConnectBton';
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 import ScrollableText from './ScrollableText';
 import * as BackendRequest from "./BackendRequest";
 
 import './FocuserView.css';
+import Panel from './Panel';
 
-class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.AutoFocusSettings> {
+class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.FocuserSettings> {
     // public apply = async (jsonDiff:any):Promise<void>=>{
     apply = async (jsonDiff:any)=>{
         console.log('Sending changes: ' , jsonDiff);
@@ -140,10 +146,29 @@ const FocuserGraph = Store.Connect<UnmappedFocuserGraph, FocuserGraphInputProps,
 
 type InputProps = {}
 type MappedProps = {
+    camera: string|null;
+    focuser: string|null;
     status: BackOfficeStatus.AutoFocusStatus["status"];
     error: BackOfficeStatus.AutoFocusStatus["error"];
 }
 type Props = InputProps & MappedProps;
+
+const CameraSelector = connect((store:Store.Content)=> ({
+    active: store.backend && store.backend.focuser ? store.backend.focuser.selectedCamera : undefined,
+    availables: store.backend && store.backend.camera ? store.backend.camera.availableDevices : []
+}))(PromiseSelector);
+
+const FocuserSelector = connect((store:Store.Content)=> {
+    const camera = store.backend && store.backend.focuser ? store.backend.focuser.selectedCamera : undefined;
+
+    return {
+        active: camera === null || camera === undefined ? null:
+                store.backend && store.backend.camera && Utils.has(store.backend.camera.dynStateByDevices, camera)
+                     ? store.backend.camera.dynStateByDevices[camera].focuserDevice : null,
+        availables: store.backend && store.backend.focuser ? store.backend.focuser.availableFocusers : []
+    };
+})(PromiseSelector);
+
 
 class UnmappedFocuserView extends React.PureComponent<Props> {
     constructor(props: Props) {
@@ -166,31 +191,122 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         );
     }
 
+    setCamera = async(id:string)=> {
+        return await BackendRequest.RootInvoker("focuser")("setCurrentCamera")(
+            CancellationToken.CONTINUE,
+            {
+                cameraDevice: id
+            }
+        );
+    };
+
+    setFocuser = async(id:string)=> {
+        if (this.props.camera === null) {
+            throw new Error("no camera selected");
+        }
+        return await BackendRequest.RootInvoker("focuser")("setCurrentFocuser")(
+            CancellationToken.CONTINUE,
+            {
+                cameraDevice: this.props.camera,
+                focuserDevice: id,
+            }
+        );
+    };
+
+    cameraSettingSetter = (propName:string):((v:any)=>Promise<void>)=>{
+        return async (v:any)=> {
+            if (this.props.camera === null) {
+                throw new Error("No camera selected");
+            }
+            await BackendRequest.RootInvoker("camera")("setShootParam")(
+                CancellationToken.CONTINUE,
+                {
+                    camera: this.props.camera,
+                    key: propName as any,
+                    value: v
+                }
+            );
+        }
+    }
+
     render() {
         return (
             <div className="Page">
-                <ScrollableText className={'FocuserState FocuserState_' + this.props.status}>
-                    {this.props.status === 'error' ? this.props.error : this.props.status}
-                </ScrollableText>
-                <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.currentSettings")}/>
-                <div className="PhdGraph_Item">
-                    <div className="PhdGraph_Container">
-                        <FocuserGraph/>
+                <div className="AstrometryWizardContent">
+                    <div className="AstrometryWizardSelectTitle">Focus</div>
+                    <ScrollableText className={'FocuserState FocuserState_' + this.props.status}>
+                        {this.props.status === 'error' ? this.props.error : this.props.status}
+                    </ScrollableText>
+                    <div className="PhdGraph_Item FocuserGraph">
+                        <div className="PhdGraph_Container">
+                            <FocuserGraph/>
+                        </div>
                     </div>
+
+                    <Panel guid="astrom:polaralign:camera">
+                        <span>Settings</span>
+                    
+                        <div>
+                            <CameraSelector setValue={this.setCamera}/>
+                            <DeviceConnectBton
+                                    activePath="$.backend.focuser.selectedCamera"/>
+                        </div>
+                        <CameraSettingsView
+                            settingsPath={"$.backend.camera.configuration.deviceSettings"}
+                            activePath="$.backend.focuser.selectedCamera"
+                            setValue={this.cameraSettingSetter}
+                        />
+
+                        {this.props.camera !== null
+                            ?
+                            <div>
+                                <FocuserSelector setValue={this.setFocuser}/>
+                                <DeviceConnectBton
+                                    activePath={"$.backend.camera.dynStateByDevices[" + JSON.stringify(this.props.camera) + "].focuserDevice"}/>
+                            </div>
+                            :
+                            null
+                        }
+                        {this.props.focuser !== null
+                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.config.settings[" + JSON.stringify(this.props.focuser) + "]")}/>
+                            : null
+                        }
+                    </Panel>
                 </div>
-                <div className="ButtonBar">
-                <input type="button" value="Focus" onClick={this.start}
-                    // disabled={StatusForGuiding.indexOf(bs.AppState) == -1}
-                    />
-                <input type="button" value="Stop" onClick={this.stop}
-                    // disabled={bs.AppState == "Stopped"}
-                    />
+
+                <div className="AstrometryWizardControls">
+                    <input type="button" value="Stop" onClick={this.stop}
+                        className="WizardLeftButton"
+                        disabled={this.props.status !== "running"}
+                        />
+                    <input type="button" value="Focus" onClick={this.start}
+                        className="WizardRightButton"
+                        disabled={this.props.focuser === null || this.props.camera === null || this.props.status === "running"}
+                        />
                 </div>
             </div>);
     }
 
     static mapStateToProps(store: Store.Content) {
+        const camera = store.backend.focuser!.selectedCamera;
+        let focuser = Utils.noErr(()=>{
+            if (camera === null) {
+                return null;
+            }
+            const d = store.backend.camera!.dynStateByDevices;
+            if (!Utils.has(d, camera)) {
+                return null;
+            }
+            return d[camera!].focuserDevice
+        }, null);
+
+        if (focuser === undefined) {
+            focuser = null;
+        }
+
         return {
+            camera,
+            focuser,
             status: store.backend.focuser!.current.status,
             error: store.backend.focuser!.current.error
         }

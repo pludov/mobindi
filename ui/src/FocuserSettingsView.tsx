@@ -5,10 +5,10 @@ import Text from './primitives/Text';
 import Conditional from './primitives/Conditional';
 import './CameraView.css'
 import BackendAccessor from './utils/BackendAccessor';
-import { AutoFocusSettings } from '@bo/BackOfficeStatus';
+import { FocuserSettings } from '@bo/BackOfficeStatus';
 
 type Props = {
-    accessor: BackendAccessor<AutoFocusSettings>;
+    accessor: BackendAccessor<FocuserSettings>;
 }
 
 export default class FocuserSettingsView extends React.PureComponent<Props> {

@@ -1,5 +1,5 @@
 import * as ProcessorTypes from "./ProcessorTypes";
-import { ShootSettings } from './BackOfficeStatus';
+import { CameraDeviceSettings } from './BackOfficeStatus';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -64,7 +64,7 @@ export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     abort: (payload: {})=>void;
     setCamera: (payload: {device: string})=>void;
-    setShootParam: <K extends keyof ShootSettings>(payload: {key: K, value: ShootSettings[K]})=>void;
+    setShootParam: <K extends keyof CameraDeviceSettings>(payload: {camera?: string, key: K, value: CameraDeviceSettings[K]})=>void;
     newSequence: (payload: {})=>string;
     startSequence: (payload: {sequenceUid: string})=>void;
     stopSequence: (payload: {sequenceUid: string})=>void;
@@ -93,6 +93,8 @@ export type AstrometryAPI = AstrometryWizards & {
 }
 
 export type FocuserAPI = {
+    setCurrentCamera:(payload: {cameraDevice: string})=>void;
+    setCurrentFocuser:(payload: {focuserDevice: string, cameraDevice?: string})=>void;
     updateCurrentSettings: (payload: {diff: any})=>void;
     focus: (payload: {})=>number;
     abort: (payload: {})=>void;

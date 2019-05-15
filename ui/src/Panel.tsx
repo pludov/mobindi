@@ -16,11 +16,18 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 class Panel extends React.PureComponent<Props> {
+    private child = React.createRef<HTMLSpanElement>();
     setState = (b:boolean)=> {
         Actions.dispatch<GenericUiStore.Actions>()("setPanelState", {
             panelId: this.props.guid,
             panelState: b
         });
+    }
+
+    scrollIntoView = ()=> {
+        if (this.child.current!) {
+            this.child.current!.scrollIntoView({behavior: "smooth"});
+        }
     }
 
     open = ()=> {
@@ -38,10 +45,11 @@ class Panel extends React.PureComponent<Props> {
                         className={this.props.className}
                         open={this.props.state}
                         onOpening={this.open}
+                        onOpen={this.scrollIntoView}
                         onClosing={this.close}
                         transitionTime={200}
                         trigger={head as React.ReactElement<any>}
-                        lazyRender={true}>{children}</Collapsible>;
+                        lazyRender={true}><span ref={this.child}>{children}</span></Collapsible>;
     }
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {

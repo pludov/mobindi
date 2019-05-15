@@ -1,13 +1,18 @@
 import { AstrometryResult } from "./ProcessorTypes";
 import { IndiMessage } from "./IndiTypes";
 
-export type ShootSettings = {
+export type CameraDeviceSettings = {
     prefix?:string;
     type?:string;
     bin?: number;
     exposure: number;
     iso?: null|string;
+    preferedFocuserDevice?: null|string;
 }
+
+export type CameraDeviceDynState = {
+    focuserDevice?: null|string;
+};
 
 export type SequenceStep = {
     count: number;
@@ -115,7 +120,7 @@ export type CameraConfiguration = {
     fakeImages?: string[];
     fakeImagePath?: string;
     preferedDevice: string | null;
-    deviceSettings : {[id: string] : ShootSettings};
+    deviceSettings : {[id: string] : CameraDeviceSettings};
 };
 
 export type CameraStatus = {
@@ -124,6 +129,7 @@ export type CameraStatus = {
     availableDevices: string [];
     currentShoots: {[deviceId:string]:any};
     lastByDevices: {[deviceId:string]:string};
+    dynStateByDevices: {[deviceId: string] : CameraDeviceDynState};
     images: {
         list: string[];
         byuuid: {[uuid:string]:ImageStatus}
@@ -133,20 +139,31 @@ export type CameraStatus = {
         list: string[],
         byuuid: {[uuid: string]:Sequence}
     };
+
+    // FIXME: config
     configuration: CameraConfiguration;
 }
 
-export type AutoFocusSettings = {
+export type FocuserSettings = {
     range: number;
     steps: number;
     backlash: number;
     lowestFirst : boolean;
     targetCurrentPos: boolean;
     targetPos: number;
+}
+
+export type AutoFocusConfiguration = {
+    preferedCamera: string|null;
+
+    // By focuser settings
+    settings: {[id: string]:FocuserSettings};
 };
 
 export type AutoFocusStatus = {
     status: "idle"|"running"|"done"|"error"|"interrupted";
+    camera: null|string;
+    focuser: null|string;
     error: null|string;
     firstStep: null|number;
     lastStep: null|number;
@@ -160,10 +177,9 @@ export type FocuserUpdateCurrentSettingsRequest = {
 }
 
 export type FocuserStatus = {
-    selectedDevice: string|null;
-    preferedDevice: string|null;
-    availableDevices: string[];
-    currentSettings: AutoFocusSettings;
+    selectedCamera: string|null;
+    availableFocusers: string[];
+    config: AutoFocusConfiguration;
     current: AutoFocusStatus;
 }
 
