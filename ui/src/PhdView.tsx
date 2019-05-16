@@ -4,9 +4,8 @@
 import * as React from 'react';
 
 import chartjs from "chart.js";
-//@ts-ignore
-require("chartjs-plugin-zoom");
 import * as ReactChartJS from "react-chartjs-2";
+import * as ChartJSZoomPlugin from "./utils/ChartJSZoomPlugin";
 import moment from 'moment';
 
 import * as Store from "./Store";
@@ -381,7 +380,7 @@ class PhdView extends React.PureComponent<Props, State> {
                 </div>
                 <div className="PhdGraph_Item">
                     <div className="PhdGraph_Container">
-                        <ReactChartJS.Line  data={chartData} options={chartOptions} />
+                        <ReactChartJS.Line  data={chartData} options={chartOptions} plugins={ChartJSZoomPlugin.plugins()}/>
                     </div>
                     <select value={currentZoom} onChange={this.updateZoom} className="PhdRangeSelector">
                         {scales.map(e=> <option key={e.value} value={e.value}>{e.title}</option>)}

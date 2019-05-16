@@ -12,9 +12,6 @@ import Progress from "./Progress";
 import Adjust from "./Adjust";
 import "./PolarAlignment.css";
 
-require("chartjs-plugin-zoom");
-import * as ReactChartJS from "react-chartjs-2";
-
 type InputProps = {};
 type MappedProps = {
     status: PolarAlignStatus["status"]|null;

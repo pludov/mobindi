@@ -1,10 +1,7 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import chartjs from "chart.js";
-//@ts-ignore
-require("chartjs-plugin-zoom");
 import * as ReactChartJS from "react-chartjs-2";
-
 import '../../AstrometryView.css';
 import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";

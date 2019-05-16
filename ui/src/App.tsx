@@ -18,6 +18,9 @@ import { BackendStatus } from './BackendStore';
 import * as StoreInitialiser from './StoreInitialiser';
 import * as Store from './Store';
 import BaseApp from './BaseApp';
+import * as ChartJSZoomBugfix from './utils/ChartJSZoomPlugin';
+
+ChartJSZoomBugfix.init();
 
 /** Affiche un état pendant la connection */
 
