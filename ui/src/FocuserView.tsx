@@ -7,6 +7,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Store from './Store';
 import * as Utils from './Utils';
 import PromiseSelector from './PromiseSelector';
+import * as IndiManagerStore from './IndiManagerStore';
 import './CameraView.css'
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
@@ -30,13 +31,15 @@ class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.FocuserSet
 }
 
 type FocuserGraphInputProps = {
+    focuser: string | null;
 }
+
 type FocuserGraphMappedProps = {
     firstStep: BackOfficeStatus.AutoFocusStatus["firstStep"];
     lastStep: BackOfficeStatus.AutoFocusStatus["lastStep"];
     points: BackOfficeStatus.AutoFocusStatus["points"];
     predicted: BackOfficeStatus.AutoFocusStatus["predicted"];
-    
+    currentPosition: number|null;
 }
 type FocuserGraphProps = FocuserGraphInputProps & FocuserGraphMappedProps;
 
@@ -48,11 +51,26 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
         };
         const propDefs = [
             {prop: 'fwhm', color:'#ff0000', source: this.props.points},
-            {prop: 'fwhm', color:'#0000ff', source: this.props.predicted, hideEmpty: true, label:'prediction'}
+            {prop: 'fwhm', color:'#0000ff', source: this.props.predicted, hideEmpty: true, label:'prediction'},
+            {prop: 'x', color: '#808080',
+                    yAxisID: 'currentPos',
+                    backgroundColor: 'rgb(60,100,1)',
+                    borderColor: 'rgba(60,100,1)',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    fill: true,
+                    stepped: false,
+                    label: 'Current',
+                    range: true,
+                    source: this.props.currentPosition !== null
+                        ? {[this.props.currentPosition]: {x:1}} : {},
+            }
         ];
 
         for(let propDef of propDefs)
         {
+            const range = propDef.range;
+
             let data = {
                 label: propDef.prop,
                 borderWidth: 1.5,
@@ -69,7 +87,7 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
             }
         
             var points = propDef.source;
-            var previous = undefined;
+            let previousX:number|undefined = undefined;
             const steps = Object.keys(points);
             steps.sort((a, b) => parseFloat(a) - parseFloat(b));
             console.log('Steps ar :', steps);
@@ -78,13 +96,52 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
                 const point = points[step];
 
                 if (propDef.prop in point) {
-                    var value = point[propDef.prop];
-                    data.data.push({x: parseFloat(step), y:value});
+                    const x = parseFloat(step);
+                    const value = point[propDef.prop];
+                    if (range) {
+                        if (previousX === undefined) {
+                            data.data!.push({x:x, y:0} as any);
+                        }
+                        previousX = x;
+                    }
+                    data.data.push({x: x, y:value});
                 }
+            }
+            if (range && previousX !== undefined) {
+                // Close
+                data.data!.push({x:previousX, y:0} as any);
             }
             if (data.data.length || !propDef.hideEmpty) {
                 chartData.datasets.push(data);
             }
+        }
+
+
+        let min = this.props.firstStep;
+        let max = this.props.lastStep;
+        if (max !== null && min !== null && max < min) {
+            const t = max;
+            max = min;
+            min = t;
+        }
+
+        if (this.props.currentPosition !== null) {
+            if (min === null || max === null) {
+                min = Math.max(this.roundBefore(this.props.currentPosition - 100, 100), 0);
+                max = this.props.currentPosition + 100;
+            } else if (this.props.currentPosition < min) {
+                const granularity = this.getGranularity(max - min);
+                min = Math.max(this.roundBefore(this.props.currentPosition - granularity, granularity), 0);
+            } else if (this.props.currentPosition > max) {
+                const granularity = this.getGranularity(max - min);
+                max = this.roundAfter(this.props.currentPosition + granularity, granularity);
+            }
+        }
+        if (min === null) {
+            min = 0;
+        }
+        if (max === null) {
+            max = min + 100;
         }
 
         var chartOptions= {
@@ -94,14 +151,14 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
                     id: 'default',
                     type: 'linear',
                     ticks: {
-                        callback: (e:any)=>(typeof(e) == 'number') ? e.toFixed(1) : e
-                    //     beginAtZero: false,
+                        callback: (e:any)=>(typeof(e) == 'number') ? e.toFixed(1) : e,
+                        beginAtZero: true,
                     //     min: -1.0,
                     //     max: 1.0
                     }
                 },
                 {
-                    id: 'settling',
+                    id: 'currentPos',
                     type: 'linear',
                     display: false,
                     ticks: {
@@ -115,8 +172,8 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
                     id: 'step',
                     type: 'linear',
                     ticks: {
-                        min: this.props.firstStep || 0,
-                        max: this.props.lastStep || 0,
+                        min: min,
+                        max: max,
                         maxRotation: 0
                     },
                 }]
@@ -130,12 +187,43 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
         return <Line data={chartData} options={chartOptions} />;
     }
 
-    static mapStateToProps(store:Store.Content) {
+    getGranularity(level:number) {
+        level = Math.abs(level);
+        if (level <= 1) {
+            return level;
+        }
+        return Math.pow(10, Math.floor(Math.log10(level)));
+    }
+
+    roundBefore(value: number, granularity : number)
+    {
+        return granularity * Math.floor(value / granularity)
+    }
+
+    roundAfter(value: number, granularity : number)
+    {
+        return granularity * Math.ceil(value / granularity)
+    }
+
+    static mapStateToProps(store:Store.Content, ownProps: FocuserGraphInputProps) {
+        // Get property for focuser position
+        let currentPositionStr =
+            ownProps.focuser === null
+                ? null
+                : IndiManagerStore.getProperty(store, ownProps.focuser, 'ABS_FOCUS_POSITION', 'FOCUS_ABSOLUTE_POSITION');
+        let currentPosition =
+            currentPositionStr === null
+                ? null
+                : parseInt(currentPositionStr);
+        if (currentPosition !== null && isNaN(currentPosition)) {
+            currentPosition = null;
+        }
         var result = {
             firstStep: store.backend.focuser!.current.firstStep,
             lastStep: store.backend.focuser!.current.lastStep,
             points: store.backend.focuser!.current.points,
-            predicted: store.backend.focuser!.current.predicted
+            predicted: store.backend.focuser!.current.predicted,
+            currentPosition
         };
         return result;
     }
@@ -239,7 +327,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                     </ScrollableText>
                     <div className="PhdGraph_Item FocuserGraph">
                         <div className="PhdGraph_Container">
-                            <FocuserGraph/>
+                            <FocuserGraph focuser={this.props.focuser}/>
                         </div>
                     </div>
 

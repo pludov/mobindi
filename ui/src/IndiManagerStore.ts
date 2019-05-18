@@ -73,25 +73,27 @@ export function adjusters():Array<(state:Store.Content)=>Store.Content> {
 
 export function hasConnectedDevice(state: Store.Content, devName: string):boolean
 {
+    const cnx = getProperty(state, devName, "CONNECTION", "CONNECT");
+    return cnx === 'On';
+}
+
+export function getProperty(state: Store.Content, devName: string, vecName: string, propName: string):string|null
+{
     const indiManager = state.backend.indiManager;
     if (indiManager === undefined) {
-        return false;
+        return null;
     }
     if (!Utils.has(indiManager.deviceTree, devName)) {
-        return false;
+        return null;
     }
     const dtree = indiManager.deviceTree[devName];
-    if (!Utils.has(dtree, "CONNECTION")) {
-        return false;
+    if (!Utils.has(dtree, vecName)) {
+        return null;
     }
-    const connVec = dtree["CONNECTION"];
-    if (!Utils.has(connVec.childs, "CONNECT")) {
-        return false;
+    const connVec = dtree[vecName];
+    if (!Utils.has(connVec.childs, propName)) {
+        return null;
     }
-    const connectProp = connVec.childs["CONNECT"];
-    if (connectProp.$_ != 'On') {
-        return false;
-    }
-
-    return true;
+    const connectProp = connVec.childs[propName];
+    return connectProp.$_;
 }
