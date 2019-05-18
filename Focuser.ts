@@ -406,11 +406,11 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         console.log('regression with :' + JSON.stringify(data));
         const result = new PolynomialRegression(data.map(e=>e[0]), data.map(e=>e[1]), 4);
         // This is ugly. but works
-        const precision = Math.ceil(stepSize / 7);
+        const precision = Math.min(Math.abs(lastStep - firstStep), 128);
         let bestValue = undefined;
         let bestPos;
         for(let i = 0; i <= precision; ++i) {
-            const pos = firstStep + i * (lastStep - firstStep) / precision;
+            const pos = firstStep + i === 0 ? i : i * (lastStep - firstStep) / precision;
             const pred = result.predict(pos);
             console.log('predict: '  + JSON.stringify(pred));
             const valueAtPos = pred;
