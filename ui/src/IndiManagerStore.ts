@@ -1,6 +1,7 @@
 import * as Actions from "./Actions";
 import * as Store from "./Store";
 import * as Utils from "./Utils";
+import { IndiVector } from '@bo/BackOfficeStatus';
 
 export type IndiManagerStoreContent = {
     selectedDevice: string|undefined;
@@ -77,7 +78,7 @@ export function hasConnectedDevice(state: Store.Content, devName: string):boolea
     return cnx === 'On';
 }
 
-export function getProperty(state: Store.Content, devName: string, vecName: string, propName: string):string|null
+export function getVector(state: Store.Content, devName: string, vecName: string):IndiVector|null
 {
     const indiManager = state.backend.indiManager;
     if (indiManager === undefined) {
@@ -91,9 +92,18 @@ export function getProperty(state: Store.Content, devName: string, vecName: stri
         return null;
     }
     const connVec = dtree[vecName];
-    if (!Utils.has(connVec.childs, propName)) {
+    return connVec;
+}
+
+export function getProperty(state: Store.Content, devName: string, vecName: string, propName: string):string|null
+{
+    const vec = getVector(state, devName, vecName);
+    if (vec === null) {
         return null;
     }
-    const connectProp = connVec.childs[propName];
+    if (!Utils.has(vec.childs, propName)) {
+        return null;
+    }
+    const connectProp = vec.childs[propName];
     return connectProp.$_;
 }

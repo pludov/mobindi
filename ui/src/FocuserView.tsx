@@ -40,6 +40,7 @@ type FocuserGraphMappedProps = {
     points: BackOfficeStatus.AutoFocusStatus["points"];
     predicted: BackOfficeStatus.AutoFocusStatus["predicted"];
     currentPosition: number|null;
+    currentMoving: boolean;
 }
 type FocuserGraphProps = FocuserGraphInputProps & FocuserGraphMappedProps;
 
@@ -54,13 +55,13 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
             {prop: 'fwhm', color:'#0000ff', source: this.props.predicted, hideEmpty: true, label:'prediction'},
             {prop: 'x', color: '#808080',
                     yAxisID: 'currentPos',
-                    backgroundColor: 'rgb(60,100,1)',
-                    borderColor: 'rgba(60,100,1)',
+                    backgroundColor: this.props.currentMoving ? 'rgb(250,210,0)' : 'rgb(110,190,1)',
+                    borderColor: this.props.currentMoving ? 'rgb(250,210,0)' : 'rgb(110,190,1)',
                     borderWidth: 2,
                     pointRadius: 2,
                     fill: true,
                     stepped: false,
-                    label: 'Current',
+                    label: this.props.currentMoving ? 'Focuser (moving)' : 'Focuser',
                     range: true,
                     source: this.props.currentPosition !== null
                         ? {[this.props.currentPosition]: {x:1}} : {},
@@ -218,12 +219,20 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
         if (currentPosition !== null && isNaN(currentPosition)) {
             currentPosition = null;
         }
+
+        let currentMoving: boolean = false;
+        if (currentPosition !== null) {
+            const vec = IndiManagerStore.getVector(store, ownProps.focuser!, 'ABS_FOCUS_POSITION');
+            currentMoving = vec !== null && vec.$state === "Busy";
+        }
+
         var result = {
             firstStep: store.backend.focuser!.current.firstStep,
             lastStep: store.backend.focuser!.current.lastStep,
             points: store.backend.focuser!.current.points,
             predicted: store.backend.focuser!.current.predicted,
-            currentPosition
+            currentPosition,
+            currentMoving,
         };
         return result;
     }
