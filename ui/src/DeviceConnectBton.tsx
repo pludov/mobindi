@@ -3,6 +3,7 @@ import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
 import { atPath } from './shared/JsonPath';
 import CancellationToken from 'cancellationtoken';
+import "./DeviceConnectBton.css";
 
 type InputProps = {
     // name of the device (indi id)
@@ -29,26 +30,26 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
     }
 
     render() {
-        var title, enabled = false;
-
+        var enabled = false;
+        let className;
         switch(this.props.state) {
             case 'On':
-                title='Disconnect';
+                className="DeviceConnectBtonOn";
                 enabled = true;
                 break;
             case 'Off':
-                title='Connect';
+                className='DeviceConnectBtonOff';
                 enabled = true;
                 break;
             case 'Busy':
-                title='Switching...';
+                className="DeviceConnectBtonBusy";
                 enabled = false;
             default:
-                title = 'Connect';
+                className="DeviceConnectBtonOther";
                 enabled = false;
         }
 
-        return <input type="button" onClick={this.switchConnection} disabled={!enabled} value={title}/>
+        return <input type="button" className={"DeviceConnectBton " + className} onClick={this.switchConnection} disabled={!enabled} value={"\u23FB"}/>
     }
 
     async switchConnection() {

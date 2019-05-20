@@ -1,0 +1,43 @@
+.DeviceConnectBton {
+    font-weight: bold;
+}
+
+.DeviceConnectBtonOn {
+    color: green;
+}
+
+.DeviceConnectBtonOff {
+    color: grey;
+}
+
+.DeviceConnectBtonBusy {
+    color: yellow;
+}
+
+.DeviceConnectBtonOther {
+    color: grey;
+}
+
+.DeviceConnectBtonBusy {
+    background-clip: border-box;
+    background-image:
+    repeating-linear-gradient(
+        -45deg,
+        #0000ff10,
+        #0000ffff 5px,
+        #0000ff10 10px,
+        #e0e0e000 10px,
+        #e0e0e000 20px /* determines size */
+    );
+    background-size: 28px 28px;
+    animation: move 1s linear infinite;
+}
+
+@keyframes move {
+    0% {
+    background-position: 0 0;
+    }
+    100% {
+    background-position: 28px 0;
+    }
+}
