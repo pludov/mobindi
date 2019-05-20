@@ -11,6 +11,8 @@ import * as Utils from "../Utils";
 import Modal from '../Modal';
 import IndiDriverConfig from '../IndiDriverConfig';
 import "./IndiManagerView.css";
+import DeviceSettingsBton from '../DeviceSettingsBton';
+import DeviceConnectBton from '../DeviceConnectBton';
 
 type InputProps = {
 }
@@ -40,14 +42,8 @@ class IndiDriverControlPanel extends React.PureComponent<Props> {
     render() {
         if (this.props.configured) {
             return <span>
-                <Modal
-                    ref={this.modal}>
-                    <IndiDriverConfig driverId={this.props.current} />
-                </Modal>
-                <input type='button'
-                            className='IndiConfigButton'
-                            onClick={this.config}
-                            value='...'/>
+                <DeviceConnectBton deviceId={this.props.current}/>
+                <DeviceSettingsBton deviceId={this.props.current}/>
                 <input type='button'
                             onClick={this.restart}
                             className='IndiRestartButton'

@@ -215,7 +215,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                             getValue={(store)=>Utils.noErr(()=>store.backend.camera!.sequences.byuuid[this.props.uid!].camera, null)}
                             setValue={(e)=>this.updateSequenceParam('camera', e)}
                         />
-                        <DeviceConnectBton
+                        <DeviceConnectBton.forActivePath
                             activePath={"$.backend.camera.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
                         />
                 </div>

@@ -1,17 +1,16 @@
 import * as React from 'react';
 import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
-import { atPath } from './shared/JsonPath';
 import CancellationToken from 'cancellationtoken';
+import * as DeviceIdMapper from './indiview/DeviceIdMapper';
 import "./DeviceConnectBton.css";
 
 type InputProps = {
     // name of the device (indi id)
-    activePath: string;
+    deviceId: string | null;
 }
 
 type MappedProps = {
-    currentDevice: null|string;
     state: "NotFound"|"Busy"|"On"|"Off";
 }
 
@@ -53,7 +52,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
     }
 
     async switchConnection() {
-        const device = this.props.currentDevice;
+        const device = this.props.deviceId;
         if (device === null) {
             return;
         }
@@ -73,10 +72,10 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {
-        var currentDevice = atPath(store, ownProps.activePath);
-        if (currentDevice === null || currentDevice === undefined) {
+        console.log('mapping deviceConnectbton', ownProps);
+        const currentDevice = ownProps.deviceId;
+        if (currentDevice === null) {
             return {
-                currentDevice: null,
                 state: "NotFound"
             }
         }
@@ -88,23 +87,25 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
             if (vec.$state == "Busy") {
                 return {
-                    currentDevice,
                     state: "Busy"
                 }
             }
 
             const prop = vec.childs.CONNECT;
             return {
-                currentDevice,
                 state : prop.$_ == "On" ? "On" : "Off",
             }
         } catch(e) {
             return {
-                currentDevice,
                 state: "NotFound",
             }
         }
     }
 }
 
-export default Store.Connect(UnmappedDeviceConnectBton);
+const ctor = Store.Connect(UnmappedDeviceConnectBton);
+const forActivePath = DeviceIdMapper.forActivePath(ctor);
+
+(ctor as any).forActivePath = forActivePath;
+
+export default ctor as (typeof ctor & {forActivePath : typeof forActivePath});

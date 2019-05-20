@@ -3,17 +3,17 @@ import { connect } from 'react-redux';
 
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
-import PromiseSelector from './PromiseSelector';
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
 import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 import ShootButton from "./ShootButton";
-import './CameraView.css'
 import CancellationToken from 'cancellationtoken';
 import { noErr } from './Utils';
 import { ShootResult } from '@bo/BackOfficeAPI';
 import CameraSelector from "./CameraSelector";
+import DeviceSettingsBton from './DeviceSettingsBton';
 
+import './CameraView.css'
 
 type InputProps = {
 }
@@ -61,7 +61,9 @@ class CameraView extends React.PureComponent<Props> {
         return(<div className="CameraView">
             <div>
                 <CameraSelector setValue={this.setCamera}/>
-                <DeviceConnectBton
+                <DeviceConnectBton.forActivePath
+                        activePath="$.backend.camera.selectedDevice"/>
+                <DeviceSettingsBton.forActivePath
                         activePath="$.backend.camera.selectedDevice"/>
             </div>
             <CameraSettingsView

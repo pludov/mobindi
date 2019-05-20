@@ -75,7 +75,7 @@ class IndiManagerView extends React.PureComponent<Props> {
                     for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
                         childs.push(<IndiVectorView key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
                     }
-
+                    // use panel here... 
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
                         open={groupDesc.opened}
@@ -84,13 +84,6 @@ class IndiManagerView extends React.PureComponent<Props> {
                         transitionTime={200}
                         trigger={group}
                         lazyRender={true}>{childs}</Collapsible>);
-                    /**
-                     *                 // Parcourir les groupes
-                     for (var key in deviceProps) {
-                    vectors.push(<div key={key}>{JSON.stringify(deviceProps[key])}</div>);
-                }
-
-                     */
                 }
             }
 
@@ -107,7 +100,7 @@ class IndiManagerView extends React.PureComponent<Props> {
                 </div>
 
                 <div className="IndiDriverSelector">
-                    Driver: <IndiDriverSelector/>
+                    <IndiDriverSelector/>
                     <IndiDriverControlPanel/>
                 </div>
 

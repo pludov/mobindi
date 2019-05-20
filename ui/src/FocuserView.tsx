@@ -345,7 +345,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                     
                         <div>
                             <CameraSelector setValue={this.setCamera}/>
-                            <DeviceConnectBton
+                            <DeviceConnectBton.forActivePath
                                     activePath="$.backend.focuser.selectedCamera"/>
                         </div>
                         <CameraSettingsView
@@ -358,7 +358,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                             ?
                             <div>
                                 <FocuserSelector setValue={this.setFocuser}/>
-                                <DeviceConnectBton
+                                <DeviceConnectBton.forActivePath
                                     activePath={"$.backend.camera.dynStateByDevices[" + JSON.stringify(this.props.camera) + "].focuserDevice"}/>
                             </div>
                             :
