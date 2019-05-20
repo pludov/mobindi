@@ -44,9 +44,6 @@ export function start() {
         var actionsByApp = {};
 
         var reducer = function (state:Store.Content = initialState, action:any) {
-            var prevJson = JSON.stringify(state);
-            var prevState = state;
-
             var type = action.type;
             if (type == "update") {
                 state = update(state, action.op);
@@ -82,7 +79,6 @@ export function start() {
                     delete rslt.backendStatus;
                     delete rslt.backendError;
                     delete rslt.geoloc;
-                    // console.log("WTF slicing result is " + JSON.stringify(rslt));
                     return rslt;
                 },
                 deserialize: (data:string)=>{
@@ -91,6 +87,7 @@ export function start() {
                     delete ret.backendStatus;
                     delete ret.backendError;
                     delete ret.geoloc;
+                    // FIXME: ensure no missing property
                     return ret;
                 }
             })
