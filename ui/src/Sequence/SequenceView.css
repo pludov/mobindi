@@ -1,11 +1,19 @@
 .SequenceStepMovableBlock.sortableHelper {
     z-index: 10;
     color: #ffffff;
-    background-color: #000000;
+    background-color: #303030;
 }
 
 .SequenceStepMovableBlock {
     list-style: none;
+    list-style: none;
+    border-color: #00ac9d;
+    border-width: 0 0 0 0.5em;
+    display: inline-block;
+    /* padding: 0.2em 0px 0px 0px; */
+    border-style: solid;
+    margin-bottom: 0.2em;
+    padding: 0 0 0 0.2em;
 }
 
 .SequenceStepContainer {
