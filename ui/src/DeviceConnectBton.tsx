@@ -72,7 +72,6 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {
-        console.log('mapping deviceConnectbton', ownProps);
         const currentDevice = ownProps.deviceId;
         if (currentDevice === null) {
             return {
