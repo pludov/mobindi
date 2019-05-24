@@ -60,24 +60,26 @@ input[type="checkbox"] {
     padding: 0;
     width: 5vw;
     height: 5vw;
+    vertical-align: middle;
 }
 
 input, button, select, option, textarea {
     font-size: 100%;
     margin: 0.5vw;
     collapse: true;
-    padding: 1vw 2vw 1vw 2vw;
     color: #000000;
 }
 
 select {
     height: 2em;
+    box-sizing: border-box;
 /*    border-width: 0.5vw;
 */
 }
 
 input[type=button] {
     height: 2em;
+    line-height: 1em;
     border-radius: 0.7vw;
     border-width: 0.5vw;
     background-color: #ccc;
