@@ -8,6 +8,7 @@ import ImageProcessor from "./ImageProcessor";
 import TriggerExecuter from "./TriggerExecuter";
 import ToolExecuter from "./ToolExecuter";
 import Focuser from "./Focuser";
+import FilterWheel from "./FilterWheel";
 
 export type ExpressApplication = ExpressApplication;
 
@@ -16,6 +17,7 @@ export type AppContext = {
     phd: Phd;
     indiManager: IndiManager;
     camera: Camera;
+    filterWheel: FilterWheel;
     triggerExecuter: TriggerExecuter;
     toolExecuter: ToolExecuter;
     focuser: Focuser;

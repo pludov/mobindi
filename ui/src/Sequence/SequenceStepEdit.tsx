@@ -1,13 +1,15 @@
 import * as React from 'react';
+import CancellationToken from 'cancellationtoken';
 
 import { SequenceStep } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
+import * as BackendRequest from '../BackendRequest';
 import TextEdit from "../TextEdit";
 import CameraFrameTypeEditor from '../CameraFrameTypeEditor';
+import FilterSelector from '../FilterSelector';
 
-import * as BackendRequest from '../BackendRequest';
-import CancellationToken from 'cancellationtoken';
+import KeepValue from './KeepValue';
 
 type InputProps = {
     sequenceUid: string;
@@ -72,6 +74,24 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 <TextEdit
                     value={this.props.details.count == null ? "" : "" + this.props.details.count}
                     onChange={(e:string)=> Utils.promiseToState(()=>this.updateSequenceParam('count', parseInt(e)), this)}/>
+            </div>
+            <div className="IndiProperty">
+                Filter:
+                <KeepValue
+                        valuePath={settingsPath+".filter"}
+                        setValue={()=>this.updateSequenceParam('filter', null)}>
+
+                    <FilterSelector
+                        deviceId={this.props.camera}
+                        setFilter={async(filterWheelDeviceId:string|null, filterId: string|null)=>{
+                            if (filterId === null && filterWheelDeviceId !== null) {
+                                return;
+                            }
+                            await this.updateSequenceParam('filter', filterId);
+                        }}
+                        getFilter={()=>this.props.details!.filter || null}
+                    />
+                </KeepValue>
             </div>
             <div className="IndiProperty">
                 Dither:

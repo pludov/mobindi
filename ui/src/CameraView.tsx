@@ -14,6 +14,7 @@ import CameraSelector from "./CameraSelector";
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
+import LiveFilterSelector from './LiveFilterSelector';
 
 type InputProps = {
 }
@@ -71,6 +72,7 @@ class CameraView extends React.PureComponent<Props> {
                 activePath="$.backend.camera.selectedDevice"
                 setValue={this.settingSetter}
             />
+            <LiveFilterSelector.forActivePath activePath="$.backend.camera.selectedDevice"/>
             <FitsViewerWithAstrometry
                 contextKey="default"
                 src={this.props.url}/>

@@ -41,7 +41,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
                 enabled = true;
                 break;
             case 'Busy':
-                className="DeviceConnectBtonBusy";
+                className="DeviceConnectBtonBusy BusyInfiniteMove";
                 enabled = false;
             default:
                 className="DeviceConnectBtonOther";

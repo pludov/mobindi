@@ -571,6 +571,15 @@ export default class Camera
                     console.log('Dithering required : ', Object.keys(this.context));
                     sequence.progress = "Dither " + shootTitle;
                     await this.context.phd.dither(ct);
+                    ct.throwIfCancelled();
+                }
+                if (step.filter) {
+                    console.log('Setting filter to ' + step.filter);
+                    await this.context.filterWheel.changeFilter(ct, {
+                        cameraDeviceId: sequence.camera,
+                        filterId: step.filter,
+                    });
+                    ct.throwIfCancelled();
                 }
 
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;

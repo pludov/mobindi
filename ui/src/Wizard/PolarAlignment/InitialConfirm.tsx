@@ -15,6 +15,7 @@ import IndiSelectorEditor from '@src/IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
+import LiveFilterSelector from '../../LiveFilterSelector';
 
 type InputProps = {};
 type MappedProps = {
@@ -71,6 +72,7 @@ class InitialConfirm extends React.PureComponent<Props> {
                     activePath="$.backend.camera.selectedDevice"
                     setValue={this.settingSetter}
                     />
+                <LiveFilterSelector.forActivePath activePath="$.backend.camera.selectedDevice"/>
             </Panel>
 
             <Panel guid="astrom:polaralign:movements">

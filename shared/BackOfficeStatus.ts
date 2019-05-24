@@ -8,16 +8,19 @@ export type CameraDeviceSettings = {
     exposure: number;
     iso?: null|string;
     preferedFocuserDevice?: null|string;
+    preferedFilterWheelDevice?: null|string;
 }
 
 export type CameraDeviceDynState = {
     focuserDevice?: null|string;
+    filterWheelDevice?: null|string;
 };
 
 export type SequenceStep = {
     count: number;
     dither?: boolean;
     done?: number;
+    filter?: string|null;
     type: string;
 }
 
@@ -66,6 +69,8 @@ export type IndiProperty = {
     $name: string;
     $label: string;
     $format: string;
+    $min?:string;
+    $max?:string;
 }
 
 export type IndiVector = {
@@ -181,6 +186,21 @@ export type FocuserStatus = {
     availableFocusers: string[];
     config: AutoFocusConfiguration;
     current: AutoFocusStatus;
+}
+
+export type FilterWheelDynState = {
+    targetFilterPos: number|null;
+    currentFilterPos: number|null;
+    filterIds: string[];
+}
+
+export type FilterSetting = {
+    color: string|null;
+}
+
+export type FilterWheelStatus = {
+    availableDevices: string[];
+    dynStateByDevices: {[deviceId: string] : FilterWheelDynState};
 }
 
 export type AstrometrySettings = {
@@ -359,6 +379,7 @@ export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
     camera: CameraStatus;
+    filterWheel: FilterWheelStatus;
     astrometry: AstrometryStatus;
     focuser: FocuserStatus;
     phd: PhdStatus;

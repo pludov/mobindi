@@ -36,6 +36,7 @@ import Sleep from "./Sleep";
 import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
+import FilterWheel from "./FilterWheel";
 
 const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
@@ -117,6 +118,8 @@ context.indiManager = new IndiManager(app, appStateManager, context as AppContex
 
 context.camera = new Camera(app, appStateManager, context as AppContext);
 
+context.filterWheel = new FilterWheel(app, appStateManager, context as AppContext);
+
 context.triggerExecuter = new TriggerExecuter(appStateManager, context as AppContext);
 
 context.toolExecuter = new ToolExecuter(appStateManager, context as AppContext);
@@ -127,6 +130,7 @@ context.astrometry = new Astrometry(app, appStateManager, context as AppContext)
 
 const apiRoot: RequestHandler.APIImplementor = {
     focuser: context.focuser.getAPI(),
+    filterWheel: context.filterWheel.getAPI(),
     toolExecuter: context.toolExecuter.getAPI(),
     astrometry: context.astrometry.getAPI(),
     indi: context.indiManager.getAPI(),
