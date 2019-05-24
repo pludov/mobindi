@@ -410,9 +410,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         let bestValue = undefined;
         let bestPos;
         for(let i = 0; i <= precision; ++i) {
-            const pos = firstStep + i === 0 ? i : i * (lastStep - firstStep) / precision;
+            const pos = firstStep + (i === 0 ? 0 : i * (lastStep - firstStep) / precision);
             const pred = result.predict(pos);
-            console.log('predict: '  + JSON.stringify(pred));
+            console.log('predict at : '  + i + '#' +pos+' => ' + JSON.stringify(pred));
             const valueAtPos = pred;
             this.currentStatus.current.predicted[pos] = {
                 fwhm: valueAtPos
