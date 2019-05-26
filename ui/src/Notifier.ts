@@ -375,7 +375,7 @@ export default class Notifier {
                     if (Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) {
                         const request = this.activeRequests[uid];
                         delete(this.activeRequests[uid]);
-                        this.toCancelRequests = this.toCancelRequests.filter((item)=>{item.uid != uid});
+                        this.toCancelRequests = this.toCancelRequests.filter((item)=>(item.uid !== uid));
                         console.log('Request status is ' + data.status);
                         try {
                             switch(data.status) {
