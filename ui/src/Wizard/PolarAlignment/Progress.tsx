@@ -7,7 +7,7 @@ import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
 import * as Utils from "../../Utils";
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
-import StatusLabel from '@src/Sequence/StatusLabel';
+import StatusLabel from '../../Sequence/StatusLabel';
 
 type InputProps = {};
 type MappedProps = PolarAlignStatus & {

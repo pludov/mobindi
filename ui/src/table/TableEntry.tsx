@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as Store from '../Store';
 import * as Table from "./Table";
-import ScrollableText from '@src/ScrollableText';
+import ScrollableText from '../ScrollableText';
 
 export type InputProps = {
     header: Array<Table.HeaderItem>;

@@ -11,11 +11,11 @@ import Float from '../../primitives/Float';
 import DeviceConnectBton from '../../DeviceConnectBton';
 import CameraSelector from "../../CameraSelector";
 import CameraSettingsView from '../../CameraSettingsView';
-import IndiSelectorEditor from '@src/IndiSelectorEditor';
+import IndiSelectorEditor from '../../IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
-import StatusLabel from '@src/Sequence/StatusLabel';
+import StatusLabel from '../../Sequence/StatusLabel';
 
 type InputProps = {};
 type MappedProps = {

@@ -11,7 +11,7 @@ import * as Utils from "../Utils";
 import "./IndiManagerView.css";
 import { createSelector } from 'reselect';
 import { IndiVector, IndiProperty } from '@bo/BackOfficeStatus';
-import TextEdit from '@src/TextEdit';
+import TextEdit from '../TextEdit';
 
 
 type InputProps = {
