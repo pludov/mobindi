@@ -132,7 +132,7 @@ Installation and build:
 ```
 git clone https://github.com/pludov/mobindi.git
 cd mobindi
-npm install
+npm install && npm run-script build
 (cd ui && npm install && npm run-script build)
 (cd fitsviewer && cmake . && make)
 ```
