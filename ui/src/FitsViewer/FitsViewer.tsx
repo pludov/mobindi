@@ -254,7 +254,13 @@ class JQImageDisplay {
                 bin = 0;
             }
 
-            str = 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&path=' + encodeURIComponent(path);
+            const env = process.env.NODE_ENV;
+            if (document.location.protocol === 'https:' || env === 'development') {
+                str = "http://" + document.location.hostname + ":8080" + (document.location.pathname.replace(/\/[^/]+/, '') || '/');
+            } else {
+                str = "";
+            }
+            str += 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&path=' + encodeURIComponent(path);
             str += '&low=' + this.levels.low;
             str += '&med=' + this.levels.medium;
             str += '&high=' + this.levels.high;
