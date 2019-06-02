@@ -38,6 +38,18 @@ existing softwares. You can find full software stack for astro/PI in the followi
   * NAFABox : http://www.webastro.net/forum/showthread.php?t=148388
   * ...
 
+## What's new
+
+Next release will include:
+  * Filterwheel control in camera and sequence
+  * Remember camera settings accros restarts
+  * Auto focuser graph improvment
+  * Preliminary support for ssl (on port 8443)
+  * New script for build/startup (startup.sh)
+
+
+Initial Release: 1.0
+
 ## Features
 
 ### Camera handling
@@ -114,35 +126,36 @@ Notifications from indi driver are visible here. The number of unread messages i
 
 Prior to using this software, you must have a working installation of Indi (server and drivers) and phd2 (so that clicking connect then guide actually starts guiding...).
 
-The above instructions are valid for a debian based system (including raspbian for raspberry PI). I use them verbatim on Ubuntu 17.04 (x86/64) and Linaro (Asus Tinker board).
+The above instructions are valid for a debian based system (including raspbian for raspberry PI). I use them verbatim on Ubuntu 18.04 (x86/64) and Linaro (Asus Tinker board).
 
 Some packages are required for building. Install them:
 ```
-sudo apt-get install git cmake zlib1g-dev libcurl4-openssl-dev libgsl-dev libraw-dev libcfitsio-dev libjpeg-dev libpng-dev libcgicc-dev daemontools
+sudo apt-get install git cmake zlib1g-dev libcurl4-openssl-dev libgsl-dev libraw-dev libcfitsio-dev libjpeg-dev libpng-dev libcgicc-dev daemontools nginx
 ```
 
-You also need nodejs installed, with a recent version (> v8). I use the latest v6 (v8.4.0)
+You also need nodejs installed, with a recent version (> v8). I use the latest v8 (v8.4.0)
 ```
 curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
 sudo apt-get install -y nodejs
 npm install
 ```
 
-Installation and build:
+Installation and startup:
 ```
 git clone https://github.com/pludov/mobindi.git
 cd mobindi
-npm install && npm run-script build
-(cd ui && npm install && npm run-script build)
-(cd fitsviewer && cmake . && make)
+./startup.sh
 ```
 
-Then start the server:
+Connect to http://localhost:8080, or if you want to test the new support for https, use: https://localhost:8443
+
+
+To upgrade to the latest version, issue:
 ```
-npm start
+git pull --ff-only
+./startup.sh
 ```
 
-Connect to http://localhost:8080
 
 
 ## Starting phd2/indiserver
@@ -152,7 +165,6 @@ As an option, the server can start indiserver and phd2. For this to work, you mu
 Theses files are empty by default; when edited, the server must be restarted to take changes into account. Examples are provided (local/indi.default.json and local/phd2.default.json)
 
 For indi, you must declare all devices that you intend to run in the json file (see the default for an example).
-
 
 ## Internals
 
