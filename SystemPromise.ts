@@ -119,7 +119,7 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
 // Returns true if process exists, false otherwise
 export async function PidOf(ct: CancellationToken, exe: string):Promise<boolean> {
     const exitCode = await Exec(ct, {
-        command: ["pidof", exe]
+        command: ["pidof", exe, exe + ".bin"]
     });
     if (exitCode === 0) {
         return true;
