@@ -6,6 +6,8 @@ INSTALL_DIR="$(dirname "$BASH_SOURCE")"
 
 cd "$INSTALL_DIR"
 
+[[ ":$PATH:" != *":/usr/sbin:"* ]] && PATH="${PATH}:/usr/sbin"
+
 which nginx > /dev/null || (echo "Installation of nginx required" >&2 ; sudo apt install nginx)
 
 if [ ! -f nginx-selfsigned.key ] \
