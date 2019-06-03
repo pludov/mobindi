@@ -1,5 +1,7 @@
 .DeviceConnectBton {
     font-weight: bold;
+    font-family: "MobindiGlyphBton", "sans-serif";
+    min-width: 1.7em;
 }
 
 .DeviceConnectBtonOn {
