@@ -1,6 +1,6 @@
 .FocuserState {
     font-weight: bold;
-    font-size: 7vw;
+    font-size: calc(7 * var(--pct));
     text-align: center;
 }
 

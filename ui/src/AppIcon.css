@@ -1,10 +1,10 @@
 .AppStatusBar .Application {
     width: var(--app-icon-size);
-    height: calc(var(--app-icon-size) + var(--app-icon-transition) + 0.8vw);
+    height: calc(var(--app-icon-size) + var(--app-icon-transition) + 0.8 * var(--pct));
     object-fit: cover;
-    border: 0.8vw solid transparent;
-    border-top-left-radius: 2.5vw;
-    border-top-right-radius: 2.5vw;
+    border: calc(0.8 * var(--pct)) solid transparent;
+    border-top-left-radius: calc(2.5 * var(--pct));
+    border-top-right-radius: calc(2.5 * var(--pct));
     border-bottom: 0px;
     cursor: pointer;
     position: relative;
@@ -15,9 +15,9 @@
 }
 
 .AppStatusBar .Application.Active {
-    border: 0.8vw solid blue;
-    border-top-left-radius: 2.5vw;
-    border-top-right-radius: 2.5vw;
+    border: calc(0.8 * var(--pct)) solid blue;
+    border-top-left-radius: calc(2.5 * var(--pct));
+    border-top-right-radius: calc(2.5 * var(--pct));
     background: black;
     border-bottom: 0px;
     cursor: inherit;

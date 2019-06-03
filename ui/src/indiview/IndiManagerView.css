@@ -11,7 +11,7 @@
 .IndiVector {
     display: flex;
     align-items: center;
-    border: 0.4vw solid #404040;
+    border: calc(0.4 * var(--pct)) solid #404040;
 }
 .IndiVectorProps {
     flex-grow: 1;

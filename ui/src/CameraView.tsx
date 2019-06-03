@@ -60,19 +60,21 @@ class CameraView extends React.PureComponent<Props> {
 
     render() {
         return(<div className="CameraView">
-            <div>
-                <CameraSelector setValue={this.setCamera}/>
-                <DeviceConnectBton.forActivePath
-                        activePath="$.backend.camera.selectedDevice"/>
-                <DeviceSettingsBton.forActivePath
-                        activePath="$.backend.camera.selectedDevice"/>
+            <div className="CameraViewSettings">
+                <div>
+                    <CameraSelector setValue={this.setCamera}/>
+                    <DeviceConnectBton.forActivePath
+                            activePath="$.backend.camera.selectedDevice"/>
+                    <DeviceSettingsBton.forActivePath
+                            activePath="$.backend.camera.selectedDevice"/>
+                </div>
+                <CameraSettingsView
+                    settingsPath={"$.backend.camera.configuration.deviceSettings"}
+                    activePath="$.backend.camera.selectedDevice"
+                    setValue={this.settingSetter}
+                />
+                <LiveFilterSelector.forActivePath activePath="$.backend.camera.selectedDevice"/>
             </div>
-            <CameraSettingsView
-                settingsPath={"$.backend.camera.configuration.deviceSettings"}
-                activePath="$.backend.camera.selectedDevice"
-                setValue={this.settingSetter}
-            />
-            <LiveFilterSelector.forActivePath activePath="$.backend.camera.selectedDevice"/>
             <FitsViewerWithAstrometry
                 contextKey="default"
                 src={this.props.url}/>

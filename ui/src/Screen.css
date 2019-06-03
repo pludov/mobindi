@@ -20,7 +20,7 @@ body {
     padding: 0px;
     overflow: hidden;
     background-color: #505050;
-    font-size: 5vw;
+    font-size: calc(5 * var(--pct));
     height: 100%;
     position: absolute;
 }
@@ -48,20 +48,20 @@ div#root {
 }
 
 .AppLogo {
-    width: 10.5vw;
+    width: calc(12.5 * var(--pct) );
 }
 
 .Page {
     flew-grow: 1;
-    width: calc(100% - 3.2vw);
+    width: calc(100% - 3.2 * var(--pct));
 
     display : flex;
     flex-direction: column;
     justify-content: space-between;
 
-    box-shadow: 0px 0px 0px 0.8vw blue;
-    margin: 0 0.8vw 0.8vw 0.8vw;
-    padding: 0.8vw;
+    box-shadow: 0px 0px 0px calc(0.8 * var(--pct)) blue;
+    margin: 0 calc(0.8 * var(--pct)) calc(0.8 * var(--pct)) calc(0.8 * var(--pct));
+    padding: calc(0.8 * var(--pct));
 }
 
 .ButtonBar {
@@ -77,14 +77,14 @@ div#root {
 
 input[type="checkbox"] {
     padding: 0;
-    width: 5vw;
-    height: 5vw;
+    width: calc(5 * var(--pct));
+    height: calc(5 * var(--pct));
     vertical-align: middle;
 }
 
 input, button, select, option, textarea {
     font-size: 100%;
-    margin: 0.5vw;
+    margin: calc(0.5 * var(--pct));
     collapse: true;
     color: #000000;
 }
@@ -92,15 +92,15 @@ input, button, select, option, textarea {
 select {
     height: 2em;
     box-sizing: border-box;
-/*    border-width: 0.5vw;
+/*    border-width: calc(0.5 * var(--pct));
 */
 }
 
 input[type=button] {
     height: 2em;
     line-height: 2em;
-    border-radius: 0.7vw;
-    border-width: 0.5vw;
+    border-radius: calc(0.7 * var(--pct));
+    border-width: calc(0.5 * var(--pct));
     background-color: #ccc;
     vertical-align: bottom;
 }
@@ -109,5 +109,5 @@ input:disabled {
 }
 
 select {
-    max-width: 50vw;
+    max-width: calc(50 * var(--pct));
 }

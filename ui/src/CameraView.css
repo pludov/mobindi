@@ -12,7 +12,7 @@
 
 .FitsViewContainer {
     position: relative;
-    border: 0.2vw solid grey;
+    border: calc(0.2 * var(--pct)) solid grey;
 }
 
 .FitsView {
@@ -38,10 +38,10 @@
 
 .FitsViewLoading {
     position: absolute;
-    left: 0.2vw;
-    bottom: 0.2vw;
-    width: 10vw;
-    height: 10vw;
+    left: calc(0.2 * var(--pct));
+    bottom: calc(0.2 * var(--pct));
+    width: calc(10 * var(--pct));
+    height: calc(10 * var(--pct));
     visibility: hidden;
     pointer-events: none;
 }
@@ -50,7 +50,7 @@
     visibility: inherit;
     background-image: url("loading.svg");
     background-color: transparent;
-    background-size: 10vw 10vw;
+    background-size: calc(10 * var(--pct)) calc(10 * var(--pct));
     animation: App-logo-spin infinite 2s linear;
 }
 
@@ -58,7 +58,7 @@
     visibility: inherit;
     background-image: url("loading.svg");
     background-color: transparent;
-    background-size: 10vw 10vw;
+    background-size: calc(10 * var(--pct)) calc(10 * var(--pct));
     animation: App-logo-spin infinite 1s linear;
 }
 
@@ -66,7 +66,7 @@
     visibility: inherit;
     background-image: url("image-missing.svg");
     background-color: transparent;
-    background-size: 10vw 10vw;
+    background-size: calc(10 * var(--pct)) calc(10 * var(--pct));
 }
 
 .ShootBar {

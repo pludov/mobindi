@@ -3,3 +3,14 @@ body {
   padding: 0;
   font-family: sans-serif;
 }
+
+:root {
+  --pct: 1vw;
+}
+
+
+@media (min-aspect-ratio: 1/1) {
+  :root {
+    --pct: 1vh;
+  }
+}

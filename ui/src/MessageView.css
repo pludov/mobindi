@@ -8,7 +8,7 @@
 }
 
 .MessageItem {
-    border: 0.4vw solid #404040;
+    border: calc(0.4 * var(--pct)) solid #404040;
     font-family:  "Lucida Console", Monaco, monospace;
     font-size: 0.75em;
 }

@@ -1,9 +1,9 @@
 table.RADECTable {
-    border: 0.5vw solid green;
+    border: calc(0.5 * var(--pct)) solid green;
     border-spacing: 0px;
-    width:calc(100% - 1vw);
-    margin-left: 0.5vw;
-    margin-right: 0.5vw;
+    width:calc(100% - 1 * var(--pct));
+    margin-left: calc(0.5 * var(--pct));
+    margin-right: calc(0.5 * var(--pct));
 }
 
 
@@ -22,13 +22,13 @@ table.RADECTable tr td:first-child{
     width: auto;
     overflow: visible;
     text-align: right;
-    padding-left: 1vw;
-    padding-right: 1vw;
+    padding-left: calc(1 * var(--pct));
+    padding-right: calc(1 * var(--pct));
 }
 
 .PHDAppState {
     font-weight: bold;
-    font-size: 7vw;
+    font-size: calc(7 * var(--pct));
     text-align: center;
 }
 

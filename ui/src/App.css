@@ -1,6 +1,6 @@
 :root {
-  --app-icon-size: 10vw;
-  --app-icon-transition: 2vw;
+  --app-icon-size: calc(10 * var(--pct));
+  --app-icon-transition: calc(2 * var(--pct));
 }
 .Loading{
   text-align: center;
@@ -10,7 +10,7 @@
 
 .App-logo {
   animation: App-logo-spin infinite 20s linear;
-  width: 80vw;
+  width: calc(80 * var(--pct));
 }
 
 .App-intro {
@@ -37,7 +37,7 @@
   flex-direction: row;
   display: flex;
   background: linear-gradient(0deg, #0000ff 0.5vw, transparent var(--app-icon-transition) );
-  padding-left: 2vw;
+  padding-left: calc(2 * var(--pct));
 }
 
 .AppMainContent {
