@@ -103,3 +103,32 @@
     align-items: center;
     justify-content:center;
 }
+
+.CameraViewDisplay {
+    display: flex;
+    flex: 1 auto;
+}
+
+@media (min-aspect-ratio: 4/3) {
+    .CameraView {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .CameraViewSettings {
+        flex-basis: auto;
+        display: flex;
+        flex-direction: column;
+        height: calc(100% - 2em);
+    }
+
+    .CameraViewDisplay {
+        flex: 1 auto;
+        height: calc(100% - 2em);
+    }
+
+    .ShootBar {
+        align-self: flex-end;
+        flex: 100%;
+    }
+}

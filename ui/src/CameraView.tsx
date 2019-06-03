@@ -75,9 +75,11 @@ class CameraView extends React.PureComponent<Props> {
                 />
                 <LiveFilterSelector.forActivePath activePath="$.backend.camera.selectedDevice"/>
             </div>
-            <FitsViewerWithAstrometry
-                contextKey="default"
-                src={this.props.url}/>
+            <div className="CameraViewDisplay">
+                <FitsViewerWithAstrometry
+                    contextKey="default"
+                    src={this.props.url}/>
+            </div>
             <ShootButton
                     activePath="$.backend.camera.selectedDevice"
                     onSuccess={this.setPhoto}
