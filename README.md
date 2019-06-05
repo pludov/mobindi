@@ -21,7 +21,9 @@ Currently the following features are supported:
   * Autostart phd2 and indiserver
 
 
-The UI is designed to be fit a vertical screen and will adapt to the resolution (even below 640x480).
+The UI is designed to be fit a mobile screen and will adapt to the resolution (even below 640x480) and orientation (landscape vs portrait).
+
+The recommended browsers are Firefox and Chrome.
 
 Clickable area are big enough to keep the use easy.
 
@@ -46,6 +48,8 @@ Next release will include:
   * Auto focuser graph improvment
   * Preliminary support for ssl (on port 8443)
   * New script for build/startup (startup.sh)
+  * Support for landscape orientation
+  * UI fixes for Chrome
 
 
 Initial Release: 1.0
