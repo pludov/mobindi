@@ -6,6 +6,15 @@ INSTALL_DIR="$(dirname "$BASH_SOURCE")"
 
 cd "$INSTALL_DIR"
 
+if [ "${LOGDIR-}" != "" ]; then
+	which multilog > /dev/null || (echo "Installation of daemontools required" >&2 ; sudo apt install daemontools)
+	[ -d "$LOGDIR" ] || sudo mkdir -p -- "$LOGDIR"
+	[ -w "$LOGDIR" ] || sudo chown "$UID" -R -- "$LOGDIR"
+	echo "Logging into $LOGDIR"
+	exec < /dev/null
+	exec > >( multilog '.s9999999' "$LOGDIR" )
+	exec 2>&1
+fi
 
 # Rebuild if required
 CURRENTREV="`git rev-parse HEAD`"
