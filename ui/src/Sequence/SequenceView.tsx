@@ -58,12 +58,12 @@ class SequenceView extends PureComponent<SequenceViewProps> {
 
     render() {
         //var self = this;
-        return(<div className="CameraView">
+        return(<div className="SequenceView">
             <SequenceEditDialog
                 currentPath='$.sequence.editingSequence'
                 onClose={this.closeEditDialog}/>
 
-            <div>
+            <div className="SequenceControl">
                 <SequenceSelector
                     currentPath='$.sequence.currentSequence'
                     onCreated={this.editSequence}
@@ -73,28 +73,32 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     editSequence={this.editSequence}
                 />
             </div>
-            <ImageDetail
-                currentPath='$.sequence.currentImage'
-                detailPath='$.backend.camera.images.byuuid'
-            />
-            <Table statePath="$.sequenceView.list"
-                fields={{
-                    path: {
-                        title:  'File',
-                        defaultWidth: '15em',
-                        render: (o:BackOfficeAPI.ShootResult)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
-                    },
-                    device: {
-                        title:  'Device',
-                        defaultWidth: '12em'
-                    }
-                }}
-                defaultHeader={[{id: 'path'}, {id: 'device'}]}
-                getItemList={this.getItemList}
-                getItem={(store:any,uid:string)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
-                currentPath='$.sequence.currentImage'
-                onItemClick={this.setCurrentImage}
-            />
+            <div className="SequenceViewDisplay">
+                <ImageDetail
+                    currentPath='$.sequence.currentImage'
+                    detailPath='$.backend.camera.images.byuuid'
+                />
+            </div>
+            <div className="SequenceViewTable">
+                <Table statePath="$.sequenceView.list"
+                    fields={{
+                        path: {
+                            title:  'File',
+                            defaultWidth: '15em',
+                            render: (o:BackOfficeAPI.ShootResult)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+                        },
+                        device: {
+                            title:  'Device',
+                            defaultWidth: '12em'
+                        }
+                    }}
+                    defaultHeader={[{id: 'path'}, {id: 'device'}]}
+                    getItemList={this.getItemList}
+                    getItem={(store:any,uid:string)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
+                    currentPath='$.sequence.currentImage'
+                    onItemClick={this.setCurrentImage}
+                />
+            </div>
         </div>);
     }
 }

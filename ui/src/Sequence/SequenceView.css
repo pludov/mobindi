@@ -1,3 +1,11 @@
+.SequenceView {
+    display: flex;
+    flex-direction: column;
+
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
 .SequenceStepMovableBlock.sortableHelper {
     z-index: 10;
     color: #ffffff;
@@ -33,4 +41,49 @@
 .SequenceStatusDONE {
     font-style: bold;
     color: green;
+}
+
+.SequenceControl {
+    display: flex;
+    flex-direction: column;
+}
+
+.SequenceViewDisplay {
+    display: flex;
+    flex: 1 auto;
+}
+
+.SequenceViewTable {
+    display: flex;
+    flex: 1;
+}
+
+@media (min-aspect-ratio: 4/3) {
+    .SequenceView {
+        flex-direction: column;
+        flex-wrap: wrap;
+        --ctrlColWidth: 33vw;
+    }
+
+    .SequenceViewDisplay {
+        flex: 1 1 auto;
+        order: 3;
+        width: calc(100% - var(--ctrlColWidth));
+    }
+
+    .SequenceControl {
+        width: var(--ctrlColWidth);
+        flex-grow: 0;
+        order:1
+    }
+    .SequenceViewDisplay {
+        order:3;
+        height: 100%;
+    }
+    .SequenceViewTable {
+        width: var(--ctrlColWidth);
+        flex: auto;
+        flex-basis: 0px;
+        order: 2;
+    }
 }

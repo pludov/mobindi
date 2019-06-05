@@ -7,9 +7,9 @@ div.DataTable {
     overflow-y: auto;
     border: 0.25vw solid #303030;
     width: calc(100% - 0.5vw);
-    flex-grow: 0.3;
+    /* flex-grow: 0.3;
     flex-shrink: 1;
-    height: 15vh;
+    height: 15vh; */
 }
 
 .DataTable td {

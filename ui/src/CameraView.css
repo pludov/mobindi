@@ -119,16 +119,18 @@
         flex-basis: auto;
         display: flex;
         flex-direction: column;
-        height: calc(100% - 2em);
+        /** Button height + margin */
+        height: calc(100% - 2em - 0.5 * var(--pct));
     }
 
     .CameraViewDisplay {
         flex: 1 auto;
-        height: calc(100% - 2em);
+        height: calc(100% - 2em - 0.5 * var(--pct));
     }
 
     .ShootBar {
         align-self: flex-end;
+        height: calc(2em + 0.5 * var(--pct));
         flex: 100%;
     }
 }
