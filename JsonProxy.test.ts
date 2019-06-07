@@ -484,11 +484,15 @@ describe("Json proxy", () => {
         var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();
 
+        root.outOfWhiteList = {really: true};
+
         var fork = changeTracker.fork(whiteList);
 
         var data = fork.data;
         var serial = fork.serial;
         console.log('starting serial =' + JSON.stringify(serial));
+        assert.deepStrictEqual(data, whiteListedClone(data), "Initial data filtered according to whiteList");
+
 
         var previousData = checkConst(data);
         var patches: any = changeTracker.diff(serial, whiteList);

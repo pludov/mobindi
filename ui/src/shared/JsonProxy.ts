@@ -1129,8 +1129,38 @@ export default class JsonProxy<CONTENTTYPE> {
             this.currentSerialUsed = false;
         }
 
+        function clone(e: any, whiteList?:WhiteList):any
+        {
+            if (whiteList === undefined) {
+                return JSON.parse(JSON.stringify(e));
+            }
+            if (valueHasChild(e)) {
+                if (Array.isArray(e)) {
+                    const result = [];
+                    for(let i = 0; i < e.length; ++i) {
+                        const wChild = whiteListChild(whiteList, "" + i);
+                        if (wChild !== null) {
+                            result[i] = clone(e[i], wChild);
+                        }
+                    }
+                    return result;
+                } else {
+                    const result:any = {};
+                    for(const k of Object.keys(e)) {
+                        const wChild = whiteListChild(whiteList, k);
+                        if (wChild !== null) {
+                            result[k] = clone(e[k], wChild);
+                        }
+                    }
+                    return result;
+                }
+            } else {
+                return e;
+            }
+        }
+
         return {
-            data: JSON.parse(JSON.stringify(this.root.proxy)),
+            data: clone(this.root.proxy, whiteList),
             serial: this.takeSerialSnapshot(whiteList)
         }
     }
