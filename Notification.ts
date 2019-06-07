@@ -22,8 +22,9 @@ export default class Notification
     context: AppContext;
     notificationIdGenerator = new IdGenerator();
     readonly currentStatus : NotificationStatus;
+    readonly serverUuid: string;
 
-    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
+    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext, serverUuid: string) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().notification = {
             byuuid: {},
@@ -31,11 +32,12 @@ export default class Notification
         };
         this.currentStatus = this.appStateManager.getTarget().notification;
         this.context = context;
+        this.serverUuid = serverUuid;
     }
 
     // Early draft...
     notify(title: string) {
-        const uid = this.notificationIdGenerator.next();
+        const uid = this.serverUuid + ":" + this.notificationIdGenerator.next();
         this.currentStatus.byuuid[uid] = {
             time: new Date().getTime(),
             title: title,

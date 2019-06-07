@@ -68,6 +68,7 @@ app.use(cors({
     credentials: true
 }));
 
+const serverId = uuid.v4();
 
 var appStateManager = new JsonProxy<BackofficeStatus>();
 var appState = appStateManager.getTarget();
@@ -111,7 +112,7 @@ appState.apps= {
 var context:Partial<AppContext> = {
 };
 
-context.notification = new Notification(app, appStateManager, context as AppContext);
+context.notification = new Notification(app, appStateManager, context as AppContext, serverId);
 
 context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
@@ -165,7 +166,7 @@ const wss = new WebSocket.Server({ server: server });
 
 //wss.use(sharedsession(session));
 
-var serverId = uuid.v4();
+
 let clientId = 1;
 
 wss.on('connection', (ws:WebSocket)=>{
