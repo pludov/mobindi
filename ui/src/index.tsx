@@ -8,6 +8,14 @@ import Phd from './PhdView';
 import registerServiceWorker from './registerServiceWorker';
 import * as Store from './Store';
 
+import Worker from 'shared-worker-loader!./Worker';
+
+const worker = new Worker();
+console.log('worker instanciated as ', worker);
+worker.port.start();
+worker.port.postMessage({ a: 1 });
+worker.port.onmessage = function (event) {console.log('worker event', event);};
+
 
 ReactDOM.render(
         <Provider store={Store.getStore()}>

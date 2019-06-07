@@ -146,6 +146,15 @@ module.exports = {
             },
           },
           {
+            test: /\.sharedworker\.js$/,
+            use: {
+                loader: 'shared-worker-loader',
+                options: {
+                  name: 'WorkerName.js',
+                }
+            }
+          },
+          {
             test: /\.(js|jsx|mjs)$/,
             include: paths.appSrc,
             loader: require.resolve('babel-loader'),
