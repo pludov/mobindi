@@ -889,7 +889,7 @@ export default class Camera
                             throw new Error("Exposure failed");
                         }
 
-                        return (value == "0");
+                        return true;
                     });
                 } finally {
                     doneWithExposure();
