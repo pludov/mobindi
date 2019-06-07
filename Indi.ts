@@ -568,7 +568,7 @@ export class IndiConnection {
             delete message[childsProps];
 
             message.$timeout = parseFloat(message.$timeout)||0;
-
+            message.$message = message.$message || "";
             message.$rev = globalRevisionId;
             this.getDeviceInTree(message.$device)[message.$name] = message;
         }
