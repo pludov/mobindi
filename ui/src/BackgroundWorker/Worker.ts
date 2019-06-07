@@ -113,23 +113,28 @@ let disconnectTime: undefined|number;
 let disconnectTimer: NodeJS.Timer|undefined;
 let disconnectedNotification: Notification|undefined;
 
-let backendNotif : Notification|undefined;
-
 function emitNotifications() {
     console.log('notificationAllowed', notificationAllowed);
+    const now = new Date().getTime();
     if (!notificationAllowed) {
+        if (boStatus !== undefined) {
+            for(const o of boStatus.notification.list) {
+                if (!has(shownNotifications, o)) {
+                    shownNotifications[o] = now;
+                }
+            }
+        }
         return;
     }
-    const now = new Date().getTime();
 
     if (boCnx !== BackendStatus.Connected) {
         if (disconnectTimer === undefined) {
-            disconnectTimer = setInterval(emitNotifications, 1000);
+            disconnectTimer = setInterval(emitNotifications, 5000);
         }
         if (disconnectTime === undefined) {
             disconnectTime = now;
         } else {
-            if (disconnectedNotification === undefined && now - disconnectTime > 10000) {
+            if (disconnectedNotification === undefined && now - disconnectTime > 30000) {
                 disconnectedNotification = new Notification("Mobindi connection lost", {
                     requireInteraction: true,
                 });
@@ -155,7 +160,7 @@ function emitNotifications() {
 try {
     setInterval(()=> {
         console.log('Worker alive');
-    }, 10000);
+    }, 60000);
 
     self.onconnect = function(e) {
         console.log('worker got connection', e);
@@ -170,11 +175,6 @@ try {
                         emitNotifications();
                     }
 
-                    // var workerResult = 'Result: ' + (e.data[0] * e.data[1]);
-                    // port.postMessage(workerResult);
-                    // console.log('terminating');
-                    // (self as any).close();
-                    // console.log('still here ?');
                 } catch(e) {
                     console.log('error from worker onmessage', e);
                 }

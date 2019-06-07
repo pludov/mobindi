@@ -2,11 +2,11 @@ import * as Store from "./Store";
 
 export type Notification = {
     text: string,
-    className: "Warning",
+    className: "Warning"|"Invite",
 }
 
 export type NotificationStore = {
-    [appId: string]: undefined|Notification
+    [appId: string]: {[notifId: string]: Notification|undefined}
 }
 
 export type Content = {

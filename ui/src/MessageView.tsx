@@ -3,6 +3,8 @@ import * as React from 'react';
 import { IndiMessageWithUid } from '@bo/BackOfficeStatus';
 import { timestampToDate } from './IndiUtils';
 import * as Store from "./Store";
+import * as MessageStore from "./MessageStore";
+
 import './MessageView.css'
 
 type ItemInputProps = {
@@ -72,6 +74,44 @@ class UnmappedMessageList extends React.PureComponent<MessageListProps> {
 
 const MessageList = Store.Connect<UnmappedMessageList, MessageListInputProps, {}, MessageListMappedProps>(UnmappedMessageList);
 
+
+type AskNotificationAuthInputProps = {
+}
+
+type AskNotificationAuthMappedProps = {
+    value: boolean|undefined;
+}
+
+type AskNotificationAuthProps = AskNotificationAuthInputProps & AskNotificationAuthMappedProps;
+
+
+class UnmappedAskNotificationAuth extends React.PureComponent<AskNotificationAuthProps> {
+    constructor(props:AskNotificationAuthProps) {
+        super(props);
+    }
+
+    render() {
+        if (this.props.value === true) {
+            return null;
+        }
+
+        return <div><input type="button" value="Allow system notifications" onClick={this.askAuth}/></div>;
+    }
+
+    readonly askAuth=()=> {
+        MessageStore.performMessageAuth();
+    }
+
+    static mapStateToProps(store:Store.Content, ownProps:AskNotificationAuthInputProps):AskNotificationAuthMappedProps {
+        return {
+            value: store.messages.notificationAuth
+        };
+    }
+}
+
+const AskNotificationAuth = Store.Connect(UnmappedAskNotificationAuth);
+
+
 type Props = {
 };
 
@@ -82,6 +122,7 @@ export default class MessageView extends React.PureComponent<Props> {
 
     render() {
         return(<React.Fragment>
+            <AskNotificationAuth/>
             <div className="MessageView">
                 <MessageList/>
             </div>
