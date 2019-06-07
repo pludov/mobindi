@@ -37,6 +37,7 @@ import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
 import FilterWheel from "./FilterWheel";
+import Notification from "./Notification";
 
 const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
@@ -110,6 +111,8 @@ appState.apps= {
 var context:Partial<AppContext> = {
 };
 
+context.notification = new Notification(app, appStateManager, context as AppContext);
+
 context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
 context.phd = new Phd(app, appStateManager);
@@ -129,6 +132,7 @@ context.focuser = new Focuser(app, appStateManager, context as AppContext);
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
 const apiRoot: RequestHandler.APIImplementor = {
+    notification: context.notification.getAPI(),
     focuser: context.focuser.getAPI(),
     filterWheel: context.filterWheel.getAPI(),
     toolExecuter: context.toolExecuter.getAPI(),
@@ -248,4 +252,6 @@ var port = parseInt(process.env.PORT || '8080');
 app.set('port', port);
 
 server.listen(port);
+
+context.notification.notify("Mobindi started");
 

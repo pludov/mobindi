@@ -9,7 +9,7 @@ declare module "worker-loader!*" {
 
 declare module "shared-worker-loader!*" {
     class WebpackWorker extends SharedWorker {
-      constructor();
+      constructor(name?:string);
     }
 
     export default WebpackWorker;

@@ -82,6 +82,14 @@ export type CameraAPI = {
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }
 
+export type CloseNotificationRequest = {
+    uuid: string;
+}
+
+export type NotificationAPI = {
+    closeNotification: (payload: CloseNotificationRequest)=>void;
+}
+
 export type AstrometryWizards = {
     startPolarAlignmentWizard: (payload:{})=>void;
 }
@@ -127,4 +135,5 @@ export type BackOfficeAPI = {
     filterWheel: FilterWheelAPI;
     imageProcessor: ImageProcessorAPI;
     phd: PhdAPI;
+    notification: NotificationAPI;
 }

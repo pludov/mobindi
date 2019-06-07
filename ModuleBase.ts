@@ -9,6 +9,7 @@ import TriggerExecuter from "./TriggerExecuter";
 import ToolExecuter from "./ToolExecuter";
 import Focuser from "./Focuser";
 import FilterWheel from "./FilterWheel";
+import Notification from "./Notification";
 
 export type ExpressApplication = ExpressApplication;
 
@@ -22,5 +23,6 @@ export type AppContext = {
     toolExecuter: ToolExecuter;
     focuser: Focuser;
     astrometry: Astrometry;
+    notification: Notification;
 };
 

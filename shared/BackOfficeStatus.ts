@@ -149,6 +149,16 @@ export type CameraStatus = {
     configuration: CameraConfiguration;
 }
 
+export type NotificationItem = {
+    title: string;
+    time: number;
+}
+
+export type NotificationStatus = {
+    byuuid: {[uuid: string]: NotificationItem}
+    list: string[];
+}
+
 export type FocuserSettings = {
     range: number;
     steps: number;
@@ -385,4 +395,5 @@ export type BackofficeStatus = {
     phd: PhdStatus;
     toolExecuter: ToolExecuterStatus;
     triggerExecuter: TriggerExecuterStatus;
+    notification: NotificationStatus;
 };

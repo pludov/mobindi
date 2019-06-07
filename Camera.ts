@@ -611,6 +611,10 @@ export default class Camera
             }
             this.currentSequenceUuid = null;
             this.currentSequencePromise = null;
+
+            if (s !== "paused") {
+                this.context.notification.notify("Sequence " + seq.title + " " + s + (e ? ": " + e : ""));
+            }
         }
 
 
