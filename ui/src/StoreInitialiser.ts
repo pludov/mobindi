@@ -3,7 +3,7 @@ import * as Store from './Store';
 import * as Actions from './Actions';
 import { compose, createStore } from 'redux';
 import persistState from 'redux-localstorage'
-import Notifier from './Notifier';
+import ReduxNotifier from './ReduxNotifier';
 
 import * as AppStore from './AppStore';
 import * as BackendStore from './BackendStore';
@@ -95,7 +95,7 @@ export function start() {
 
     const store = createStore(reducer, initialState, enhancer);
 
-    const notifier = new Notifier();
+    const notifier = new ReduxNotifier();
 
     notifier.attachToStore(store);
 

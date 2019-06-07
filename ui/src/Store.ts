@@ -14,7 +14,7 @@ import * as GeolocStore from './GeolocStore';
 import * as GenericUiStore from './GenericUiStore';
 import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
-import Notifier from './Notifier';
+import ReduxNotifier from './ReduxNotifier';
 import * as Promises from './shared/Promises';
 
 export type Content =
@@ -65,9 +65,9 @@ function fork(state:Content, path?:string[], fn?:(t:any)=>any)
 }
 
 let store:Store;
-let notifier:Notifier;
+let notifier:ReduxNotifier;
 
-export function init(newStore:Store, newNotifier: Notifier) {
+export function init(newStore:Store, newNotifier: ReduxNotifier) {
     store = newStore;
     notifier = newNotifier;
 }
@@ -79,7 +79,7 @@ export function getStore() {
     return store;
 }
 
-export function getNotifier(): Notifier {
+export function getNotifier(): ReduxNotifier {
     if (notifier === undefined) {
         throw new Error("Notifier not initialized");
     }

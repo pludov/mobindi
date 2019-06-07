@@ -1,10 +1,6 @@
 // Detecter l'état de visibilité de la page
-import * as Redux from 'redux';
-import { BackendStatus } from './BackendStore';
-import * as Actions from './Actions';
-import * as BackendStore from './BackendStore';
+import { BackendStatus, BackendStatusValue } from './BackendStore';
 import CancellationToken from "cancellationtoken";
-import * as Store from './Store';
 
 class Request {
     readonly notifier: Notifier;
@@ -43,7 +39,6 @@ class Request {
 }
 
 export default class Notifier {
-    private connectionId: number;
     private sendingQueueMaxSize: number;
     private suspended: boolean;
     private uniqRequestId: number;
@@ -54,21 +49,16 @@ export default class Notifier {
     private toSendRequests: Request[];
     private toCancelRequests: Request[];
     private activeRequests: {[id:string]:Request};
-    private resendTimer: number|undefined;
-    private store: Redux.Store<Store.Content>;
+    private resendTimer: NodeJS.Timeout|undefined;
     private handshakeOk: boolean|undefined;
 
-    private readonly hidden: string;
-    private readonly visibilityChange: string;
     private pendingMessageCount: number;
     private pendingUpdateAsk: {};
-    private hidingTimeout: number | undefined;
     // FIXME: not used
     private xmitTimeout: number | undefined;
 
     constructor() {
         this.socket = undefined;
-        this.connectionId = 0;
         this.sendingQueueMaxSize = 1000;
         this.resetHandshakeStatus(false);
 
@@ -93,74 +83,43 @@ export default class Notifier {
 
         this.resendTimer = undefined;
 
-        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
-            this.hidden = "hidden";
-            this.visibilityChange = "visibilitychange";
-        } else if (typeof (document as any).msHidden !== "undefined") {
-            this.hidden = "msHidden";
-            this.visibilityChange = "msvisibilitychange";
-        } else if (typeof (document as any).webkitHidden !== "undefined") {
-            this.hidden = "webkitHidden";
-            this.visibilityChange = "webkitvisibilitychange";
-        }
-        console.log('hidden property: ' + this.hidden);
-        document.addEventListener(this.visibilityChange, this.handleVisibilityChange.bind(this), false);
     }
 
-    public attachToStore(store: Redux.Store<Store.Content>) {
-        console.log('Websocket: attached to store');
-        this.store = store;
-        this.dispatchBackendStatus();
-    }
 
-    private dispatchBackendStatus(error?: string|null)
+    protected onStatusChanged(backendStatus: BackendStatusValue, backendError?: string)
+    {}
+
+    protected dispatchBackendStatus(error?: string|null)
     {
-        if (this.store == undefined) return;
 
         if (error !== undefined && error !== null) {
-            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
-                backendStatus: BackendStatus.Failed,
-                backendError: error
-            });
+            this.onStatusChanged(BackendStatus.Failed, error);
             return;
         }
         if (this.handshakeOk) {
-            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
-                backendStatus: BackendStatus.Connected,
-                backendError: undefined
-            });
+            this.onStatusChanged(BackendStatus.Connected);
             return;
         }
         if (this.socket == null) {
             // On est caché: on est en pause
-            if (document[this.hidden]) {
-                Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
-                    backendStatus: BackendStatus.Paused,
-                    backendError: undefined
-                });
+            if (!this.wantConn()) {
+                this.onStatusChanged(BackendStatus.Paused);
                 return;
             }
             // On devrait etre connecté
-            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
-                    backendStatus: BackendStatus.Failed
-            });
+            this.onStatusChanged(BackendStatus.Failed);
             return;
         } else {
-            Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
-                backendStatus: BackendStatus.Connecting,
-                backendError: undefined
-            });
+            this.onStatusChanged(BackendStatus.Connecting);
         }
-
     }
-
+    
     private resetHandshakeStatus(status:boolean, clientId?:string)
     {
         this.handshakeOk = status;
         this.pendingUpdateAsk = {};
         this.pendingMessageCount = 0;
         if (status) {
-            this.connectionId++;
             this.clientId = clientId;
         }
         this.clearXmitTimeout();
@@ -173,7 +132,7 @@ export default class Notifier {
 
     private sendAsap() {
         if (this.resendTimer != undefined) {
-            window.clearTimeout(this.resendTimer);
+            clearTimeout(this.resendTimer);
             this.resendTimer = undefined;
         }
 
@@ -200,7 +159,7 @@ export default class Notifier {
         // Add a timer to restart asap
         // FIXME: would prefer a notification from websocket !
         if (this.toSendRequests.length || this.toCancelRequests.length) {
-            this.resendTimer = window.setTimeout(()=>{
+            this.resendTimer = setTimeout(()=>{
                 this.resendTimer = undefined;
                 this.sendAsap();
             }, 100);
@@ -262,31 +221,8 @@ export default class Notifier {
 
     private clearXmitTimeout() {
         if (this.xmitTimeout != undefined) {
-            window.clearTimeout(this.xmitTimeout);
+            clearTimeout(this.xmitTimeout);
             this.xmitTimeout = undefined;
-        }
-    }
-
-    private cancelHidingTimeout() {
-        if (this.hidingTimeout != undefined) {
-            window.clearTimeout(this.hidingTimeout);
-            this.hidingTimeout = undefined;
-        }
-    }
-
-    handleVisibilityChange() {
-        if (document[this.hidden]) {
-            console.log('Websocket: Became hidden');
-            this.cancelHidingTimeout();
-            this.hidingTimeout = window.setTimeout(()=>{
-                console.log('Websocket: Hiding timeout expired');
-                this.hidingTimeout = undefined;
-                this.updateState();
-            }, 10000);
-        } else {
-            console.log('Websocket: Became visible');
-            this.cancelHidingTimeout();
-            this.updateState();
         }
     }
 
@@ -298,9 +234,13 @@ export default class Notifier {
         this.updateState();
     }
 
-    private updateState()
+    protected wantConn() {
+        return true;
+    }
+
+    protected updateState()
     {
-        const wantedConn = !document[this.hidden];
+        const wantedConn = this.wantConn();
         if (wantedConn) {
             if (!this.socket) {
                 // FIXME: delay ?
@@ -316,6 +256,8 @@ export default class Notifier {
         }
     }
 
+    protected handleNotifications(n: {batch: any[]}|{data: any}) {};
+
     private _open() {
         console.log('Websocket: connecting to ' + this.url);
         this.resetHandshakeStatus(false);
@@ -329,7 +271,7 @@ export default class Notifier {
         }
 
         let notifications:any[] = [];
-        let flushTimeout: number|undefined = undefined;
+        let flushTimeout: NodeJS.Timeout|undefined = undefined;
 
         const flushNotifications=()=>{
             if (flushTimeout !== undefined) {
@@ -339,15 +281,16 @@ export default class Notifier {
             if (notifications.length) {
                 const toSend = notifications;
                 notifications = [];
+                
                 // console.log('batching notifications: ', toSend.length);
-                this.store.dispatch({type: "notification", batch: toSend});
+                this.handleNotifications({batch: toSend});
             }
         }
 
         const pushNotification=(diff:any)=>{
             notifications.push(diff);
             if (flushTimeout === undefined) {
-                flushTimeout = window.setTimeout(()=> {
+                flushTimeout = setTimeout(()=> {
                     flushTimeout = undefined;
                     flushNotifications();
                 }, 40);
@@ -365,7 +308,7 @@ export default class Notifier {
                     this.resetHandshakeStatus(true, data.clientId);
                     this.serverId = data.serverId;
 
-                    this.store.dispatch({type: 'notification', data: data.data});
+                    this.handleNotifications({data: data.data});
                 }
 
 
@@ -408,7 +351,7 @@ export default class Notifier {
                 this.resetHandshakeStatus(false);
                 this.dispatchBackendStatus();
                 this.failStartedRequests("Backend disconnected");
-                window.setTimeout(()=>{
+                setTimeout(()=>{
                     this.updateState();
                 }, 1000);
             };
@@ -417,7 +360,7 @@ export default class Notifier {
                 flushNotifications();
                 this._close();
                 this.dispatchBackendStatus('Connection aborted');
-                window.setTimeout(()=>{
+                setTimeout(()=>{
                     this.updateState();
                 }, 2000);
             };
