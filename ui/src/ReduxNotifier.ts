@@ -11,7 +11,7 @@ export default class ReduxNotifier extends Notifier {
     private store: Redux.Store<Store.Content>;
 
     constructor() {
-        super();
+        super(undefined);
 
         if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
             this.hidden = "hidden";

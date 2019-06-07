@@ -1,6 +1,7 @@
 // Detecter l'état de visibilité de la page
 import { BackendStatus, BackendStatusValue } from './BackendStore';
 import CancellationToken from "cancellationtoken";
+import { WhiteList } from './shared/JsonProxy';
 
 class Request {
     readonly notifier: Notifier;
@@ -57,9 +58,12 @@ export default class Notifier {
     // FIXME: not used
     private xmitTimeout: number | undefined;
 
-    constructor() {
+    private readonly whiteList: WhiteList;
+
+    constructor(whiteList: WhiteList) {
         this.socket = undefined;
         this.sendingQueueMaxSize = 1000;
+        this.whiteList = whiteList;
         this.resetHandshakeStatus(false);
 
         this.suspended = true;
@@ -300,6 +304,10 @@ export default class Notifier {
         if (this.socket) {
             this.socket.onopen = (data)=>{
                 console.log('Websocket: connected');
+                this.write({
+                    type: "auth",
+                    whiteList: this.whiteList,
+                });
             };
             this.socket.onmessage = (event)=>{
                 const data = JSON.parse(event.data);

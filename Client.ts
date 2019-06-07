@@ -1,10 +1,9 @@
 import * as WebSocket from 'ws';
-import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot } from './JsonProxy';
+import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList } from './JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import ClientRequest from './ClientRequest';
 
 const clients: {[id:string]:Client} = {};
-let clientId = 0;
 
 export default class Client {
     public readonly uid: string;
@@ -19,20 +18,22 @@ export default class Client {
     private jsonSerial: ComposedSerialSnapshot;
     private jsonListenerId: string;
     private sendingTimer: NodeJS.Timeout|undefined;
+    private whiteList: WhiteList;
 
-    constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string)
+    constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList)
     {
-        this.uid = "#" + (clientId++);
+        this.uid = clientUid;
         clients[this.uid] = this;
 
-        this.log('Client ' + this.uid + ' connected');
+        this.log('Client ' + this.uid + ' connected with whitelist :' + JSON.stringify(whiteList));
+        this.whiteList = whiteList;
         this.socket = socket;
         this.disposed = false;
         this.requests = [];
         this.jsonListener = this.jsonListener.bind(this);
 
         this.jsonProxy = jsonProxy;
-        var initialState = this.jsonProxy.fork();
+        const initialState = this.jsonProxy.fork(whiteList);
         this.jsonSerial = initialState.serial;
         this.sendingTimer = undefined;
 
@@ -52,7 +53,7 @@ export default class Client {
             this.sendingTimer = undefined;
         }
         this.pendingDiffs = 0;
-        var patch = this.jsonProxy.diff(this.jsonSerial);
+        var patch = this.jsonProxy.diff(this.jsonSerial, this.whiteList);
         if (patch !== undefined) {
             this.notify({type: 'update', status: "ok", diff: patch});
         }
