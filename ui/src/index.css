@@ -6,11 +6,35 @@ body {
 
 :root {
   --pct: 1vw;
+  font-size: 5vw;
 }
 
-
-@media (min-aspect-ratio: 1/1) {
+/* Define font size to ensure at least 20 characters per line on small display */
+/* But keep the font below 18px (for wider screen) */
+@media (min-aspect-ratio: 1/1) and (max-height: 360px) {
   :root {
     --pct: 1vh;
+    font-size: 5vh;
+  }
+}
+
+@media (min-aspect-ratio: 1/1) and (min-height: 360px)  {
+  :root {
+    --pct: 1vh;
+    font-size: 18px;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) and (max-width: 360px) {
+  :root {
+    --pct: 1vw;
+    font-size: 5vw;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) and (min-width: 360px) {
+  :root {
+    --pct: 1vw;
+    font-size: 18px;
   }
 }

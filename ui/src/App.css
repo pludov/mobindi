@@ -1,6 +1,7 @@
 :root {
   --app-icon-size: calc(10 * var(--pct));
   --app-icon-transition: calc(2 * var(--pct));
+  --app-border: calc(0.5 * var(--pct));
 }
 .Loading{
   text-align: center;
@@ -36,8 +37,8 @@
   height: calc(var(--app-icon-size) + var(--app-icon-transition));
   flex-direction: row;
   display: flex;
-  background: linear-gradient(0deg, #0000ff 0.5vw, transparent var(--app-icon-transition) );
-  padding-left: calc(2 * var(--pct));
+  background: linear-gradient(0deg, #0000ff var(--app-border), transparent var(--app-icon-transition) );
+  padding-left: calc(0.1 * var(--app-icon-size));
 }
 
 .AppMainContent {

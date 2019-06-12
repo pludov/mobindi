@@ -20,7 +20,6 @@ body {
     padding: 0px;
     overflow: hidden;
     background-color: #505050;
-    font-size: calc(5 * var(--pct));
     height: 100%;
     position: absolute;
 }
@@ -40,7 +39,6 @@ div#root {
 }
 
 .Screen {
-
     width: 100vw;
     height: 100%;
     border: 0px solid #808080;
@@ -53,14 +51,14 @@ div#root {
 
 .Page {
     flew-grow: 1;
-    width: calc(100% - 3.2 * var(--pct));
+    width: calc(100% - 1.6 * var(--pct) - 2 * var(--app-border));
 
     display : flex;
     flex-direction: column;
     justify-content: space-between;
 
-    box-shadow: 0px 0px 0px calc(0.8 * var(--pct)) blue;
-    margin: 0 calc(0.8 * var(--pct)) calc(0.8 * var(--pct)) calc(0.8 * var(--pct));
+    box-shadow: 0px 0px 0px calc(var(--app-border)) blue;
+    margin: 0 calc(var(--app-border)) calc(var(--app-border)) calc(var(--app-border));
     padding: calc(0.8 * var(--pct));
 }
 
@@ -72,19 +70,20 @@ div#root {
 }
 
 .TextTitle {
-    font-size: 9.5vh;
+    font-size: 1.9em;
 }
 
 input[type="checkbox"] {
     padding: 0;
-    width: calc(5 * var(--pct));
-    height: calc(5 * var(--pct));
+    width: 1.2em;
+    height: 1.2em;
+    line-height: 2em;
     vertical-align: middle;
 }
 
 input, button, select, option, textarea {
     font-size: 100%;
-    margin: calc(0.5 * var(--pct));
+    margin: 0.2em;
     collapse: true;
     color: #000000;
 }
@@ -99,8 +98,8 @@ select {
 input[type=button] {
     height: 2em;
     line-height: 2em;
-    border-radius: calc(0.7 * var(--pct));
-    border-width: calc(0.5 * var(--pct));
+    border-radius: 0.3em;
+    border-width: 0.15em;
     background-color: #ccc;
     vertical-align: bottom;
 }

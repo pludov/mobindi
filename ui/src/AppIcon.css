@@ -1,10 +1,10 @@
 .AppStatusBar .Application {
     width: var(--app-icon-size);
-    height: calc(var(--app-icon-size) + var(--app-icon-transition) + 0.8 * var(--pct));
+    height: calc(var(--app-icon-size) + var(--app-icon-transition) + var(--app-border));
     object-fit: cover;
-    border: calc(0.8 * var(--pct)) solid transparent;
-    border-top-left-radius: calc(2.5 * var(--pct));
-    border-top-right-radius: calc(2.5 * var(--pct));
+    border: calc(var(--app-border)) solid transparent;
+    border-top-left-radius: calc(3 * var(--app-border));
+    border-top-right-radius: calc(3 * var(--app-border));
     border-bottom: 0px;
     cursor: pointer;
     position: relative;
@@ -15,9 +15,9 @@
 }
 
 .AppStatusBar .Application.Active {
-    border: calc(0.8 * var(--pct)) solid blue;
-    border-top-left-radius: calc(2.5 * var(--pct));
-    border-top-right-radius: calc(2.5 * var(--pct));
+    border: calc(var(--app-border)) solid blue;
+    border-top-left-radius: calc(3 * var(--app-border));
+    border-top-right-radius: calc(3 * var(--app-border));
     background: black;
     border-bottom: 0px;
     cursor: inherit;
@@ -42,12 +42,12 @@
 }
 
 .AppStatusBar .Application .Notification {
-    bottom: 0.5em;
+    bottom: calc(var(--app-border) + 0.1 * var(--app-icon-size));
     display: block;
     position: absolute;
-    right: 0.05em;
+    right: calc(var(--app-border));
     font-weight: bold;
-    font-size: 0.83em;
+    font-size: calc(0.4 * var(--app-icon-size));
     font-family: "Helvetica Narrow","Arial Narrow",Tahoma,Arial,Helvetica,sans-serif;
 }
 

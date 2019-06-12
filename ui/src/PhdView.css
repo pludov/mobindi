@@ -28,7 +28,7 @@ table.RADECTable tr td:first-child{
 
 .PHDAppState {
     font-weight: bold;
-    font-size: calc(7 * var(--pct));
+    font-size: 1.4em;
     text-align: center;
 }
 
