@@ -47,7 +47,7 @@ Next release will include:
   * Remember camera settings accros restarts
   * Auto focuser graph improvment
   * Preliminary support for ssl (on port 8443)
-  * New script for build/startup (startup.sh)
+  * New script for build/startup (install.sh/startup.sh)
   * Support for landscape orientation
   * UI fixes for Chrome
 
@@ -144,10 +144,15 @@ sudo apt-get install -y nodejs
 npm install
 ```
 
-Installation and startup:
+Installation:
 ```
 git clone https://github.com/pludov/mobindi.git
 cd mobindi
+./install.sh
+```
+
+Startup:
+```
 ./startup.sh
 ```
 
@@ -157,6 +162,7 @@ Connect to http://localhost:8080, or if you want to test the new support for htt
 To upgrade to the latest version, issue:
 ```
 git pull --ff-only
+./install.sh
 ./startup.sh
 ```
 

@@ -1,3 +1,5 @@
+mobindi.conf
+.mobindi.conf.tmp
 node_modules
 local/
 dist/
