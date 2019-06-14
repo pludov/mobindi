@@ -632,7 +632,7 @@ export default class Camera
     
             try {
                 task.cancellation.throwIfCancelled();
-                await sequenceLogic(ct);
+                await sequenceLogic(task.cancellation);
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
                     finishWithStatus('paused');
@@ -653,7 +653,7 @@ export default class Camera
         if (this.currentSequenceUuid !== message.sequenceUid) {
             throw new Error("Sequence " + message.sequenceUid + " is not running");
         }
-        
+
         this.currentSequencePromise!.cancel();
     }
 
