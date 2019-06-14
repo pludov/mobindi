@@ -5,6 +5,8 @@ import ClientRequest from './ClientRequest';
 
 const clients: {[id:string]:Client} = {};
 
+const pingDelay = 60000;
+
 export default class Client {
     public readonly uid: string;
     
@@ -19,6 +21,7 @@ export default class Client {
     private jsonListenerId: string;
     private sendingTimer: NodeJS.Timeout|undefined;
     private whiteList: WhiteList;
+    private pingTo: undefined|NodeJS.Timeout;
 
     constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList)
     {
@@ -36,7 +39,6 @@ export default class Client {
         const initialState = this.jsonProxy.fork(whiteList);
         this.jsonSerial = initialState.serial;
         this.sendingTimer = undefined;
-
         this.notify({type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data});
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
     }
@@ -76,6 +78,7 @@ export default class Client {
     public dispose=()=>{
         if (!this.disposed) {
             this.disposed = true;
+            console.log('Closed notification channel ' + this.uid);
             if (this.socket != undefined) {
                 try {
                     this.socket.close();
@@ -99,14 +102,33 @@ export default class Client {
         this.write(changeEvent);
     }
 
+    private ping=()=>{
+        console.log('pinging client ' + this.uid);
+        this.write({});
+    }
+
+    private restartPing = ()=> {
+        if (this.pingTo !== undefined) {
+            clearTimeout(this.pingTo);
+            this.pingTo = undefined;
+        }
+        if (!this.disposed) {
+            this.pingTo = setTimeout(this.ping, pingDelay * (0.75 + Math.random() / 2));
+        }
+    }
+
     private write=(event:any)=>{
         try {
+            if (this.disposed) {
+                return;
+            }
             this.socket.send(JSON.stringify(event), (error)=> {
                 if (error !== undefined) {
                     this.log('Failed to send: ' + error);
                     this.dispose();
                 }
                 this.writes--;
+                this.restartPing();
             });
         } catch(e) {
             this.log('Failed to send: ' + e);
