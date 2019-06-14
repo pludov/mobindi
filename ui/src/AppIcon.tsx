@@ -59,7 +59,7 @@ const mapStateToProps = function(store:Store.Content, ownProps:InputProps) {
     var result = {
         apps: store.backend.apps,
         currentApp: store.currentApp,
-        notification: Utils.noErr(()=>(store.appNotifications[ownProps.appid]), {error:true})
+        notification: Utils.noErr(()=>(store.notifs.byApp[ownProps.appid]), {error:true})
     };
     return result;
 }

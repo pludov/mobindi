@@ -82,11 +82,17 @@ export type CameraAPI = {
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }
 
-export type CloseNotificationRequest = {
+export type ExposedNotificationRequest = {
     uuid: string;
 }
 
+export type CloseNotificationRequest = {
+    uuid: string;
+    result?: any;
+}
+
 export type NotificationAPI = {
+    exposedNotification: (payload: ExposedNotificationRequest)=>void;
     closeNotification: (payload: CloseNotificationRequest)=>void;
 }
 

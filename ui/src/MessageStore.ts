@@ -47,13 +47,16 @@ class MessageAppSynchronizer {
                             ...state.messages,
                             lastMessageDisplayed: current,
                         },
-                        appNotifications: {
-                            ...state.appNotifications,
-                            messages: {
-                                ...state.appNotifications.messages,
-                                unread: undefined
-                            }
-                        },
+                        notifs: {
+                            ...state.notifs,
+                            byApp: {
+                                ...state.notifs.byApp,
+                                messages: {
+                                    ...state.notifs.byApp.messages,
+                                    unread: undefined
+                                }
+                            },
+                        }
                     };
                 } else {
                     let warning: NotificationStore.Notification|undefined;
@@ -74,12 +77,14 @@ class MessageAppSynchronizer {
                     }
                     return {
                         ...state,
-                        appNotifications:
-                        {
-                            ...state.appNotifications,
-                            messages: {
-                                ...state.appNotifications.messages,
-                                unread: warning
+                        notifs: {
+                            ...state.notifs,
+                            byApp: {
+                                ...state.notifs.byApp,
+                                messages: {
+                                    ...state.notifs.byApp.messages,
+                                    unread: warning
+                                }
                             }
                         }
                     }
@@ -91,11 +96,14 @@ class MessageAppSynchronizer {
                         ...state.messages,
                         lastMessageDisplayed: undefined,
                     },
-                    appNotifications: {
-                        ...state.appNotifications,
-                        messages: {
-                            ...state.appNotifications.messages,
-                            unread: undefined,
+                    notifs: {
+                        ...state.notifs,
+                        byApp: {
+                            ...state.notifs.byApp,
+                            messages: {
+                                ...state.notifs.byApp.messages,
+                                unread: undefined,
+                            }
                         }
                     }
                 }
@@ -107,7 +115,7 @@ class MessageAppSynchronizer {
 function askAuthAdjuster(state:Store.Content):Store.Content {
     const wantedNotification = (state.messages.notificationAuth !== true && state.currentApp !== "messages");
 
-    const currentStatus = state.appNotifications.messages && !!state.appNotifications.messages.auth;
+    const currentStatus = state.notifs.byApp.messages && !!state.notifs.byApp.messages.auth;
     if (currentStatus == wantedNotification) {
         return state;
     }
@@ -122,11 +130,14 @@ function askAuthAdjuster(state:Store.Content):Store.Content {
 
     return {
         ...state,
-        appNotifications: {
-            ...state.appNotifications,
-            messages: {
-                ...state.appNotifications.messages,
-                auth: wantedValue,
+        notifs: {
+            ...state.notifs,
+            byApp: {
+                ...state.notifs.byApp,
+                messages: {
+                    ...state.notifs.byApp.messages,
+                    auth: wantedValue,
+                }
             }
         }
     }
@@ -175,6 +186,46 @@ try {
     worker.port.onmessage = function (event) {console.log('worker event', event);};
 
     worker.port.postMessage({notificationAllowed: !!getMessageAuthValue()});
+
+    window.addEventListener("unload", ()=> {
+        worker.port.postMessage({unloaded: true});
+    });
+
+    let hidden: string;
+    let visibilityChange: string;
+    if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
+        hidden = "hidden";
+        visibilityChange = "visibilitychange";
+    } else if (typeof (document as any).msHidden !== "undefined") {
+        hidden = "msHidden";
+        visibilityChange = "msvisibilitychange";
+    } else if (typeof (document as any).webkitHidden !== "undefined") {
+        hidden = "webkitHidden";
+        visibilityChange = "webkitvisibilitychange";
+    } else {
+        console.log('no visiblity');
+        hidden = "";
+        visibilityChange = "";
+    }
+
+    if (visibilityChange && hidden) {
+        let timer:NodeJS.Timer;
+        const ping = ()=> {
+            console.log('worker ping');
+            const visible = !document[hidden];
+
+            worker.port.postMessage({visible});
+        };
+
+        document.addEventListener(visibilityChange, ()=>{
+            ping();
+            clearInterval(timer);
+            timer = setInterval(ping, 30000);
+        }, false);
+        timer = setInterval(ping, 30000);
+        ping();
+    }
+
 } catch(e) {
     console.warn("could not setup notification", e);
 }

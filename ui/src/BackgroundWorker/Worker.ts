@@ -36,6 +36,8 @@ let boCnxError: string|undefined;
 let boStatus: {notification: BackofficeStatus["notification"]} | undefined;
 
 
+let visibleClientCount:number = 0;
+
 class WorkerNotifier extends Notifier {
     protected onStatusChanged(backendStatus: BackendStatusValue, backendError?: string) {
         console.log('worker got new status',  backendStatus);
@@ -63,13 +65,14 @@ class WorkerNotifier extends Notifier {
     }
 }
 
-let shownNotifications: {[id:string]:number} = {};
+let shownNotifications: {[id:string]:true|number} = {};
+let visibleNotifications: {[id:string]:Notification} = {};
 
-function discardNotification(uuid: string)
+function exposedNotification(uuid: string)
 {
     notifier.sendRequest({
         _app: 'notification',
-        _func: 'closeNotification',
+        _func: 'exposedNotification',
         payload: {
             uuid
         }
@@ -90,20 +93,38 @@ function buildNotificationsFromBackend() {
     const result: Array<{title: string}> = [];
     for(const uuid of boStatus.notification.list) {
         if (has(shownNotifications, uuid)) {
-            if (shownNotifications[uuid] + 30000 < now) {
-                shownNotifications[uuid] = now;
-                discardNotification(uuid);
-            }
+            const v = shownNotifications[uuid] ;
+            // if ((v !== true) && v + 30000 < now) {
+            //     shownNotifications[uuid] = now;
+            //     if (boStatus.notification.byuuid[uuid].type === "oneshot") {
+            //         exposedNotification(uuid);
+            //     }
+            // }
             continue;
         }
-        shownNotifications[uuid] = now;
+        shownNotifications[uuid] = true;
 
         const notif = boStatus.notification.byuuid[uuid];
 
-        new Notification(notif.title, {
+        if (visibleClientCount === 0 && !has(visibleNotifications, uuid)) {
+            shownNotifications[uuid] = now;
+            const n = new Notification(notif.title, {
 
-        });
-        discardNotification(uuid);
+            });
+            if (notif.type === "dialog") {
+                visibleNotifications[uuid] = n;
+            }
+            // if (notif.type === "oneshot") {
+            //     exposedNotification(uuid);
+            // }
+        }
+    }
+    for(const uuid of Object.keys(visibleNotifications)) {
+        if (!has(boStatus.notification.byuuid, uuid)) {
+            const toKill = visibleNotifications[uuid];
+            delete visibleNotifications[uuid];
+            setTimeout(()=> {toKill.close()}, 5000);
+        }
     }
     return result;
 }
@@ -157,6 +178,11 @@ function emitNotifications() {
     }
 }
 
+type ClientStatus = {
+    alive: boolean;
+    visible: boolean;
+}
+
 try {
     setInterval(()=> {
         console.log('Worker alive');
@@ -166,7 +192,45 @@ try {
         console.log('worker got connection', e);
         try {
             var port = e.ports[0];
-            
+            let expireTimeout: NodeJS.Timeout|undefined = undefined;
+            let status: ClientStatus = {
+                alive: false,
+                visible: false,
+            }
+
+            const expire = ()=> {
+                expireTimeout = undefined;
+                updateStatus({alive: false});
+            }
+
+            const transStatus=(prev: ClientStatus, cur: ClientStatus)=>{
+                if ((prev.alive && prev.visible) != (cur.alive && cur.visible)) {
+                    visibleClientCount += (cur.alive && cur.visible) ? 1 : -1;
+                    console.log('Visible client count is ', visibleClientCount);
+                }
+                // clear interval
+                if (expireTimeout !== undefined) {
+                    clearTimeout(expireTimeout);
+                    expireTimeout = undefined;
+                }
+
+                if (cur.alive) {
+                    expireTimeout = setTimeout(expire, 60000);
+                }
+            }
+
+            const updateStatus=(nvStatus: Partial<ClientStatus>)=>{
+                let newStatus = {...status, ...nvStatus};
+                const oldStatus = status;
+                status = newStatus;
+                transStatus(oldStatus, status);
+            }
+
+            updateStatus({
+                alive: true,
+                visible: true,
+            });
+
             port.onmessage = function(evt:any) {
                 try {
                     console.log('worker got evt', evt);
@@ -174,7 +238,20 @@ try {
                         notificationAllowed = evt.data.notificationAllowed;
                         emitNotifications();
                     }
-
+                    if (has(evt.data, "unloaded")) {
+                        updateStatus({
+                            alive: false
+                        });
+                        return;
+                    }
+                    if (has(evt.data, "visible")) {
+                        updateStatus({
+                            visible: evt.data.visible
+                        });
+                    }
+                    updateStatus({
+                        alive: true
+                    });
                 } catch(e) {
                     console.log('error from worker onmessage', e);
                 }

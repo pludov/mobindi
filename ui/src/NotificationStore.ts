@@ -6,15 +6,19 @@ export type Notification = {
 }
 
 export type NotificationStore = {
-    [appId: string]: {[notifId: string]: Notification|undefined}
+    byApp: {
+        [appId: string]: {[notifId: string]: Notification|undefined}
+    }
 }
 
 export type Content = {
-    appNotifications: NotificationStore;
+    notifs: NotificationStore;
 }
 
 export const initialState:Content = {
-    appNotifications: {
+    notifs: {
+        byApp: {
+        }
     }
 }
 

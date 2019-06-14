@@ -152,6 +152,16 @@ export type CameraStatus = {
 export type NotificationItem = {
     title: string;
     time: number;
+
+    // oneshot must be closed by ui as soon as displayed
+    // dialog expect a result
+    type: "oneshot"|"dialog";
+    buttons: null | Array<
+        {
+            title: string;
+            value: any;
+        }
+    >
 }
 
 export type NotificationStatus = {
