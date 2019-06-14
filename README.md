@@ -42,15 +42,17 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
-Next release will include:
+Release 1.1.0 (June 2019):
   * Filterwheel control in camera and sequence
+  * Support for landscape orientation
+  * Support for larger screen (tablet/desktop)
+  * UI fixes for Chrome
   * Remember camera settings accros restarts
   * Auto focuser graph improvment
   * Preliminary support for ssl (on port 8443)
   * New script for build/startup (install.sh/startup.sh)
-  * Support for landscape orientation
-  * UI fixes for Chrome
 
+See below for installation/upgrade instruction.
 
 Initial Release: 1.0
 
@@ -166,7 +168,18 @@ git pull --ff-only
 ./startup.sh
 ```
 
+## Start with boot
 
+For system autostart, it is recommanded to first set a log directory:
+```
+./install.sh --log-dir /var/log/mobindi
+```
+
+Then depending on your distro, adding the following to /etc/rc.local should autostart (just adjust path and user)
+
+```
+su -l -c "/home/myuser/startup.sh" myuser &
+```
 
 ## Starting phd2/indiserver
 
@@ -196,7 +209,7 @@ The REACT http server on port 3000 will automatically push changes to UI, and re
 
 ## Licence
 
-Copyright ©2017-2018 Ludovic Pollet &lt;<a mailto="pludow@gmail.com">pludow@gmail.com</a>&gt;. All rights reserved.
+Copyright ©2017-2019 Ludovic Pollet &lt;<a mailto="pludow@gmail.com">pludow@gmail.com</a>&gt;. All rights reserved.
 
 This software is provided under the GPL-3 licence.
 
