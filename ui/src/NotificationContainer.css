@@ -3,6 +3,7 @@
     z-index: 2;
     left: 0px;
     right: 0px;
+    pointer-events: none;
 }
 
 .NotificationView {
@@ -17,12 +18,14 @@
 
     animation-duration: 0.5s;
     animation-name: slidein;
+    pointer-events: auto;
 }
 
 .NotificationView.Dead {
     animation-duration: 0.5s;
     animation-name: slideout;
     opacity: 0;
+    pointer-events: none;
 }
 
 @keyframes slidein {
