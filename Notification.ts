@@ -70,11 +70,11 @@ export default class Notification
         }
     }
 
-    dialog(ct: CancellationToken, title: string):Promise<boolean> {
-        return new Promise<boolean>((res, rej)=> {
+    dialog<T>(ct: CancellationToken, title: string, options:Array<{title:string, value:T}>):Promise<T> {
+        return new Promise<T>((res, rej)=> {
             let unrej: undefined|{ (): void; (): void; (): void; };
 
-            const uuid = this.doNotify(title, "dialog", [{title:"Ok", value: true}, {title:"Cancel", value: false}]);
+            const uuid = this.doNotify(title, "dialog", options);
             const doUnrej= ()=>{
                 if (unrej !== undefined) {
                     unrej();
@@ -82,9 +82,9 @@ export default class Notification
                 }
             }
 
-            const done = (result: boolean)=>{
+            const done = (result: any)=>{
                 doUnrej();
-                res(result);
+                res(result as T);
             }
 
             const abort=(reason?:any)=>{
@@ -124,6 +124,24 @@ export default class Notification
             }
         }
         console.log('Remaining notifications: ' + JSON.stringify(this.currentStatus));
+    }
+
+    public message(content: string) {
+        // add this to indi logs for now
+        this.context.indiManager.addMessage({
+            $$: "message",
+            $device: "",
+            $timestamp: new Date().toISOString().replace(/Z$/, ''),
+            $message: content,
+        });
+    }
+
+    public error(content: string, reason?: any) {
+        if (reason) {
+            this.message(content + ": " + (reason.msg || reason));
+        } else {
+            this.message(content);
+        }
     }
 
     getAPI() {

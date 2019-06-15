@@ -658,8 +658,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         await this.indiServerStarter.restartDevice(ct, message.driver);
     }
 
-    public updateDriverParam = async (ct: CancellationToken, message: BackOfficeAPI.UpdateIndiDriverParamRequest)=>
-    {
+    public doUpdateDriverParam = (message: BackOfficeAPI.UpdateIndiDriverParamRequest) => {
         if (!has(this.currentStatus.configuration.indiServer.devices, message.driver)) {
             throw new Error("Device not found");
         }
@@ -668,5 +667,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             dev.options = {};
         }
         (dev.options as any)[message.key] = message.value;
+    }
+
+    public updateDriverParam = async (ct: CancellationToken, message: BackOfficeAPI.UpdateIndiDriverParamRequest)=>
+    {
+        this.doUpdateDriverParam(message);
     }
 }

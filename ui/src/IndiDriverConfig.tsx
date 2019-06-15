@@ -34,16 +34,16 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
 
         this.autoConnect = this.switchBoolean('autoConnect');
         this.autoGphotoSensorSize = this.switchBoolean('autoGphotoSensorSize');
-        this.askCoverScope = this.switchBoolean('askCoverScope');
+        this.askCoverScope = this.switchBoolean('disableAskCoverScope', true);
     }
 
     static supportAutoGphotoSensorSize(driver: string) {
         return driver === 'indi_gphoto_ccd' || driver === 'indi_canon_ccd' || driver === 'indi_nikon_ccd';
     }
 
-    private switchBoolean(key:string):(e:React.ChangeEvent<HTMLInputElement>)=>(void) {
+    private switchBoolean(key:string, invert?: boolean):(e:React.ChangeEvent<HTMLInputElement>)=>(void) {
         return (e)=>{
-            const targetValue = e.target.checked;
+            const targetValue = (!!e.target.checked) !== (!!invert);
 
             Utils.promiseToState(
                 (async ()=> {
@@ -70,7 +70,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                 Ask to cover scope:
                     <input
                             type="checkbox"
-                            checked={this.props.details.askCoverScope ? true : false}
+                            checked={this.props.details.disableAskCoverScope ? false : true}
                             onChange={this.askCoverScope}
                     />
             </div>

@@ -52,7 +52,7 @@ export type IndiDeviceConfiguration = {
     prefix?: string;
     options: {
         autoGphotoSensorSize?: boolean;
-        askCoverScope?: boolean;
+        disableAskCoverScope?: boolean;
         autoConnect?: boolean;
     };
 };

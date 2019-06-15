@@ -517,7 +517,17 @@ export default class Camera
             return false;
         }
 
-        return !!devConf[cameraId].options.askCoverScope;
+        return !devConf[cameraId].options.disableAskCoverScope;
+    }
+
+    private disableCoverScopeMessage(cameraId: string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        try {
+            this.indiManager.doUpdateDriverParam({driver: cameraId, key: "disableAskCoverScope", value: true});
+            this.context.notification.message("Cover scope message can be enabled in INDI tab");
+        } catch(e) {
+            this.context.notification.error("Unable to control cover scope message preference", e);
+        }
     }
 
     private doStartSequence = async (ct: CancellationToken, uuid:string)=>{
@@ -577,9 +587,13 @@ export default class Camera
                         this.indiManager.checkDeviceConnected(sequence.camera);
 
                         // Ask confirmation
-                        const acked = await this.context.notification.dialog(ct, coverMessageByFrameType[newScopeState]);
+                        const acked = await this.context.notification.dialog<boolean|"neverask">(ct, coverMessageByFrameType[newScopeState],
+                                                        [{title:"Ok", value: true}, {title:"Pause Seq", value: false}, {title:"Never ask", value: "neverask"}]);
                         if (!acked) {
                             throw new CancellationToken.CancellationError("User canceled");
+                        }
+                        if (acked === "neverask") {
+                            this.disableCoverScopeMessage(sequence.camera);
                         }
                     }
                     scopeState = newScopeState;
