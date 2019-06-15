@@ -42,6 +42,12 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
+Next version:
+  * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
+    They require the use of a HTTPS connection and an authorization (accessible in the message tab)
+  * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
+  * "Cover scope" messages are delivered in sequence when switching from/to dark/bias/flat. This is a per camera setting.
+
 Release 1.1.0 (June 2019):
   * Filterwheel control in camera and sequence
   * Support for landscape orientation
@@ -158,7 +164,7 @@ Startup:
 ./startup.sh
 ```
 
-Connect to http://localhost:8080, or if you want to test the new support for https, use: https://localhost:8443
+Connect to https://localhost:8443. You will have to accept a self-signed certificate.
 
 
 To upgrade to the latest version, issue:
