@@ -667,6 +667,6 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         if (!dev.options) {
             dev.options = {};
         }
-        dev.options[message.key] = message.value;
+        (dev.options as any)[message.key] = message.value;
     }
 }

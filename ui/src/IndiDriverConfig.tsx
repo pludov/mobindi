@@ -18,6 +18,7 @@ type InputProps = {
 type MappedProps = {
     driver: BackofficeStatus.IndiDeviceConfiguration["driver"];
     details: BackofficeStatus.IndiDeviceConfiguration["options"];
+    cameraList: string[] | undefined;
 }
 
 type Props = InputProps & MappedProps;
@@ -33,6 +34,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
 
         this.autoConnect = this.switchBoolean('autoConnect');
         this.autoGphotoSensorSize = this.switchBoolean('autoGphotoSensorSize');
+        this.askCoverScope = this.switchBoolean('askCoverScope');
     }
 
     static supportAutoGphotoSensorSize(driver: string) {
@@ -60,18 +62,17 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
 
     private readonly autoConnect:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
     private readonly autoGphotoSensorSize:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
+    private readonly askCoverScope:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
 
-    render() {
-        return <div>
-            <div>{this.props.driverId}</div>
-        
-            <div className="IndiProperty">
-                Auto connect:
-                <input
-                        type="checkbox"
-                        checked={this.props.details.autoConnect ? true : false}
-                        onChange={this.autoConnect}
-                />
+    renderCamera() {
+        return <>
+            <div>
+                Ask to cover scope:
+                    <input
+                            type="checkbox"
+                            checked={this.props.details.askCoverScope ? true : false}
+                            onChange={this.askCoverScope}
+                    />
             </div>
             {IndiDriverConfig.supportAutoGphotoSensorSize(this.props.driver) ?
                 <div>
@@ -83,12 +84,30 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                     />
                 </div>
             : null }
+        </>;
+    }
+
+    render() {
+        const isCamera = this.props.cameraList && this.props.cameraList.indexOf(this.props.driverId) !== -1;
+        return <div>
+            <div>{this.props.driverId}</div>
+
+            <div className="IndiProperty">
+                Auto connect:
+                <input
+                        type="checkbox"
+                        checked={this.props.details.autoConnect ? true : false}
+                        onChange={this.autoConnect}
+                />
+            </div>
+            {isCamera ? this.renderCamera() : null}
         </div>
     }
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
 
         const result = {
             driver: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].driver || "", ""),
+            cameraList: Utils.noErr(()=>store.backend.camera!.availableDevices, undefined),
             details: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].options || {}, {})
         };
         return result;

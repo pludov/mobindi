@@ -50,7 +50,11 @@ export type IndiDeviceConfiguration = {
     config?: string;
     skeleton?: string;
     prefix?: string;
-    options: {[id:string]:number|string|boolean};
+    options: {
+        autoGphotoSensorSize?: boolean;
+        askCoverScope?: boolean;
+        autoConnect?: boolean;
+    };
 };
 
 export type IndiServerConfiguration = {

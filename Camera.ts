@@ -15,6 +15,19 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 
+
+type ScopeState = "light"|"dark"|"flat";
+const stateByFrameType :{[id:string]:ScopeState}= {
+    FRAME_BIAS:"dark",
+    FRAME_DARK:"dark",
+    FRAME_FLAT:"flat",
+}
+const coverMessageByFrameType = {
+    "light":"Uncover scope",
+    "dark": "Cover scope",
+    "flat": "Switch scope to flat field",
+}
+
 export default class Camera
         implements RequestHandler.APIAppProvider<BackOfficeAPI.CameraAPI>
 {
@@ -498,6 +511,15 @@ export default class Camera
         }
     }
 
+    private needCoverScopeMessage(cameraId:string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        if (!hasKey(devConf, cameraId)) {
+            return false;
+        }
+
+        return !!devConf[cameraId].options.askCoverScope;
+    }
+
     private doStartSequence = async (ct: CancellationToken, uuid:string)=>{
         const getSequence=()=>{
             var rslt = this.currentStatus.sequences.byuuid[uuid];
@@ -525,6 +547,8 @@ export default class Camera
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
+            let scopeState: ScopeState = "light";
+
             while(true) {
                 ct.throwIfCancelled();
 
@@ -544,14 +568,28 @@ export default class Camera
                     throw new Error("No device specified");
                 }
 
+                // Send a cover scope dialog if required
+                const newScopeState:ScopeState = hasKey(stateByFrameType, step.type) ? stateByFrameType[step.type] : 'light';
+                if (newScopeState !== scopeState) {
+                    if (this.needCoverScopeMessage(sequence.camera))
+                    {
+                        // Check that camera is connected first
+                        this.indiManager.checkDeviceConnected(sequence.camera);
+
+                        // Ask confirmation
+                        const acked = await this.context.notification.dialog(ct, coverMessageByFrameType[newScopeState]);
+                        if (!acked) {
+                            throw new CancellationToken.CancellationError("User canceled");
+                        }
+                    }
+                    scopeState = newScopeState;
+                }
+
                 // Check that camera is connected
                 const device = this.indiManager.checkDeviceConnected(sequence.camera);
 
                 // Get the name of frame type
                 const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';
-
-
-                this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
 
                 const shootTitle =
                         ((step.done || 0) + 1) + "/" + step.count +
