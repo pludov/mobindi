@@ -54,6 +54,7 @@ export type IndiDeviceConfiguration = {
         autoGphotoSensorSize?: boolean;
         disableAskCoverScope?: boolean;
         autoConnect?: boolean;
+        confirmFilterChange?: boolean;
     };
 };
 

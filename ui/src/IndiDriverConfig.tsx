@@ -19,6 +19,7 @@ type MappedProps = {
     driver: BackofficeStatus.IndiDeviceConfiguration["driver"];
     details: BackofficeStatus.IndiDeviceConfiguration["options"];
     cameraList: string[] | undefined;
+    filterWheelList: string[] | undefined;
 }
 
 type Props = InputProps & MappedProps;
@@ -35,6 +36,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         this.autoConnect = this.switchBoolean('autoConnect');
         this.autoGphotoSensorSize = this.switchBoolean('autoGphotoSensorSize');
         this.askCoverScope = this.switchBoolean('disableAskCoverScope', true);
+        this.confirmFilterChange = this.switchBoolean('confirmFilterChange');
     }
 
     static supportAutoGphotoSensorSize(driver: string) {
@@ -63,6 +65,20 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
     private readonly autoConnect:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
     private readonly autoGphotoSensorSize:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
     private readonly askCoverScope:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
+    private readonly confirmFilterChange:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
+
+    renderFilterWheel() {
+        return <>
+            <div>
+                Confirm filter changes:
+                    <input
+                            type="checkbox"
+                            checked={!!this.props.details.confirmFilterChange}
+                            onChange={this.confirmFilterChange}
+                    />
+            </div>
+        </>
+    }
 
     renderCamera() {
         return <>
@@ -89,6 +105,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
 
     render() {
         const isCamera = this.props.cameraList && this.props.cameraList.indexOf(this.props.driverId) !== -1;
+        const isFilterWheel = this.props.filterWheelList && this.props.filterWheelList.indexOf(this.props.driverId) !== -1;
         return <div>
             <div>{this.props.driverId}</div>
 
@@ -101,6 +118,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                 />
             </div>
             {isCamera ? this.renderCamera() : null}
+            {isFilterWheel ? this.renderFilterWheel() : null}
         </div>
     }
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
@@ -108,6 +126,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         const result = {
             driver: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].driver || "", ""),
             cameraList: Utils.noErr(()=>store.backend.camera!.availableDevices, undefined),
+            filterWheelList: Utils.noErr(()=>store.backend.filterWheel!.availableDevices, undefined),
             details: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].options || {}, {})
         };
         return result;

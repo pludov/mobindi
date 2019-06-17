@@ -46,7 +46,8 @@ Next version:
   * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
     They require the use of a HTTPS connection and an authorization (accessible in the message tab)
   * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
-  * "Cover scope" messages are delivered in sequence when switching from/to dark/bias/flat. This is a per camera setting.
+  * "Cover scope" messages are delivered in sequence when switching from/to dark/bias/flat. This is a per camera setting and can be (de)activated in Mobindi's advanced props for the Camera indi driver
+  * Manual filter wheel support. To use, you have to configure a filter wheel simulator in indi, and ask for filter change confirmation in mobindi's advanced props for driver. Mobindi will then confirm every filter change during sequences.
 
 Release 1.1.0 (June 2019):
   * Filterwheel control in camera and sequence
@@ -77,6 +78,8 @@ The camera app can also display FWHM and trigger astrometry sync and goto (cente
 ### Photo sequencer
 
 The sequence editor allows to program repeated shoots, possibily with various exposure and using dithering (with PHD2).
+Optionaly, Mobindi can inform you about the evolution of a sequence, either when things break or when manual intervention is required (ie for dark, manual filter wheels, ...)
+
 
 ![Sequence list UI](docs/sequence-view.png?raw=true "Sequence list UI")
 ![Sequence editor UI](docs/sequence-edit.png?raw=true "Sequence editor UI")
