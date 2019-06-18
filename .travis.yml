@@ -1,8 +1,24 @@
-language: node_js
-node_js:
-  - "8"
-cache:
-  directories:
-    - "node_modules"
-    - "ui/node_modules"
-script: npm install && npm run tsc && npm test && cd ui && npm install && CI=false npm run-script build
+matrix:
+  include:
+    - language: node_js
+      node_js:
+        - "8"
+      cache:
+        directories:
+          - "node_modules"
+          - "ui/node_modules"
+      script: npm install && npm run tsc && npm test && cd ui && npm install && CI=false npm run-script build
+    - language: cpp
+      compiler: gcc
+      dist: xenial
+      script: cd fitsviewer && cmake . && make -j2 && ./unittests
+      addons:
+        apt:
+          packages:
+          - zlib1g-dev
+          - libcurl4-openssl-dev
+          - libgsl-dev libraw-dev
+          - libcfitsio-dev
+          - libjpeg-dev
+          - libpng-dev
+          - libcgicc-dev
