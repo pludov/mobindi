@@ -8,7 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-reorder -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-reorder -Wno-unused-parameter -fpermissive")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
