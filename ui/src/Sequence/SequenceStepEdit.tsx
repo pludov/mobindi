@@ -35,7 +35,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     }
 
     private updateSequenceParam = async(param: string, value: any) => {
-        await BackendRequest.RootInvoker("camera")("updateSequence")(
+        await BackendRequest.RootInvoker("sequence")("updateSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.sequenceUid,
@@ -46,7 +46,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     }
 
     private deleteStep = async() => {
-        await BackendRequest.RootInvoker("camera")("deleteSequenceStep")(
+        await BackendRequest.RootInvoker("sequence")("deleteSequenceStep")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.sequenceUid,
@@ -56,7 +56,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     // Juste afficher le count
     render() {
-        var settingsPath = 'backend.camera.sequences.byuuid[' + JSON.stringify(this.props.sequenceUid) + '].steps.byuuid[' + JSON.stringify(this.props.sequenceStepUid) + ']';
+        var settingsPath = 'backend.sequence.sequences.byuuid[' + JSON.stringify(this.props.sequenceUid) + '].steps.byuuid[' + JSON.stringify(this.props.sequenceStepUid) + ']';
         if (this.props.details === undefined) {
             return null;
         }
@@ -112,7 +112,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     }
 
     static mapStateToProps(store:Store.Content, ownProps:InputProps):MappedProps {
-        const details = Utils.noErr(()=>store.backend.camera!.sequences.byuuid[ownProps.sequenceUid].steps.byuuid[ownProps.sequenceStepUid], undefined);
+        const details = Utils.noErr(()=>store.backend.sequence!.sequences.byuuid[ownProps.sequenceUid].steps.byuuid[ownProps.sequenceStepUid], undefined);
         if (details === undefined) {
             return {
                 details: undefined

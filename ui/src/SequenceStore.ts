@@ -14,11 +14,11 @@ export type Content = {
 
 
 function adjuster(store:Store.Content):Store.Content {
-    if (store.backend.camera !== undefined) {
+    if (store.backend.sequence !== undefined) {
         const currentSequence = store.sequence.currentSequence;
 
         // FIXME: choose the first one ?
-        if (currentSequence !== undefined && !Utils.has(store.backend.camera.sequences.byuuid, currentSequence)) {
+        if (currentSequence !== undefined && !Utils.has(store.backend.sequence.sequences.byuuid, currentSequence)) {
             store = {
                 ...store,
                 sequence: {
@@ -30,7 +30,7 @@ function adjuster(store:Store.Content):Store.Content {
 
         const editingSequence = store.sequence.editingSequence;
 
-        if (editingSequence !== undefined && !Utils.has(store.backend.camera!.sequences.byuuid, editingSequence)) {
+        if (editingSequence !== undefined && !Utils.has(store.backend.sequence!.sequences.byuuid, editingSequence)) {
             store = {
                 ...store,
                 sequence: {

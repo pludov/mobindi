@@ -71,6 +71,9 @@ export type CameraAPI = {
     abort: (payload: {})=>void;
     setCamera: (payload: {device: string})=>void;
     setShootParam: <K extends keyof CameraDeviceSettings>(payload: {camera?: string, key: K, value: CameraDeviceSettings[K]})=>void;
+}
+
+export type SequenceAPI = {
     newSequence: (payload: {})=>string;
     startSequence: (payload: {sequenceUid: string})=>void;
     stopSequence: (payload: {sequenceUid: string})=>void;
@@ -124,6 +127,7 @@ export type BackOfficeAPI = {
     focuser: FocuserAPI;
     indi: IndiAPI;
     camera: CameraAPI;
+    sequence: SequenceAPI;
     filterWheel: FilterWheelAPI;
     imageProcessor: ImageProcessorAPI;
     phd: PhdAPI;

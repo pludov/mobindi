@@ -34,7 +34,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     }
 
     private startSequence = async()=>{
-        await BackendRequest.RootInvoker("camera")("startSequence")(
+        await BackendRequest.RootInvoker("sequence")("startSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uuid!,
@@ -42,7 +42,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     }
 
     private stopSequence = async()=>{
-        await BackendRequest.RootInvoker("camera")("stopSequence")(
+        await BackendRequest.RootInvoker("sequence")("stopSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uuid!,
@@ -50,7 +50,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     }
     
     private resetSequence = async()=>{
-        await BackendRequest.RootInvoker("camera")("resetSequence")(
+        await BackendRequest.RootInvoker("sequence")("resetSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uuid!,
@@ -58,7 +58,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     }
 
     private dropSequence = async()=>{
-        await BackendRequest.RootInvoker("camera")("dropSequence")(
+        await BackendRequest.RootInvoker("sequence")("dropSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uuid!,
@@ -138,7 +138,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
         if (!selected) {
             return {}
         }
-        var currentSequence = store.backend.camera!.sequences.byuuid[selected];
+        var currentSequence = store.backend.sequence!.sequences.byuuid[selected];
         return {
             uuid: selected,
             current: currentSequence

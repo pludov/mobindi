@@ -33,8 +33,8 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     getItemList = (store:Store.Content)=>{
         const currentSequence = store.sequence.currentSequence;
         let seq = undefined;
-        if (currentSequence && store.backend.camera !== undefined && has(store.backend.camera.sequences.byuuid, currentSequence)) {
-            seq = store.backend.camera.sequences.byuuid[currentSequence];
+        if (currentSequence && store.backend.sequence !== undefined && has(store.backend.sequence.sequences.byuuid, currentSequence)) {
+            seq = store.backend.sequence.sequences.byuuid[currentSequence];
         }
 
         if (seq !== undefined) {

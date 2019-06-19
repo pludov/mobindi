@@ -140,14 +140,17 @@ export type CameraStatus = {
         byuuid: {[uuid:string]:ImageStatus}
     };
 
+    // FIXME: config
+    configuration: CameraConfiguration;
+}
+
+export type SequenceStatus = {
     sequences: {
         list: string[],
         byuuid: {[uuid: string]:Sequence}
     };
-
-    // FIXME: config
-    configuration: CameraConfiguration;
 }
+
 
 export type FocuserSettings = {
     range: number;
@@ -379,6 +382,7 @@ export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
     camera: CameraStatus;
+    sequence: SequenceStatus;
     filterWheel: FilterWheelStatus;
     astrometry: AstrometryStatus;
     focuser: FocuserStatus;

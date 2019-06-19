@@ -98,7 +98,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
     private newStep = async()=> {
-        const newUid = await BackendRequest.RootInvoker("camera")("newSequenceStep")(
+        const newUid = await BackendRequest.RootInvoker("sequence")("newSequenceStep")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uid!,
@@ -107,7 +107,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
     private deleteStep = async(sequenceStepUid:string)=>{
-        await BackendRequest.RootInvoker("camera")("deleteSequenceStep")(
+        await BackendRequest.RootInvoker("sequence")("deleteSequenceStep")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uid!,
@@ -116,7 +116,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
     async moveSequenceSteps(sequenceStepUidList:string[]) {
-        await BackendRequest.RootInvoker("camera")("moveSequenceSteps")(
+        await BackendRequest.RootInvoker("sequence")("moveSequenceSteps")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uid!,
@@ -125,7 +125,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
     private updateSequenceParam = async(param: string, value: any) => {
-        await BackendRequest.RootInvoker("camera")("updateSequence")(
+        await BackendRequest.RootInvoker("sequence")("updateSequence")(
             CancellationToken.CONTINUE,
             {
                 sequenceUid: this.props.uid!,
@@ -178,7 +178,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
             return null;
         }
         var self =this;
-        var settingsPath = 'backend.camera.sequences.byuuid[' + JSON.stringify(this.props.uid) + ']';
+        var settingsPath = 'backend.sequence.sequences.byuuid[' + JSON.stringify(this.props.uid) + ']';
 
         var exposureParam = {
             valuePath: settingsPath + '.exposure',
@@ -212,11 +212,11 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                         Camera:
                         <CameraSelector
-                            getValue={(store)=>Utils.noErr(()=>store.backend.camera!.sequences.byuuid[this.props.uid!].camera, null)}
+                            getValue={(store)=>Utils.noErr(()=>store.backend.sequence!.sequences.byuuid[this.props.uid!].camera, null)}
                             setValue={(e)=>this.updateSequenceParam('camera', e)}
                         />
                         <DeviceConnectBton.forActivePath
-                            activePath={"$.backend.camera.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
+                            activePath={"$.backend.sequence.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
                         />
                 </div>
                 <StatePropCond
@@ -294,7 +294,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 displayable: false,
             };
         }
-        var details = Utils.noErr(()=>store.backend.camera!.sequences.byuuid[selected], undefined);
+        var details = Utils.noErr(()=>store.backend.sequence!.sequences.byuuid[selected], undefined);
         if (details == undefined) {
             return {
                 displayable: false,

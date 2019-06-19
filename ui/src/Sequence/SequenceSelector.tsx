@@ -25,7 +25,7 @@ function setCurrentSequence(uid:string) {
 }
 
 async function newSequence(onCreated: (uid:string)=>void) {
-    const sequence = await BackendRequest.RootInvoker("camera")("newSequence")(
+    const sequence = await BackendRequest.RootInvoker("sequence")("newSequence")(
         CancellationToken.CONTINUE,
         {});
     Actions.dispatch<SequenceStore.Actions>()("setCurrentSequence", {sequence});
@@ -52,8 +52,8 @@ const SequenceSelector = connect(()=>{
         ... sequenceSelectorBaseProps,
         controls: controls(store, ownProps),
         active: atPath(store, ownProps.currentPath),
-        availables: store.backend.camera!.sequences.list,
-        definitions: store.backend.camera!.sequences.byuuid
+        availables: store.backend.sequence!.sequences.list,
+        definitions: store.backend.sequence!.sequences.byuuid
     })
 })(PromiseSelector);
 

@@ -37,6 +37,7 @@ import { createTask } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
 import FilterWheel from "./FilterWheel";
+import Sequence from "./Sequence";
 
 const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
@@ -118,6 +119,8 @@ context.indiManager = new IndiManager(app, appStateManager, context as AppContex
 
 context.camera = new Camera(app, appStateManager, context as AppContext);
 
+context.sequence = new Sequence(app, appStateManager, context as AppContext);
+
 context.filterWheel = new FilterWheel(app, appStateManager, context as AppContext);
 
 context.triggerExecuter = new TriggerExecuter(appStateManager, context as AppContext);
@@ -135,6 +138,7 @@ const apiRoot: RequestHandler.APIImplementor = {
     astrometry: context.astrometry.getAPI(),
     indi: context.indiManager.getAPI(),
     camera: context.camera.getAPI(),
+    sequence: context.sequence.getAPI(),
     imageProcessor: context.imageProcessor.getAPI(),
     phd: context.phd.getAPI(),
 };
