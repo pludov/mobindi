@@ -34,5 +34,5 @@ export function ImageProcessor<K extends keyof ProcessorTypes.Request>
                         payload: Pick<ProcessorTypes.Request, K>
                     ) : Promise<ProcessorTypes.Result[K]>
 {
-    return RootInvoker("imageProcessor")("compute")(ct, payload as any);
+    return RootInvoker("imageProcessor")("compute")(ct, payload as any) as any;
 }
