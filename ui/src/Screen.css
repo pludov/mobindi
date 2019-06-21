@@ -9,7 +9,7 @@
 
 @font-face {
     font-family: 'MobindiGlyphBton';
-    unicode-range: U+23FB;
+    unicode-range: U+23FB, U+1D306;
 
     src: local('NotoSansSymbols2-Regular'),
          url('./NotoSansSymbols2-Regular.woff') format('woff');

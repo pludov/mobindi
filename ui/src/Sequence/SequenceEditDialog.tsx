@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import { Sequence } from '@bo/BackOfficeStatus';
-import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
 import * as Utils from '../Utils';
 import * as Store from '../Store';
@@ -36,27 +35,6 @@ import CancellationToken from 'cancellationtoken';
 
 
 
-const SortableItem = SortableElement<{camera:string, sequenceUid: string, sequenceStepUid:string, allowRemove:boolean}>(({camera, sequenceUid, sequenceStepUid, allowRemove})=> {
-    return (<li className="SequenceStepMovableBlock">
-                <SequenceStepEdit camera={camera} sequenceUid={sequenceUid} sequenceStepUid={sequenceStepUid} allowRemove={allowRemove}/>
-    </li>);
-})
-
-const SortableList = SortableContainer<{items: string[], camera:string, sequenceUid:string}>(({items, camera, sequenceUid}) => {
-    return (
-      <ul className="SequenceStepContainer">
-        {items.map((sequenceStepUid: string, index:number) => (
-          <SortableItem
-                    key={`item-${index}`}
-                    index={index}
-                    camera={camera}
-                    sequenceUid={sequenceUid}
-                    sequenceStepUid={sequenceStepUid}
-                    allowRemove={items.length > 1} />
-        ))}
-      </ul>
-    );
-  });
 
 type InputProps = {
     currentPath: string;
@@ -86,43 +64,42 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
             overridenList: null,
             overridenListSource: null
         };
-        this.moveSteps = this.moveSteps.bind(this);
     }
 
-    getCurrentStepList():string[] {
-        if (this.state.overridenList !== null
-                && this.state.overridenListSource === this.props.details!.steps.list) {
-            return this.state.overridenList;
-        }
-        return this.props.details!.steps.list;
-    }
+    // getCurrentStepList():string[] {
+    //     if (this.state.overridenList !== null
+    //             && this.state.overridenListSource === this.props.details!.steps.list) {
+    //         return this.state.overridenList;
+    //     }
+    //     return this.props.details!.steps.list;
+    // }
 
-    private newStep = async()=> {
-        const newUid = await BackendRequest.RootInvoker("sequence")("newSequenceStep")(
-            CancellationToken.CONTINUE,
-            {
-                sequenceUid: this.props.uid!,
-            });
-        // FIXME: focus the newUid ?
-    }
+    // private newStep = async()=> {
+    //     const newUid = await BackendRequest.RootInvoker("sequence")("newSequenceStep")(
+    //         CancellationToken.CONTINUE,
+    //         {
+    //             sequenceUid: this.props.uid!,
+    //         });
+    //     // FIXME: focus the newUid ?
+    // }
 
-    private deleteStep = async(sequenceStepUid:string)=>{
-        await BackendRequest.RootInvoker("sequence")("deleteSequenceStep")(
-            CancellationToken.CONTINUE,
-            {
-                sequenceUid: this.props.uid!,
-                sequenceStepUid: sequenceStepUid,
-            });
-    }
+    // private deleteStep = async(sequenceStepUid:string)=>{
+    //     await BackendRequest.RootInvoker("sequence")("deleteSequenceStep")(
+    //         CancellationToken.CONTINUE,
+    //         {
+    //             sequenceUid: this.props.uid!,
+    //             sequenceStepUid: sequenceStepUid,
+    //         });
+    // }
 
-    async moveSequenceSteps(sequenceStepUidList:string[]) {
-        await BackendRequest.RootInvoker("sequence")("moveSequenceSteps")(
-            CancellationToken.CONTINUE,
-            {
-                sequenceUid: this.props.uid!,
-                sequenceStepUidList: sequenceStepUidList,
-            });
-    }
+    // async moveSequenceSteps(sequenceStepUidList:string[]) {
+    //     await BackendRequest.RootInvoker("sequence")("moveSequenceSteps")(
+    //         CancellationToken.CONTINUE,
+    //         {
+    //             sequenceUid: this.props.uid!,
+    //             sequenceStepUidList: sequenceStepUidList,
+    //         });
+    // }
 
     private updateSequenceParam = async(param: string, value: any) => {
         await BackendRequest.RootInvoker("sequence")("updateSequence")(
@@ -135,42 +112,42 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
 
-    private moveStepsEnd=()=>{
-        this.setState((state: State, props: Props) => {
-            state = {
-                    ...state,
-                    runningMoves: state.runningMoves - 1
-            };
-            if (state.runningMoves == 0) {
-                state.overridenList = null;
-                state.overridenListSource = null;
-            }
-            return state;
-        });
-    }
+    // private moveStepsEnd=()=>{
+    //     this.setState((state: State, props: Props) => {
+    //         state = {
+    //                 ...state,
+    //                 runningMoves: state.runningMoves - 1
+    //         };
+    //         if (state.runningMoves == 0) {
+    //             state.overridenList = null;
+    //             state.overridenListSource = null;
+    //         }
+    //         return state;
+    //     });
+    // }
 
-    private moveSteps=(param: {oldIndex:number, newIndex:number})=>{
-        const {oldIndex, newIndex} = param;
-        if (oldIndex == newIndex) return;
-        var newOrder = arrayMove(this.getCurrentStepList(), oldIndex, newIndex);
-        var initialOrder = this.props.details!.steps.list;
+    // private moveSteps=(param: {oldIndex:number, newIndex:number})=>{
+    //     const {oldIndex, newIndex} = param;
+    //     if (oldIndex == newIndex) return;
+    //     var newOrder = arrayMove(this.getCurrentStepList(), oldIndex, newIndex);
+    //     var initialOrder = this.props.details!.steps.list;
 
-        // Update the state, then start a trigger
-        this.setState((state:State, props:Props)=>
-            ({
-                ...state,
-                overridenList: newOrder,
-                overridenListSource: initialOrder,
-                runningMoves: state.runningMoves + 1
-            }),
-            async ()=>{
-                try {
-                    await this.moveSequenceSteps(this.getCurrentStepList())
-                } finally {
-                    this.moveStepsEnd();
-                }
-            });
-    }
+    //     // Update the state, then start a trigger
+    //     this.setState((state:State, props:Props)=>
+    //         ({
+    //             ...state,
+    //             overridenList: newOrder,
+    //             overridenListSource: initialOrder,
+    //             runningMoves: state.runningMoves + 1
+    //         }),
+    //         async ()=>{
+    //             try {
+    //                 await this.moveSequenceSteps(this.getCurrentStepList())
+    //             } finally {
+    //                 this.moveStepsEnd();
+    //             }
+    //         });
+    // }
 
     
     render() {
@@ -219,7 +196,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                             activePath={"$.backend.sequence.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
                         />
                 </div>
-                <StatePropCond
+                {/* <StatePropCond
                             device={this.props.details.camera}
                             property="CCD_EXPOSURE"
                             overridePredicate={(store)=>isParamOverride(store, exposureParam)}>
@@ -270,7 +247,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                             </KeepValue>
                     </div>
                 </StatePropCond>
-
+                
                 <SortableList items={this.getCurrentStepList()}
                         onSortEnd={this.moveSteps}
                         camera={this.props.details.camera || ""}
@@ -280,7 +257,9 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
 
                 <input type='button' value='Add a step'
                     disabled={!!this.state.AddStepBusy}
-                    onClick={e=>Utils.promiseToState(this.newStep, this, "AddStepBusy")}/>
+                    onClick={e=>Utils.promiseToState(this.newStep, this, "AddStepBusy")}/> */}
+
+                <SequenceStepEdit allowRemove={false} camera={this.props.details.camera || ""} sequenceUid={this.props.uid} sequenceStepUidPath="[]"/>
 
                 <input type='button' value='Close' onClick={this.props.onClose}/>
             </div>

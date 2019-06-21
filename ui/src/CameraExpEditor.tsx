@@ -63,6 +63,6 @@ const CameraExpEditor = connect((store: Store.Content, ownProps:InputProps) => {
         $min: atPath(indiDeviceDesc, '$.childs.CCD_EXPOSURE_VALUE["$min"]'),
         $max: atPath(indiDeviceDesc, '$.childs.CCD_EXPOSURE_VALUE["$max"]'),
     });
-})(PromiseSelector.default)
+})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>)
 
 export default CameraExpEditor;

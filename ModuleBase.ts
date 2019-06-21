@@ -9,7 +9,7 @@ import TriggerExecuter from "./TriggerExecuter";
 import ToolExecuter from "./ToolExecuter";
 import Focuser from "./Focuser";
 import FilterWheel from "./FilterWheel";
-import Sequence from "./Sequence";
+import SequenceManager from "./SequenceManager";
 
 export type ExpressApplication = ExpressApplication;
 
@@ -18,7 +18,7 @@ export type AppContext = {
     phd: Phd;
     indiManager: IndiManager;
     camera: Camera;
-    sequence: Sequence;
+    sequenceManager: SequenceManager;
     filterWheel: FilterWheel;
     triggerExecuter: TriggerExecuter;
     toolExecuter: ToolExecuter;

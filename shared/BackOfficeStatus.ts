@@ -17,12 +17,21 @@ export type CameraDeviceDynState = {
 };
 
 export type SequenceStep = {
-    count: number;
-    dither?: boolean;
-    done?: number;
+    exposure?:number;
+    iso?: string;
+    type?: string;
+    bin?: number;
     filter?: string|null;
-    type: string;
+
+    dithering?: boolean;
+
+    repeat?: number;
+    childs?: {
+        list: string[];
+        byuuid: {[uuid:string]:SequenceStep}
+    };
 }
+
 
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
@@ -32,10 +41,9 @@ export type Sequence = {
     errorMessage: string|null;
     count?:number;
     done?:boolean;
-    steps: {
-        list: string[];
-        byuuid: {[uuid:string]:SequenceStep}
-    };
+
+    root: SequenceStep;
+
     // uuids of images
     images: string [];
     storedImages?: ImageStatus[];

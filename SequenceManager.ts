@@ -3,7 +3,7 @@ const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
@@ -29,7 +29,7 @@ import ConfigStore from './ConfigStore';
 //     childs?: SequenceStepDefinition[];
 // }
 
-export default class Sequence
+export default class SequenceManager
         implements RequestHandler.APIAppProvider<BackOfficeAPI.SequenceAPI>
 {
     readonly appStateManager: JsonProxy<BackofficeStatus>;
@@ -118,56 +118,97 @@ export default class Sequence
     newSequence=async (ct: CancellationToken, message: {}):Promise<string>=>{
         const key = uuid.v4();
         const firstSeq = uuid.v4();
+        // FIXME: takes parameters from the last created sequence
         this.currentStatus.sequences.byuuid[key] = {
             status: 'idle',
             title: 'New sequence',
             progress: null,
             camera: null,
             errorMessage: null,
-            steps: {
-                list: [firstSeq],
-                byuuid: {
-                    [firstSeq]: {
-                        count:  1,
-                        type:   'FRAME_LIGHT'
-                    }
-                }
+
+            root: {
             },
+
             images: []
         };
         this.currentStatus.sequences.list.push(key);
         return key;
     }
 
-    newSequenceStep=async (ct: CancellationToken, message:{sequenceUid: string})=>{
-        console.log('Request to add step: ', JSON.stringify(message));
-        var sequenceUid = message.sequenceUid;
-        var sequenceStepUid = uuid.v4();
-        this.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid] = { count: 1, type: 'FRAME_LIGHT'};
-        this.currentStatus.sequences.byuuid[sequenceUid].steps.list.push(sequenceStepUid);
-        return sequenceStepUid;
+    findSequenceFromRequest=(sequenceUid:string): Sequence=>
+    {
+        if (!hasKey(this.currentStatus.sequences.byuuid, sequenceUid)) {
+            throw new Error("Sequence not found");
+        }
+        return this.currentStatus.sequences.byuuid[sequenceUid];
     }
 
-    moveSequenceSteps=async (ct: CancellationToken, message:{sequenceUid:string, sequenceStepUidList: string[]})=>{
+    findStepFromRequest=(message: {sequenceUid:string, stepUidPath: string[]}): SequenceStep=>
+    {
+        const seq = this.findSequenceFromRequest(message.sequenceUid);
+
+        let ret = seq.root;
+        for(const childUuid of message.stepUidPath) {
+            if ((!ret.childs) || !hasKey(ret.childs.byuuid, childUuid)) {
+                throw new Error("Sequence step not found");
+            }
+            ret = ret.childs.byuuid[childUuid];
+        }
+
+        return ret;
+    }
+
+    newSequenceStep=async (ct: CancellationToken, message:BackOfficeAPI.NewSequenceStepRequest)=>{
+        console.log('Request to add step(s): ', JSON.stringify(message));
+
+        const parentStep = this.findStepFromRequest(message);
+
+        if (!parentStep.childs) {
+            parentStep.childs = {
+                byuuid:{},
+                list: [],
+            };
+        }
+
+        const ret: string[] = [];
+        for(const iter of message.values && message.values.length ? message.values : [null])
+        {
+            const sequenceStepUid = uuid.v4();
+            const newStep: SequenceStep = {
+            };
+            if (iter !== null && message.param) {
+                (newStep as any)[message.param]  = iter;
+            }
+            parentStep.childs.list.push(sequenceStepUid);
+            parentStep.childs.byuuid[sequenceStepUid] = newStep;
+        }
+        return ret;
+    }
+
+    moveSequenceSteps=async (ct: CancellationToken, message:BackOfficeAPI.MoveSequenceStepsRequest)=>{
         console.log('Request to move steps: ', JSON.stringify(message));
-        var sequenceUid = message.sequenceUid;
-        var sequenceStepUidList = message.sequenceStepUidList;
-        // Check that no uid is lost
-        var currentSequenceStepUidList = this.currentStatus.sequences.byuuid[sequenceUid].steps.list;
-        if (sequenceStepUidList.length != currentSequenceStepUidList.length) {
-            throw new Error("Sequence step list size mismatch. Concurrent modification ?");
+
+        const parentStep = this.findStepFromRequest(message);
+        if (!parentStep.childs) {
+            throw new Error("Sequence has no childs");
         }
-        for(var i = 0; i < currentSequenceStepUidList.length; ++i) {
-            if (sequenceStepUidList.indexOf(currentSequenceStepUidList[i]) == -1) {
-                throw new Error("Missing step in new order. Concurrent modification ?");
+
+        for(const o of message.childs) {
+            if (!hasKey(parentStep.childs.byuuid, o)) {
+                throw new Error("Unknown child");
             }
         }
-        for(var i = 0; i < sequenceStepUidList.length; ++i) {
-            if (currentSequenceStepUidList.indexOf(sequenceStepUidList[i]) == -1) {
-                throw new Error("Unknown step in new order. Concurrent modification ?");
+        const newSet = new Set(message.childs);
+        if (newSet.size !== message.childs.length) {
+            throw new Error("Duplicated child");
+        }
+        for(const o of parentStep.childs.list) {
+            if (!newSet.has(o)) {
+                throw new Error("missing child");
             }
         }
-        this.currentStatus.sequences.byuuid[sequenceUid].steps.list = sequenceStepUidList;
+
+        parentStep.childs.list = message.childs;
     }
 
     pauseRunningSequences()
@@ -184,28 +225,47 @@ export default class Sequence
 
     public deleteSequenceStep = async(ct: CancellationToken, message:BackOfficeAPI.DeleteSequenceStepRequest)=>{
         console.log('Request to drop step: ', JSON.stringify(message));
-        const {sequenceUid, sequenceStepUid} = message;
-        var sequenceStepUidList = this.currentStatus.sequences.byuuid[sequenceUid].steps.list;
-        var pos = sequenceStepUidList.indexOf(sequenceStepUid);
-        if (pos == -1) {
-            console.warn('step ' + sequenceStepUid + ' not found in ' + JSON.stringify(sequenceStepUidList));
+        const parentStep = this.findStepFromRequest(message);
+
+        // FIXME: not for running step ?
+
+        if ((!parentStep.childs) || !hasKey(parentStep.childs.byuuid, message.stepUid)) {
             throw new Error("Step not found");
         }
-        sequenceStepUidList.splice(pos, 1);
-        delete this.currentStatus.sequences.byuuid[sequenceUid].steps.byuuid[sequenceStepUid];
+
+        delete parentStep.childs.byuuid[message.stepUid];
+        let p;
+        while ((p=parentStep.childs.list.indexOf(message.stepUid)) != -1) {
+            parentStep.childs.list.splice(p, 1);
+        }
+
+        if (parentStep.childs.list.length === 0) {
+            delete parentStep.childs;
+        }
     }
 
     public updateSequence = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceRequest)=>{
         console.log('Request to set setting: ', JSON.stringify(message));
-        var key = message.sequenceUid;
-        var param = message.param;
-        var value = message.value;
+        const seq = this.findSequenceFromRequest(message.sequenceUid);
 
-        if (message.sequenceStepUid !== undefined) {
-            var sequenceStepUid = message.sequenceStepUid;
-            (this.currentStatus.sequences.byuuid[key].steps.byuuid[sequenceStepUid] as any)[param] = value;
+        const param = message.param;
+        const value = message.value;
+
+        (seq as any)[param] = value;
+    }
+
+    public updateSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepRequest)=>{
+        console.log('Request to set setting: ', JSON.stringify(message));
+
+        const parentStep = this.findStepFromRequest(message);
+
+        const param = message.param;
+        const value = message.value;
+
+        if (value === undefined) {
+            delete (parentStep as any)[param];
         } else {
-            (this.currentStatus.sequences.byuuid[key] as any)[param] = value;
+            (parentStep as any)[param] = value;
         }
     }
 
@@ -219,87 +279,89 @@ export default class Sequence
         }
 
         const getNextStep=()=>{
-            var sequence = getSequence();
-            var stepsUuid = sequence.steps.list;
-            for(var i = 0; i < stepsUuid.length; ++i)
-            {
-                var stepUuid = stepsUuid[i];
-                var step = sequence.steps.byuuid[stepUuid];
-                if (!('done' in step)) {
-                    step.done = 0;
-                }
-                if (step.done! < step.count) {
-                    return {stepId: i, step};
-                }
-            }
-            return undefined;
+            throw new Error("TODO : not reimplemented");
+            // var sequence = getSequence();
+            // var stepsUuid = sequence.steps.list;
+            // for(var i = 0; i < stepsUuid.length; ++i)
+            // {
+            //     var stepUuid = stepsUuid[i];
+            //     var step = sequence.steps.byuuid[stepUuid];
+            //     if (!('done' in step)) {
+            //         step.done = 0;
+            //     }
+            //     if (step.done! < step.count) {
+            //         return {stepId: i, step};
+            //     }
+            // }
+            // return undefined;
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
-            while(true) {
-                ct.throwIfCancelled();
+            throw new Error("Not implemented");
+            // while(true) {
+            //     ct.throwIfCancelled();
 
-                const sequence = getSequence();
-                sequence.progress = null;
-                console.log('Shoot in sequence:' + JSON.stringify(sequence));
-                const nextStep = getNextStep();
+            //     const sequence = getSequence();
+            //     sequence.progress = null;
+            //     console.log('Shoot in sequence:' + JSON.stringify(sequence));
+            //     const nextStep = getNextStep();
 
-                if (nextStep === undefined) {
-                    console.log('Sequence terminated: ' + uuid);
-                    return;
-                }
+            //     if (nextStep === undefined) {
+            //         console.log('Sequence terminated: ' + uuid);
+            //         return;
+            //     }
 
-                const {stepId, step} = nextStep;
+            //     const {stepId, step} = nextStep;
 
-                if (sequence.camera === null) {
-                    throw new Error("No device specified");
-                }
+            //     if (sequence.camera === null) {
+            //         throw new Error("No device specified");
+            //     }
 
-                // Check that camera is connected
-                const device = this.indiManager.checkDeviceConnected(sequence.camera);
+            //     // Check that camera is connected
+            //     const device = this.indiManager.checkDeviceConnected(sequence.camera);
 
-                // Get the name of frame type
-                const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';
+            //     // Get the name of frame type
+            //     const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';
 
 
-                this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
+            //     this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
 
-                const shootTitle =
-                        ((step.done || 0) + 1) + "/" + step.count +
-                        (sequence.steps.list.length > 1 ?
-                            " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
+            //     const shootTitle =
+            //             ((step.done || 0) + 1) + "/" + step.count +
+            //             (sequence.steps.list.length > 1 ?
+            //                 " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
 
-                var settings:CameraDeviceSettings = Object.assign({}, sequence) as any;
-                delete (settings as any).steps;
-                delete (settings as any).errorMessage;
-                settings = Object.assign(settings, step);
-                delete (settings as any).count;
-                delete (settings as any).done;
-                settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
-                var ditheringStep;
-                if (step.dither) {
-                    // FIXME: no dithering for first shoot of sequence
-                    console.log('Dithering required : ', Object.keys(this.context));
-                    sequence.progress = "Dither " + shootTitle;
-                    await this.context.phd.dither(ct);
-                    ct.throwIfCancelled();
-                }
-                if (step.filter) {
-                    console.log('Setting filter to ' + step.filter);
-                    await this.context.filterWheel.changeFilter(ct, {
-                        cameraDeviceId: sequence.camera,
-                        filterId: step.filter,
-                    });
-                    ct.throwIfCancelled();
-                }
+            //     var settings:CameraDeviceSettings = Object.assign({}, sequence) as any;
+            //     delete (settings as any).steps;
+            //     delete (settings as any).errorMessage;
+            //     settings = Object.assign(settings, step);
+            //     delete (settings as any).count;
+            //     delete (settings as any).done;
+            //     settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
+            //     var ditheringStep;
+            //     if (step.dither) {
+            //         // FIXME: no dithering for first shoot of sequence
+            //         console.log('Dithering required : ', Object.keys(this.context));
+            //         sequence.progress = "Dither " + shootTitle;
+            //         await this.context.phd.dither(ct);
+            //         ct.throwIfCancelled();
+            //     }
+            //     if (step.filter) {
+            //         console.log('Setting filter to ' + step.filter);
+            //         await this.context.filterWheel.changeFilter(ct, {
+            //             cameraDeviceId: sequence.camera,
+            //             filterId: step.filter,
+            //         });
+            //         ct.throwIfCancelled();
+            //     }
 
-                sequence.progress = (stepTypeLabel) + " " + shootTitle;
-                ct.throwIfCancelled();
-                const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
+            //     sequence.progress = (stepTypeLabel) + " " + shootTitle;
+            //     ct.throwIfCancelled();
+            //     const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
                 
-                sequence.images.push(shootResult.uuid);
-                step.done = (step.done || 0 ) + 1;
-            }
+            //     sequence.images.push(shootResult.uuid);
+            //     step.done = (step.done || 0 ) + 1;
+            // }
         }
 
         const finishWithStatus = (s:'done'|'error'|'paused', e?:any)=>{
@@ -381,13 +443,14 @@ export default class Sequence
 
         const sequence = this.currentStatus.sequences.byuuid[key];
 
-        sequence.status = 'idle';
-        sequence.errorMessage = null;
-        for(const stepUuid of sequence.steps.list)
-        {
-            const step = sequence.steps.byuuid[stepUuid];
-            delete step.done;
-        }
+        throw new Error("TODO: not re-implemented");
+        // sequence.status = 'idle';
+        // sequence.errorMessage = null;
+        // for(const stepUuid of sequence.steps.list)
+        // {
+        //     const step = sequence.steps.byuuid[stepUuid];
+        //     delete step.done;
+        // }
     }
 
     dropSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
@@ -407,6 +470,7 @@ export default class Sequence
         return {
             deleteSequenceStep: this.deleteSequenceStep,
             updateSequence: this.updateSequence,
+            updateSequenceStep: this.updateSequenceStep,
             moveSequenceSteps: this.moveSequenceSteps,
             newSequence: this.newSequence,
             newSequenceStep: this.newSequenceStep,

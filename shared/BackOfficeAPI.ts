@@ -1,5 +1,5 @@
 import * as ProcessorTypes from "./ProcessorTypes";
-import { CameraDeviceSettings } from './BackOfficeStatus';
+import { CameraDeviceSettings, SequenceStep } from './BackOfficeStatus';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -43,21 +43,36 @@ export type ShootResult = {
     device: string;
 }
 
+export type NewSequenceStepRequest = {
+    sequenceUid:string;
+    stepUidPath: string[];
+    param?: keyof SequenceStep;
+    values?: Array<string>|Array<number>|Array<boolean>;
+}
+
 export type UpdateSequenceRequest = {
     sequenceUid: string;
-    sequenceStepUid?: string;
     param: string;
     value: any;
 }
 
+export type UpdateSequenceStepRequest = {
+    sequenceUid: string;
+    stepUidPath: string[];
+    param: keyof SequenceStep;
+    value?: string|number|boolean|null;
+}
+
 export type MoveSequenceStepsRequest = {
     sequenceUid:string;
-    sequenceStepUidList: string[];
+    stepUidPath: string[];
+    childs: string[];
 }
 
 export type DeleteSequenceStepRequest = {
     sequenceUid: string;
-    sequenceStepUid: string;
+    stepUidPath: string[];
+    stepUid: string;
 }
 
 export type FilterWheelAPI = {
@@ -80,7 +95,8 @@ export type SequenceAPI = {
     resetSequence: (payload: {sequenceUid: string})=>void;
     dropSequence: (payload: {sequenceUid: string})=>void;
     updateSequence: (payload: UpdateSequenceRequest)=>void;
-    newSequenceStep: (payload: {sequenceUid:string})=>string;
+    newSequenceStep: (payload: NewSequenceStepRequest)=>string[];
+    updateSequenceStep: (payload: UpdateSequenceStepRequest)=>void;
     moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }

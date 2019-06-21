@@ -45,4 +45,33 @@ export function getOwnProp<T>(o: {[id: string]: T}, s: string):T|undefined {
     return undefined;
 }
 
+export function isArrayEqual<U>(a : U, b: U): boolean
+{
+    if (a === b) {
+        return true;
+    }
+    if (a === null) {
+        return false;
+    }
+    if (b === null) {
+        return false;
+    }
+    if (Array.isArray(a)) {
+        if (Array.isArray(b)) {
+            if (a.length !== b.length) {
+                return false;
+            }
+
+            for(let i = 0; i < a.length; ++i) {
+                if (a[i] !== b[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+
 export {promiseToState, noErr, has};
