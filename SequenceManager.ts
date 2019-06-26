@@ -1,9 +1,9 @@
-import uuid from 'node-uuid';
+import {v4 as uuidv4} from 'node-uuid';
 const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
@@ -15,6 +15,7 @@ import ConfigStore from './ConfigStore';
 
 
 
+type SequenceWithStatus = {step: SequenceStep, status: SequenceStepStatus};
 
 // export type SequenceStepDefinition = {
 //     uuid: string;
@@ -116,8 +117,8 @@ export default class SequenceManager
     }
 
     newSequence=async (ct: CancellationToken, message: {}):Promise<string>=>{
-        const key = uuid.v4();
-        const firstSeq = uuid.v4();
+        const key = uuidv4();
+        const firstSeq = uuidv4();
         // FIXME: takes parameters from the last created sequence
         this.currentStatus.sequences.byuuid[key] = {
             status: 'idle',
@@ -127,6 +128,8 @@ export default class SequenceManager
             errorMessage: null,
 
             root: {
+            },
+            stepStatus: {
             },
 
             images: []
@@ -170,17 +173,19 @@ export default class SequenceManager
             };
         }
 
+        if (message.removeParameterFromParent) {
+            delete parentStep[message.removeParameterFromParent];
+        }
         const ret: string[] = [];
-        for(const iter of message.values && message.values.length ? message.values : [null])
+        for(let i = 0; i < Math.max(1, message.count||0); ++i)
         {
-            const sequenceStepUid = uuid.v4();
+            const sequenceStepUid = uuidv4();
             const newStep: SequenceStep = {
             };
-            if (iter !== null && message.param) {
-                (newStep as any)[message.param]  = iter;
-            }
+
             parentStep.childs.list.push(sequenceStepUid);
             parentStep.childs.byuuid[sequenceStepUid] = newStep;
+            ret.push(sequenceStepUid);
         }
         return ret;
     }
@@ -278,90 +283,181 @@ export default class SequenceManager
             return rslt;
         }
 
+        const statusDone=(current: SequenceWithStatus)=>{
+            if ((current.status.finishedLoopCount || 0) >= Math.max(current.step.repeat || 0, 1)) {
+                return true;
+            }
+            return false;
+        }
+
+        const finish=(current: SequenceWithStatus)=>{
+            current.status.finishedLoopCount = (current.status.finishedLoopCount || 0) + 1;
+            current.status.execUuid = uuidv4();
+            console.log('finished loop count ', JSON.stringify(current));
+        }
+
+
         const getNextStep=()=>{
-            throw new Error("TODO : not reimplemented");
-            // var sequence = getSequence();
-            // var stepsUuid = sequence.steps.list;
-            // for(var i = 0; i < stepsUuid.length; ++i)
-            // {
-            //     var stepUuid = stepsUuid[i];
-            //     var step = sequence.steps.byuuid[stepUuid];
-            //     if (!('done' in step)) {
-            //         step.done = 0;
-            //     }
-            //     if (step.done! < step.count) {
-            //         return {stepId: i, step};
-            //     }
-            // }
-            // return undefined;
+            const sequence = getSequence();
+            const stepStack: Array<{step: SequenceStep, status: SequenceStepStatus}>= [];
+
+            function getOrCreateExecution(stepUuid: string, parentExec?: SequenceStepStatus): SequenceStepStatus {
+                if (Object.prototype.hasOwnProperty.call(sequence.stepStatus, stepUuid)) {
+                    const currentStatus = sequence.stepStatus[stepUuid];
+                    if (parentExec === undefined
+                        || currentStatus.parentExecUuid === parentExec.execUuid)
+                    {
+                        return currentStatus;
+                    }
+                    console.log('Invalidating sequence ', JSON.stringify(currentStatus));
+                }
+                const newStatus:SequenceStepStatus = {
+                    execUuid: uuidv4(),
+                    parentExecUuid: parentExec ? parentExec.execUuid : null,
+                    finishedLoopCount: 0,
+                };
+                sequence.stepStatus[stepUuid] = newStatus;
+                // Read back
+                return sequence.stepStatus[stepUuid];
+            }
+
+            // Pop the head if false
+            const enter= ()=>
+            {
+                const current = stepStack[stepStack.length - 1];
+                if (current.step.childs) {
+                    // step has childs. Must go down
+                    // Iterate all childs. If they are all done, the exec is finished
+
+                    for(let inc = 0; (!statusDone(current)) && inc <= 1; ++inc) {
+                        // Restart from activeChild
+                        let toTry = current.status.activeChild
+                                    ? [current.status.activeChild, ...current.step.childs.list]
+                                    : current.step.childs.list;
+
+                        for(const childUid of toTry) {
+                            stepStack.push({
+                                step: current.step.childs.byuuid[childUid],
+                                status: getOrCreateExecution(childUid, current.status)
+                            });
+
+                            if (enter()) {
+                                current.status.activeChild = childUid;
+                                return true;
+                            }
+                            if (current.status.activeChild !== undefined) {
+                                delete current.status.activeChild;
+                            }
+                        }
+
+                        if (inc == 0) {
+                            // Nothing is possible. Start a new loop
+                            finish(current);
+                        }
+                    }
+                } else {
+                    if (!statusDone(current)) {
+                        return true;
+                    }
+                }
+
+                // Pop the entry
+                stepStack.splice(stepStack.length - 1, 1);
+            }
+
+            stepStack.push({step: sequence.root, status: getOrCreateExecution("root")});
+            if (!enter()) {
+                return undefined;
+            }
+            console.log('find next step', JSON.stringify(stepStack));
+            return stepStack;
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
-            throw new Error("Not implemented");
-            // while(true) {
-            //     ct.throwIfCancelled();
+            while(true) {
+                ct.throwIfCancelled();
 
-            //     const sequence = getSequence();
-            //     sequence.progress = null;
-            //     console.log('Shoot in sequence:' + JSON.stringify(sequence));
-            //     const nextStep = getNextStep();
+                const sequence = getSequence();
+                sequence.progress = null;
+                console.log('Shoot in sequence:' + JSON.stringify(sequence));
+                const nextStep = getNextStep();
 
-            //     if (nextStep === undefined) {
-            //         console.log('Sequence terminated: ' + uuid);
-            //         return;
-            //     }
+                if (nextStep === undefined) {
+                    console.log('Sequence terminated: ' + uuid);
+                    return;
+                }
 
-            //     const {stepId, step} = nextStep;
+                // const {stepId, step} = nextStep;
 
-            //     if (sequence.camera === null) {
-            //         throw new Error("No device specified");
-            //     }
+                if (sequence.camera === null) {
+                    throw new Error("No device specified");
+                }
 
-            //     // Check that camera is connected
-            //     const device = this.indiManager.checkDeviceConnected(sequence.camera);
+                // Check that camera is connected
+                const device = this.indiManager.checkDeviceConnected(sequence.camera);
 
-            //     // Get the name of frame type
-            //     const stepTypeLabel = device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(step.type) || step.type || 'image';
+                const param : SequenceStep = {};
+                // FIXME: not valid for dither once
+                for(const o of nextStep) {
+                    Object.assign(param, o.step);
+                }
+                delete param.childs;
+                delete param.repeat;
 
+                // Get the name of frame type
+                const stepTypeLabel =
+                        (param.type ? device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(param.type) : undefined)
+                        || 'image';
 
-            //     this.indiManager.getValidConnection().getDevice(sequence.camera).getVector('CONNECTION')
+                // FIXME: better title, filter, ... 2/3>B:1/3
+                // just filename ?
+                const shootTitle = "shoot";
+                        // ((step.done || 0) + 1) + "/" + step.count +
+                        // (sequence.steps.list.length > 1 ?
+                        //     " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
 
-            //     const shootTitle =
-            //             ((step.done || 0) + 1) + "/" + step.count +
-            //             (sequence.steps.list.length > 1 ?
-            //                 " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
+                if (!param.exposure) {
+                    throw new Error("Exposure not specified for " + shootTitle);
+                }
 
-            //     var settings:CameraDeviceSettings = Object.assign({}, sequence) as any;
-            //     delete (settings as any).steps;
-            //     delete (settings as any).errorMessage;
-            //     settings = Object.assign(settings, step);
-            //     delete (settings as any).count;
-            //     delete (settings as any).done;
-            //     settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
-            //     var ditheringStep;
-            //     if (step.dither) {
-            //         // FIXME: no dithering for first shoot of sequence
-            //         console.log('Dithering required : ', Object.keys(this.context));
-            //         sequence.progress = "Dither " + shootTitle;
-            //         await this.context.phd.dither(ct);
-            //         ct.throwIfCancelled();
-            //     }
-            //     if (step.filter) {
-            //         console.log('Setting filter to ' + step.filter);
-            //         await this.context.filterWheel.changeFilter(ct, {
-            //             cameraDeviceId: sequence.camera,
-            //             filterId: step.filter,
-            //         });
-            //         ct.throwIfCancelled();
-            //     }
+                const settings:CameraDeviceSettings = {...param, exposure: param.exposure};
 
-            //     sequence.progress = (stepTypeLabel) + " " + shootTitle;
-            //     ct.throwIfCancelled();
-            //     const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
+                settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
+
+                const currentExecutionStatus = nextStep[nextStep.length - 1];
+                // Copy because it could change concurrently in case of removal/reorder
+                const currentExecutionUuid = currentExecutionStatus.status.execUuid;
+
+                if (param.dithering
+                    && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
+
+                    // FIXME: no dithering for first shoot of sequence
+                    console.log('Dithering required : ', Object.keys(this.context));
+                    sequence.progress = "Dither " + shootTitle;
+                    await this.context.phd.dither(ct);
+                    // Mark the dithering as done
+                    currentExecutionStatus.status.lastDitheredExecUuid = currentExecutionUuid;
+                    ct.throwIfCancelled();
+                    continue;
+                }
+
+                if (param.filter) {
+                    console.log('Setting filter to ' + param.filter);
+                    await this.context.filterWheel.changeFilter(ct, {
+                        cameraDeviceId: sequence.camera,
+                        filterId: param.filter,
+                    });
+                    ct.throwIfCancelled();
+                }
+
+                sequence.progress = (stepTypeLabel) + " " + shootTitle;
+                ct.throwIfCancelled();
+                const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
                 
-            //     sequence.images.push(shootResult.uuid);
-            //     step.done = (step.done || 0 ) + 1;
-            // }
+                sequence.images.push(shootResult.uuid);
+                finish(currentExecutionStatus);
+                console.log('finishing sequence ', JSON.stringify(currentExecutionStatus));
+            }
         }
 
         const finishWithStatus = (s:'done'|'error'|'paused', e?:any)=>{
@@ -443,9 +539,9 @@ export default class SequenceManager
 
         const sequence = this.currentStatus.sequences.byuuid[key];
 
-        throw new Error("TODO: not re-implemented");
-        // sequence.status = 'idle';
-        // sequence.errorMessage = null;
+        sequence.stepStatus = {};
+        sequence.status = 'idle';
+        sequence.errorMessage = null;
         // for(const stepUuid of sequence.steps.list)
         // {
         //     const step = sequence.steps.byuuid[stepUuid];

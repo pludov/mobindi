@@ -16,6 +16,7 @@ export type Props<TYPE> = {
     getTitle: (o: TYPE, props: Props<TYPE>)=>string;
     controls?: Array<Control>;
     setValue:(d:string)=>Promise<any>;
+    focusRef?: React.RefObject<HTMLSelectElement>;
 };
 type State<TYPE> = {
     forcedValue: string|null;
@@ -85,7 +86,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             }
         }
 
-        return <select
+        return <select ref={this.props.focusRef}
                     disabled={this.state.runningPromise !== undefined}
                     value={JSON.stringify(active)}
                     onChange={(e)=>this.clicked(e.target.value)}>{options}

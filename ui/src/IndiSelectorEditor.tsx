@@ -15,6 +15,7 @@ export type InputProps = {
     // Function that build a promises
     setValue: (e:string)=>Promise<void>;
     vecName: string;
+    focusRef?: React.RefObject<HTMLSelectElement>
 }
 
 type MappedProps = PromiseSelector.Props<string> & {

@@ -44,6 +44,7 @@ class FullScreenEdit extends React.PureComponent<FullScreenEditProps> {
 type Props = {
     value: string;
     onChange: (s:string)=>(void);
+    focusRef?: React.RefObject<HTMLDivElement>;
 }
 
 type State = {
@@ -68,7 +69,7 @@ export default class TextEdit extends React.PureComponent<Props, State> {
         if (v === undefined || v === "") {
             v = " ";
         }
-        return <span className="TextEdit" tabIndex={0} onClick={this.openEditor}>{v}{editor}</span>
+        return <span className="TextEdit" ref={this.props.focusRef} tabIndex={0} onClick={this.openEditor}>{v}{editor}</span>
     }
 
     openEditor=()=>{

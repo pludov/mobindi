@@ -17,6 +17,8 @@ type InputProps = {
     getFilter(store: Store.Content, filterWheelDeviceId: string): string | null;
     isBusy?:(store:Store.Content, filterWheelDeviceId: string)=>boolean;
     setFilter: (filterWheelDeviceId: string|null, filterId: string|null) => Promise<void>;
+
+    focusRef?: React.RefObject<HTMLSelectElement>
 }
 
 type MappedProps = {
@@ -98,7 +100,7 @@ class UnmappedFilterSelector extends React.PureComponent<Props> {
             : "filter:" + this.props.currentFilter;
         return <>
             <span>
-                <select className={"FilterSelector" + (this.props.busy ? " BusyInfinite" : "")} onChange={this.update} value={currentValue}>
+                <select className={"FilterSelector" + (this.props.busy ? " BusyInfinite" : "")} onChange={this.update} value={currentValue} ref={this.props.focusRef}>
                     {this.props.currentFilterWheel === null
                         ? this.props.availableFilterWheels.length !== 0
                             ? <option value="" disabled hidden>Filterwheel...</option>

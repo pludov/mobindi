@@ -18,16 +18,31 @@ import { UpdateSequenceStepRequest } from '@bo/BackOfficeAPI';
 import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
+import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
+import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
+
+export type ForcedParams = {[id: string]: {param: string, uid:string}};
 
 type InputProps = {
     sequenceUid: string;
     sequenceStepUidPath: string;
     allowRemove: boolean;
     camera: string;
+    cameraCapacity: CameraCapacity;
+
+    // Force a new parameter
+    forcedParam?: keyof SequenceStep;
+    // This uid must change for the forceParam to take effect
+    forcedParamUid?: string;
+    forcedParamFocus?: boolean;
+
+    bodyRef?: React.RefObject<HTMLDivElement>;
+    focusRef?: React.RefObject<HTMLSelectElement>;
 }
 
 type MappedProps = {
     detailsStack: SequenceStep[];
+    cameraCapacity: CameraCapacity;
 }
 
 type Props = InputProps & MappedProps;
@@ -35,133 +50,102 @@ type Props = InputProps & MappedProps;
 type State = {
     dropButtonBusy?: boolean;
     newItems: {[id: string]: true};
+    lastNewItem?: string;
+    lastNewItemSerial: number;
+
     overridenChildList?: undefined|string[];
     sourceChildList?: undefined|string[];
+    parameterSplit: undefined|(ParamDesc& {id: keyof SequenceStep});
+
+    // Force presence of a given parameter on childs (for split)
+    forcedChilds?: ForcedParams;
+
+    lastForcedParam?: string;
+    lastForcedParamUid?: string;
+
 };
 
-const SortableItem = SortableElement<{camera:string, sequenceUid: string, parentPath: string, sequenceStepUid:string}>(({camera, sequenceUid, sequenceStepUid, parentPath})=> {
+const SortableItem = SortableElement<{
+                        camera:string,
+                        cameraCapacity: CameraCapacity,
+                        sequenceUid: string,
+                        parentPath: string,
+                        sequenceStepUid:string,
+                        forcedParam?: keyof SequenceStep,
+                        forcedParamUid?: string,
+                        itemRef?: React.RefObject<any>,
+                        itemFocusRef?: React.RefObject<any>,
+        }>(({camera, cameraCapacity, sequenceUid, sequenceStepUid, parentPath, forcedParam, forcedParamUid, itemRef, itemFocusRef})=> {
     return (<li className="SequenceStepMovableBlock">
                 <MappedSequenceStepEdit
                         camera={camera}
+                        cameraCapacity={cameraCapacity}
                         sequenceUid={sequenceUid}
                         sequenceStepUidPath={JSON.stringify(JSON.parse(parentPath).concat([sequenceStepUid]))}
-                        allowRemove={true}/>
+                        forcedParam={forcedParam}
+                        forcedParamUid={forcedParamUid}
+                        allowRemove={true}
+                        bodyRef={itemRef}
+                        focusRef={itemFocusRef}/>
     </li>);
 })
 
-const SortableList = SortableContainer<{items: string[], camera:string, sequenceUid:string, parentPath: string}>(({items, camera, sequenceUid, parentPath}) => {
+const SortableList = SortableContainer<{
+                        items: string[],
+                        camera:string,
+                        cameraCapacity: CameraCapacity,
+                        sequenceUid:string,
+                        parentPath: string,
+                        forcedParams: ForcedParams,
+                        lastNewItem?: string,
+                        lastNewItemRef?: React.RefObject<any>,
+                        lastNewItemFocusRef?: React.RefObject<any>,
+        }>(({items, camera, cameraCapacity, sequenceUid, parentPath, forcedParams, lastNewItem, lastNewItemRef, lastNewItemFocusRef}) => {
     return (
       <ul className="SequenceStepContainer">
-        {items.map((sequenceStepUid: string, index:number) => (
-          <SortableItem
+        {items.map((sequenceStepUid: string, index:number) => {
+            let forced;
+            if (Object.prototype.hasOwnProperty.call(forcedParams, sequenceStepUid)) {
+                forced = forcedParams[sequenceStepUid];
+            }
+
+            return <SortableItem
                     key={`item-${sequenceStepUid}`}
                     index={index}
                     camera={camera}
+                    cameraCapacity={cameraCapacity}
                     sequenceUid={sequenceUid}
                     parentPath={parentPath}
-                    sequenceStepUid={sequenceStepUid}/>
-        ))}
+                    sequenceStepUid={sequenceStepUid}
+                    forcedParam={forced === undefined ? undefined : forced.param as keyof SequenceStep}
+                    forcedParamUid={forced === undefined ? undefined : forced.uid}
+                    itemRef={sequenceStepUid === lastNewItem ? lastNewItemRef : undefined}
+                    itemFocusRef={sequenceStepUid === lastNewItem ? lastNewItemFocusRef : undefined}
+                    />
+        })}
       </ul>
     );
   });
 
-type ParamDesc = {
-    id: string;
-    title: string;
-    splittable?: boolean;
-    hidden?: boolean;
-    render?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string)=>JSX.Element);
-}
-
-type GroupDesc = {
-    id: string;
-    title: string;
-    childs: ParamDesc[];
-};
-
-const parameters:GroupDesc[] = [
-    {
-        id: "camera",
-        title: "Camera",
-        childs: [
-            {
-                id: "type",
-                title: "Frame type",
-                splittable: true,
-                render: (s)=>s.renderType,
-            },
-            {
-                id: "exposure",
-                title: "Exp",
-                splittable: true,
-                render: (s)=>s.renderExposure,
-            },
-            {
-                id: "iso",
-                title: "ISO",
-                splittable: true,
-                // indi_camera_prop: 'CCD_ISO',
-                render: (s)=>s.renderIso,
-            },
-            {
-                id:"bin",
-                title: "BIN",
-                splittable: true,
-                render: (s)=>s.renderBin,
-            },
-            {
-                id: "filter",
-                title: "Filter",
-                splittable: true,
-                render: (s)=>s.renderFilter,
-            },
-        ]
-    },
-    {
-        id: "guider",
-        title: "Guider",
-        childs: [
-            {
-                id: "dithering",
-                title: "Dithering",
-                splittable: false,
-                render: (s)=>s.renderDithering,
-            },
-        ]
-    },
-    {
-        id: "control",
-        title: "Flow Control",
-
-        childs: [
-            {
-                id: "repeat",
-                title: "Repeat",
-                splittable: false,
-                render: (s)=>s.renderRepeat,
-            },
-            {
-                id: "addChild",
-                title: "Add child",
-                splittable: false,
-                hidden: true,
-            },
-            {
-                id: "remove",
-                title: "Remove",
-                splittable: false,
-                hidden: true,
-            }
-        ]
-    }
-];
 
 class SequenceStepEdit extends React.PureComponent<Props, State> {
+    // Keep the ref of the last new editor (to focus it)
+    private lastNewItemRef = React.createRef<HTMLDivElement>();
+    private lastNewItemFocusRef = React.createRef<HTMLBaseElement>();
+    // lastNewEditorId is incremented on every componentDidUpdate to ensure focus is done once
+    private lastNewItemId: number = 0;
+
     constructor(props:Props) {
         super(props);
         this.state = {
-            newItems: {}
+            parameterSplit: undefined,
+            newItems: {},
+            lastNewItemSerial: 0
         };
+    }
+
+    private getCurrentDetails() {
+        return this.props.detailsStack[this.props.detailsStack.length - 1];
     }
 
     private updateSequenceStepParam = async(param: UpdateSequenceStepRequest["param"], value: UpdateSequenceStepRequest["value"]) => {
@@ -194,24 +178,31 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         const value = e.target.value;
 
         if (value === "addChild") {
-            await BackendRequest.RootInvoker("sequence")("newSequenceStep")(
+            const uids = await BackendRequest.RootInvoker("sequence")("newSequenceStep")(
                 CancellationToken.CONTINUE,
                 {
                     sequenceUid: this.props.sequenceUid,
                     stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
                 });
-            // FIXME: set focus to new step
+            // set focus to new step
+            this.setState({
+                lastNewItem: uids[0],
+                lastNewItemSerial: this.lastNewItemId,
+            });
         } else if (value === "remove") {
             await this.deleteStep();
         } else {
             if (hasKey(this.state.newItems, value)) {
                 return;
             }
-            this.setState({newItems: {...this.state.newItems, [value]: true}});
+            this.setState({
+                newItems: {...this.state.newItems, [value]: true},
+                lastNewItem: value,
+                lastNewItemSerial: this.lastNewItemId,
+            });
         }
     }
 
-    
     dropParam=async (p:ParamDesc)=>{
         const id : keyof SequenceStep = p.id as any;
         if (hasKey(this.props.detailsStack[this.props.detailsStack.length-1], p.id)) {
@@ -224,7 +215,6 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             this.setState({newItems: newNewItems});
         }
     }
-    
 
     private getChildList = (propsOnly?:boolean)=>{
         if ((!propsOnly) && this.state.overridenChildList) {
@@ -233,7 +223,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         if (!this.props.detailsStack.length) {
             return undefined;
         }
-        const details = this.props.detailsStack[this.props.detailsStack.length - 1];
+        const details = this.getCurrentDetails();
         if (!details.childs) {
             return undefined;
         }
@@ -246,14 +236,14 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
         const originalList = this.getChildList(true);
         const childList = this.getChildList(false);
-        
+
         if (childList === undefined) {
             return;
         }
         console.log('currentORder is ', childList, oldIndex, newIndex);
         const newOrder = arrayMove([...childList], oldIndex, newIndex);
         console.log('newOrder is ', newOrder);
-        // Update the state, then start a trigger
+        // Update the state, then start a backoffice request
         this.setState({
                 overridenChildList: newOrder,
                 sourceChildList: originalList,
@@ -269,7 +259,6 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 });
 
         } finally {
-            // FIXME: sure the backend updated the state already?
             this.setState({
                 overridenChildList: undefined,
                 sourceChildList: undefined,
@@ -277,90 +266,197 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         }
     }
 
+    private splitParameter=(param: ParamDesc& {id: keyof SequenceStep})=> {
+        this.setState({parameterSplit: param});
+    }
 
-    renderType=(p:ParamDesc, settingsPath: string)=> {
+    private splittable=(param: ParamDesc)=> {
+        if (!param.splittable) {
+            return false;
+        }
+        if (this.getCurrentDetails().childs) {
+            return false;
+        }
+        return true;
+    }
+
+    private finishSplit=(toRemove: keyof SequenceStep, p:ForcedParams) => {
+        let newItems = this.state.newItems;
+        if (Object.prototype.hasOwnProperty.call(newItems, toRemove)) {
+            newItems = {...newItems};
+            delete newItems[toRemove];
+        }
+        this.setState({
+            newItems: newItems,
+            forcedChilds: {...this.state.forcedChilds||{}, ...p}
+        });
+    }
+
+    private closeParameterSplitter=()=>{
+        this.setState({parameterSplit: undefined});
+    }
+
+    renderType=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         return <CameraFrameTypeEditor
                         device={this.props.camera}
+                        focusRef={focusRef}
                         valuePath={settingsPath + '.type'}
                         setValue={(e:string)=>Utils.promiseToState(()=>this.updateSequenceStepParam('type', e), this)}
                         />
     }
 
-    renderExposure=(p:ParamDesc, settingsPath: string)=> {
+    renderExposure=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         return <CameraExpEditor
                         device={this.props.camera}
+                        focusRef={focusRef}
                         valuePath={settingsPath + '.exposure'}
                         setValue={(e:number)=>Utils.promiseToState(()=>this.updateSequenceStepParam('exposure', e), this)}
                         />
     }
 
-    renderIso=(p:ParamDesc, settingsPath: string)=> {
+    renderIso=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         return <CameraIsoEditor
                         device={this.props.camera}
+                        focusRef={focusRef}
                         valuePath={settingsPath + '.iso'}
                         setValue={(e:string)=>Utils.promiseToState(()=>this.updateSequenceStepParam('iso', e), this)}
                         />
     }
 
-    renderBin=(p:ParamDesc, settingsPath: string)=> {
+    renderBin=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         return <CameraBinEditor
                         device={this.props.camera}
+                        focusRef={focusRef}
                         valuePath={settingsPath + '.bin'}
                         setValue={(e:number)=>Utils.promiseToState(()=>this.updateSequenceStepParam('bin', e), this)}
                         />
     }
 
-    renderFilter=(p:ParamDesc, settingsPath: string)=> {
+    renderFilter=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         return <FilterSelector
                         deviceId={this.props.camera}
+                        focusRef={focusRef}
                         setFilter={async(filterWheelDeviceId:string|null, filterId: string|null)=>{
                             if (filterId === null && filterWheelDeviceId !== null) {
                                 return;
                             }
                             await this.updateSequenceStepParam('filter', filterId);
                         }}
-                        getFilter={()=>this.props.detailsStack[this.props.detailsStack.length - 1].filter || null}
+                        getFilter={()=>this.getCurrentDetails().filter || null}
                     />
     }
 
-    renderDithering=(p:ParamDesc, settingsPath: string)=> {
+    renderDithering=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
         return <input
                         type="checkbox"
                         checked={!!val}
+                        ref={focusRef}
                         onChange={(e) =>Utils.promiseToState(()=>this.updateSequenceStepParam('dithering', !!e.target.checked), this)}/>
     }
 
-    renderRepeat=(p:ParamDesc, settingsPath: string)=> {
+    renderRepeat=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const valnum = this.props.detailsStack[this.props.detailsStack.length-1].repeat;
-        let valstr = (valnum === undefined ? "" : "" + valnum);
+        
+        if (valnum === undefined || (valnum >= 2 && valnum <= 10)) {
+            return (
+                <select value={valnum || ""}
+                        ref={focusRef}
+                        onChange={
+                            (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
+                                        ()=>this.updateSequenceStepParam('repeat', parseInt(e.target.value)), this)
+                        }>
+                    <option value="" disabled hidden>Choose...</option>
+                    <option value="2">2x</option>
+                    <option value="3">3x</option>
+                    <option value="4">4x</option>
+                    <option value="5">5x</option>
+                    <option value="6">6x</option>
+                    <option value="7">7x</option>
+                    <option value="8">8x</option>
+                    <option value="9">9x</option>
+                    <option value="10">10x</option>
+                    <option value="11">More...</option>
+                </select>
+            );
+        } else {
+            let valstr = (valnum === undefined ? "" : "" + valnum);
 
-        return <TextEdit
-                    value={valstr}
-                    onChange={(e:string)=> Utils.promiseToState(()=>this.updateSequenceStepParam('repeat', parseInt(e)), this)}/>
+            return <TextEdit
+                        value={valstr}
+                        focusRef={focusRef}
+                        onChange={(e:string)=> Utils.promiseToState(()=>this.updateSequenceStepParam('repeat', parseInt(e)), this)}/>
+        }
     }
 
-    // Juste afficher le count
+    componentDidUpdate() {
+        const e = this.lastNewItemRef.current;
+        if (e) {
+            e.scrollIntoView({behavior: "smooth",
+                    // Soon to be released option
+                    scrollMode: 'if-needed',
+                    block: 'nearest',
+                    inline: 'nearest',
+            } as any);
+
+            const focus = this.lastNewItemFocusRef.current;
+            if (focus) {
+                focus.focus();
+            }
+
+            // Make sure that the next render will not set lastNewItemRef
+            this.lastNewItemId++;
+        }
+    }
+
+    private isItemAvailable(item:ParamDesc) {
+        if (item.available) {
+            return item.available(this.props.cameraCapacity, this.props.detailsStack)
+        }
+        return true;
+    }
+
     render() {
         if (this.props.detailsStack.length === 0) {
             return null;
         }
-        const details = this.props.detailsStack[this.props.detailsStack.length - 1];
+        const details = this.getCurrentDetails();
 
         let settingsPath = 'backend.sequence.sequences.byuuid[' + JSON.stringify(this.props.sequenceUid) + '].root';
         for(const uid of JSON.parse(this.props.sequenceStepUidPath)) {
             settingsPath += ".childs.byuuid[" + JSON.stringify(uid) + "]";
         }
-        return <div>
+
+        return <div ref={this.props.bodyRef}>
+            {this.state.parameterSplit !== undefined
+                ? <SequenceStepParameterSplitter
+                        camera={this.props.camera}
+                        sequenceUid={this.props.sequenceUid}
+                        sequenceStepUidPath={this.props.sequenceStepUidPath}
+                        parameter={this.state.parameterSplit}
+                        onSplit={this.finishSplit}
+                        onClose={this.closeParameterSplitter}/>
+                : null
+            }
             {parameters.map((group)=>group.childs.map(param=>{
                 if (param.hidden || !param.render || (!hasKey(details || {}, param.id) && !hasKey(this.state.newItems, param.id))) {
                     return null;
                 }
+                const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
                 const renderer = param.render(this);
-                return (<div className="SequenceStepProperty" key={param.id}>
+                return (<div className="SequenceStepProperty" key={param.id} ref={isTheLastNew ? this.lastNewItemRef : undefined}>
                             <span className="SequenceStepPropertyTitle">{param.title}:</span>
-                            {renderer(param, settingsPath)}
-                            <input type="button" className="SequenceStepParameterForkBton" value={"\u{1d306}"}></input>
+
+                            {renderer(param, settingsPath, isTheLastNew ? this.lastNewItemFocusRef : undefined)}
+
+                            {this.splittable(param)
+                                ? <input type="button"
+                                    className="SequenceStepParameterForkBton"
+                                    value={"\u{1d306}"}
+                                    onClick={()=>this.splitParameter(param as ParamDesc & {id: keyof SequenceStep})}
+                                    />
+                                : null
+                            }
                             <input type="button"
                                     className="SequenceStepParameterDropBton"
                                     value={"X"}
@@ -368,28 +464,14 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 </div>);
             }))}
 
-            {/* <div className="IndiProperty">
-                Type:
-                <CameraFrameTypeEditor
-                        device={this.props.camera}
-                        valuePath={settingsPath + '.type'}
-                        setValue={(e:string)=>Utils.promiseToState(()=>this.updateSequenceStepParam('type', e), this)}
-                        />
-            </div>
-            <div className="IndiProperty">
-                Repeat:
-                <TextEdit
-                    value={this.props.details.repeat == null ? "" : "" + this.props.details.repeat}
-                    onChange={(e:string)=> Utils.promiseToState(()=>this.updateSequenceStepParam('repeat', parseInt(e)), this)}/>
-            </div> */}
-            <select value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More...">
+            <select ref={this.props.focusRef} value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More...">
                 <option value="" disabled hidden>More...</option>
                 {
                     parameters.map(
                         group=> {
                             const items = group.childs.map(
                                 item=>(
-                                    (!hasKey(details || {}, item.id)) && (!hasKey(this.state.newItems, item.id))
+                                    (!hasKey(details || {}, item.id)) && (!hasKey(this.state.newItems, item.id) && this.isItemAvailable(item))
                                         ? <option key={item.id} value={item.id}>{item.title}</option>
                                         : null
                                 )
@@ -402,49 +484,21 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     )
                 }
             </select>
-            {/* <div className="IndiProperty">
-                Filter:
-                <KeepValue
-                        valuePath={settingsPath+".filter"}
-                        setValue={()=>this.updateSequenceParam('filter', null)}>
-
-                    <FilterSelector
-                        deviceId={this.props.camera}
-                        setFilter={async(filterWheelDeviceId:string|null, filterId: string|null)=>{
-                            if (filterId === null && filterWheelDeviceId !== null) {
-                                return;
-                            }
-                            await this.updateSequenceParam('filter', filterId);
-                        }}
-                        getFilter={()=>this.props.details!.filter || null}
-                    />
-                </KeepValue>
-            </div>
-            <div className="IndiProperty">
-                Dither:
-                <input
-                        type="checkbox"
-                        checked={this.props.details.dither? true : false}
-                        onChange={(e) =>Utils.promiseToState(()=>this.updateSequenceParam('dither', e.target.checked?1:0), this)}/>
-            </div> */}
-            {/* {!this.props.allowRemove ? null :
-                <input
-                    type="button"
-                    value="remove"
-                    onClick={e=>Utils.promiseToState(this.deleteStep, this, "dropButtonBusy")}
-                    disabled={!!this.state.dropButtonBusy}
-                    />
-            } */}
             {details.childs !== undefined
                 ?
                 <SortableList
                     sequenceUid={this.props.sequenceUid}
+                    forcedParams={this.state.forcedChilds||{}}
                     items={this.state.overridenChildList||details.childs.list}
                     camera={this.props.camera}
+                    cameraCapacity={this.props.cameraCapacity}
                     parentPath={this.props.sequenceStepUidPath}
                     onSortEnd={this.moveSteps}
                     pressDelay={200}
                     helperClass="sortableHelper"
+                    lastNewItem={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.state.lastNewItem: undefined}
+                    lastNewItemRef={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.lastNewItemRef: undefined}
+                    lastNewItemFocusRef={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.lastNewItemFocusRef: undefined}
                     />
                 : null
             }
@@ -452,40 +506,44 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     }
 
     static getDerivedStateFromProps(newProps:Props, state:State) {
+        const ret: Partial<State> = {};
+
+        if (newProps.forcedParamUid && newProps.forcedParamUid !== state.lastForcedParamUid) {
+            // Force one childs (first render)
+            ret.lastForcedParam = newProps.forcedParam;
+            ret.lastForcedParamUid = newProps.forcedParamUid;
+            ret.newItems = {...state.newItems, [newProps.forcedParam!]: true };
+        }
+
         if (state.overridenChildList) {
             let p;
             if (newProps.detailsStack && newProps.detailsStack.length) {
                 p = newProps.detailsStack[newProps.detailsStack.length - 1];
             }
             if ((p === undefined) || (!p.childs) || (!Utils.isArrayEqual(p.childs.list, state.sourceChildList))) {
-                console.log('cleaning overridenChildList');
-                return {
-                    overridenChildList: undefined,
-                    sourceChildList: undefined,
-                };
+                ret.overridenChildList = undefined;
+                ret.sourceChildList = undefined;
             }
         }
-        return null;
+
+        return ret;
     }
 
 
     static mapStateToProps=()=>{
+        const empty:[] = [];
         const detailsStackFn = (store:Store.Content, ownProps:InputProps):SequenceStep[]=>{
             let detailsStack: SequenceStep[];
             try {
                 let details = store.backend.sequence!.sequences.byuuid[ownProps.sequenceUid].root;
                 detailsStack = [ details ];
-                console.log('SequenceStepEdit iterate', details, store.backend.sequence);
                 for(const childUid of JSON.parse(ownProps.sequenceStepUidPath)) {
-                    console.log('SequenceStepEdit iterate', childUid);
                     details = details.childs!.byuuid[childUid];
                     detailsStack.push(details);
                 }
-                console.log('SequenceStepEdit', details);
                 return detailsStack;
             } catch(e) {
-                console.log('mapStateToProp failed', e);
-                return [];
+                return empty;
             }
         }
         const detailsStackMem = ArrayReselect.createArraySelector(detailsStackFn);
@@ -494,6 +552,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         })
     }
 }
+
+export {SequenceStepEdit};
 
 const MappedSequenceStepEdit = Store.Connect(SequenceStepEdit);
 export default MappedSequenceStepEdit;

@@ -2,7 +2,8 @@ import * as React from 'react';
 import "./Modal.css";
 
 type Props = {
-
+    forceVisible?: boolean;
+    onClose?:()=>(void);
 }
 
 type State = {
@@ -19,7 +20,7 @@ class Modal extends React.PureComponent<Props, State> {
     }
 
     render() {
-        if (!this.state.visible) {
+        if (!this.state.visible && !this.props.forceVisible) {
             return null;
         }
 
@@ -37,6 +38,9 @@ class Modal extends React.PureComponent<Props, State> {
 
     public readonly close=()=>{
         this.setState({visible: false});
+        if (this.props.onClose) {
+            this.props.onClose();
+        }
     }
 }
 

@@ -83,4 +83,11 @@ export function isFilterWheelBusy(state: Store.Content, filterWheelId: string)
     return false;
 }
 
+export function hasFilterWheel(state: Store.Content): boolean {
+    const fw = state.backend.filterWheel;
+    if (!fw) {
+        return false;
+    }
+    return !!fw.availableDevices.length;
+}
 

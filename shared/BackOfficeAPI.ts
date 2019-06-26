@@ -46,8 +46,8 @@ export type ShootResult = {
 export type NewSequenceStepRequest = {
     sequenceUid:string;
     stepUidPath: string[];
-    param?: keyof SequenceStep;
-    values?: Array<string>|Array<number>|Array<boolean>;
+    removeParameterFromParent?: keyof SequenceStep;
+    count?: number;
 }
 
 export type UpdateSequenceRequest = {

@@ -32,6 +32,15 @@ export type SequenceStep = {
     };
 }
 
+export type SequenceStepStatus = {
+    /** Updated on each loop start */
+    execUuid: string;
+    parentExecUuid: string|null;
+    /** Erased on each arrival */
+    finishedLoopCount: number;
+    activeChild?: string;
+    lastDitheredExecUuid?: string;
+}
 
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
@@ -43,6 +52,7 @@ export type Sequence = {
     done?:boolean;
 
     root: SequenceStep;
+    stepStatus: {[id: string]: SequenceStepStatus};
 
     // uuids of images
     images: string [];

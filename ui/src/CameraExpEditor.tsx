@@ -13,6 +13,7 @@ type InputProps = {
     valuePath: string;
     // Function that build a promises
     setValue: (e:number)=>Promise<void>;
+    focusRef?: React.RefObject<HTMLSelectElement>
 }
 
 type MappedProps = PromiseSelector.Props<number> & {
