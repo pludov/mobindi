@@ -49,6 +49,34 @@ describe("Json proxy", () => {
 
     });
 
+    it("keeps serial on primitive no-op assignment", ()=> {
+        for(const value of ["toto", 1, null, true]) {
+            var changeTracker = new JsonProxy<any>();
+            var root = changeTracker.getTarget();
+
+            assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial start at 0");
+            assert.deepEqual(root, {}, "Structure deepEquals to empty objecct");
+            assert.equal(JSON.stringify(root), "{}", "stringify returns empty");
+
+            assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 0, props: {}}, "Serial don't auto inc (#1)");
+
+            root.a = value;
+            assert.equal(root.a, value, "Simple value set to " + JSON.stringify(value));
+
+            assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 1, props: {a: 1}}, "Serial move after new property");
+            assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 1, props: {a: 1}}, "Serial doesn't auto inc (#2)");
+
+            root.a = value;
+            assert.equal(root.a, value, "Simple value still set to " +  JSON.stringify(value));
+            assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 1, props: {a: 1}}, "No serial change on no-op assignement (string)");
+
+            delete root.a;
+            assert.equal(root.a, undefined, "Removed property returns undefined");
+            assert.ok(!('a' in root), "Removed property not 'in'");
+            assert.deepEqual(root, {}, "Structure reflect property removal");
+        }
+    });
+
 
     it("updates serial of object childs", ()=>{
         var changeTracker = new JsonProxy<any>();
