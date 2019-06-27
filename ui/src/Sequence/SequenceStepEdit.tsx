@@ -2,7 +2,7 @@ import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
 import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
-import { SequenceStep } from '@bo/BackOfficeStatus';
+import { SequenceStep, DitheringSettings } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
@@ -14,12 +14,13 @@ import ArrayReselect from '../utils/ArrayReselect';
 import { hasKey } from '../shared/Obj';
 
 import "./SequenceStepEdit.css";
-import { UpdateSequenceStepRequest } from '@bo/BackOfficeAPI';
+import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest } from '@bo/BackOfficeAPI';
 import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
 import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
 import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
+import DitheringSettingEdit from './DitheringSettingEdit';
 
 export type ForcedParams = {[id: string]: {param: string, uid:string}};
 
@@ -158,6 +159,21 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             payload.value = value;
         }
         await BackendRequest.RootInvoker("sequence")("updateSequenceStep")(
+            CancellationToken.CONTINUE,
+            payload,
+            );
+    }
+
+    private updateSequenceStepDitheringParam = async(wanted: boolean, settings?: Partial<DitheringSettings>) => {
+        const payload:UpdateSequenceStepDitheringRequest = {
+            sequenceUid: this.props.sequenceUid,
+            stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
+            dithering: wanted,
+        };
+        if (settings) {
+            payload.settings = settings;
+        }
+        await BackendRequest.RootInvoker("sequence")("updateSequenceStepDithering")(
             CancellationToken.CONTINUE,
             payload,
             );
@@ -348,11 +364,28 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     renderDithering=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
-        return <input
-                        type="checkbox"
-                        checked={!!val}
+
+        return <select
+                        value={val === undefined ? "" : val === null ? "false" : "true"}
                         ref={focusRef}
-                        onChange={(e) =>Utils.promiseToState(()=>this.updateSequenceStepParam('dithering', !!e.target.checked), this)}/>
+                        onChange={
+                            (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
+                                        ()=>this.updateSequenceStepDitheringParam(e.target.value === 'true'), this)
+                        }>
+                    <option value="" disabled hidden>Choose...</option>
+                    <option value="true">On</option>
+                    <option value="false">Off</option>
+        </select>;
+    }
+
+    renderDitheringDetails=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+        const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
+        return !!val
+                ?<DitheringSettingEdit settings={val} update={
+                            ({field, value})=> Utils.promiseToState(
+                                ()=>this.updateSequenceStepDitheringParam(true, {[field]: value}), this)
+                        }/>
+                : null
     }
 
     renderRepeat=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
@@ -444,7 +477,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 }
                 const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
                 const renderer = param.render(this);
-                return (<div className="SequenceStepProperty" key={param.id} ref={isTheLastNew ? this.lastNewItemRef : undefined}>
+                return (<>
+                    <div className="SequenceStepProperty" key={param.id} ref={isTheLastNew ? this.lastNewItemRef : undefined}>
                             <span className="SequenceStepPropertyTitle">{param.title}:</span>
 
                             {renderer(param, settingsPath, isTheLastNew ? this.lastNewItemFocusRef : undefined)}
@@ -461,7 +495,9 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                     className="SequenceStepParameterDropBton"
                                     value={"X"}
                                     onClick={()=>Utils.promiseToState(()=>this.dropParam(param), this)}/>
-                </div>);
+                    </div>
+                    {param.renderMore ? param.renderMore(this)(param, settingsPath): null}
+                </>);
             }))}
 
             <select ref={this.props.focusRef} value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More...">

@@ -16,6 +16,14 @@ export type CameraDeviceDynState = {
     filterWheelDevice?: null|string;
 };
 
+export type DitheringSettings = {
+    ammount: number;
+    raOnly: boolean;
+    pixels: number;
+    time: number;
+    timeout: number;
+};
+
 export type SequenceStep = {
     exposure?:number;
     iso?: string;
@@ -23,7 +31,7 @@ export type SequenceStep = {
     bin?: number;
     filter?: string|null;
 
-    dithering?: boolean;
+    dithering?: null|DitheringSettings;
 
     repeat?: number;
     childs?: {

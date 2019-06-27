@@ -5,7 +5,7 @@ import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
-import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState } from './shared/BackOfficeStatus.js';
+import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings } from './shared/BackOfficeStatus.js';
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
@@ -469,18 +469,18 @@ export default class Phd
         });
     }
 
-    public dither=async (ct:CancellationToken)=>{
+    public dither=async (ct:CancellationToken, settings: DitheringSettings)=>{
 
         // Il faut attendre un settledone
         await this.sendOrder(ct, {
                 method: "dither",
                 params:[
-                    1,/* ammount */
-                    false, /* ra only */
+                    settings.ammount, /* ammount */
+                    settings.raOnly, /* ra only */
                     {
-                        pixels: 0.4,
-                        time:   10,
-                        timeout: 60
+                        pixels: settings.pixels,
+                        time:   settings.time,
+                        timeout: settings.timeout
                     }
                 ]
             });

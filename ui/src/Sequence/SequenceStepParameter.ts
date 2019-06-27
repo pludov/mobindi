@@ -16,7 +16,8 @@ export type ParamDesc = {
     title: string;
     splittable?: boolean;
     hidden?: boolean;
-    render?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string, focusRef?: React.RefObject<HTMLBaseElement>)=>JSX.Element);
+    render?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string, focusRef?: React.RefObject<HTMLBaseElement>)=>JSX.Element|null);
+    renderMore?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string)=>JSX.Element|null);
     available?: (cap:CameraCapacity, detailsStack: SequenceStep[])=>boolean;
     capacity?: (camera: string, s:Store.Content)=>Partial<CameraCapacity>;
 }
@@ -89,6 +90,7 @@ export const parameters:GroupDesc[] = [
                 title: "Dithering",
                 splittable: false,
                 render: (s)=>s.renderDithering,
+                renderMore: (s)=>s.renderDitheringDetails,
             },
         ]
     },

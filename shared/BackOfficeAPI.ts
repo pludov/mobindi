@@ -1,5 +1,5 @@
 import * as ProcessorTypes from "./ProcessorTypes";
-import { CameraDeviceSettings, SequenceStep } from './BackOfficeStatus';
+import { CameraDeviceSettings, SequenceStep, DitheringSettings } from './BackOfficeStatus';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -63,6 +63,13 @@ export type UpdateSequenceStepRequest = {
     value?: string|number|boolean|null;
 }
 
+export type UpdateSequenceStepDitheringRequest = {
+    sequenceUid: string;
+    stepUidPath: string[];
+    dithering: boolean;
+    settings?: Partial<DitheringSettings>;
+}
+
 export type MoveSequenceStepsRequest = {
     sequenceUid:string;
     stepUidPath: string[];
@@ -97,6 +104,7 @@ export type SequenceAPI = {
     updateSequence: (payload: UpdateSequenceRequest)=>void;
     newSequenceStep: (payload: NewSequenceStepRequest)=>string[];
     updateSequenceStep: (payload: UpdateSequenceStepRequest)=>void;
+    updateSequenceStepDithering: (payload: UpdateSequenceStepDitheringRequest)=>void;
     moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }

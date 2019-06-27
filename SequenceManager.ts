@@ -288,6 +288,31 @@ export default class SequenceManager
         }
     }
 
+    public updateSequenceStepDithering = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepDitheringRequest)=>{
+        console.log('Request to set dithering settings: ', JSON.stringify(message));
+
+        const parentStep = this.findStepFromRequest(message);
+        const wanted = message.dithering;
+
+        if (!wanted) {
+            parentStep.dithering = null;
+        } else {
+            if (!parentStep.dithering) {
+                parentStep.dithering = {
+                    ammount: 1,
+                    pixels: 0.3,
+                    raOnly: false,
+                    time: 10,
+                    timeout: 60,
+                }
+            }
+            if (message.settings) {
+                Object.assign(parentStep.dithering, message.settings);
+                // FIXME: check parameters
+            }
+        }
+    }
+
     private doStartSequence = async (ct: CancellationToken, uuid:string)=>{
         const getSequence=()=>{
             var rslt = this.currentStatus.sequences.byuuid[uuid];
@@ -546,9 +571,9 @@ export default class SequenceManager
                     && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
 
                     // FIXME: no dithering for first shoot of sequence
-                    console.log('Dithering required : ', Object.keys(this.context));
+                    console.log('Dithering required : ', Object.keys(this.context), JSON.stringify(param.dithering));
                     sequence.progress = "Dither " + shootTitle;
-                    await this.context.phd.dither(ct);
+                    await this.context.phd.dither(ct, param.dithering);
                     // Mark the dithering as done
                     currentExecutionStatus.status.lastDitheredExecUuid = currentExecutionUuid;
                     ct.throwIfCancelled();
@@ -681,6 +706,7 @@ export default class SequenceManager
             deleteSequenceStep: this.deleteSequenceStep,
             updateSequence: this.updateSequence,
             updateSequenceStep: this.updateSequenceStep,
+            updateSequenceStepDithering: this.updateSequenceStepDithering,
             moveSequenceSteps: this.moveSequenceSteps,
             newSequence: this.newSequence,
             newSequenceStep: this.newSequenceStep,
