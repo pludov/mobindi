@@ -15,7 +15,21 @@ import ConfigStore from './ConfigStore';
 
 
 
-type SequenceWithStatus = {step: SequenceStep, status: SequenceStepStatus};
+type SequenceWithStatus = {
+    step: SequenceStep;
+    status: SequenceStepStatus;
+};
+
+type SequenceSize = {
+    totalCount: number;
+    totalTime: number;
+}
+
+type Progress = {
+    /** 0 based */
+    imagePosition: number;
+    timeSpent: number;
+} & SequenceSize;
 
 // export type SequenceStepDefinition = {
 //     uuid: string;
@@ -293,7 +307,126 @@ export default class SequenceManager
         const finish=(current: SequenceWithStatus)=>{
             current.status.finishedLoopCount = (current.status.finishedLoopCount || 0) + 1;
             current.status.execUuid = uuidv4();
-            console.log('finished loop count ', JSON.stringify(current));
+        }
+
+        const getExecution=(stepUuid: string, parentExec?: SequenceStepStatus): SequenceStepStatus|null=>{
+            const sequence = getSequence();
+            if (Object.prototype.hasOwnProperty.call(sequence.stepStatus, stepUuid)) {
+                const currentStatus = sequence.stepStatus[stepUuid];
+                if (parentExec === undefined
+                    || currentStatus.parentExecUuid === parentExec.execUuid)
+                {
+                    return currentStatus;
+                }
+            }
+            return null;
+        }
+
+        const getOrCreateExecution=(stepUuid: string, parentExec?: SequenceStepStatus): SequenceStepStatus=>{
+            const status = getExecution(stepUuid, parentExec);
+            if (status !== null) {
+                return status;
+            }
+            const sequence = getSequence();
+            const newStatus:SequenceStepStatus = {
+                execUuid: uuidv4(),
+                parentExecUuid: parentExec ? parentExec.execUuid : null,
+                finishedLoopCount: 0,
+            };
+            sequence.stepStatus[stepUuid] = newStatus;
+            // Read back
+            return sequence.stepStatus[stepUuid];
+        }
+
+        const calcExposure=(step: SequenceStep[]): number=>{
+            let exp: number = 0;
+            for(const s of step) {
+                if (s.exposure !== undefined) {
+                    exp = s.exposure;
+                }
+            }
+            return exp;
+        }
+
+        const totalCount=(steps:SequenceStep[]):SequenceSize=>{
+            const step = steps[steps.length - 1]
+            const mult = Math.max(step.repeat || 1, 1);
+
+            const size: SequenceSize = {
+                totalCount: 0,
+                totalTime: 0,
+            };
+            if (step.childs && step.childs.list.length) {
+                for(const child of step.childs.list) {
+                    const childSize = totalCount(steps.concat([step.childs.byuuid[child]]));
+                    size.totalCount += childSize.totalCount;
+                    size.totalTime += childSize.totalTime;
+                }
+            } else {
+                size.totalCount= 1;
+                size.totalTime= calcExposure(steps);
+            }
+
+            size.totalCount *= mult;
+            size.totalTime *= mult;
+            return size;
+        }
+
+        const getProgress=(stepStack: Array<{step: SequenceStep, status: SequenceStepStatus}>, start?: number):Progress=>{
+            if (start === undefined) {
+                start = 0;
+            }
+
+            const v = stepStack[start];
+            const loopCount = Math.max(v.step.repeat || 0, 1);
+            const doneCount = v.status.finishedLoopCount;
+
+            if (start === stepStack.length -1) {
+                const expValue = calcExposure(stepStack.map(e=>e.step));
+                return {
+                    totalCount: loopCount,
+                    imagePosition: doneCount,
+                    totalTime: loopCount * expValue,
+                    timeSpent: doneCount * expValue,
+                }
+            }
+
+            let ret: Progress = {
+                imagePosition: 0,
+                totalCount: 0,
+                timeSpent: 0,
+                totalTime: 0,
+            }
+
+            // We have childs. Account in position until active child is viewed
+            let activeChildFound : boolean = v.status.activeChild === undefined;
+            for(const childUuid of v.step.childs!.list) {
+                if (childUuid === v.status.activeChild) {
+                    const v = getProgress(stepStack, start + 1);
+                    ret.imagePosition += v.imagePosition;
+                    ret.timeSpent += v.timeSpent;
+                    ret.totalCount += v.totalCount;
+                    ret.totalTime += v.totalTime;
+
+                    activeChildFound = true;
+                } else {
+                    const c = totalCount(stepStack.slice(0, start + 1).map(e=>e.step).concat([v.step.childs!.byuuid[childUuid]]));
+                    ret.totalCount += c.totalCount;
+                    ret.totalTime += c.totalTime;
+                    if (!activeChildFound) {
+                        ret.imagePosition += c.totalCount;
+                        ret.timeSpent += c.totalTime;
+                    }
+                }
+            }
+
+            // account for repeat
+            ret.imagePosition += ret.totalCount * doneCount;
+            ret.timeSpent += ret.totalTime * doneCount;
+            ret.totalCount *= loopCount;
+            ret.totalTime *= loopCount;
+
+            return ret;
         }
 
 
@@ -301,25 +434,6 @@ export default class SequenceManager
             const sequence = getSequence();
             const stepStack: Array<{step: SequenceStep, status: SequenceStepStatus}>= [];
 
-            function getOrCreateExecution(stepUuid: string, parentExec?: SequenceStepStatus): SequenceStepStatus {
-                if (Object.prototype.hasOwnProperty.call(sequence.stepStatus, stepUuid)) {
-                    const currentStatus = sequence.stepStatus[stepUuid];
-                    if (parentExec === undefined
-                        || currentStatus.parentExecUuid === parentExec.execUuid)
-                    {
-                        return currentStatus;
-                    }
-                    console.log('Invalidating sequence ', JSON.stringify(currentStatus));
-                }
-                const newStatus:SequenceStepStatus = {
-                    execUuid: uuidv4(),
-                    parentExecUuid: parentExec ? parentExec.execUuid : null,
-                    finishedLoopCount: 0,
-                };
-                sequence.stepStatus[stepUuid] = newStatus;
-                // Read back
-                return sequence.stepStatus[stepUuid];
-            }
 
             // Pop the head if false
             const enter= ()=>
@@ -331,8 +445,9 @@ export default class SequenceManager
 
                     for(let inc = 0; (!statusDone(current)) && inc <= 1; ++inc) {
                         // Restart from activeChild
-                        let toTry = current.status.activeChild
-                                    ? [current.status.activeChild, ...current.step.childs.list]
+                        const childUuid = current.status.activeChild;
+                        let toTry = childUuid
+                                    ? [childUuid, ...current.step.childs.list.filter(e=>e!==childUuid)]
                                     : current.step.childs.list;
 
                         for(const childUid of toTry) {
@@ -369,7 +484,6 @@ export default class SequenceManager
             if (!enter()) {
                 return undefined;
             }
-            console.log('find next step', JSON.stringify(stepStack));
             return stepStack;
         }
 
@@ -379,7 +493,6 @@ export default class SequenceManager
 
                 const sequence = getSequence();
                 sequence.progress = null;
-                console.log('Shoot in sequence:' + JSON.stringify(sequence));
                 const nextStep = getNextStep();
 
                 if (nextStep === undefined) {
@@ -409,12 +522,13 @@ export default class SequenceManager
                         (param.type ? device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(param.type) : undefined)
                         || 'image';
 
-                // FIXME: better title, filter, ... 2/3>B:1/3
-                // just filename ?
-                const shootTitle = "shoot";
-                        // ((step.done || 0) + 1) + "/" + step.count +
-                        // (sequence.steps.list.length > 1 ?
-                        //     " (#" +(stepId + 1) + "/" + sequence.steps.list.length+")" : "");
+                const progress = getProgress(nextStep);
+
+                const shootTitle = (progress.imagePosition + 1) + "/" + progress.totalCount
+                            + (progress.totalTime > 0
+                                ? (" " + Math.round(100 * progress.timeSpent / progress.totalTime) + "%")
+                                : ""
+                            );
 
                 if (!param.exposure) {
                     throw new Error("Exposure not specified for " + shootTitle);
@@ -443,6 +557,7 @@ export default class SequenceManager
 
                 if (param.filter) {
                     console.log('Setting filter to ' + param.filter);
+                    sequence.progress = "Filter " + shootTitle;
                     await this.context.filterWheel.changeFilter(ct, {
                         cameraDeviceId: sequence.camera,
                         filterId: param.filter,
@@ -456,7 +571,6 @@ export default class SequenceManager
                 
                 sequence.images.push(shootResult.uuid);
                 finish(currentExecutionStatus);
-                console.log('finishing sequence ', JSON.stringify(currentExecutionStatus));
             }
         }
 
