@@ -42,6 +42,11 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
+Release 1.2.0 (July 2019):
+  * Improved sequence editor with hierachical settings
+  * PHD2 dithering settings can be controled per sequence
+  * Astrometry settings now persist accross restarts
+
 Release 1.1.0 (June 2019):
   * Filterwheel control in camera and sequence
   * Support for landscape orientation
@@ -71,9 +76,14 @@ The camera app can also display FWHM and trigger astrometry sync and goto (cente
 ### Photo sequencer
 
 The sequence editor allows to program repeated shoots, possibily with various exposure and using dithering (with PHD2).
+:fire: You can also create and re-order child steps that will inherit their settings from the parent (usefull for instance to iterate various filters).
 
 ![Sequence list UI](docs/sequence-view.png?raw=true "Sequence list UI")
-![Sequence editor UI](docs/sequence-edit.png?raw=true "Sequence editor UI")
+
+Creating a sequence that iterates multiple filters but shares other settings:
+
+![Sequence editor UI](docs/create_sequence_rgb.gif?raw=true "Sequence editor UI")
+
 
 ### Guiding using PHD2
 
