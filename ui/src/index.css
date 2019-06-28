@@ -4,6 +4,22 @@ body {
   font-family: sans-serif;
 }
 
+h1 {
+  font-weight: bold;
+  font-size: 1.4em;
+  text-align: center;
+  margin-top: calc(0.4 * var(--pct));
+  margin-bottom: calc(0.4 * var(--pct));
+}
+
+h2 {
+  font-weight: bold;
+  font-size: 1.2em;
+  text-align: left;
+  margin-top: calc(0.4 * var(--pct));
+  margin-bottom: calc(0.4 * var(--pct));
+}
+
 :root {
   --pct: 1vw;
   font-size: 5vw;
