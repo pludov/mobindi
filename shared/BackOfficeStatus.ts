@@ -247,6 +247,7 @@ export type AstrometrySettings = {
     narrowedFieldPercent: number;
 
     polarAlign: PolarAlignSettings;
+    preferedScope: string|null;
 }
 
 export type PolarAlignSettings = {

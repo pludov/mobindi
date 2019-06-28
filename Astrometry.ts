@@ -1,8 +1,9 @@
 import CancellationToken from 'cancellationtoken';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
+import ConfigStore from './ConfigStore';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, BackofficeStatus, AstrometryWizard } from './shared/BackOfficeStatus';
+import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
 import { DriverInterface, IndiConnection } from './Indi';
@@ -11,6 +12,22 @@ import {Task, createTask} from "./Task";
 import Wizard from "./Wizard";
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
 import Sleep from "./Sleep";
+
+const defaultSettings = ():AstrometrySettings=> ({
+    initialFieldMin: 0.2,
+    initialFieldMax: 5,
+    useMountPosition: true,
+    initialSearchRadius: 30,
+    narrowedSearchRadius: 4,
+    narrowedFieldPercent: 25,
+    polarAlign: {
+        slewRate: "SLEW_FIND",
+        sampleCount: 5,
+        angle: 60,
+        minAltitude: 10,
+    },
+    preferedScope: null,
+});
 
 // Astrometry requires: a camera, a mount
 // It uses the first camera and the first mount (as Focuser)
@@ -40,20 +57,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             availableScopes: [],
             selectedScope: null,
             target: null,
-            settings: {
-                initialFieldMin: 0.2,
-                initialFieldMax: 5,
-                useMountPosition: true,
-                initialSearchRadius: 30,
-                narrowedSearchRadius: 4,
-                narrowedFieldPercent: 25,
-                polarAlign: {
-                    slewRate: "SLEW_FIND",
-                    sampleCount: 5,
-                    angle: 60,
-                    minAltitude: 10,
-                },
-            },
+            settings: defaultSettings(),
             narrowedField: null,
             useNarrowedSearchRadius: false,
             runningWizard: null,
@@ -62,6 +66,15 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         this.appStateManager.getTarget().astrometry = initialStatus;
         this.currentStatus = this.appStateManager.getTarget().astrometry;
         this.context = context;
+
+        new ConfigStore<AstrometrySettings>(appStateManager, 'astrometry', ['astrometry', 'settings'],
+            defaultSettings(),
+            defaultSettings(),
+            (c)=>{
+                // Adjust here if required
+                return c;
+            }
+        );
 
         context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
             this.currentStatus.availableScopes = devs;
@@ -75,8 +88,30 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             ]
         ],
             this.syncScopeStatus, true
-
         );
+
+        context.indiManager.createPreferredDeviceSelector<AstrometryStatus>({
+            availablePreferedCurrentPath: [
+                [
+                    [ 'astrometry' , 'availableScopes'],
+                    [ 'astrometry' , 'settings', 'preferedScope'],
+                    [ 'astrometry' , 'selectedScope'],
+                ]
+            ],
+            read: ()=> ({
+                available: this.currentStatus.availableScopes,
+                prefered: this.currentStatus.settings.preferedScope,
+                current: this.currentStatus.selectedScope,
+            }),
+            set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
+                if (s.prefered !== undefined) {
+                    this.currentStatus.settings.preferedScope = s.prefered;
+                }
+                if (s.current !== undefined) {
+                    this.currentStatus.selectedScope = s.current;
+                }
+            }
+        });
     }
 
     private readonly syncScopeStatus=()=>
