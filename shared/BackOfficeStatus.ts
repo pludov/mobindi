@@ -337,9 +337,13 @@ export type AstrometryStatus = {
 }
 
 export type ProcessConfiguration = {
-    autorun: false;
+    autorun: boolean;
     path: string| null;
     env: {[id:string]:string};
+}
+
+export type PhdConfiguration = ProcessConfiguration & {
+    preferredDithering: DitheringSettings;
 }
 
 export type PhdGuideStep = {
@@ -369,7 +373,7 @@ export type PhdStatus = {
     AppState: PhdAppState;
     settling: PhdSettling|null;
     guideSteps: {[id:string]: PhdGuideStep};
-    configuration: ProcessConfiguration;
+    configuration: PhdConfiguration;
     firstStepOfRun: string;
     RADistanceRMS:number|null;
     DECDistanceRMS:number|null;

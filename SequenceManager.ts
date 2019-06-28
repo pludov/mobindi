@@ -75,7 +75,7 @@ export default class SequenceManager
                     //     }
                     //
                 }
-            },
+            }
         }
         this.currentStatus = this.appStateManager.getTarget().sequence;
         this.context = context;
@@ -298,17 +298,27 @@ export default class SequenceManager
             parentStep.dithering = null;
         } else {
             if (!parentStep.dithering) {
-                parentStep.dithering = {
-                    amount: 1,
-                    pixels: 0.3,
-                    raOnly: false,
-                    time: 10,
-                    timeout: 60,
-                }
+                parentStep.dithering = {...this.context.phd.currentStatus.configuration.preferredDithering}
             }
             if (message.settings) {
+                const s = message.settings;
+                if (s.amount !== undefined && (s.amount <= 0 || s.amount > 100)) {
+                    throw new Error("invalid value for amount");
+                }
+                if (s.pixels !== undefined && (s.pixels <= 0 || s.pixels > 100)) {
+                    throw new Error("invalid value for pixels");
+                }
+                if (s.time !== undefined && (s.time <= 0 || s.time > 1000)) {
+                    throw new Error("invalid value for time");
+                }
+                if (s.timeout !== undefined && (s.timeout <= 0 || s.timeout > 1000)) {
+                    throw new Error("invalid value for time");
+                }
+
                 Object.assign(parentStep.dithering, message.settings);
-                // FIXME: check parameters
+
+                // Retains as the new default values
+                this.context.phd.currentStatus.configuration.preferredDithering = {...parentStep.dithering};
             }
         }
     }

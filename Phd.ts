@@ -5,7 +5,7 @@ import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
-import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings } from './shared/BackOfficeStatus.js';
+import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration } from './shared/BackOfficeStatus.js';
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
@@ -20,6 +20,14 @@ export type Listener = {
     test: ()=>(void);
 }
 
+const defaultDithering= ():DitheringSettings => ({
+    amount: 1,
+    pixels: 0.3,
+    raOnly: false,
+    time: 10,
+    timeout: 60,
+});
+
 export default class Phd
         implements RequestHandler.APIAppProvider<BackOfficeAPI.PhdAPI>
 {
@@ -27,7 +35,7 @@ export default class Phd
     private running: boolean;
     private pendingRequests: {[id:string]:PhdRequest};
     private eventListeners: {[id:string]:Listener};
-    private readonly currentStatus: PhdStatus;
+    public readonly currentStatus: PhdStatus;
     private readonly steps: PhdStatus["guideSteps"];
     private stepId: number;
     private reqId: number;
@@ -60,6 +68,7 @@ export default class Phd
                 autorun: false,
                 path: null,
                 env: {},
+                preferredDithering: defaultDithering(),
             },
             firstStepOfRun: this.stepIdToUid(this.stepId),
 
@@ -80,20 +89,28 @@ export default class Phd
         this.steps = this.currentStatus.guideSteps;
 
 
-        new ConfigStore(appStateManager, 'phd', ['phd', 'configuration'], {
+        new ConfigStore<PhdConfiguration>(appStateManager, 'phd', ['phd', 'configuration'], {
             autorun: false,
             path: null,
             env: {
                 DISPLAY: ":0",
                 XAUTHORITY: process.env.HOME + "/.Xauthority"
-            }
+            },
+            preferredDithering: defaultDithering(),
         }, {
             autorun: true,
             path: "/path/of/phd2/",
             env: {
                 DISPLAY: "Whatever X11 setting required",
                 XAUTHORITY: "Whatever other X11 setting required"
+            },
+            preferredDithering: defaultDithering(),
+        }, (c)=>{
+            // Ensure dithering is present
+            if (!c.preferredDithering) {
+                c.preferredDithering = defaultDithering();
             }
+            return c;
         });
 
         this.updateStepsStats();
