@@ -53,6 +53,10 @@ class SharedCacheServer {
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
 	std::map<std::string, CacheFileDesc*> contentByFilename;
 
+
+	// -1 means obsoleted here. (FIXME: must be removed)
+	std::map<std::string, long> expirableContentStatus;
+
 	std::set<Client *> clients;
 	// Clients that are stuck in waitOrder state
 	ClientFifo waitingWorkers;
@@ -85,6 +89,10 @@ class SharedCacheServer {
 	void startWorker();
 
 	static void workerLogic(Cache * cache);
+
+	// Return -1 if expired
+	long isExpiredContent(const Messages::RawContent * content) const;
+	void upgradeContentRequest(Client * consumerClient);
 public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();

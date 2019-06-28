@@ -224,11 +224,54 @@ void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
 	std::cerr << "Server received request from " << c->fd << " : " << debug.dump(0) << "\n";
 }
 
+long SharedCacheServer::isExpiredContent(const Messages::RawContent * content) const
+{
+	auto it = this->expirableContentStatus.find(content->path);
+	if (it == this->expirableContentStatus.end()) {
+		return content->serial;
+	}
+	return (it->second);
+}
+
+void SharedCacheServer::upgradeContentRequest(Client * consumerClient)
+{
+	std::list<Messages::RawContent*> rawContents;
+
+	consumerClient->activeRequest->contentRequest->collectRawContents(rawContents);
+	for(auto it = rawContents.begin(); it != rawContents.end();) {
+		auto rawContent = *it;
+		it++;
+
+		if (rawContent->exactSerial) {
+			continue;
+		}
+		long newSerial = this->isExpiredContent(rawContent);
+
+		if (newSerial == -1) {
+			// The content is now impossible. Kill
+			// TODO: kill
+			// TODO: on kill, release obsoleted content
+		} else {
+			rawContent->serial = newSerial;
+		}
+	}
+
+	// TODO : quand un client est terminé (servi ou pas) avec un contenu upgradable mais fixe,
+	// vérifier que le contenu obsolète n'est plus en cache
+}
+
 // Either proceed directly the message, or put the client in a waiting queue
 void SharedCacheServer::proceedNewMessage(Client * c)
 {
+	// TODO: 3 types de messages:
+	//     create fifo
+	//     publish content (1 & 2)
+	//     drop fifo
+
 	if (c->activeRequest->contentRequest) {
+		// Ici: upgrader les requetes à l'entrée
 		waitingConsumers.add(c);
+		this->upgradeContentRequest(c);
 		return;
 	}
 	if (c->activeRequest->workRequest) {
@@ -362,6 +405,7 @@ void SharedCacheServer::workerLogic(Cache * cache)
 	}
 }
 
+
 void Messages::JsonQuery::produce(Entry * entry)
 {
 	if (this->starField) {
@@ -396,6 +440,33 @@ void Messages::ContentRequest::produce(Entry * entry)
 	throw WorkerError("Invalid ContentRequest");
 
 }
+
+std::string Messages::ContentRequest::uniqKey()
+{
+	std::list<RawContent *> rawContents;
+	collectRawContents(rawContents);
+	for(auto it = rawContents.begin(); it != rawContents.end();)
+	{
+		auto v = *it;
+		if (v->exactSerial) {
+			v->exactSerial = false;
+			it++;
+		} else {
+			it = rawContents.erase(it);
+		}
+	}
+
+	nlohmann::json debug = *this;
+
+	for(auto it = rawContents.begin(); it != rawContents.end();)
+	{
+		auto v = *it;
+		v->exactSerial = true;
+	}
+
+	return debug.dump(0);
+}
+
 
 void SharedCacheServer::startWorker()
 {
@@ -653,7 +724,7 @@ void SharedCacheServer::server()
 				CacheFileDesc * entry = result->second;
 				Messages::Result resultMessage;
 				resultMessage.contentResult.build();
-				*resultMessage.contentResult = entry->toContentResult();
+				*resultMessage.contentResult = entry->toContentResult(&(*c->activeRequest->contentRequest));
 
 				waitingConsumers.remove(c);
 				entry->addReader();

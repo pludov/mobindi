@@ -89,11 +89,12 @@ class CacheFileDesc {
 		delete(this);
 	}
 
-	Messages::ContentResult toContentResult() const {
+	Messages::ContentResult toContentResult(const Messages::ContentRequest* actualRequest) const {
 		Messages::ContentResult r;
 		r.filename = filename;
 		r.error = this->error;
 		r.errorDetails = errorDetails;
+		r.actualRequest = new Messages::ContentRequest(*actualRequest);
 		return r;
 	}
 

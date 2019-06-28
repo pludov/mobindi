@@ -7,10 +7,12 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["path"] = i.path;
+			j["serial"] = i.serial;
 		}
 
 		void from_json(const nlohmann::json& j, RawContent & p) {
 			p.path = j.at("path").get<std::string>();
+			p.serial = j.at("serial").get<long>();
 		}
 
 		void to_json(nlohmann::json&j, const Histogram & i)

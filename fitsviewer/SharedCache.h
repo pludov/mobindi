@@ -69,6 +69,10 @@ namespace SharedCache {
 
 		struct RawContent {
 			std::string path;
+			// Used for video content, to get a specific serial (default to 0)
+			long serial;
+			// Need exactly this serial - fixme: this must not enter the key
+			bool exactSerial;
 
 			void produce(Entry * entry);
 		};
@@ -146,13 +150,11 @@ namespace SharedCache {
 			ChildPtr<Histogram> histogram;
 			ChildPtr<JsonQuery> jsonQuery;
 
-			std::string uniqKey() const
-			{
-				nlohmann::json debug = *this;
-				return debug.dump(0);
-			}
+			std::string uniqKey();
 
 			void produce(Entry * entry);
+
+			void collectRawContents(std::list<RawContent *> & into);
 		};
 
 		void to_json(nlohmann::json&j, const ContentRequest & i);
@@ -206,6 +208,7 @@ namespace SharedCache {
 			bool error;
 			std::string filename;
 			std::string errorDetails;
+			ChildPtr<ContentRequest> actualRequest;
 		};
 
 		void to_json(nlohmann::json&j, const ContentResult & i);
