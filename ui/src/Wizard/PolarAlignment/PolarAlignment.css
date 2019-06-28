@@ -27,8 +27,10 @@
 }
 
 .PolarAlignExplain {
+    color: #c0c0c0;
     margin: 0.5em;
     text-align: justify;
+    font-style: italic;
     font-size: 0.8em;
 }
 
