@@ -475,7 +475,7 @@ export default class Phd
         await this.sendOrder(ct, {
                 method: "dither",
                 params:[
-                    settings.ammount, /* ammount */
+                    settings.amount, /* amount */
                     settings.raOnly, /* ra only */
                     {
                         pixels: settings.pixels,

@@ -1,0 +1,15 @@
+.DitheringSettingBlock {
+    margin-top: 0.7em;
+    margin-bottom: 0.5em;
+}
+
+.DitheringSettingParam {
+    margin-left: 1em;
+    margin-top: 0.2em;
+}
+
+.DitheringSettingExplain {
+    font-size: 1em;
+    color: #c0c0c0;
+    font-style: italic;
+}

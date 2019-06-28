@@ -17,7 +17,7 @@ export type CameraDeviceDynState = {
 };
 
 export type DitheringSettings = {
-    ammount: number;
+    amount: number;
     raOnly: boolean;
     pixels: number;
     time: number;

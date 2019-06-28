@@ -299,7 +299,7 @@ export default class SequenceManager
         } else {
             if (!parentStep.dithering) {
                 parentStep.dithering = {
-                    ammount: 1,
+                    amount: 1,
                     pixels: 0.3,
                     raOnly: false,
                     time: 10,

@@ -21,3 +21,8 @@
     font-family: "MobindiGlyphBton", "sans-serif";
     min-width: 1.7em;
 }
+
+.SequenceStepDitheringSettingsTitle {
+    text-align: center;
+    font-weight: bold;
+}

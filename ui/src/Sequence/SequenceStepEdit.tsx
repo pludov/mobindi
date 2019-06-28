@@ -21,6 +21,7 @@ import CameraBinEditor from '../CameraBinEditor';
 import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
 import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
 import DitheringSettingEdit from './DitheringSettingEdit';
+import Modal from '@src/Modal';
 
 export type ForcedParams = {[id: string]: {param: string, uid:string}};
 
@@ -362,10 +363,13 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     />
     }
 
+    private ditheringDetailsModal = React.createRef<Modal>();
+
     renderDithering=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
 
-        return <select
+        return <>
+            <select
                         value={val === undefined ? "" : val === null ? "false" : "true"}
                         ref={focusRef}
                         onChange={
@@ -375,16 +379,23 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     <option value="" disabled hidden>Choose...</option>
                     <option value="true">On</option>
                     <option value="false">Off</option>
-        </select>;
+            </select>
+            <input type="button" value="..." disabled={!val} onClick={()=>{
+                const c = this.ditheringDetailsModal.current;
+                if (c) c.open();
+            }}/>
+        </>;
     }
 
     renderDitheringDetails=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
         return !!val
-                ?<DitheringSettingEdit settings={val} update={
+                ?<Modal ref={this.ditheringDetailsModal}>
+                    <DitheringSettingEdit settings={val} update={
                             ({field, value})=> Utils.promiseToState(
                                 ()=>this.updateSequenceStepDitheringParam(true, {[field]: value}), this)
                         }/>
+                </Modal>
                 : null
     }
 
