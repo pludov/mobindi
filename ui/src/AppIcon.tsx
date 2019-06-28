@@ -6,6 +6,7 @@ import * as Store from './Store';
 import * as Actions from './Actions';
 import * as AppStore from './AppStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
+import { Notification } from './NotificationStore';
 
 export type InputProps = {
     appid: string;
@@ -14,7 +15,7 @@ export type InputProps = {
 export type MappedProps = {
     apps: BackofficeStatus["apps"];
     currentApp: Store.Content["currentApp"];
-    notification: any;
+    notification: {[notifId: string]: Notification|undefined};
 }
 
 export type Props = InputProps & MappedProps;
@@ -30,9 +31,17 @@ class AppIcon extends React.PureComponent<Props> {
         if (!this.props.apps) return null;
         if (!(appId in this.props.apps)) return null;
         if (!this.props.apps[appId].enabled) return null;
-        var inner = null;
+        let inner = null;
         if (this.props.notification !== undefined) {
-            inner = <span className={"Notification" + (this.props.notification.className ? " Notification_" + this.props.notification.className:"")}>{this.props.notification.text}</span>
+            const notifs = this.props.notification;
+            inner = Object.keys(notifs).sort().map(id=>
+                {
+                    const notif = notifs[id];
+                    if (notif === undefined) {
+                        return null;
+                    }
+                    return <span key={id} className={"Notification" + (notif.className ? " Notification_" + notif.className:"")}>{notif.text}</span>;
+                });
         }
         return (
             <div id={"AppIcon_" + appId} className={'Application' + (this.props.currentApp == appId ? ' Active' : '')} onClick={this.activate}>
@@ -50,7 +59,7 @@ const mapStateToProps = function(store:Store.Content, ownProps:InputProps) {
     var result = {
         apps: store.backend.apps,
         currentApp: store.currentApp,
-        notification: Utils.noErr(()=>(store.appNotifications[ownProps.appid]), {error:true})
+        notification: Utils.noErr(()=>(store.notifs.byApp[ownProps.appid]), {error:true})
     };
     return result;
 }

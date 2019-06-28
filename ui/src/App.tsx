@@ -19,6 +19,7 @@ import * as StoreInitialiser from './StoreInitialiser';
 import * as Store from './Store';
 import BaseApp from './BaseApp';
 import * as ChartJSZoomBugfix from './utils/ChartJSZoomPlugin';
+import NotificationContainer from './NotificationContainer';
 
 ChartJSZoomBugfix.init();
 
@@ -61,38 +62,46 @@ class App extends React.PureComponent<Props> {
         switch (bs) {
             case BackendStatus.Idle:
             case BackendStatus.Connecting:
-
                 return (
-                    <div className="Loading">
-                            <h2>MOBINDI</h2>
-                            <h4>Mobile Indi Control Panel</h4>
-                            <img src={logo} className="App-logo" alt="logo"/>
-                            <h2>Initialisation...</h2>
-                    </div>);
+                    <>
+                        <NotificationContainer/>
+                        <div className="Loading">
+                                <h2>MOBINDI</h2>
+                                <h4>Mobile Indi Control Panel</h4>
+                                <img src={logo} className="App-logo" alt="logo"/>
+                                <h2>Initialisation...</h2>
+                        </div>
+                    </>);
             case BackendStatus.Failed:
                 return (
-                    <div className="Loading">
-                            <h2>MOBINDI</h2>
-                            <h4>Mobile Indi Control Panel</h4>
-                            <img src={logo} className="App-logo" alt="logo"/>
-                            <h2>Backend problem {(this.props.backendError ? " : " + this.props.backendError : null)}</h2>
-                    </div>);
+                    <>
+                        <NotificationContainer/>
+                        <div className="Loading">
+                                <h2>MOBINDI</h2>
+                                <h4>Mobile Indi Control Panel</h4>
+                                <img src={logo} className="App-logo" alt="logo"/>
+                                <h2>Backend problem {(this.props.backendError ? " : " + this.props.backendError : null)}</h2>
+                        </div>
+                    </>);
             case BackendStatus.Connected:
             case BackendStatus.Paused:
                 return (
-                    <div className="App">
-                        <div className="AppStatusBar">
-                            {
-                                this.apps.map((app) => <AppIcon key={app.getAppId()} appid={app.getAppId()}></AppIcon>)
-                            }
-                        </div>
+                    <>
+                        <NotificationContainer/>
+                        <div className="App">
+                            <div className="AppStatusBar">
+                                {
+                                    this.apps.map((app) => <AppIcon key={app.getAppId()} appid={app.getAppId()}></AppIcon>)
+                                }
+                            </div>
 
-                        <div className="AppMainContent">
-                            {
-                                this.apps.map((app) => (app.getAppId() === this.props.currentApp ? app.getUi() : null))
-                            }
+                            <div className="AppMainContent">
+                                {
+                                    this.apps.map((app) => (app.getAppId() === this.props.currentApp ? app.getUi() : null))
+                                }
+                            </div>
                         </div>
-                    </div>);
+                    </>);
             default:
                 // C'est l'application par défaut.
                 return (this.props.children || null);

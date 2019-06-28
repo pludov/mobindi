@@ -50,7 +50,7 @@ export default class IndiAutoConnect {
         for(let devId of Object.keys(configDevices))
         {
             const dev = configDevices[devId];
-            if (!noErr(()=>dev.options.autoConnect, "")) {
+            if (!noErr(()=>dev.options.autoConnect, false)) {
                 continue;
             }
             debug('Configured device:', devId);

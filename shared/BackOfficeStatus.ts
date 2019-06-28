@@ -76,7 +76,12 @@ export type IndiDeviceConfiguration = {
     config?: string;
     skeleton?: string;
     prefix?: string;
-    options: {[id:string]:number|string|boolean};
+    options: {
+        autoGphotoSensorSize?: boolean;
+        disableAskCoverScope?: boolean;
+        autoConnect?: boolean;
+        confirmFilterChange?: boolean;
+    };
 };
 
 export type IndiServerConfiguration = {
@@ -177,6 +182,25 @@ export type SequenceStatus = {
     };
 }
 
+export type NotificationItem = {
+    title: string;
+    time: number;
+
+    // oneshot must be closed by ui as soon as displayed
+    // dialog expect a result
+    type: "oneshot"|"dialog";
+    buttons: null | Array<
+        {
+            title: string;
+            value: any;
+        }
+    >
+}
+
+export type NotificationStatus = {
+    byuuid: {[uuid: string]: NotificationItem}
+    list: string[];
+}
 
 export type FocuserSettings = {
     range: number;
@@ -420,4 +444,5 @@ export type BackofficeStatus = {
     phd: PhdStatus;
     toolExecuter: ToolExecuterStatus;
     triggerExecuter: TriggerExecuterStatus;
+    notification: NotificationStatus;
 };

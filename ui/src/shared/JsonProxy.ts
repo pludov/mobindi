@@ -655,6 +655,37 @@ type UpdateDiff = {
     delete?: string[];
 }
 
+export type WhiteList = undefined | {
+    [id: string]: boolean|WhiteList
+};
+
+function whiteListAcceptProps(whiteList : WhiteList, key: string) {
+    if (whiteList === undefined) {
+        return true;
+    }
+    if (!has(whiteList, key)) {
+        return false;
+    }
+    return whiteList[key];
+}
+
+function whiteListChild(whiteList : WhiteList, key: string) : WhiteList | null {
+    if (whiteList === undefined) {
+        return undefined;
+    }
+    if (!has(whiteList, key)) {
+        return null;
+    }
+    const ret = whiteList[key];
+    if (ret === false) {
+        return null;
+    }
+    if (ret === true) {
+        return undefined;
+    }
+    return ret;
+}
+
 export type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
 
 export default class JsonProxy<CONTENTTYPE> {
@@ -922,7 +953,7 @@ export default class JsonProxy<CONTENTTYPE> {
     }
 
 
-    takeSerialSnapshot():ComposedSerialSnapshot
+    takeSerialSnapshot(whiteList?:  WhiteList):ComposedSerialSnapshot
     {
         var self = this;
         if (this.currentSerialUsed) {
@@ -930,7 +961,7 @@ export default class JsonProxy<CONTENTTYPE> {
             this.currentSerialUsed = false;
         }
 
-        function forObject(desc:JsonProxyNode) : SerialSnapshot
+        function forObject(desc:JsonProxyNode, whiteList: WhiteList) : SerialSnapshot
         {
             if (valueHasChild(desc.value)) {
                 var result = {
@@ -939,18 +970,26 @@ export default class JsonProxy<CONTENTTYPE> {
                     props: {}
                 };
                 for(var k of Object.keys(desc.value)) {
-                    (result.props as any)[k] = forObject(desc.value[k]);
+                    const childWhitelist =
+                        whiteList === undefined
+                            ? undefined
+                            : has(whiteList, k) ? whiteList[k] : false;
+
+                    if (childWhitelist === false) {
+                        continue;
+                    }
+                    (result.props as any)[k] = forObject(desc.value[k], childWhitelist === true ? undefined : childWhitelist);
                 }
                 return result;
             } else {
                 return desc.serial;
             }
         }
-        return forObject(this.root) as ComposedSerialSnapshot;
+        return forObject(this.root, whiteList) as ComposedSerialSnapshot;
     }
 
     // Update version and returns a list of op
-    diff(version: ComposedSerialSnapshot) {
+    diff(version: ComposedSerialSnapshot, whiteList?:  WhiteList) {
 
         // Return an array of change, and update objVersion
         //  { newArray: {} }
@@ -963,9 +1002,10 @@ export default class JsonProxy<CONTENTTYPE> {
         //    delete: [x, y, z]
         //  }
         //  null si no update is required
-        function objectProps(objDesc: JsonProxyNode, objVersion: ComposedSerialSnapshot) {
+        function objectProps(objDesc: JsonProxyNode, objVersion: ComposedSerialSnapshot, whiteList: WhiteList) {
             let result: Diff;
             let whereToStoreProps : {[id:string]:any};
+            let emptyResult = true;
             // Ignorer objVersion si il n'est pas compatible
             // Pas de changement
             if (objVersion.serial != objDesc.serial) {
@@ -979,6 +1019,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 objVersion.serial = objDesc.serial;
                 objVersion.childSerial = objDesc.childSerial;
                 objVersion.props = {};
+                emptyResult = false;
             } else {
                 if (objVersion.childSerial == objDesc.childSerial) {
                     // Same serials
@@ -991,14 +1032,15 @@ export default class JsonProxy<CONTENTTYPE> {
                 // Find the properties to remove
                 var toDelete = [];
                 for (var key of Object.keys(objVersion.props)) {
-                    if (has(objVersion.props, key)) {
-                        if (!has(objDesc.value, key)) {
-                            toDelete.push(key);
-                        }
+                    if (!has(objDesc.value, key)) {
+                        toDelete.push(key);
+                    } else if (!whiteListAcceptProps(whiteList, key)) {
+                        toDelete.push(key);
                     }
                 }
 
                 if (toDelete.length != 0) {
+                    emptyResult = false;
                     for(var i = 0; i < toDelete.length; ++i) {
                         delete objVersion.props[toDelete[i]];
                     }
@@ -1007,36 +1049,44 @@ export default class JsonProxy<CONTENTTYPE> {
             }
 
             for(var key of Object.keys(objDesc.value)) {
-                if (has(objDesc.value, key)) {
-                    // Verifier la prop
-                    var propObjDesc = objDesc.value[key];
-
-
-                    var propUpdate;
-                    // On a affaire a un objet
-                    if ('proxy' in propObjDesc) {
-                        var propObjVersion = undefined;
-                        if (has(objVersion.props, key)) {
-                            propObjVersion = objVersion.props[key];
-                            if (typeof propObjVersion != "object") {
-                                propObjVersion = undefined;
-                            }
-                        }
-
-                        if (propObjVersion == undefined) {
-                            propObjVersion = {serial: null, childSerial: null, props: {}}
-                            objVersion.props[key] = propObjVersion;
-                        }
-
-                        propUpdate = objectProps(propObjDesc, propObjVersion);
-                    } else {
-
-                        propUpdate = finalProp(propObjDesc, objVersion, key);
-                    }
-                    if (propUpdate !== undefined) {
-                        whereToStoreProps[key] = propUpdate;
-                    }
+                const childWhiteList = whiteListChild(whiteList, key);
+                if (childWhiteList === null) {
+                    continue;
                 }
+
+                // Verifier la prop
+                var propObjDesc = objDesc.value[key];
+
+
+                var propUpdate;
+                // On a affaire a un objet
+                if ('proxy' in propObjDesc) {
+                    var propObjVersion = undefined;
+                    if (has(objVersion.props, key)) {
+                        propObjVersion = objVersion.props[key];
+                        if (typeof propObjVersion != "object") {
+                            propObjVersion = undefined;
+                        }
+                    }
+
+                    if (propObjVersion == undefined) {
+                        propObjVersion = {serial: null, childSerial: null, props: {}}
+                        objVersion.props[key] = propObjVersion;
+                    }
+
+                    propUpdate = objectProps(propObjDesc, propObjVersion, childWhiteList);
+                } else {
+
+                    propUpdate = finalProp(propObjDesc, objVersion, key);
+                }
+                if (propUpdate !== undefined) {
+                    emptyResult = false;
+                    whereToStoreProps[key] = propUpdate;
+                }
+            }
+
+            if (emptyResult) {
+                return undefined;
             }
 
             return result;
@@ -1066,22 +1116,52 @@ export default class JsonProxy<CONTENTTYPE> {
             this.currentSerialUsed = false;
         }
 
-        return objectProps(this.root, version);
+        return objectProps(this.root, version, whiteList);
     }
 
     getTarget():CONTENTTYPE {
         return this.root.proxy;
     }
 
-    fork():{data: CONTENTTYPE, serial: ComposedSerialSnapshot} {
+    fork(whiteList?:WhiteList):{data: CONTENTTYPE, serial: ComposedSerialSnapshot} {
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
         }
 
+        function clone(e: any, whiteList?:WhiteList):any
+        {
+            if (whiteList === undefined) {
+                return JSON.parse(JSON.stringify(e));
+            }
+            if (valueHasChild(e)) {
+                if (Array.isArray(e)) {
+                    const result = [];
+                    for(let i = 0; i < e.length; ++i) {
+                        const wChild = whiteListChild(whiteList, "" + i);
+                        if (wChild !== null) {
+                            result[i] = clone(e[i], wChild);
+                        }
+                    }
+                    return result;
+                } else {
+                    const result:any = {};
+                    for(const k of Object.keys(e)) {
+                        const wChild = whiteListChild(whiteList, k);
+                        if (wChild !== null) {
+                            result[k] = clone(e[k], wChild);
+                        }
+                    }
+                    return result;
+                }
+            } else {
+                return e;
+            }
+        }
+
         return {
-            data: JSON.parse(JSON.stringify(this.root.proxy)),
-            serial: this.takeSerialSnapshot()
+            data: clone(this.root.proxy, whiteList),
+            serial: this.takeSerialSnapshot(whiteList)
         }
     }
 

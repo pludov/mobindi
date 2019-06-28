@@ -38,6 +38,7 @@ import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
 import FilterWheel from "./FilterWheel";
 import SequenceManager from "./SequenceManager";
+import Notification from "./Notification";
 
 const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
@@ -68,6 +69,7 @@ app.use(cors({
     credentials: true
 }));
 
+const serverId = uuid.v4();
 
 var appStateManager = new JsonProxy<BackofficeStatus>();
 var appState = appStateManager.getTarget();
@@ -111,6 +113,8 @@ appState.apps= {
 var context:Partial<AppContext> = {
 };
 
+context.notification = new Notification(app, appStateManager, context as AppContext, serverId);
+
 context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
 context.phd = new Phd(app, appStateManager);
@@ -132,6 +136,7 @@ context.focuser = new Focuser(app, appStateManager, context as AppContext);
 context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
 const apiRoot: RequestHandler.APIImplementor = {
+    notification: context.notification.getAPI(),
     focuser: context.focuser.getAPI(),
     filterWheel: context.filterWheel.getAPI(),
     toolExecuter: context.toolExecuter.getAPI(),
@@ -165,13 +170,15 @@ const wss = new WebSocket.Server({ server: server });
 
 //wss.use(sharedsession(session));
 
-var serverId = uuid.v4();
+
+let clientId = 1;
 
 wss.on('connection', (ws:WebSocket)=>{
-    const client : Client = new Client(ws, appStateManager, serverId);
+    const clientUid = "#" + (clientId++);
+    let client : Client;
 
     ws.on('message', function incoming(messageData:WebSocket.Data) {
-        console.log('received from ' + client.uid + ': %s', messageData);
+        console.log('received from ' + clientUid + ': %s', messageData);
 
         let message: any;
         try {
@@ -182,6 +189,15 @@ wss.on('connection', (ws:WebSocket)=>{
             return;
         }
 
+        if (client === undefined) {
+            if (message.type === "auth") {
+                client = new Client(ws, appStateManager, serverId, clientUid, message.whiteList);
+            } else {
+                console.log('Unautorized message from ' + clientUid);
+                ws.terminate();
+            }
+            return;
+        }
         if (message.type === "api") {
             console.log('Got API request');
             var id = message.id;
@@ -228,7 +244,9 @@ wss.on('connection', (ws:WebSocket)=>{
 
     ws.on('close', function (code, reason) {
         console.log('Websocket closed : ' + code);
-        client.dispose();
+        if (client !== undefined) {
+            client.dispose();
+        }
     });
 });
 
@@ -239,4 +257,6 @@ var port = parseInt(process.env.PORT || '8080');
 app.set('port', port);
 
 server.listen(port);
+
+context.notification.notify("Mobindi started");
 

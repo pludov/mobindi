@@ -11,6 +11,19 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 
+
+type ScopeState = "light"|"dark"|"flat";
+const stateByFrameType :{[id:string]:ScopeState}= {
+    FRAME_BIAS:"dark",
+    FRAME_DARK:"dark",
+    FRAME_FLAT:"flat",
+}
+const coverMessageByFrameType = {
+    "light":"Uncover scope",
+    "dark": "Cover scope",
+    "flat": "Switch scope to flat field",
+}
+
 export default class Camera
         implements RequestHandler.APIAppProvider<BackOfficeAPI.CameraAPI>
 {

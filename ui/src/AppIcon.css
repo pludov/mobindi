@@ -54,3 +54,9 @@
 .Notification_Warning {
     color: #ff8080;
 }
+
+.Notification_Invite {
+    color: orange;
+    left: 0.05em;
+    right: unset;
+}

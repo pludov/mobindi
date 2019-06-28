@@ -44,6 +44,19 @@ type Progress = {
 //     childs?: SequenceStepDefinition[];
 // }
 
+
+type ScopeState = "light"|"dark"|"flat";
+const stateByFrameType :{[id:string]:ScopeState}= {
+    FRAME_BIAS:"dark",
+    FRAME_DARK:"dark",
+    FRAME_FLAT:"flat",
+}
+const coverMessageByFrameType = {
+    "light":"Uncover scope",
+    "dark": "Cover scope",
+    "flat": "Switch scope to flat field",
+}
+
 export default class SequenceManager
         implements RequestHandler.APIAppProvider<BackOfficeAPI.SequenceAPI>
 {
@@ -323,6 +336,25 @@ export default class SequenceManager
         }
     }
 
+    private needCoverScopeMessage(cameraId:string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        if (!hasKey(devConf, cameraId)) {
+            return false;
+        }
+
+        return !devConf[cameraId].options.disableAskCoverScope;
+    }
+
+    private disableCoverScopeMessage(cameraId: string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        try {
+            this.indiManager.doUpdateDriverParam({driver: cameraId, key: "disableAskCoverScope", value: true});
+            this.context.notification.message("Cover scope message can be enabled in INDI tab");
+        } catch(e) {
+            this.context.notification.error("Unable to control cover scope message preference", e);
+        }
+    }
+
     private doStartSequence = async (ct: CancellationToken, uuid:string)=>{
         const getSequence=()=>{
             var rslt = this.currentStatus.sequences.byuuid[uuid];
@@ -523,6 +555,8 @@ export default class SequenceManager
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
+            let scopeState: ScopeState = "light";
+
             while(true) {
                 ct.throwIfCancelled();
 
@@ -590,6 +624,27 @@ export default class SequenceManager
                     continue;
                 }
 
+                // Send a cover scope dialog if required
+                const newScopeState:ScopeState = (param.type && hasKey(stateByFrameType, param.type)) ? stateByFrameType[param.type] : 'light';
+                if (newScopeState !== scopeState) {
+                    if (this.needCoverScopeMessage(sequence.camera))
+                    {
+                        // Check that camera is connected first
+                        this.indiManager.checkDeviceConnected(sequence.camera);
+
+                        // Ask confirmation
+                        const acked = await this.context.notification.dialog<boolean|"neverask">(ct, coverMessageByFrameType[newScopeState],
+                                                        [{title:"Ok", value: true}, {title:"Pause Seq", value: false}, {title:"Never ask", value: "neverask"}]);
+                        if (!acked) {
+                            throw new CancellationToken.CancellationError("User canceled");
+                        }
+                        if (acked === "neverask") {
+                            this.disableCoverScopeMessage(sequence.camera);
+                        }
+                    }
+                    scopeState = newScopeState;
+                }
+
                 if (param.filter) {
                     console.log('Setting filter to ' + param.filter);
                     sequence.progress = "Filter " + shootTitle;
@@ -629,6 +684,10 @@ export default class SequenceManager
             }
             this.currentSequenceUuid = null;
             this.currentSequencePromise = null;
+
+            if (s !== "paused") {
+                this.context.notification.notify("Sequence " + seq.title + " " + s + (e ? ": " + e : ""));
+            }
         }
 
 

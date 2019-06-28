@@ -42,7 +42,12 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
-Release 1.2.0 (July 2019):
+Next version:
+  * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
+    They require the use of a HTTPS connection and an authorization (accessible in the message tab)
+  * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
+  * "Cover scope" messages are delivered in sequence when switching from/to dark/bias/flat. This is a per camera setting and can be (de)activated in Mobindi's advanced props for the Camera indi driver
+  * Manual filter wheel support. To use, you have to configure a filter wheel simulator in indi, and ask for filter change confirmation in mobindi's advanced props for driver. Mobindi will then confirm every filter change during sequences.
   * Improved sequence editor with hierachical settings
   * PHD2 dithering settings can be controled per sequence
   * Astrometry settings now persist accross restarts
@@ -76,7 +81,11 @@ The camera app can also display FWHM and trigger astrometry sync and goto (cente
 ### Photo sequencer
 
 The sequence editor allows to program repeated shoots, possibily with various exposure and using dithering (with PHD2).
+
 :fire: You can also create and re-order child steps that will inherit their settings from the parent (usefull for instance to iterate various filters).
+
+:fire: Optionaly, Mobindi can inform you about the evolution of a sequence, either when things break or when manual intervention is required (ie for dark, manual filter wheels, ...)
+
 
 ![Sequence list UI](docs/sequence-view.png?raw=true "Sequence list UI")
 
@@ -168,7 +177,7 @@ Startup:
 ./startup.sh
 ```
 
-Connect to http://localhost:8080, or if you want to test the new support for https, use: https://localhost:8443
+Connect to https://localhost:8443. You will have to accept a self-signed certificate.
 
 
 To upgrade to the latest version, issue:

@@ -1,0 +1,50 @@
+.NotificationViewContainer {
+    position: fixed;
+    z-index: 2;
+    left: 0px;
+    right: 0px;
+    pointer-events: none;
+}
+
+.NotificationView {
+    background: rgba(30,30,30,0.8);
+    border: 0.15em solid #c0c0c0;
+    padding: 0.15em;
+    min-height: 2em;
+    width: calc(100% - calc(0.6*var(--pct)));
+    box-sizing: border-box;
+    margin: calc(0.3*var(--pct));
+    border-radius: 0.3em;
+
+    animation-duration: 0.5s;
+    animation-name: slidein;
+    pointer-events: auto;
+}
+
+.NotificationView.Dead {
+    animation-duration: 0.5s;
+    animation-name: slideout;
+    opacity: 0;
+    pointer-events: none;
+}
+
+@keyframes slidein {
+    from {
+        transform: translate(0, -100%);
+        /* height: 0px; */
+    }
+
+    to {
+        transform: translate(0, 0);
+        /* height: 100%; */
+    }
+}
+
+@keyframes slideout {
+    from {
+        opacity: 1
+    }
+    to {
+        opacity: 0
+    }
+}

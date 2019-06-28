@@ -109,6 +109,20 @@ export type SequenceAPI = {
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }
 
+export type ExposedNotificationRequest = {
+    uuid: string;
+}
+
+export type CloseNotificationRequest = {
+    uuid: string;
+    result?: any;
+}
+
+export type NotificationAPI = {
+    exposedNotification: (payload: ExposedNotificationRequest)=>void;
+    closeNotification: (payload: CloseNotificationRequest)=>void;
+}
+
 export type AstrometryWizards = {
     startPolarAlignmentWizard: (payload:{})=>void;
 }
@@ -155,4 +169,5 @@ export type BackOfficeAPI = {
     filterWheel: FilterWheelAPI;
     imageProcessor: ImageProcessorAPI;
     phd: PhdAPI;
+    notification: NotificationAPI;
 }

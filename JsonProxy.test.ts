@@ -2,7 +2,7 @@ import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy, {has} from './JsonProxy';
+import JsonProxy, {has, WhiteList} from './JsonProxy';
 
 /**
  * Created by ludovic on 21/07/17.
@@ -496,4 +496,89 @@ describe("Json proxy", () => {
         previousData = checkConst(data);
 
     });
+
+
+    it('performs partial streaming replication', ()=>{
+
+        const whiteList : WhiteList = {a: true};
+        
+        function whiteListedClone(e:any) {
+            if (! Object.prototype.hasOwnProperty.call(e, "a")) {
+                return {};
+            }
+            return {a: e.a};
+        }
+
+        var changeTracker = new JsonProxy<any>();
+        var root = changeTracker.getTarget();
+
+        root.outOfWhiteList = {really: true};
+
+        var fork = changeTracker.fork(whiteList);
+
+        var data = fork.data;
+        var serial = fork.serial;
+        console.log('starting serial =' + JSON.stringify(serial));
+        assert.deepStrictEqual(data, whiteListedClone(data), "Initial data filtered according to whiteList");
+
+
+        var previousData = checkConst(data);
+        var patches: any = changeTracker.diff(serial, whiteList);
+        assert.deepEqual(patches, undefined, "No change => no patch");
+
+
+        let STEP = "ignore change out of whitelist";
+        root.other = "bing";
+        patches = changeTracker.diff(serial, whiteList);
+        assert.deepStrictEqual(patches, undefined, "Ignore direct out of tree changes");
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(whiteList), "Unchanged serial after out of tree change");
+
+
+        STEP = "prop creation of final value";
+
+        root.a="toto";
+        patches = changeTracker.diff(serial, whiteList);
+        assert.deepEqual(patches, {update: {a: "toto"}}, "Patch for " + STEP);
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(whiteList), "Serial update on diff for " + STEP);
+
+        data = JsonProxy.applyDiff(data, patches);
+        // FIXME: filter for white list
+        assert.deepEqual(data, whiteListedClone(root), "Patch apply for " + STEP);
+        assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+
+
+        previousData = checkConst(data);
+
+
+        STEP = "prop change of final value";
+
+        root.a="toto2";
+        patches = changeTracker.diff(serial, whiteList);
+        assert.deepEqual(patches, {update: {a: "toto2"}}, "Patch for " + STEP);
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(whiteList), "Serial update on diff for " + STEP);
+
+        data = JsonProxy.applyDiff(data, patches);
+        assert.deepEqual(data, whiteListedClone(root), "Patch apply for " + STEP);
+
+        assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+        previousData = checkConst(data);
+
+
+
+        STEP = "whitelist removal";
+        
+        delete root.a;
+        patches = changeTracker.diff(serial, whiteList);
+        assert.deepEqual(patches, {update: {}, delete: ['a']}, "Patch for " + STEP);
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(whiteList), "Serial update on diff for " + STEP);
+
+        data = JsonProxy.applyDiff(data, patches);
+        assert.deepEqual(data, whiteListedClone(root), "Patch apply for " + STEP);
+
+        assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+        previousData = checkConst(data);
+    });
+
+
+
 });

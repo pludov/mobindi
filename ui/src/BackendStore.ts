@@ -18,7 +18,9 @@ export const initialState:Content = {
     },
 }
 
-export const BackendStatus = {
+export type BackendStatusValue = 0 | 1 | 2 | 3 | 4 | 5;
+
+export const BackendStatus : {[Id:string]: BackendStatusValue} = {
     Idle: 0,
     Connecting: 1,
     Connected: 2,

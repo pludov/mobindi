@@ -221,9 +221,20 @@ export default class FilterWheel
 
     abortFilterChange= async(ct:CancellationToken, payload:any)=>{}
 
-    // FIXME: only if required
+    private needConfirmation(fwId:string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        if (!hasKey(devConf, fwId)) {
+            return false;
+        }
+
+        return !!devConf[fwId].options.confirmFilterChange;
+    }
+
+
+    // FIXME: only if required.
+    // Operation can be canceled by user
     changeFilter= async(ct:CancellationToken, payload: {cameraDeviceId?: string, filterWheelDeviceId?: string, filterNumber?: number, filterId?: string, force?: boolean})=>{
-        let filterWheelDeviceId;
+        let filterWheelDeviceId:string;
         if (payload.filterWheelDeviceId === undefined) {
             if (payload.cameraDeviceId === undefined) {
                 throw new Error("Camera or filterWheel required");
@@ -241,31 +252,61 @@ export default class FilterWheel
             filterWheelDeviceId = payload.filterWheelDeviceId;
         }
 
-        if (!hasKey(this.currentStatus.dynStateByDevices, filterWheelDeviceId)) {
-            throw new Error("Device not available");
-        }
-        let filterPos:number;
-        if (payload.filterId !== undefined) {
-            let i = this.currentStatus.dynStateByDevices[filterWheelDeviceId].filterIds.indexOf(payload.filterId);
-            if (i === -1) {
-                throw new Error("Unknown filter");
+        const checkFilterWheel=(force?: boolean)=>{
+
+            if (!hasKey(this.currentStatus.dynStateByDevices, filterWheelDeviceId)) {
+                throw new Error("Device not available");
             }
-            filterPos = i + 1;
-        } else if (payload.filterNumber !== undefined) {
-            // FIXME: check bounds but indi SHOULD explicitely reject invalid values
-            filterPos = payload.filterNumber!;
-        } else {
-            throw new Error("No filter provided");
+            let filterPos:number;
+            if (payload.filterId !== undefined) {
+                let i = this.currentStatus.dynStateByDevices[filterWheelDeviceId].filterIds.indexOf(payload.filterId);
+                if (i === -1) {
+                    throw new Error("Unknown filter");
+                }
+                filterPos = i + 1;
+            } else if (payload.filterNumber !== undefined) {
+                // FIXME: check bounds but indi SHOULD explicitely reject invalid values
+                filterPos = payload.filterNumber!;
+            } else {
+                throw new Error("No filter provided");
+            }
+
+            if (this.currentStatus.dynStateByDevices[filterWheelDeviceId].targetFilterPos !== null) {
+                throw new Error("Filter wheel busy");
+            }
+            if ((!(payload.force || force))
+                && this.currentStatus.dynStateByDevices[filterWheelDeviceId].currentFilterPos === filterPos)
+            {
+                console.log('FilterWheel already at pos', filterWheelDeviceId, filterPos);
+                return undefined;
+            }
+            return filterPos;
         }
 
-        if (this.currentStatus.dynStateByDevices[filterWheelDeviceId].targetFilterPos !== null) {
-            throw new Error("Filter wheel busy");
-        }
-        if ((!payload.force)
-            && this.currentStatus.dynStateByDevices[filterWheelDeviceId].currentFilterPos === filterPos)
-        {
-            console.log('FilterWheel already at pos', filterWheelDeviceId, filterPos);
+        let filterPos:number|undefined;
+        if ((filterPos = checkFilterWheel()) === undefined) {
             return false;
+        }
+        if (this.needConfirmation(filterWheelDeviceId)) {
+            const filterTitle = this.currentStatus.dynStateByDevices[filterWheelDeviceId].filterIds[filterPos];
+            const ready = await this.context.notification.dialog(ct,
+                    "Confirm filter change of " + filterWheelDeviceId + " to: " + filterTitle,
+                    [
+                        {
+                            title: "ok",
+                            value: true,
+                        },
+                        {
+                            title: "pause",
+                            value: false,
+                        }
+                    ]);
+            if (!ready) {
+                throw new CancellationToken.CancellationError("User canceled");
+            }
+            if ((filterPos = checkFilterWheel(true)) === undefined) {
+                return false;
+            }
         }
 
         try {
