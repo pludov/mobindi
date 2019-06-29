@@ -222,6 +222,9 @@ export default class FilterWheel
     abortFilterChange= async(ct:CancellationToken, payload:any)=>{}
 
     private needConfirmation(fwId:string) {
+        if (this.isManualFilterIndiDriver(fwId)) {
+            return true;
+        }
         const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
         if (!hasKey(devConf, fwId)) {
             return false;
@@ -230,8 +233,11 @@ export default class FilterWheel
         return !!devConf[fwId].options.confirmFilterChange;
     }
 
+    private isManualFilterIndiDriver(fwId:string) {
+        const driver = this.indiManager.getValidConnection().getDevice(fwId).getVector("DRIVER_INFO").getPropertyValueIfExists("DRIVER_EXEC");
+        return driver === "indi_manual_wheel";
+    }
 
-    // FIXME: only if required.
     // Operation can be canceled by user
     changeFilter= async(ct:CancellationToken, payload: {cameraDeviceId?: string, filterWheelDeviceId?: string, filterNumber?: number, filterId?: string, force?: boolean})=>{
         let filterWheelDeviceId:string;
@@ -287,10 +293,16 @@ export default class FilterWheel
         if ((filterPos = checkFilterWheel()) === undefined) {
             return false;
         }
+        let confirmed: boolean;
         if (this.needConfirmation(filterWheelDeviceId)) {
+            const manualDriver = this.isManualFilterIndiDriver(filterWheelDeviceId);
+
             const filterTitle = this.currentStatus.dynStateByDevices[filterWheelDeviceId].filterIds[filterPos];
             const ready = await this.context.notification.dialog(ct,
-                    "Confirm filter change of " + filterWheelDeviceId + " to: " + filterTitle,
+                    (manualDriver
+                        ? "Move filter of "
+                        : "Confirm filter change of ")
+                         + filterWheelDeviceId + " to: " + filterTitle,
                     [
                         {
                             title: "ok",
@@ -304,6 +316,21 @@ export default class FilterWheel
             if (!ready) {
                 throw new CancellationToken.CancellationError("User canceled");
             }
+
+            // For manual filter wheel, issue a sync
+            if (manualDriver) {
+                console.log('Syncing manual filter wheel');
+                await this.indiManager.setParam(ct,
+                    filterWheelDeviceId,
+                    "SYNC_FILTER",
+                    {"TARGET_FILTER": "" + filterPos},
+                    true,
+                    false
+                    // FIXME: cancelator
+                );
+                return true;
+            }
+
             if ((filterPos = checkFilterWheel(true)) === undefined) {
                 return false;
             }
