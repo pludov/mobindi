@@ -443,7 +443,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 })
             },
             5000,
-            ()=>new Error("Timedout waiting for vectors of " + devId + " : " + JSON.stringify(vectorIds))
+            ()=>new Error("Missing vector (timeout) for " + devId + " : " + JSON.stringify(vectorIds))
         );
     }
 
