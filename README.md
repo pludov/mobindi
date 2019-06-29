@@ -47,7 +47,10 @@ Next version:
     They require the use of a HTTPS connection and an authorization (accessible in the message tab)
   * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
   * "Cover scope" messages are delivered in sequence when switching from/to dark/bias/flat. This is a per camera setting and can be (de)activated in Mobindi's advanced props for the Camera indi driver
-  * Manual filter wheel support. To use, you have to configure a filter wheel simulator in indi, and ask for filter change confirmation in mobindi's advanced props for driver. Mobindi will then confirm every filter change during sequences.
+  * Manual filter wheel support. Mobindi recognize the indi_manual_wheel and send notifications when required. You can also ask for filter confirmation for any other kinds of filter wheel (in mobindi's advanced props for driver. Mobindi will then ask confirmation before every filter change during sequences.)
+
+![Manual filterwheel](docs/manual_filterwheel.gif?raw=true "Manual filterwheel")
+
   * Improved sequence editor with hierachical settings
   * PHD2 dithering settings can be controled per sequence
   * Astrometry settings now persist accross restarts
