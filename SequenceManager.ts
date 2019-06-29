@@ -749,6 +749,7 @@ export default class SequenceManager
 
         sequence.stepStatus = {};
         sequence.status = 'idle';
+        sequence.progress = null;
         sequence.errorMessage = null;
         // for(const stepUuid of sequence.steps.list)
         // {
