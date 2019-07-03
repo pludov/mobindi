@@ -178,6 +178,11 @@ class JQImageDisplay {
         this.child.off('touchleave', this.touchleave);
         this.child.off('contextmenu', this.contextmenu);
         this.child.empty();
+        this.abortDetailsLoading();
+        this.abortLoading();
+        if (this.currentImg !== null) {
+            this.currentImg.src = '#blank';
+        }
     }
 
     abortDetailsLoading()
@@ -471,6 +476,9 @@ class JQImageDisplay {
             var todo = this.nextLoadingImgSrc;
             this.nextLoadingImgSrc = null;
             this.setSrc(this.currentImgPath, todo);
+        }
+        if (previousImg !== null) {
+            previousImg.src = "#blank";
         }
     }
 
