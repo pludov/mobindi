@@ -65,6 +65,9 @@ class SharedCacheServer {
 	// Clients that awaits some resources
 	ClientFifo waitingConsumers;
 
+	// Number of workers awaiting for resources (allow temporary increase of the number of workers)
+	long waitingContentWorkerCount;
+
 	// Starts and terminate with '/'
 	std::string basePath;
 	long maxSize;

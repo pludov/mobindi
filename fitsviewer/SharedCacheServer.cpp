@@ -82,6 +82,9 @@ Client::~Client()
 
 	producing.clear();
 
+	if (worker && isWaitingConsumer()) {
+		server->waitingContentWorkerCount --;
+	}
 	server->waitingWorkers.remove(this);
 	server->waitingConsumers.remove(this);
 
@@ -387,6 +390,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 	if (c->activeRequest->contentRequest) {
 		// Ici: upgrader les requetes à l'entrée
 		waitingConsumers.add(c);
+		if (c->worker) {
+			waitingContentWorkerCount++;
+		}
 		this->upgradeContentRequest(c);
 		return;
 	}
@@ -746,8 +752,13 @@ void SharedCacheServer::server()
 
 	// Cleanup the directory
 	while(true) {
-		// Avoid deadlock: don't account waiting consumers
-		while(startedWorkerCount - waitingConsumers.size() < 2) {
+		// FIXME: ensure that we never have more than two active workers (running)
+		// For this, we should not answer back to getResource to workers untils they
+		// the active workers is low enough
+
+		// Always keep 2 idle workers ready to run
+		while(startedWorkerCount < 2 + waitingContentWorkerCount) {
+			std::cerr << "Starting new worker due to high number of consumers : " << startedWorkerCount << " with " << waitingContentWorkerCount << " stucks\n";
 			startWorker();
 		}
 
@@ -755,7 +766,7 @@ void SharedCacheServer::server()
 		while(waitingWorkers.size() > 2) {
 			// Kill some workers
 			auto remove = (*waitingWorkers.begin());
-			std::cerr << "Too many waiting workers; dropping " << remove->identifier() << "\n";
+			std::cerr << "Too many waiting workers (" << waitingWorkers.size() << ") ; dropping " << remove->identifier() << "\n";
 			remove->release();
 		}
 
@@ -886,6 +897,9 @@ void SharedCacheServer::server()
 				resultMessage.contentResult = new Messages::ContentResult(entry->toContentResult(&(*c->activeRequest->contentRequest)));
 
 				waitingConsumers.remove(c);
+				if (c->worker) {
+					waitingContentWorkerCount--;
+				}
 				entry->addReader();
 				c->reading.push_back(entry);
 				c->reply(resultMessage);
