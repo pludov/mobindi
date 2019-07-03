@@ -391,12 +391,18 @@ class JQImageDisplay {
         this.abortLoading();
 
         const newImage = new Image();
-        newImage.onload = (() => { console.warn('image loaded ok'); this.loaded(src, newImage, true) });
-        newImage.onerror = ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) });
+        newImage.addEventListener("load", () => { console.warn('image loaded ok'); this.loaded(src, newImage, true) }, {once: true});
+        newImage.addEventListener("error", ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) }), {once: true});
         newImage.src = src;
         $(newImage).css('display', 'block');
         $(newImage).css('pointer-events', 'none');
         console.log('Loading image: ' + src);
+        if (this.loadingImg !== null) {
+            if (this.loadingImg.parentElement) {
+                this.loadingImg.parentElement.removeChild(this.loadingImg);
+            }
+            this.loadingImg.src="#blank";
+        }
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
         this.loadingImgPath = path;
