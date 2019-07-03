@@ -18,6 +18,7 @@ namespace SharedCache {
 
 
 class Client;
+class Stream;
 class CacheFileDesc;
 
 class ClientError : public std::runtime_error {
@@ -48,14 +49,14 @@ public:
 class SharedCacheServer {
 	class RequirementEvaluator;
 	friend class Client;
+	friend class Stream;
 	friend class CacheFileDesc;
 
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
 	std::map<std::string, CacheFileDesc*> contentByFilename;
 
 
-	// -1 means obsoleted here. (FIXME: must be removed)
-	std::map<std::string, long> expirableContentStatus;
+	std::map<std::string, Stream*> streams;
 
 	std::set<Client *> clients;
 	// Clients that are stuck in waitOrder state
@@ -71,6 +72,7 @@ class SharedCacheServer {
 
 	int serverFd;
 	long fileGenerator;
+	long streamGenerator;
 
 	int startedWorkerCount;
 
@@ -93,6 +95,8 @@ class SharedCacheServer {
 	// Return -1 if expired
 	long isExpiredContent(const Messages::RawContent * content) const;
 	void upgradeContentRequest(Client * consumerClient);
+
+	Stream * createStream(Client * c);
 public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();

@@ -35,19 +35,35 @@ namespace SharedCache {
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
-		released = false;
 		fd = -1;
+		actualRequest = result.actualRequest;
 		if (!result.error) {
 			error = false;
 			errorDetails = "";
+			released = false;
+			
 		} else {
 			error = true;
 			errorDetails = result.errorDetails;
+			released = true;
 		}
 
 	}
 
 	Entry::Entry(Cache * cache, const Messages::WorkResponse & result):
+						cache(cache),
+						filename(result.filename),
+						wasReady(false),
+						error(false)
+	{
+		mmapped = nullptr;
+		dataSize = 0;
+		wasMmapped = false;
+		released = false;
+		fd = -1;
+	}
+
+	Entry::Entry(Cache * cache, const Messages::StreamStartImageResult & result):
 						cache(cache),
 						filename(result.filename),
 						wasReady(false),
@@ -147,6 +163,17 @@ namespace SharedCache {
 		released = true;
 	}
 
+	SharedCache::Messages::StreamPublishResult Entry::streamPublish() {
+		Messages::Request request;
+		request.streamPublishRequest = new Messages::StreamPublishRequest();
+		request.streamPublishRequest->filename = filename;
+		request.streamPublishRequest->size = dataSize;
+		SharedCache::Messages::Result result = cache->clientSend(request);
+		released = true;
+
+		return *result.streamPublishResult;
+	}
+
 	void Entry::failed(const std::string & str) {
 		Messages::Request request;
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
@@ -165,6 +192,11 @@ namespace SharedCache {
 		cache->clientSend(request);
 		released = true;
 	}
+
+	const ChildPtr<Messages::ContentRequest> & Entry::getActualRequest() const {
+		return actualRequest;
+	}
+
 
 	Cache::Cache(const std::string & path, long maxSize) :
 				basePath(path)
@@ -195,12 +227,12 @@ namespace SharedCache {
 			nlohmann::json j = request;
 			str = j.dump();
 		}
-		std::cerr << "Sending " << str << "\n";
+		std::cerr << getpid() << ": Sending to server: " << str << "\n";
 		clientSendMessage(str.data(), str.length());
 		char buffer[SharedCache::MAX_MESSAGE_SIZE];
 		int sze = clientWaitMessage(buffer);
 		std::string received(buffer, sze);
-		std::cerr << "Received: " << received << "\n";
+		std::cerr << getpid() << ": Received from server: " << received << "\n";
 		auto jsonResult = nlohmann::json::parse(received);
 		return jsonResult.get<Messages::Result>();
 	}
@@ -212,6 +244,14 @@ namespace SharedCache {
 
 		Messages::Result r = clientSend(request);
 		return new Entry(this, *r.contentResult);
+	}
+
+	Entry * Cache::startStreamImage()
+	{
+	    SharedCache::Messages::Request request;
+		request.streamStartImageRequest.build();
+		Messages::Result r = clientSend(request);
+		return new Entry(this, *r.streamStartImageResult);
 	}
 
 

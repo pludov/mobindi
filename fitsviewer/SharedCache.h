@@ -69,6 +69,7 @@ namespace SharedCache {
 
 		struct RawContent {
 			std::string path;
+			std::string stream;
 			// Used for video content, to get a specific serial (default to 0)
 			long serial;
 			// Need exactly this serial - fixme: this must not enter the key
@@ -83,6 +84,8 @@ namespace SharedCache {
 		struct Histogram {
 			RawContent source;
 			void produce(Entry * entry);
+
+			void collectRawContents(std::list<RawContent *> & into);
 		};
 
 		void to_json(nlohmann::json&j, const Histogram & i);
@@ -101,6 +104,8 @@ namespace SharedCache {
 		struct StarField {
 			RawContent source;
 			void produce(Entry * entry);
+
+			void collectRawContents(std::list<RawContent *> & into);
 		};
 		void to_json(nlohmann::json&j, const StarField & i);
 		void from_json(const nlohmann::json& j, StarField & p);
@@ -132,6 +137,8 @@ namespace SharedCache {
 			int numberOfBinInUniformize;
 
 			void produce(Entry * entry);
+
+			void collectRawContents(std::list<RawContent *> & into);
 		};
 		void to_json(nlohmann::json&j, const Astrometry & i);
 		void from_json(const nlohmann::json& j, Astrometry & p);
@@ -141,6 +148,8 @@ namespace SharedCache {
 			ChildPtr<StarField> starField;
 			ChildPtr<Astrometry> astrometry;
 			void produce(Entry * entry);
+
+			void collectRawContents(std::list<RawContent *> & into);
 		};
 		void to_json(nlohmann::json&j, const JsonQuery & i);
 		void from_json(const nlohmann::json& j, JsonQuery & p);
@@ -192,11 +201,40 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ReleasedAnnounce & i);
 		void from_json(const nlohmann::json& j, ReleasedAnnounce & p);
 
+		struct StreamStartImageRequest {
+		};
+		void to_json(nlohmann::json&j, const StreamStartImageRequest & i);
+		void from_json(const nlohmann::json& j, StreamStartImageRequest & p);
+
+		struct StreamStartImageResult {
+			std::string filename;
+		};
+		void to_json(nlohmann::json&j, const StreamStartImageResult & i);
+		void from_json(const nlohmann::json& j, StreamStartImageResult & p);
+
+		struct StreamPublishRequest {
+			long size;
+			std::string filename;
+			std::string streamId;
+		};
+		void to_json(nlohmann::json&j, const StreamPublishRequest & i);
+		void from_json(const nlohmann::json& j, StreamPublishRequest & p);
+
+		struct StreamPublishResult {
+			std::string streamId;
+			long serial;
+		};
+		void to_json(nlohmann::json&j, const StreamPublishResult & i);
+		void from_json(const nlohmann::json& j, StreamPublishResult & p);
+
+
 		struct Request {
 			ChildPtr<ContentRequest> contentRequest;
 			ChildPtr<WorkRequest> workRequest;
 			ChildPtr<FinishedAnnounce> finishedAnnounce;
 			ChildPtr<ReleasedAnnounce> releasedAnnounce;
+			ChildPtr<StreamStartImageRequest> streamStartImageRequest;
+			ChildPtr<StreamPublishRequest> streamPublishRequest;
 		};
 
 		void to_json(nlohmann::json&j, const Request & i);
@@ -217,6 +255,9 @@ namespace SharedCache {
 		struct Result {
 			ChildPtr<ContentResult> contentResult;
 			ChildPtr<WorkResponse> todoResult;
+			ChildPtr<StreamStartImageResult> streamStartImageResult;
+			ChildPtr<StreamPublishResult> streamPublishResult;
+
 		};
 
 		void to_json(nlohmann::json&j, const Result & i);
@@ -258,14 +299,18 @@ namespace SharedCache {
 		// either one of produced/failed/release was already called
 		bool released;
 
+		ChildPtr<Messages::ContentRequest> actualRequest;
+
 		Entry(Cache * cache, const Messages::ContentResult & result);
 		Entry(Cache * cache, const Messages::WorkResponse & tobuild);
+		Entry(Cache * cache, const Messages::StreamStartImageResult & tobuild);
 		void open();
 	public:
 		~Entry();
 
 		bool ready() const;
 		void produced();
+		SharedCache::Messages::StreamPublishResult streamPublish();
 		void failed(const std::string & str);
 		void release();
 
@@ -276,6 +321,7 @@ namespace SharedCache {
 		bool hasError() const { return error; };
 		std::string getErrorDetails() const { return errorDetails; };
 
+		const ChildPtr<Messages::ContentRequest> & getActualRequest() const;
 
 		Cache * getServer() const;
 	};
@@ -302,6 +348,7 @@ namespace SharedCache {
 		Cache(const std::string & path, long maxSize);
 
 		Entry * getEntry(const Messages::ContentRequest & wanted);
+		Entry * startStreamImage();
 
 		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr);
 	};

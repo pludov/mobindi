@@ -47,6 +47,52 @@ static bool disableHttp = false;
 static bool disableOutput = false;
 
 
+static void writeStreamBuff(void * buffer, size_t length)
+{
+	int wanted, got;
+	if (length == 0) {
+		if (disableHttp) {
+			return;
+		}
+		const char * text = "0\r\n\r\n";
+		wanted = strlen(text);
+		got = write(1, text, wanted);
+	} else {
+		char separator[64];
+		int sepLength = snprintf(separator, 64, "%lx\r\n", length);
+
+		struct iovec vecs[3];
+		vecs[0].iov_base = separator;
+		vecs[0].iov_len = sepLength;
+		vecs[1].iov_base = buffer;
+		vecs[1].iov_len = length;
+		vecs[2].iov_base = separator + sepLength - 2;
+		vecs[2].iov_len = 2;
+
+		wanted = vecs[0].iov_len + length + 2;
+
+		if (disableHttp) {
+			wanted -= vecs[0].iov_len;
+			vecs[0].iov_len = 0;
+			wanted -= vecs[2].iov_len;
+			vecs[2].iov_len = 0;
+		}
+
+		got = writev(1, vecs, 3);
+	}
+	if (got == -1) {
+		perror("write");
+		exit(0);
+	}
+	if (got < wanted) {
+		exit(0);
+	}
+}
+
+static void writeStreamBuff(const std::string & str)
+{
+	writeStreamBuff((void*)str.data(), str.size());
+}
 
 struct own_jpeg_destination_mgr : public jpeg_destination_mgr {
 	uint8_t * buffer;
@@ -69,55 +115,11 @@ public:
 		next_output_byte = buffer;
 		free_in_buffer = buffSze;
 	}
-
-	void writeBuff(size_t length)
-	{
-		int wanted, got;
-		if (length == 0) {
-			if (disableHttp) {
-				return;
-			}
-			const char * text = "0\r\n\r\n";
-			wanted = strlen(text);
-			got = write(1, text, wanted);
-		} else {
-			char separator[64];
-			int sepLength = snprintf(separator, 64, "%lx\r\n", length);
-
-			struct iovec vecs[3];
-			vecs[0].iov_base = separator;
-			vecs[0].iov_len = sepLength;
-			vecs[1].iov_base = buffer;
-			vecs[1].iov_len = length;
-			vecs[2].iov_base = separator + sepLength - 2;
-			vecs[2].iov_len = 2;
-
-
-			wanted = vecs[0].iov_len + length + 2;
-
-			if (disableHttp) {
-				wanted -= vecs[0].iov_len;
-				vecs[0].iov_len = 0;
-				wanted -= vecs[2].iov_len;
-				vecs[2].iov_len = 0;
-			}
-
-			got = writev(1, vecs, 3);
-		}
-		if (got == -1) {
-			perror("write");
-			exit(0);
-		}
-		if (got < wanted) {
-			exit(0);
-		}
-	}
-
 	void flush()
 	{
 		size_t length = next_output_byte - buffer;
 		if (length) {
-			writeBuff(length);
+			writeStreamBuff(buffer, length);
 			reset();
 		}
 	}
@@ -127,13 +129,12 @@ public:
 	}
 
 	void memberOutputBuffer() {
-		writeBuff(buffSze);
+		writeStreamBuff(buffer, buffSze);
 		reset();
 	}
 
 	void memberTermDestination() {
 		flush();
-		writeBuff(0);
 	}
 
 	static void static_init_destination(j_compress_ptr cinfo)
@@ -143,6 +144,7 @@ public:
 	static boolean static_empty_output_buffer(j_compress_ptr cinfo)
 	{
 		((own_jpeg_destination_mgr*)cinfo->dest)->memberOutputBuffer();
+		return true;
 	}
 	static void static_term_destination(j_compress_ptr cinfo)
 	{
@@ -382,7 +384,6 @@ static inline void rectSumBayer(uint16_t * data, int w, int h, int sx, int sy,
 	g = 0;
 	b = 0;
 
-	int32_t result = 0;
 	while(sy > 0) {
 		for(int i = 0; i < sx; i += 2)
 		{
@@ -408,7 +409,6 @@ static inline void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int s
 	g = 0;
 	b = 0;
 
-	int32_t result = 0;
 	while(sy > 0) {
 		for(int i = 0; i < sx; i += 2)
 		{
@@ -424,7 +424,6 @@ static inline void rectSumBayerRGGB(uint16_t * data, int w, int h, int sx, int s
 
 static inline void applyScaleBin2(u_int16_t * data, int w, int h, const LookupTable & lookupTable, u_int8_t * result)
 {
-	int i = 0;
 	for(int by = 0; by < h; by += 2)
 	{
 		for(int bx = 0; bx < w; bx += 2)
@@ -732,192 +731,284 @@ static int16_t bayerOffset(int8_t bayer, int w)
 	}
 }
 
-int main (int argc, char ** argv) {
+
+const std::string MimeSeparator = "MobIndi80289de12cb019e944c1dfbf174db799Z";
+
+class ResponseException : public std::runtime_error {
+public:
+	ResponseException(const std::string & msg) : std::runtime_error(msg) {}
+};
+
+class ResponseGenerator {
 	Cgicc formData;
 	// 128Mo cache
-	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
+	SharedCache::Cache * cache;
 
-	string path;
+	std::string path;
+	std::string stream;
+	bool wantSize;
+	bool forceGreyscale;
+	bool streaming;
+	bool firstImage;
+	int bin;
+public:
 
-	// This is a power of two of the actual bin (0 => 1x1)
-	int bin = 0;
+	void init(int argc, char ** argv) {
+		// This is a power of two of the actual bin (0 => 1x1)
+		bin = 0;
+		firstImage = true;
+		cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
-	bool wantSize = findArg(argc, argv, "--size");
-	disableHttp = findArg(argc, argv, "--no-http");
-	disableOutput = findArg(argc, argv, "--no-output");
-	bool forceGreyscale = findArg(argc, argv, "--force-greyscale");
+		wantSize = findArg(argc, argv, "--size");
+		disableHttp = findArg(argc, argv, "--no-http");
+		disableOutput = findArg(argc, argv, "--no-output");
+		forceGreyscale = findArg(argc, argv, "--force-greyscale");
+		streaming = findArg(argc, argv, "--stream");
 
-	form_iterator fi;
-	fi = formData.getElement("size");
-	if ((!fi->isEmpty()) && (fi != (*formData).end()) && (**fi == "true")) {
-		wantSize = true;
-	}
-
-	fi = formData.getElement("path");
-	if( !fi->isEmpty() && fi != (*formData).end()) {
-		path =  **fi;
-	} else if (argc > 1) {
-		path = std::string(argv[1]);
-	} else {
-		path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
-	}
-//	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
-
-	fi = formData.getElement("bin");
-	if ((!fi->isEmpty()) && (fi != (*formData).end())) {
-		bin = stod(**fi);
-		if (bin < 0) {
-			bin = 0;
-		}
-		if (bin > 8) {
-			bin = 8;
-		}
-	}
-
-
-
-	SharedCache::Messages::ContentRequest contentRequest;
-	contentRequest.fitsContent = new SharedCache::Messages::RawContent();
-	contentRequest.fitsContent->path = path;
-
-	SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
-	if (aduPlane->hasError()) {
-		sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, aduPlane->getErrorDetails().c_str()));
-		exit(1);
-	}
-	RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
-
-	if (wantSize) {
-		cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
-		header.addHeader("Content-Type", "application/json");
-		header.addHeader("connection", "close");
-		sendHttpHeader(header);
-
-		ImageDesc desc;
-		desc.width = storage->w;
-		desc.height = storage->h;
-		desc.color = storage->hasColors();
-
-		nlohmann::json j = desc;
-		cout << j.dump() << "\n";
-		exit(0);
-	}
-
-	double low = parseFormFloat(formData, "low", 0.05);
-	double med = parseFormFloat(formData, "med", 0.5);
-	double high = parseFormFloat(formData, "high", 0.95);
-
-	contentRequest.fitsContent.clear();
-	contentRequest.histogram.build();
-	contentRequest.histogram->source.path = path;
-	SharedCache::EntryRef histogram(cache->getEntry(contentRequest));
-	if (histogram->hasError()) {
-		sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, histogram->getErrorDetails().c_str()));
-		exit(1);
-	}
-
-	HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
-
-	int w = storage->w;
-	int h = storage->h;
-	std::string bayer = storage->getBayer();
-
-	uint16_t * data = storage->data;
-
-	bool color = forceGreyscale ? false : bayer.length() > 0;
-
-
-	cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
-	header.addHeader("Content-Type", "image/jpeg");
-	header.addHeader("Transfer-Encoding", "chunked");
-	header.addHeader("connection", "close");
-	sendHttpHeader(header);
-
-
-	if (color) {
-		// Bin 1 (aka debayer) not supported.
-		if (bin < 1) {
-			bin = 1;
-		}
-	}
-
-	JpegWriter writer(binDiv(w, bin), binDiv(h, bin), color > 0 ? 3 : 1);
-	writer.start();
-
-	int stripHeight = 32 << bin;
-	// do histogram for each channel !
-	if (color) {
-		int levels[3][3];
-		for(int i = 0; i < 3; ++i) {
-			auto channelStorage = histogramStorage->channel(i);
-			levels[i][0]= channelStorage->getLevel(low);
-			levels[i][2]= channelStorage->getLevel(high);
-			levels[i][1]= round(levels[i][0] + (levels[i][2] - levels[i][0]) * med);
-		}
-		std::cerr << "Levels are " << levels[0][0]  << " " << levels[0][1]<< " " << levels[0][2] << "\n";
-		std::cerr << "Levels are " << levels[1][0]  << " " << levels[1][1]<< " " << levels[1][2] << "\n";
-		std::cerr << "Levels are " << levels[2][0]  << " " << levels[2][1]<< " " << levels[2][2] << "\n";
-		u_int8_t * result = new u_int8_t[3 * binDiv(w, bin) * (stripHeight >> bin)];
-
-		LookupTable table_r(levels[0][0], levels[0][1], levels[0][2]);
-		LookupTable table_g(levels[1][0], levels[1][1], levels[1][2]);
-		LookupTable table_b(levels[2][0], levels[2][1], levels[2][2]);
-
-		int basey = 0;
-		while(basey < h) {
-			int yleft = h - basey;
-			if (yleft > stripHeight) yleft = stripHeight;
-
-
-			// Do: R, G, B
-			int8_t offset_r, second_r;
-			int8_t offset_g, second_g;
-			int8_t offset_b, second_b;
-			findBayerOffset(bayer, 'R', offset_r, second_r);
-			findBayerOffset(bayer, 'G', offset_g, second_g);
-			findBayerOffset(bayer, 'B', offset_b, second_b);
-			applyScaleBinBayer(data + basey * w, w, yleft,
-					table_r, bayerOffset(offset_r, w), bayerOffset(second_r, w),
-					table_g, bayerOffset(offset_g, w), bayerOffset(second_g, w),
-					table_b, bayerOffset(offset_b, w), bayerOffset(second_b, w),
-					result,
-					bin);
-
-
-			writer.writeLines(result, binDiv(yleft, bin));
-			fflush(stdout);
-			basey += stripHeight;
+		form_iterator fi;
+		fi = formData.getElement("size");
+		if ((!fi->isEmpty()) && (fi != (*formData).end()) && (**fi == "true")) {
+			wantSize = true;
 		}
 
-		delete [] result;
-	} else {
-		auto channelStorage = histogramStorage->channel(0);
+		fi = formData.getElement("stream");
+		if (!fi->isEmpty() && fi != (*formData).end()) {
+			stream = **fi;
+			streaming = true;
+		} else if (argc > 1 && streaming) {
+			stream = std::string(argv[1]);
+		}
 
-		int lowAdu = channelStorage->getLevel(low);
-		int highAdu = channelStorage->getLevel(high);
-		int medAdu = round(lowAdu + (highAdu - lowAdu) * med);
-		LookupTable lookupTable(lowAdu, medAdu, highAdu);
+		fi = formData.getElement("path");
+		if( !fi->isEmpty() && fi != (*formData).end()) {
+			path =  **fi;
+		} else if (argc > 1 && !streaming) {
+			path = std::string(argv[1]);
+		}
 
-		u_int8_t * result = new u_int8_t[binDiv(w, bin) * (stripHeight >> bin)];
+	//	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
 
-		// faire le bin !
-		int basey = 0;
-		while(basey < h) {
-			int yleft = (h - basey);
-			if (yleft > stripHeight) yleft = stripHeight;
-			if (bin > 0) {
-				applyScaleBin(data + basey * w, w, yleft, lookupTable, result, bin);
-			} else {
-				applyScale(data + basey * w, w, yleft, lookupTable, result);
+		fi = formData.getElement("bin");
+		if ((!fi->isEmpty()) && (fi != (*formData).end())) {
+			bin = stod(**fi);
+			if (bin < 0) {
+				bin = 0;
 			}
-			writer.writeLines(result, binDiv(yleft, bin));
-
-			basey += stripHeight;
+			if (bin > 8) {
+				bin = 8;
+			}
 		}
-		delete(result);
 	}
-	writer.finish();
 
-	histogram->release();
-	return 0;
+
+
+	void sendJpeg()
+	{
+		SharedCache::Messages::ContentRequest contentRequest;
+		contentRequest.fitsContent = new SharedCache::Messages::RawContent();
+		contentRequest.fitsContent->path = path;
+		contentRequest.fitsContent->stream = stream;
+		contentRequest.fitsContent->serial = 0;
+
+		SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
+		if (aduPlane->hasError()) {
+			throw ResponseException(aduPlane->getErrorDetails());
+		}
+		// FIXME: once fixed
+		// contentRequest = *aduPlane->getActualRequest();
+
+		RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
+
+		if (wantSize) {
+			cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+			header.addHeader("Content-Type", "application/json");
+			header.addHeader("connection", "close");
+			sendHttpHeader(header);
+
+			ImageDesc desc;
+			desc.width = storage->w;
+			desc.height = storage->h;
+			desc.color = storage->hasColors();
+
+			nlohmann::json j = desc;
+			cout << j.dump() << "\n";
+			exit(0);
+		}
+
+		double low = parseFormFloat(formData, "low", 0.05);
+		double med = parseFormFloat(formData, "med", 0.5);
+		double high = parseFormFloat(formData, "high", 0.95);
+
+		SharedCache::Messages::ContentRequest histogramRequest;
+		histogramRequest.histogram.build();
+		histogramRequest.histogram->source = *contentRequest.fitsContent;
+		// histogramRequest.histogram->source.exactSerial = true;
+
+		SharedCache::EntryRef histogram(cache->getEntry(histogramRequest));
+		if (histogram->hasError()) {
+			throw ResponseException(histogram->getErrorDetails());
+		}
+
+		startJpegBlock();
+
+		HistogramStorage * histogramStorage = (HistogramStorage*)histogram->data();
+
+		int w = storage->w;
+		int h = storage->h;
+		std::string bayer = storage->getBayer();
+
+		uint16_t * data = storage->data;
+
+		bool color = forceGreyscale ? false : bayer.length() > 0;
+
+		if (color) {
+			// Bin 1 (aka debayer) not supported.
+			if (bin < 1) {
+				bin = 1;
+			}
+		}
+
+		JpegWriter writer(binDiv(w, bin), binDiv(h, bin), color > 0 ? 3 : 1);
+		writer.start();
+
+		int stripHeight = 32 << bin;
+		// do histogram for each channel !
+		if (color) {
+			int levels[3][3];
+			for(int i = 0; i < 3; ++i) {
+				auto channelStorage = histogramStorage->channel(i);
+				levels[i][0]= channelStorage->getLevel(low);
+				levels[i][2]= channelStorage->getLevel(high);
+				levels[i][1]= round(levels[i][0] + (levels[i][2] - levels[i][0]) * med);
+			}
+			std::cerr << "Levels are " << levels[0][0]  << " " << levels[0][1]<< " " << levels[0][2] << "\n";
+			std::cerr << "Levels are " << levels[1][0]  << " " << levels[1][1]<< " " << levels[1][2] << "\n";
+			std::cerr << "Levels are " << levels[2][0]  << " " << levels[2][1]<< " " << levels[2][2] << "\n";
+			u_int8_t * result = new u_int8_t[3 * binDiv(w, bin) * (stripHeight >> bin)];
+
+			LookupTable table_r(levels[0][0], levels[0][1], levels[0][2]);
+			LookupTable table_g(levels[1][0], levels[1][1], levels[1][2]);
+			LookupTable table_b(levels[2][0], levels[2][1], levels[2][2]);
+
+			int basey = 0;
+			while(basey < h) {
+				int yleft = h - basey;
+				if (yleft > stripHeight) yleft = stripHeight;
+
+
+				// Do: R, G, B
+				int8_t offset_r, second_r;
+				int8_t offset_g, second_g;
+				int8_t offset_b, second_b;
+				findBayerOffset(bayer, 'R', offset_r, second_r);
+				findBayerOffset(bayer, 'G', offset_g, second_g);
+				findBayerOffset(bayer, 'B', offset_b, second_b);
+				applyScaleBinBayer(data + basey * w, w, yleft,
+						table_r, bayerOffset(offset_r, w), bayerOffset(second_r, w),
+						table_g, bayerOffset(offset_g, w), bayerOffset(second_g, w),
+						table_b, bayerOffset(offset_b, w), bayerOffset(second_b, w),
+						result,
+						bin);
+
+
+				writer.writeLines(result, binDiv(yleft, bin));
+				fflush(stdout);
+				basey += stripHeight;
+			}
+
+			delete [] result;
+		} else {
+			auto channelStorage = histogramStorage->channel(0);
+
+			int lowAdu = channelStorage->getLevel(low);
+			int highAdu = channelStorage->getLevel(high);
+			int medAdu = round(lowAdu + (highAdu - lowAdu) * med);
+			LookupTable lookupTable(lowAdu, medAdu, highAdu);
+
+			u_int8_t * result = new u_int8_t[binDiv(w, bin) * (stripHeight >> bin)];
+
+			// faire le bin !
+			int basey = 0;
+			while(basey < h) {
+				int yleft = (h - basey);
+				if (yleft > stripHeight) yleft = stripHeight;
+				if (bin > 0) {
+					applyScaleBin(data + basey * w, w, yleft, lookupTable, result, bin);
+				} else {
+					applyScale(data + basey * w, w, yleft, lookupTable, result);
+				}
+				writer.writeLines(result, binDiv(yleft, bin));
+
+				basey += stripHeight;
+			}
+			delete [] result;
+		}
+		// Release early
+		histogram->release();
+		aduPlane->release();
+
+		writer.finish();
+
+		endJpegBlock();
+	}
+
+	void startJpegBlock() {
+		if (!streaming) {
+			cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+			header.addHeader("Content-Type", "image/jpeg");
+			header.addHeader("Transfer-Encoding", "chunked");
+			header.addHeader("connection", "close");
+			sendHttpHeader(header);
+		} else if (firstImage) {
+			cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+			header.addHeader("Content-Type", "multipart/x-mixed-replace; boundary=\"" + MimeSeparator + "\"");
+			header.addHeader("Transfer-Encoding", "chunked");
+			header.addHeader("connection", "close");
+			sendHttpHeader(header);
+
+			writeStreamBuff("--" + MimeSeparator + "\nContent-Type: image/jpeg\n\n");
+			firstImage = false;
+		} else {
+			writeStreamBuff("Content-Type: image/jpeg\n\n");
+		}
+	}
+
+	void endJpegBlock() {
+		if (streaming) {
+			writeStreamBuff("\n--" + MimeSeparator + "\n");
+		} else {
+			writeStreamBuff(nullptr, 0);
+		}
+	}
+
+	void perform() {
+		try {
+			sendJpeg();
+		} catch(const ResponseException & e) {
+			if (disableHttp) {
+				std::cerr << "Error: " << e.what() << '\n';
+			} else {
+				sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, e.what()));
+			}
+			return;
+		}
+		if (streaming) {
+			while(1) {
+				sleep(1);
+				try {
+					sendJpeg();
+				} catch(const ResponseException & e) {
+					std::cerr << "Image failure: " << e.what() << '\n';
+					// FIXME: be more error resilient
+					return;
+				}
+			}
+		}
+	}
+};
+
+int main (int argc, char ** argv) {
+	ResponseGenerator resp;
+	resp.init(argc, argv);
+	resp.perform();
 }

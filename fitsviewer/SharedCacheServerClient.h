@@ -14,6 +14,7 @@ long now();
 class CacheFileDesc {
 	friend class SharedCacheServer;
 	friend class Client;
+	friend class Stream;
 
 	SharedCacheServer * server;
 	long size;
@@ -54,15 +55,7 @@ class CacheFileDesc {
 		}
 	}
 
-	void unlink()
-	{
-		std::string path = server->basePath + filename;
-		if (::unlink(path.c_str()) == -1) {
-			perror(path.c_str());
-		}
-		server->contentByFilename.erase(filename);
-		filename = "";
-	}
+	void unlink();
 
 	void addReader() {
 		clientCount++;
@@ -138,6 +131,16 @@ class Client {
 	// Set when a signal has been sent to client. The client will be closed at its next "finished" message
 	bool killed;
 
+	Stream* producedStream;
+
+	std::string identifier() const {
+		if (workerPid != -1) {
+			return "#" + std::to_string(workerPid);
+		} else {
+			return std::to_string(fd);
+		}
+	}
+
 	Client(SharedCacheServer * server, int fd, pid_t workerPid) :readBuffer(), writeBuffer() {
 		this->fd = fd;
 		this->server = server;
@@ -153,6 +156,7 @@ class Client {
 		waitingWorker = false;
 		worker = false;
 		killed = false;
+		producedStream = nullptr;
 	}
 
 	void release() {
@@ -174,42 +178,13 @@ class Client {
 	void kill();
 
 private:
-	~Client()
-	{
-		if (this->fd != -1) {
-			close(this->fd);
-			this->fd = -1;
-		}
-		delete(activeRequest);
-		activeRequest = nullptr;
-
-		for(auto it = reading.begin(); it != reading.end(); ++it)
-		{
-			(*it)->removeReader();
-		}
-		reading.clear();
-
-		producing.clear();
-
-		server->waitingWorkers.remove(this);
-		server->waitingConsumers.remove(this);
-
-		if (worker) {
-			server->startedWorkerCount--;
-			worker = false;
-		}
-
-		server->clients.erase(this);
-
-		free(readBuffer);
-		free(writeBuffer);
-	}
+	~Client();
 public:
 	bool send(const std::string & str)
 	{
 		unsigned long l = str.length();
 		if (l > MAX_MESSAGE_SIZE - 2) {
-			std::cerr << "Unable to send message : " << str << "\n";
+			std::cerr << "Unable to send message to" << this->identifier() << " : " << str << "\n";
 			release();
 			return false;
 		} else {
@@ -229,7 +204,7 @@ public:
 		if (!send(reply)) {
 			return false;
 		}
-		std::cerr << "Server reply to " << fd << " : " << reply << "\n";
+		std::cerr << "Server reply to " << this->identifier() << " : " << reply << "\n";
 
 		delete activeRequest;
 		activeRequest = nullptr;
@@ -244,6 +219,9 @@ public:
 	bool isWaitingConsumer() const { return waitingConsumer; }
 	void setWaitingConsumer(bool b) { waitingConsumer = b; }
 
+	SharedCacheServer * getServer() {
+		return server;
+	}
 };
 }
 

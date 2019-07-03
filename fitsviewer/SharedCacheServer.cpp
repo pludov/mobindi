@@ -23,6 +23,8 @@
 
 #include "SharedCacheServer.h"
 #include "SharedCacheServerClient.h"
+#include "Stream.h"
+#include "uuid.h"
 
 namespace SharedCache {
 
@@ -63,11 +65,43 @@ void ClientFifo::remove(Client * c) {
 	(c->*setter)(false);
 }
 
+Client::~Client()
+{
+	if (this->fd != -1) {
+		::close(this->fd);
+		this->fd = -1;
+	}
+	delete(activeRequest);
+	activeRequest = nullptr;
+
+	for(auto it = reading.begin(); it != reading.end(); ++it)
+	{
+		(*it)->removeReader();
+	}
+	reading.clear();
+
+	producing.clear();
+
+	server->waitingWorkers.remove(this);
+	server->waitingConsumers.remove(this);
+
+	if (worker) {
+		server->startedWorkerCount--;
+		worker = false;
+	}
+
+	server->clients.erase(this);
+
+	free(readBuffer);
+	free(writeBuffer);
+}
+
 void Client::kill()
 {
 	if (killed) {
 		return;
 	}
+	std::cerr << "Killing client " << this->identifier() << "\n";
 	killed = true;
 	::kill(-workerPid, SIGINT);
 }
@@ -221,16 +255,19 @@ void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
 	c->activeRequest = new Messages::Request(json.get<Messages::Request>());
 
 	nlohmann::json debug = *c->activeRequest;
-	std::cerr << "Server received request from " << c->fd << " : " << debug.dump(0) << "\n";
+	std::cerr << "Server received request from " << c->identifier() << " : " << debug.dump(0) << "\n";
 }
 
 long SharedCacheServer::isExpiredContent(const Messages::RawContent * content) const
 {
-	auto it = this->expirableContentStatus.find(content->path);
-	if (it == this->expirableContentStatus.end()) {
-		return content->serial;
+	if ((!content->stream.empty()) && (!content->exactSerial)) {
+		auto streamIt = this->streams.find(content->stream);
+		if (streamIt != this->streams.end()) {
+			return (streamIt->second)->getLatestSerial();
+		}
 	}
-	return (it->second);
+
+	return content->serial;
 }
 
 void SharedCacheServer::upgradeContentRequest(Client * consumerClient)
@@ -245,13 +282,19 @@ void SharedCacheServer::upgradeContentRequest(Client * consumerClient)
 		if (rawContent->exactSerial) {
 			continue;
 		}
-		long newSerial = this->isExpiredContent(rawContent);
 
-		if (newSerial == -1) {
-			// The content is now impossible. Kill
-			// TODO: kill
-			// TODO: on kill, release obsoleted content
-		} else {
+		long newSerial = this->isExpiredContent(rawContent);
+		if (newSerial != rawContent->serial) {
+			if (rawContent->serial != 0) {
+				std::string identifier = consumerClient->activeRequest->contentRequest->uniqKey();
+				auto result = contentByIdentifier.find(identifier);
+				// Production started. Lock that
+				if (result != contentByIdentifier.end()) {
+					rawContent->exactSerial = true;
+					continue;
+				}
+			}
+
 			rawContent->serial = newSerial;
 		}
 	}
@@ -260,13 +303,86 @@ void SharedCacheServer::upgradeContentRequest(Client * consumerClient)
 	// vérifier que le contenu obsolète n'est plus en cache
 }
 
+Stream * SharedCacheServer::createStream(Client * c)
+{
+	std::string uid;
+	do {
+		uid = uuid(24);
+	} while(this->streams.find(uid) != this->streams.end());
+
+	Stream * stream = new Stream(uid, c);
+	this->streams[uid] = stream;
+	c->producedStream = stream;
+	return stream;
+}
+
 // Either proceed directly the message, or put the client in a waiting queue
 void SharedCacheServer::proceedNewMessage(Client * c)
 {
-	// TODO: 3 types de messages:
-	//     create fifo
-	//     publish content (1 & 2)
-	//     drop fifo
+	if (c->activeRequest->streamStartImageRequest) {
+		if (c->producedStream == nullptr) {
+			createStream(c);
+		}
+		if (!c->producing.empty()) {
+			throw ClientError("Cannot produce more than one entry");
+		}
+
+		CacheFileDesc * newContent = c->producedStream->newCacheEntry();
+		// c->producing.push_back();
+		Messages::Result resultMessage;
+		resultMessage.streamStartImageResult.build();
+		resultMessage.streamStartImageResult->filename = newContent->filename;
+
+		c->producing.push_back(newContent);
+		c->reply(resultMessage);
+		return;
+	}
+
+	if (c->activeRequest->streamPublishRequest) {
+		if (c->producedStream == nullptr) {
+			throw ClientError("publish request for non streaming client");
+		}
+		std::string filename = c->activeRequest->streamPublishRequest->filename;
+		auto cfdLoc = contentByFilename.find(filename);
+		if (cfdLoc == contentByFilename.end()) {
+			throw ClientError("Access to unknown file rejected");
+		}
+		CacheFileDesc * cfd = cfdLoc->second;
+		if (cfd->produced || cfd->error) {
+			throw ClientError("Announce to already producing rejected");
+		}
+		auto cfdLocInProducing = std::find(c->producing.begin(), c->producing.end(), cfd);
+		if (cfdLocInProducing == c->producing.end()) {
+			throw ClientError("Announce for not producing rejected");
+		}
+
+		c->producing.erase(cfdLocInProducing);
+		cfd->produced = true;
+		cfd->size = c->activeRequest->streamPublishRequest->size;
+		cfd->lastUse = now();
+		currentSize += cfd->size;
+
+		c->producedStream->setLatest(cfd);
+
+		Messages::Result result;
+		result.streamPublishResult.build();
+		result.streamPublishResult->serial = c->producedStream->getLatestSerial();
+		result.streamPublishResult->streamId = c->producedStream->getId();
+
+		c->reply(result);
+		if (c->killed) {
+			c->release();
+		}
+
+		// Upgrade all clients to latest rev of content
+		for(auto it = waitingConsumers.begin(); it != waitingConsumers.end();)
+		{
+			Client * c = (*it++);
+			this->upgradeContentRequest(c);
+		}
+
+		return;
+	}
 
 	if (c->activeRequest->contentRequest) {
 		// Ici: upgrader les requetes à l'entrée
@@ -317,7 +433,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		std::string filename = c->activeRequest->releasedAnnounce->filename;
 		auto cfdLoc = contentByFilename.find(filename);
 		if (cfdLoc == contentByFilename.end()) {
-			throw ClientError("Access to unknown file rejected");
+			throw ClientError("Release of unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
 		if (!cfd->produced) {
@@ -394,10 +510,11 @@ void SharedCacheServer::workerLogic(Cache * cache)
 			work.todoResult->content->produce(entry);
 
 			entry->produced();
-		} catch(WorkerError & e) {
+		} catch(const WorkerError & e) {
+			std::cerr << "Worker produce failed with WorkerError: "<< e.what() << "\n";
 			entry->failed(e.what());
 		}catch(const std::exception& e) {
-			std::cerr << "Worker dead: "<< e.what() << "\n";
+			std::cerr << "Worker produce failed: "<< e.what() << "\n";
 			entry->failed(std::string("internal error:") + e.what());
 			_exit(255);
 		}
@@ -441,6 +558,44 @@ void Messages::ContentRequest::produce(Entry * entry)
 
 }
 
+void Messages::StarField::collectRawContents(std::list<Messages::RawContent*> & into)
+{
+	into.push_back(&this->source);
+}
+
+void Messages::Astrometry::collectRawContents(std::list<Messages::RawContent*> & into)
+{
+	this->source.collectRawContents(into);
+}
+
+void Messages::JsonQuery::collectRawContents(std::list<Messages::RawContent*> & into)
+{
+	if (this->starField) {
+		this->starField->collectRawContents(into);
+	}
+	if (this->astrometry) {
+		this->astrometry->collectRawContents(into);
+	}
+}
+
+void Messages::Histogram::collectRawContents(std::list<Messages::RawContent*> & into)
+{
+	into.push_back(&this->source);
+}
+
+void Messages::ContentRequest::collectRawContents(std::list<Messages::RawContent*> & into)
+{
+	if (this->fitsContent) {
+		into.push_back(&*this->fitsContent);
+	}
+	if (this->histogram) {
+		this->histogram->collectRawContents(into);
+	}
+	if (this->jsonQuery) {
+		this->jsonQuery->collectRawContents(into);
+	}
+}
+
 std::string Messages::ContentRequest::uniqKey()
 {
 	std::list<RawContent *> rawContents;
@@ -460,7 +615,7 @@ std::string Messages::ContentRequest::uniqKey()
 
 	for(auto it = rawContents.begin(); it != rawContents.end();)
 	{
-		auto v = *it;
+		auto v = *(it++);
 		v->exactSerial = true;
 	}
 
@@ -512,10 +667,10 @@ void SharedCacheServer::startWorker()
 
 			workerLogic(clientCache);
 		}catch(const std::exception& e) {
-			std::cerr << "Worker dead: "<< e.what() << "\n";
+			std::cerr << "Worker #" << getpid() << " dead: " << e.what() << "\n";
 			_exit(255);
 		}catch(...) {
-			std::cerr << "Worker dead with exception\n";
+			std::cerr << "Worker #" << getpid() << " with exception\n";
 			_exit(255);
 		}
 		std::cerr << "Worker dead\n";
@@ -548,7 +703,7 @@ void SharedCacheServer::startWorker()
 	Client * worker = new Client(this, fd[0], pid);
 	worker->worker = true;
 	clients.insert(worker);
-	std::cerr << "New worker started\n";
+	std::cerr << "New worker started: "<<  worker->identifier() << "\n";
 	startedWorkerCount ++;
 }
 
@@ -585,6 +740,9 @@ void SharedCacheServer::evict(CacheFileDesc * item)
 void SharedCacheServer::server()
 {
 	clearWorkingDirectory();
+	// sigpipe condition is handled by checking write result code
+	// don't let sigpipe interrupt server
+	signal(SIGPIPE, SIG_IGN);
 
 	// Cleanup the directory
 	while(true) {
@@ -596,7 +754,9 @@ void SharedCacheServer::server()
 		// don't allow too many idle workers (shrink back)
 		while(waitingWorkers.size() > 2) {
 			// Kill some workers
-			(*waitingWorkers.begin())->release();
+			auto remove = (*waitingWorkers.begin());
+			std::cerr << "Too many waiting workers; dropping " << remove->identifier() << "\n";
+			remove->release();
 		}
 
 		pollfd polls[clients.size() + 1];
@@ -723,8 +883,7 @@ void SharedCacheServer::server()
 			} else {
 				CacheFileDesc * entry = result->second;
 				Messages::Result resultMessage;
-				resultMessage.contentResult.build();
-				*resultMessage.contentResult = entry->toContentResult(&(*c->activeRequest->contentRequest));
+				resultMessage.contentResult = new Messages::ContentResult(entry->toContentResult(&(*c->activeRequest->contentRequest)));
 
 				waitingConsumers.remove(c);
 				entry->addReader();
@@ -739,6 +898,10 @@ void SharedCacheServer::server()
 				continue;
 			}
 			if (c->killed) {
+				continue;
+			}
+			if (c->producedStream) {
+				// Don't kill stream producers
 				continue;
 			}
 

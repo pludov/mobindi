@@ -6,13 +6,38 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const RawContent & i)
 		{
 			j = nlohmann::json::object();
-			j["path"] = i.path;
-			j["serial"] = i.serial;
+			if (!i.path.empty()) {
+				j["path"] = i.path;
+			}
+			if (!i.stream.empty()) {
+				j["stream"] = i.stream;
+			}
+			if (i.serial != 0) {
+				j["serial"] = i.serial;
+			}
+			if (i.exactSerial) {
+				j["exactSerial"] = i.exactSerial;
+			}
 		}
 
 		void from_json(const nlohmann::json& j, RawContent & p) {
-			p.path = j.at("path").get<std::string>();
-			p.serial = j.at("serial").get<long>();
+			if (j.find("path") != j.end()) {
+				p.path = j.at("path").get<std::string>();
+			}
+			if (j.find("stream") != j.end()) {
+				p.stream = j.at("stream").get<std::string>();
+			}
+			if (j.find("serial") != j.end()) {
+				p.serial = j.at("serial").get<long>();
+			} else {
+				p.serial = 0;
+			}
+
+			if (j.find("exactSerial") != j.end()) {
+				p.exactSerial = j.at("exactSerial").get<bool>();
+			} else {
+				p.exactSerial = false;
+			}
 		}
 
 		void to_json(nlohmann::json&j, const Histogram & i)
@@ -213,6 +238,8 @@ namespace SharedCache {
 			if (i.workRequest) j["workRequest"] = *i.workRequest;
 			if (i.finishedAnnounce) j["finishedAnnounce"] = *i.finishedAnnounce;
 			if (i.releasedAnnounce) j["releasedAnnounce"] = *i.releasedAnnounce;
+			if (i.streamPublishRequest) j["streamPublishRequest"] = *i.streamPublishRequest;
+			if (i.streamStartImageRequest) j["streamStartImageRequest"] = *i.streamStartImageRequest;
 		}
 
 		void from_json(const nlohmann::json& j, Request & p) {
@@ -236,6 +263,16 @@ namespace SharedCache {
 			} else {
 				p.releasedAnnounce = nullptr;
 			}
+			if (j.find("streamPublishRequest") != j.end()) {
+				p.streamPublishRequest = new StreamPublishRequest(j.at("streamPublishRequest").get<StreamPublishRequest>());
+			} else {
+				p.streamPublishRequest = nullptr;
+			}
+			if (j.find("streamStartImageRequest") != j.end()) {
+				p.streamStartImageRequest = new StreamStartImageRequest(j.at("streamStartImageRequest").get<StreamStartImageRequest>());
+			} else {
+				p.streamStartImageRequest = nullptr;
+			}
 		}
 
 
@@ -258,6 +295,8 @@ namespace SharedCache {
 			j = nlohmann::json::object();
 			if (i.contentResult) j["contentResult"] = *i.contentResult;
 			if (i.todoResult) j["todoResult"] = *i.todoResult;
+			if (i.streamPublishResult) j["streamPublishResult"] = *i.streamPublishResult;
+			if (i.streamStartImageResult) j["streamStartImageResult"] = *i.streamStartImageResult;
 		}
 		void from_json(const nlohmann::json& j, Result & p)
 		{
@@ -271,7 +310,77 @@ namespace SharedCache {
 			} else {
 				p.todoResult = nullptr;
 			}
+			if (j.find("streamPublishResult") != j.end()) {
+				p.streamPublishResult = new StreamPublishResult(j.at("streamPublishResult").get<StreamPublishResult>());
+			} else {
+				p.streamPublishResult = nullptr;
+			}
+			if (j.find("streamStartImageResult") != j.end()) {
+				p.streamStartImageResult = new StreamStartImageResult(j.at("streamStartImageResult").get<StreamStartImageResult>());
+			} else {
+				p.streamStartImageResult = nullptr;
+			}
 		}
 
+
+		void to_json(nlohmann::json&j, const StreamStartImageRequest & i)
+		{
+			j = nlohmann::json::object();
+		}
+
+		void from_json(const nlohmann::json& j, StreamStartImageRequest & p)
+		{}
+
+		void to_json(nlohmann::json&j, const StreamStartImageResult & i)
+		{
+			j = nlohmann::json::object();
+			j["filename"] = i.filename;
+		}
+
+		void from_json(const nlohmann::json& j, StreamStartImageResult & p)
+		{
+			if (j.find("filename") != j.end()) {
+				p.filename = j.at("filename").get<std::string>();
+			}
+		}
+
+		void to_json(nlohmann::json&j, const StreamPublishRequest & i)
+		{
+			j = nlohmann::json::object();
+			j["size"] = i.size;
+			j["filename"] = i.filename;
+			if (i.streamId.length()) {
+				j["streamId"] = i.streamId;
+			}
+		}
+
+		void from_json(const nlohmann::json& j, StreamPublishRequest & p)
+		{
+			if (j.find("size") != j.end()) {
+				p.size = j.at("size").get<long>();
+			}
+			if (j.find("filename") != j.end()) {
+				p.filename = j.at("filename").get<std::string>();
+			}
+			if (j.find("streamId") != j.end()) {
+				p.streamId = j.at("streamId").get<std::string>();
+			}
+		}
+
+		void to_json(nlohmann::json&j, const StreamPublishResult & i)
+		{
+			j = nlohmann::json::object();
+			j["serial"] = i.serial;
+			j["streamId"] = i.streamId;
+		}
+		void from_json(const nlohmann::json& j, StreamPublishResult & p)
+		{
+			if (j.find("serial") != j.end()) {
+				p.serial = j.at("serial").get<long>();
+			}
+			if (j.find("streamId") != j.end()) {
+				p.streamId = j.at("streamId").get<std::string>();
+			}
+		}
 	}
 }

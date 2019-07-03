@@ -29,30 +29,34 @@ set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-set(SRCS
-  TempDir.cpp
-  ChildProcess.cpp
-  FitsFile.cpp
-  Astrometry.cpp
-  FixedSizeBitSet.cpp
-	SharedCache.cpp
-	SharedCacheServer.cpp
-  ChannelMode.cpp
-  StarFinder.cpp
-  StarField.cpp
-	Messages.cpp
-	RawContent.cpp
-	Histogram.cpp
-	LookupTable.cpp
-  BitMask.cpp
+add_library(archive OBJECT
+      TempDir.cpp
+      ChildProcess.cpp
+      FitsFile.cpp
+      Astrometry.cpp
+      FixedSizeBitSet.cpp
+      SharedCache.cpp
+      SharedCacheServer.cpp
+      CacheFileDesc.cpp
+      Stream.cpp
+      ChannelMode.cpp
+      StarFinder.cpp
+      StarField.cpp
+      Messages.cpp
+      RawContent.cpp
+      Histogram.cpp
+      LookupTable.cpp
+      BitMask.cpp
+      uuid.cpp
     )
 
-add_executable(fitsviewer.cgi ${SRCS} fitsviewer.cpp)
-add_executable(processor ${SRCS} processor.cpp)
+add_executable(fitsviewer.cgi $<TARGET_OBJECTS:archive>  fitsviewer.cpp)
+add_executable(processor $<TARGET_OBJECTS:archive>  processor.cpp)
+add_executable(streamer $<TARGET_OBJECTS:archive>  streamer.cpp)
 
 file(GLOB TEST_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
 
-add_executable(unittests ${SRCS} ${TEST_FILES})
+add_executable(unittests $<TARGET_OBJECTS:archive>  ${TEST_FILES})
 
 find_package (PNG)
 
@@ -81,11 +85,13 @@ if (CFITSIO_FOUND)
   target_link_libraries (fitsviewer.cgi ${CFITSIO_LIBRARIES})
   target_link_libraries (processor ${CFITSIO_LIBRARIES})
   target_link_libraries (unittests ${CFITSIO_LIBRARIES})
+  target_link_libraries (streamer ${CFITSIO_LIBRARIES})
 else ()
-  # Sinon, nous affichons un message
+  # Sinon, nous affichons un message 
   message(FATAL_ERROR "libcfitsio not found")
 endif ()
 
 target_link_libraries (fitsviewer.cgi cgicc)
 target_link_libraries (processor cgicc)
 target_link_libraries (unittests cgicc)
+target_link_libraries (streamer cgicc)
