@@ -23,7 +23,7 @@ class CacheFileDesc {
 
 	bool produced;
 	long clientCount;
-
+	long serial;
 	bool error;
 	std::string errorDetails;
 
@@ -42,7 +42,7 @@ class CacheFileDesc {
 		produced = false;
 		clientCount = 0;
 		error = false;
-
+		serial = 0;
 		server->contentByIdentifier[identifier] = this;
 		server->contentByFilename[filename] = this;
 	}

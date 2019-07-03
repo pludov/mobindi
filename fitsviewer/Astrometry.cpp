@@ -157,7 +157,7 @@ public:
         int status = 0;
         if (fits_get_img_param(file.fptr, 0, &bitpix, &naxis, naxes, &status) )
         {
-            FitsFile::throwFitsIOError("wrong wcs fits", status);
+            file.throwFitsIOError("wrong wcs fits", status);
         }
         if (naxis != 0) {
             throw SharedCache::WorkerError("wrong wcs fits (naxis != 0)");
@@ -165,7 +165,7 @@ public:
 
         long wcaxes;
         if (fits_read_key_lng(file.fptr, "WCSAXES", &wcaxes, nullptr, &status)) {
-            FitsFile::throwFitsIOError("wrong wcs fits (WCSAXES)", status);
+            file.throwFitsIOError("wrong wcs fits (WCSAXES)", status);
         }
         if (wcaxes != 2) {
             throw SharedCache::WorkerError("wrong wcs fits (WCSAXES != 2)");

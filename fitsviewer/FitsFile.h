@@ -6,6 +6,9 @@
 
 class FitsFile {
     bool isnew;
+
+	void * data;
+	size_t dataSize;
 public:
 	fitsfile * fptr;
 
@@ -15,6 +18,8 @@ public:
     void open(const std::string & path);
     bool openIfExists(const std::string & path);
     void create(const std::string & path);
+
+	void openMemory(void * buffer, size_t len);
 
     // Error if not found
     std::string getStrKey(const std::string & key);
@@ -33,7 +38,7 @@ public:
 	// 	}
 	// }
     
-    [[ noreturn ]] static void throwFitsIOError(const std::string & text, int status);
+    [[ noreturn ]] void throwFitsIOError(const std::string & text, int status);
 };
 
 #endif

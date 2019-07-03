@@ -66,21 +66,19 @@ int RawDataStorage::getRGBIndex(char c)
 	return -1;
 }
 
-void SharedCache::Messages::RawContent::produce(Entry * entry)
+void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
 {
-	FitsFile file;
 	int status = 0;
 	int bitpix, naxis;
 	long naxes[2] = {1,1};
 	u_int16_t * data;
 
-	file.open(path.c_str());
-		if (!fits_get_img_param(file.fptr, 2, &bitpix, &naxis, naxes, &status) )
-		{
-			fprintf(stderr, "bitpix = %d\n", bitpix);
-			fprintf(stderr, "naxis = %d\n", naxis);
+	if (!fits_get_img_param(file.fptr, 2, &bitpix, &naxis, naxes, &status) )
+	{
+		fprintf(stderr, "bitpix = %d\n", bitpix);
+		fprintf(stderr, "naxis = %d\n", naxis);
 		if (naxis != 2) {
-			fprintf(stderr, "unsupported axis count\n");
+			throw SharedCache::WorkerError("unsupported axis count");
 		} else {
 			fprintf(stderr, "size=%ldx%ld\n", naxes[0], naxes[1]);
 
@@ -143,10 +141,19 @@ void SharedCache::Messages::RawContent::produce(Entry * entry)
 		if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
 			return;
 		} else {
-			FitsFile::throwFitsIOError(path, status);
+			file.throwFitsIOError("fits_read_pix failed", status);
 		}
 	} else {
-		FitsFile::throwFitsIOError(path, status);
+		file.throwFitsIOError("fits_get_img_param", status);
 	}
+
+}
+
+void SharedCache::Messages::RawContent::produce(Entry * entry)
+{
+	FitsFile file;
+	file.open(path.c_str());
+
+	readFits(file, entry);
 }
 

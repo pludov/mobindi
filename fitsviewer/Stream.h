@@ -13,6 +13,7 @@ class CacheFileDesc;
 class Stream {
 	Client * producer;
 	CacheFileDesc * latest;
+	long latestSerial;
 	std::string id;
 	long serial;
 public:
@@ -24,7 +25,7 @@ public:
 	void setLatest(CacheFileDesc * newItem);
 
 	long getLatestSerial() const {
-		return serial;
+		return latestSerial;
 	}
 
 	const std::string & getId() const {

@@ -21,6 +21,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 project(fitsviewer)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
@@ -28,6 +29,18 @@ set (CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+find_package(PNG REQUIRED)
+find_package(JPEG REQUIRED)
+
+find_package(CFITSIO REQUIRED)
+find_package(INDI 1.7 REQUIRED driver client)
+find_package(ZLIB REQUIRED)
+find_package(Threads REQUIRED)
+
+
+include_directories( ${INDI_INCLUDE_DIR})
+
 
 add_library(archive OBJECT
       TempDir.cpp
@@ -50,48 +63,39 @@ add_library(archive OBJECT
       uuid.cpp
     )
 
+
+#####################
+#   fitsviewer.cgi  #
+#####################
+
 add_executable(fitsviewer.cgi $<TARGET_OBJECTS:archive>  fitsviewer.cpp)
+target_include_directories(fitsviewer.cgi PUBLIC ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
+target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CFITSIO_LIBRARIES} cgicc)
+
+
+#####################
+#     processor     #
+#####################
+
 add_executable(processor $<TARGET_OBJECTS:archive>  processor.cpp)
+target_link_libraries (processor ${CFITSIO_LIBRARIES} cgicc)
+
+#####################
+#      streamer     #
+#####################
+
 add_executable(streamer $<TARGET_OBJECTS:archive>  streamer.cpp)
+target_include_directories(streamer PUBLIC ${INDI_INCLUDE_DIR})
+target_link_libraries (streamer ${INDI_DRIVER_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LIBRARIES} Threads::Threads cgicc)
+
+
+#####################
+#     unittests     #
+#####################
 
 file(GLOB TEST_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
 
 add_executable(unittests $<TARGET_OBJECTS:archive>  ${TEST_FILES})
 
-find_package (PNG)
+target_link_libraries (unittests ${CFITSIO_LIBRARIES} cgicc)
 
-if (PNG_FOUND)
-  target_include_directories(fitsviewer.cgi PUBLIC ${PNG_INCLUDE_DIR})
-  target_link_libraries (fitsviewer.cgi ${PNG_LIBRARY})
-else ()
-  # Sinon, nous affichons un message
-  message(FATAL_ERROR "libpng not found")
-endif ()
-
-find_package(JPEG)
-if (JPEG_FOUND)
-  target_include_directories(fitsviewer.cgi PUBLIC ${JPEG_INCLUDE_DIR})
-  target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY})
-else ()
-  # Sinon, nous affichons un message
-  message(FATAL_ERROR "libjpeg not found")
-endif ()
-
-
-find_package(CFITSIO)
-
-if (CFITSIO_FOUND)
-  target_include_directories(fitsviewer.cgi PUBLIC ${CFITSIO_INCLUDE_DIR})
-  target_link_libraries (fitsviewer.cgi ${CFITSIO_LIBRARIES})
-  target_link_libraries (processor ${CFITSIO_LIBRARIES})
-  target_link_libraries (unittests ${CFITSIO_LIBRARIES})
-  target_link_libraries (streamer ${CFITSIO_LIBRARIES})
-else ()
-  # Sinon, nous affichons un message 
-  message(FATAL_ERROR "libcfitsio not found")
-endif ()
-
-target_link_libraries (fitsviewer.cgi cgicc)
-target_link_libraries (processor cgicc)
-target_link_libraries (unittests cgicc)
-target_link_libraries (streamer cgicc)

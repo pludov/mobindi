@@ -9,6 +9,7 @@ namespace SharedCache {
             serial(0),
             latest(nullptr)
     {
+        latestSerial = 0;
     }
 
     Stream::~Stream() {
@@ -30,9 +31,12 @@ namespace SharedCache {
 
         std::string identifier = contentRequest.uniqKey();
 
-        return new CacheFileDesc(producer->getServer(),
+        auto ret = new CacheFileDesc(producer->getServer(),
                             identifier,
                             producer->getServer()->newFilename());
+
+        ret->serial = this->serial;
+        return ret;
     }
 
     void Stream::setLatest(CacheFileDesc * cfd) {
@@ -40,6 +44,7 @@ namespace SharedCache {
             latest->removeReader();
         }
         latest = cfd;
+        latestSerial = cfd->serial;
         cfd->addReader();
     }
 }

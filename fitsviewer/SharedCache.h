@@ -5,6 +5,9 @@
 #include <list>
 #include "json.hpp"
 
+
+class FitsFile;
+
 // create a file in /tmp (0 size)
 // adjust its size
 // initialize the structure
@@ -76,6 +79,7 @@ namespace SharedCache {
 			bool exactSerial;
 
 			void produce(Entry * entry);
+			static void readFits(FitsFile & fitsFile, Entry * entry);
 		};
 
 		void to_json(nlohmann::json&j, const RawContent & i);
