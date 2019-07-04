@@ -806,8 +806,8 @@ public:
 	{
 		SharedCache::Messages::ContentRequest contentRequest;
 		contentRequest.fitsContent = new SharedCache::Messages::RawContent();
-		contentRequest.fitsContent->path = path;
-		contentRequest.fitsContent->stream = stream;
+		contentRequest.fitsContent->path = !streaming ? path : "";
+		contentRequest.fitsContent->stream = streaming ? stream : "";
 		contentRequest.fitsContent->serial = 0;
 
 		SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));

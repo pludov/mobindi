@@ -335,13 +335,13 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["filename"] = i.filename;
+			j["streamId"] = i.streamId;
 		}
 
 		void from_json(const nlohmann::json& j, StreamStartImageResult & p)
 		{
-			if (j.find("filename") != j.end()) {
-				p.filename = j.at("filename").get<std::string>();
-			}
+			p.filename = j.at("filename").get<std::string>();
+			p.streamId = j.at("streamId").get<std::string>();
 		}
 
 		void to_json(nlohmann::json&j, const StreamPublishRequest & i)
@@ -349,38 +349,23 @@ namespace SharedCache {
 			j = nlohmann::json::object();
 			j["size"] = i.size;
 			j["filename"] = i.filename;
-			if (i.streamId.length()) {
-				j["streamId"] = i.streamId;
-			}
 		}
 
 		void from_json(const nlohmann::json& j, StreamPublishRequest & p)
 		{
-			if (j.find("size") != j.end()) {
-				p.size = j.at("size").get<long>();
-			}
-			if (j.find("filename") != j.end()) {
-				p.filename = j.at("filename").get<std::string>();
-			}
-			if (j.find("streamId") != j.end()) {
-				p.streamId = j.at("streamId").get<std::string>();
-			}
+			p.size = j.at("size").get<long>();
+			p.filename = j.at("filename").get<std::string>();
 		}
 
 		void to_json(nlohmann::json&j, const StreamPublishResult & i)
 		{
 			j = nlohmann::json::object();
 			j["serial"] = i.serial;
-			j["streamId"] = i.streamId;
 		}
+
 		void from_json(const nlohmann::json& j, StreamPublishResult & p)
 		{
-			if (j.find("serial") != j.end()) {
-				p.serial = j.at("serial").get<long>();
-			}
-			if (j.find("streamId") != j.end()) {
-				p.streamId = j.at("streamId").get<std::string>();
-			}
+			p.serial = j.at("serial").get<long>();
 		}
 	}
 }

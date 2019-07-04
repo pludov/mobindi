@@ -206,12 +206,14 @@ namespace SharedCache {
 		void from_json(const nlohmann::json& j, ReleasedAnnounce & p);
 
 		struct StreamStartImageRequest {
+			std::string streamId;
 		};
 		void to_json(nlohmann::json&j, const StreamStartImageRequest & i);
 		void from_json(const nlohmann::json& j, StreamStartImageRequest & p);
 
 		struct StreamStartImageResult {
 			std::string filename;
+			std::string streamId;
 		};
 		void to_json(nlohmann::json&j, const StreamStartImageResult & i);
 		void from_json(const nlohmann::json& j, StreamStartImageResult & p);
@@ -219,13 +221,11 @@ namespace SharedCache {
 		struct StreamPublishRequest {
 			long size;
 			std::string filename;
-			std::string streamId;
 		};
 		void to_json(nlohmann::json&j, const StreamPublishRequest & i);
 		void from_json(const nlohmann::json& j, StreamPublishRequest & p);
 
 		struct StreamPublishResult {
-			std::string streamId;
 			long serial;
 		};
 		void to_json(nlohmann::json&j, const StreamPublishResult & i);
@@ -290,6 +290,8 @@ namespace SharedCache {
 		friend class EntryRef;
 		friend class SharedCacheServer;
 		std::string filename;
+		std::string streamId;
+		long serial;
 		bool wasReady;
 		Cache * cache;
 		bool wasMmapped;
@@ -324,7 +326,7 @@ namespace SharedCache {
 
 		bool hasError() const { return error; };
 		std::string getErrorDetails() const { return errorDetails; };
-
+		std::string getStreamId() const { return streamId; };
 		const ChildPtr<Messages::ContentRequest> & getActualRequest() const;
 
 		Cache * getServer() const;

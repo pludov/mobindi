@@ -97,6 +97,35 @@ private:
    INDI::BaseDevice * ccd_simulator;
 };
 
+static int pipesize = -1;
+
+static void outputJson(const nlohmann::json & j) {
+    std::string t = j.dump() + "\n";
+    auto tsize = t.size();
+    auto size = pipesize <= 0 ? (tsize + 1) : (tsize > (unsigned)pipesize ? tsize : pipesize + 1);
+    char * buff = (char*)malloc(size);
+    if (!buff) {
+        perror("malloc");
+        _exit(1);
+    }
+    memcpy(buff, t.data(), tsize);
+    for(auto i = tsize; i < size; ++i) {
+        buff[i] = '\n';
+    }
+
+    auto wrRet = write(1, buff, size);
+    if (wrRet == -1) {
+        perror("write");
+        _exit(1);
+    }
+
+    if (wrRet != size) {
+        _exit(1);
+    }
+
+    free(buff);
+}
+
 
 int main (int argc, char ** argv) {
 	// 128Mo cache
@@ -104,8 +133,8 @@ int main (int argc, char ** argv) {
 
 
     std::unique_lock<std::mutex> lock(nextEntryMutex);
+    std::string streamId;
 
-    int pipesize = 1;
     pipesize = fcntl(1, F_SETPIPE_SZ, &pipesize);
     
     MyClient * client = new MyClient();
@@ -114,8 +143,7 @@ int main (int argc, char ** argv) {
     client->connectServer();
     client->setBLOBMode(BLOBHandling::B_ONLY, "CCD Simulator", "CCD1");
 
-    int w = 640;
-    int h = 480;
+    bool first = true;
 
     while(true) {
         nextEntry = cache->startStreamImage();
@@ -123,35 +151,26 @@ int main (int argc, char ** argv) {
             delete nextEntryError;
             nextEntryError = nullptr;
         }
+        if (first || nextEntry->getStreamId() != streamId) {
+            first = false;
+            streamId = nextEntry->getStreamId();
+            auto j = nlohmann::json::object();
+            j["streamId"] = streamId;
+            outputJson(j);
+        }
+
         nextEntryDone = false;
 
         while(!nextEntryDone) {
             nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
-            // Ping server ?
         }
 
         SharedCache::Messages::StreamPublishResult res = nextEntry->streamPublish();
         delete nextEntry;
         nextEntry = nullptr;
 
-        json j = res;
-
-        std::string t = j.dump() + "\n";
-        auto tsize = t.size();
-        auto size = pipesize <= 0 ? (tsize + 1) : (tsize > (unsigned)pipesize ? tsize : pipesize + 1);
-        char * buff = (char*)malloc(size);
-        if (!buff) {
-            perror("malloc");
-            return 1;
-        }
-        memcpy(buff, t.data(), tsize);
-        for(auto i = tsize; i < size; ++i) {
-            buff[i] = '\n';
-        }
-        
-        write(1, buff, size);
-        free(buff);
-    }
-
-    return 0;
+        auto j = nlohmann::json::object();
+        j["serial"] = res.serial;
+        outputJson(j);
+     }
 }

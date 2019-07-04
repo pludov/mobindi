@@ -266,7 +266,12 @@ long SharedCacheServer::isExpiredContent(const Messages::RawContent * content) c
 	if ((!content->stream.empty()) && (!content->exactSerial)) {
 		auto streamIt = this->streams.find(content->stream);
 		if (streamIt != this->streams.end()) {
-			return (streamIt->second)->getLatestSerial();
+			long res = (streamIt->second)->getLatestSerial();
+			// For first image, wait
+			if (res == 0) {
+				res = 1;
+			}
+			return res;
 		}
 	}
 
@@ -335,6 +340,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		Messages::Result resultMessage;
 		resultMessage.streamStartImageResult.build();
 		resultMessage.streamStartImageResult->filename = newContent->filename;
+		resultMessage.streamStartImageResult->streamId = c->producedStream->getId();
 
 		c->producing.push_back(newContent);
 		c->reply(resultMessage);
@@ -370,7 +376,6 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		Messages::Result result;
 		result.streamPublishResult.build();
 		result.streamPublishResult->serial = c->producedStream->getLatestSerial();
-		result.streamPublishResult->streamId = c->producedStream->getId();
 
 		c->reply(result);
 		if (c->killed) {

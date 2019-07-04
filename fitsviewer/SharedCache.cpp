@@ -30,7 +30,8 @@ namespace SharedCache {
 	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
 			cache(cache),
 			filename(result.filename),
-			wasReady(true)
+			wasReady(true),
+			streamId()
 	{
 		mmapped = nullptr;
 		dataSize = 0;
@@ -54,7 +55,8 @@ namespace SharedCache {
 						cache(cache),
 						filename(result.filename),
 						wasReady(false),
-						error(false)
+						error(false),
+						streamId()
 	{
 		mmapped = nullptr;
 		dataSize = 0;
@@ -67,7 +69,8 @@ namespace SharedCache {
 						cache(cache),
 						filename(result.filename),
 						wasReady(false),
-						error(false)
+						error(false),
+						streamId(result.streamId)
 	{
 		mmapped = nullptr;
 		dataSize = 0;
