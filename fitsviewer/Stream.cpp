@@ -5,6 +5,7 @@ namespace SharedCache {
 
     Stream::Stream(const std::string & id, Client * producer):
             producer(producer),
+            server(producer->getServer()),
             id(id),
             serial(0),
             latest(nullptr)
@@ -31,9 +32,9 @@ namespace SharedCache {
 
         std::string identifier = contentRequest.uniqKey();
 
-        auto ret = new CacheFileDesc(producer->getServer(),
+        auto ret = new CacheFileDesc(server,
                             identifier,
-                            producer->getServer()->newFilename());
+                            server->newFilename());
 
         ret->serial = this->serial;
         return ret;
@@ -46,6 +47,12 @@ namespace SharedCache {
         latest = cfd;
         latestSerial = cfd->serial;
         cfd->addReader();
+    }
+
+    void Stream::producerDead() {
+        this->producer = nullptr;
+
+        server->killStream(this);
     }
 }
 

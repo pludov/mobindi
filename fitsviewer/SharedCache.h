@@ -53,7 +53,7 @@ namespace SharedCache {
 			delete old;
 		}
 		void operator=(const ChildPtr<M> & value) {
-			this->operator=(value.ptr);
+			this->operator=(value.ptr == nullptr ? nullptr : new M(*value.ptr));
 		}
 		M & operator*() const{
 			return *ptr;
@@ -173,6 +173,23 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ContentRequest & i);
 		void from_json(const nlohmann::json& j, ContentRequest & p);
 
+		// Wait until a stream frame gets obsoleted
+		struct StreamWatchRequest {
+			std::string stream;
+			long serial;
+			int timeout;
+		};
+
+		void to_json(nlohmann::json&j, const StreamWatchRequest & i);
+		void from_json(const nlohmann::json& j, StreamWatchRequest & p);
+
+		// Wait until a stream frame gets obsoleted
+		struct StreamWatchResult {
+			bool timedout;
+		};
+		void to_json(nlohmann::json&j, const StreamWatchResult & i);
+		void from_json(const nlohmann::json& j, StreamWatchResult & p);
+
 		struct WorkRequest {
 		};
 
@@ -234,6 +251,7 @@ namespace SharedCache {
 
 		struct Request {
 			ChildPtr<ContentRequest> contentRequest;
+			ChildPtr<StreamWatchRequest> streamWatchRequest;
 			ChildPtr<WorkRequest> workRequest;
 			ChildPtr<FinishedAnnounce> finishedAnnounce;
 			ChildPtr<ReleasedAnnounce> releasedAnnounce;
@@ -258,6 +276,7 @@ namespace SharedCache {
 
 		struct Result {
 			ChildPtr<ContentResult> contentResult;
+			ChildPtr<StreamWatchResult> streamWatchResult;
 			ChildPtr<WorkResponse> todoResult;
 			ChildPtr<StreamStartImageResult> streamStartImageResult;
 			ChildPtr<StreamPublishResult> streamPublishResult;
@@ -355,6 +374,7 @@ namespace SharedCache {
 
 		Entry * getEntry(const Messages::ContentRequest & wanted);
 		Entry * startStreamImage();
+		bool waitStreamFrame(const std::string streamId, long serial, int timeout);
 
 		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr);
 	};

@@ -21,6 +21,8 @@
 #include <iostream>
 #include <dirent.h>
 
+#include <chrono>
+
 #include "SharedCacheServer.h"
 #include "SharedCacheServerClient.h"
 #include "Stream.h"
@@ -87,7 +89,7 @@ Client::~Client()
 	}
 	server->waitingWorkers.remove(this);
 	server->waitingConsumers.remove(this);
-
+	server->streamWatchers.remove(this);
 	if (worker) {
 		server->startedWorkerCount--;
 		worker = false;
@@ -97,6 +99,13 @@ Client::~Client()
 
 	free(readBuffer);
 	free(writeBuffer);
+	if (watcherExpiry != nullptr) {
+		delete watcherExpiry;
+	}
+
+	if (this->producedStream != nullptr) {
+		this->producedStream->producerDead();
+	}
 }
 
 void Client::kill()
@@ -113,11 +122,13 @@ SharedCacheServer::SharedCacheServer(const std::string & path, long maxSize):
 			basePath(path),
 			maxSize(maxSize),
 			waitingWorkers(&Client::isWaitingWorker, &Client::setWaitingWorker),
-			waitingConsumers(&Client::isWaitingConsumer, &Client::setWaitingConsumer)
+			waitingConsumers(&Client::isWaitingConsumer, &Client::setWaitingConsumer),
+			streamWatchers(&Client::isStreamWatcher, &Client::setStreamWatcher)
 {
 	serverFd = -1;
 	fileGenerator = 0;
 	startedWorkerCount = 0;
+	waitingContentWorkerCount = 0;
 	currentSize = 0;
 }
 
@@ -293,17 +304,15 @@ void SharedCacheServer::upgradeContentRequest(Client * consumerClient)
 
 		long newSerial = this->isExpiredContent(rawContent);
 		if (newSerial != rawContent->serial) {
-			if (rawContent->serial != 0) {
-				std::string identifier = consumerClient->activeRequest->contentRequest->uniqKey();
-				auto result = contentByIdentifier.find(identifier);
-				// Production started. Lock that
-				if (result != contentByIdentifier.end()) {
-					rawContent->exactSerial = true;
-					continue;
-				}
-			}
-
 			rawContent->serial = newSerial;
+
+			std::string identifier = consumerClient->activeRequest->contentRequest->uniqKey();
+			auto result = contentByIdentifier.find(identifier);
+			// Production started. Lock that
+			if (result != contentByIdentifier.end()) {
+				rawContent->exactSerial = true;
+				continue;
+			}
 		}
 	}
 
@@ -322,6 +331,68 @@ Stream * SharedCacheServer::createStream(Client * c)
 	this->streams[uid] = stream;
 	c->producedStream = stream;
 	return stream;
+}
+
+void SharedCacheServer::killStream(Stream * stream)
+{
+	streams.erase(streams.find(stream->getId()));
+	delete(stream);
+	this->checkAllStreamWatchersForFrame();
+}
+
+void SharedCacheServer::replyStreamWatcher(Client * watcher, bool expired)
+{
+	if (watcher->watcherExpiry != nullptr) {
+		delete watcher->watcherExpiry;
+		watcher->watcherExpiry = nullptr;
+	}
+
+	this->streamWatchers.remove(watcher);
+
+	Messages::Result resultMessage;
+	resultMessage.streamWatchResult.build();
+	resultMessage.streamWatchResult->timedout = expired;
+	watcher->reply(resultMessage);
+}
+
+void SharedCacheServer::checkStreamWatcherForFrame(Client * c) {
+	auto streamId = c->activeRequest->streamWatchRequest->stream;
+	auto serial = c->activeRequest->streamWatchRequest->serial;
+
+	auto streamIt = this->streams.find(streamId);
+	if (streamIt == this->streams.end()) {
+		this->replyStreamWatcher(c, false);
+		return;
+	}
+	auto stream = streamIt->second;
+	if (stream->getLatestSerial() > serial) {
+		this->replyStreamWatcher(c, false);
+	}
+}
+
+void SharedCacheServer::checkAllStreamWatchersForFrame() {
+	// Dispatch the new frame to stream watchers
+	for(auto it = streamWatchers.begin(); it != streamWatchers.end();)
+	{
+		Client * c = (*it++);
+		this->checkStreamWatcherForFrame(c);
+	}
+}
+
+void SharedCacheServer::checkStreamWatcherForTimeout(Client *c , const std::chrono::time_point<std::chrono::steady_clock> & now) {
+	if (c->watcherExpiry != nullptr && (*c->watcherExpiry <= now)) {
+		this->replyStreamWatcher(c, true);
+	}
+}
+
+void SharedCacheServer::checkAllStreamWatchersForTimeout() {
+	// Dispatch the new frame to stream watchers
+	auto now = std::chrono::steady_clock::now();
+	for(auto it = streamWatchers.begin(); it != streamWatchers.end();)
+	{
+		Client * c = (*it++);
+		this->checkStreamWatcherForTimeout(c, now);
+	}
 }
 
 // Either proceed directly the message, or put the client in a waiting queue
@@ -389,6 +460,18 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 			this->upgradeContentRequest(c);
 		}
 
+		this->checkAllStreamWatchersForFrame();
+		return;
+	}
+
+	if (c->activeRequest->streamWatchRequest) {
+		streamWatchers.add(c);
+		if (c->activeRequest->streamWatchRequest->timeout != 0) {
+			c->watcherExpiry = new std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::now() +
+										std::chrono::milliseconds(c->activeRequest->streamWatchRequest->timeout));
+		}
+
+		this->checkStreamWatcherForFrame(c);
 		return;
 	}
 
@@ -748,6 +831,36 @@ void SharedCacheServer::evict(CacheFileDesc * item)
 	delete(item);
 }
 
+int SharedCacheServer::nextTimeout() const {
+	// Find the timeout
+	std::chrono::time_point<std::chrono::steady_clock> * nextTimeout = nullptr;
+	for(auto it = streamWatchers.begin(); it != streamWatchers.end();)
+	{
+		Client * c = *(it++);
+
+		if (c->watcherExpiry == nullptr) {
+			continue;
+		}
+		if (nextTimeout == nullptr || *(c->watcherExpiry) < *nextTimeout) {
+			nextTimeout = c->watcherExpiry;
+		}
+	}
+	if (nextTimeout != nullptr) {
+		auto timeout = *nextTimeout - std::chrono::steady_clock::now();
+		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
+		if (ms < 0) {
+			return 0;
+		}
+		if (ms > 1000) {
+			return 1000;
+		}
+		return ms;
+	}
+	return 1000;
+}
+
+
+
 void SharedCacheServer::server()
 {
 	clearWorkingDirectory();
@@ -798,7 +911,8 @@ void SharedCacheServer::server()
 			}
 		}
 
-		if (poll(polls, pollCount, 1000) == -1) {
+		int timeout = this->nextTimeout();
+		if (poll(polls, pollCount, timeout) == -1) {
 			perror("poll");
 			throw std::runtime_error("Unable to poll");
 		}
@@ -941,7 +1055,7 @@ void SharedCacheServer::server()
 			c->kill();
 		}
 
-
+		this->checkAllStreamWatchersForTimeout();
 
 		// Distribute some works
 		// FIXME: check space is ok (ie don't start under low space condition)

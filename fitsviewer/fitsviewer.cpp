@@ -751,6 +751,7 @@ class ResponseGenerator {
 	bool streaming;
 	bool firstImage;
 	int bin;
+	long lastSerialStream = 0;
 public:
 
 	void init(int argc, char ** argv) {
@@ -800,7 +801,16 @@ public:
 		}
 	}
 
+	void waitNextStream() {
+		if (!streaming) {
+			return;
+		}
 
+		while(!cache->waitStreamFrame(stream, lastSerialStream, 1000)) {
+			// FIXME: Check if http is still connected
+		}
+		// FIXME: checkif http is still connected
+	}
 
 	void sendJpeg()
 	{
@@ -808,14 +818,14 @@ public:
 		contentRequest.fitsContent = new SharedCache::Messages::RawContent();
 		contentRequest.fitsContent->path = !streaming ? path : "";
 		contentRequest.fitsContent->stream = streaming ? stream : "";
-		contentRequest.fitsContent->serial = 0;
+		contentRequest.fitsContent->serial = lastSerialStream;
 
 		SharedCache::EntryRef aduPlane(cache->getEntry(contentRequest));
 		if (aduPlane->hasError()) {
 			throw ResponseException(aduPlane->getErrorDetails());
 		}
-		// FIXME: once fixed
-		// contentRequest = *aduPlane->getActualRequest();
+		contentRequest = SharedCache::Messages::ContentRequest(*aduPlane->getActualRequest());
+		lastSerialStream = contentRequest.fitsContent->serial;
 
 		RawDataStorage * storage = (RawDataStorage *)aduPlane->data();
 
@@ -983,6 +993,7 @@ public:
 
 	void perform() {
 		try {
+			waitNextStream();
 			sendJpeg();
 		} catch(const ResponseException & e) {
 			if (disableHttp) {
@@ -994,7 +1005,8 @@ public:
 		}
 		if (streaming) {
 			while(1) {
-				sleep(1);
+				waitNextStream();
+
 				try {
 					sendJpeg();
 				} catch(const ResponseException & e) {

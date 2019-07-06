@@ -31,13 +31,13 @@ namespace SharedCache {
 			cache(cache),
 			filename(result.filename),
 			wasReady(true),
-			streamId()
+			streamId(),
+			actualRequest(result.actualRequest)
 	{
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
 		fd = -1;
-		actualRequest = result.actualRequest;
 		if (!result.error) {
 			error = false;
 			errorDetails = "";
@@ -247,6 +247,18 @@ namespace SharedCache {
 
 		Messages::Result r = clientSend(request);
 		return new Entry(this, *r.contentResult);
+	}
+
+	bool Cache::waitStreamFrame(const std::string streamId, long serial, int timeout)
+	{
+		Messages::Request request;
+		request.streamWatchRequest.build();
+		request.streamWatchRequest->stream = streamId;
+		request.streamWatchRequest->serial = serial;
+		request.streamWatchRequest->timeout = timeout;
+
+		Messages::Result r = clientSend(request);
+		return !r.streamWatchResult->timedout;
 	}
 
 	Entry * Cache::startStreamImage()

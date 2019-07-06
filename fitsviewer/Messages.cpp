@@ -178,6 +178,40 @@ namespace SharedCache {
 			}
 		}
 
+		void to_json(nlohmann::json&j, const StreamWatchRequest & i)
+		{
+			j = nlohmann::json::object();
+			j["stream"] = i.stream;
+			j["serial"] = i.serial;
+			if (i.timeout) {
+				j["timeout"] = i.timeout;
+			}
+		}
+
+		void from_json(const nlohmann::json& j, StreamWatchRequest & p) {
+			p.stream = j.at("stream").get<std::string>();
+			p.serial = j.at("serial").get<long>();
+			if (j.find("timeout") != j.end()) {
+				p.timeout = j.at("timeout").get<int>();
+			} else {
+				p.timeout = 0;
+			}
+		}
+
+		void to_json(nlohmann::json&j, const StreamWatchResult & i)
+		{
+			j = nlohmann::json::object();
+			j["timedout"] = i.timedout;
+		}
+
+		void from_json(const nlohmann::json& j, StreamWatchResult & p) {
+			if (j.find("timedout") != j.end()) {
+				p.timedout = j.at("timedout").get<bool>();
+			} else {
+				p.timedout = false;
+			}
+		}
+
 		void to_json(nlohmann::json&j, const WorkRequest & i)
 		{
 			j = nlohmann::json::object();
@@ -235,6 +269,7 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			if (i.contentRequest) j["contentRequest"] = *i.contentRequest;
+			if (i.streamWatchRequest) j["streamWatchRequest"] = *i.streamWatchRequest;
 			if (i.workRequest) j["workRequest"] = *i.workRequest;
 			if (i.finishedAnnounce) j["finishedAnnounce"] = *i.finishedAnnounce;
 			if (i.releasedAnnounce) j["releasedAnnounce"] = *i.releasedAnnounce;
@@ -247,6 +282,11 @@ namespace SharedCache {
 				p.contentRequest = new ContentRequest(j.at("contentRequest").get<ContentRequest>());
 			} else {
 				p.contentRequest = nullptr;
+			}
+			if (j.find("streamWatchRequest") != j.end()) {
+				p.streamWatchRequest = new StreamWatchRequest(j.at("streamWatchRequest").get<StreamWatchRequest>());
+			} else {
+				p.streamWatchRequest = nullptr;
 			}
 			if (j.find("workRequest") != j.end()) {
 				p.workRequest = new WorkRequest(j.at("workRequest").get<WorkRequest>());
@@ -282,18 +322,25 @@ namespace SharedCache {
 			j["filename"] = i.filename;
 			j["errorDetails"] = i.errorDetails;
 			j["error"] = i.error;
+			if (i.actualRequest) j["actualRequest"] = *i.actualRequest;
 		}
 		void from_json(const nlohmann::json& j, ContentResult & p)
 		{
 			p.filename = j.at("filename").get<std::string>();
 			p.errorDetails = j.at("errorDetails").get<std::string>();
 			p.error = j.at("error").get<bool>();
+			if (j.find("actualRequest") != j.end()) {
+				p.actualRequest = new ContentRequest(j.at("actualRequest").get<ContentRequest>());
+			} else {
+				p.actualRequest = nullptr;
+			}
 		}
 
 		void to_json(nlohmann::json&j, const Result & i)
 		{
 			j = nlohmann::json::object();
 			if (i.contentResult) j["contentResult"] = *i.contentResult;
+			if (i.streamWatchResult) j["streamWatchResult"] = *i.streamWatchResult;
 			if (i.todoResult) j["todoResult"] = *i.todoResult;
 			if (i.streamPublishResult) j["streamPublishResult"] = *i.streamPublishResult;
 			if (i.streamStartImageResult) j["streamStartImageResult"] = *i.streamStartImageResult;
@@ -304,6 +351,11 @@ namespace SharedCache {
 				p.contentResult = new ContentResult(j.at("contentResult").get<ContentResult>());
 			} else {
 				p.contentResult = nullptr;
+			}
+			if (j.find("streamWatchResult") != j.end()) {
+				p.streamWatchResult = new StreamWatchResult(j.at("streamWatchResult").get<StreamWatchResult>());
+			} else {
+				p.streamWatchResult = nullptr;
 			}
 			if (j.find("todoResult") != j.end()) {
 				p.todoResult = new WorkResponse(j.at("todoResult").get<WorkResponse>());

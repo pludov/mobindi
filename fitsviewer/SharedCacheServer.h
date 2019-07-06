@@ -11,6 +11,7 @@
 #include <string>
 #include <list>
 #include <set>
+#include <chrono>
 #include "json.hpp"
 #include "SharedCache.h"
 
@@ -65,6 +66,9 @@ class SharedCacheServer {
 	// Clients that awaits some resources
 	ClientFifo waitingConsumers;
 
+	// Clients that waits for stream frames
+	ClientFifo streamWatchers;
+
 	// Number of workers awaiting for resources (allow temporary increase of the number of workers)
 	long waitingContentWorkerCount;
 
@@ -98,8 +102,15 @@ class SharedCacheServer {
 	// Return -1 if expired
 	long isExpiredContent(const Messages::RawContent * content) const;
 	void upgradeContentRequest(Client * consumerClient);
+	void checkAllStreamWatchersForFrame();
+	void checkStreamWatcherForFrame(Client * client);
+	void checkAllStreamWatchersForTimeout();
+	void checkStreamWatcherForTimeout(Client * client, const std::chrono::time_point<std::chrono::steady_clock> & now);
+	void replyStreamWatcher(Client * watcher, bool expired);
 
 	Stream * createStream(Client * c);
+	void killStream(Stream * s);
+	int nextTimeout() const;
 public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();

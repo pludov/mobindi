@@ -7,10 +7,12 @@ struct pollfd;
 
 namespace SharedCache {
 
+class SharedCacheServer;
 class Client;
 class CacheFileDesc;
 
 class Stream {
+	SharedCacheServer * server;
 	Client * producer;
 	CacheFileDesc * latest;
 	long latestSerial;
@@ -31,6 +33,8 @@ public:
 	const std::string & getId() const {
 		return id;
 	}
+
+	void producerDead();
 };
 
 }

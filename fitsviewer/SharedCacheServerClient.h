@@ -1,6 +1,7 @@
 #ifndef SHAREDCACHESERVERCLIENT_H_
 #define SHAREDCACHESERVERCLIENT_H_
 
+#include <chrono>
 #include "SharedCacheServer.h"
 
 struct pollfd;
@@ -110,6 +111,9 @@ class Client {
 	// Is it waiting for a resource
 	bool waitingConsumer;
 
+	// Is it looking for new frame in a stream
+	bool streamWatcher;
+
 	int fd;
 	pid_t workerPid;
 
@@ -119,6 +123,8 @@ class Client {
 	Messages::Request * activeRequest;
 	std::list<CacheFileDesc *> reading;
 	std::list<CacheFileDesc *> producing;
+
+	std::chrono::time_point<std::chrono::steady_clock> * watcherExpiry;
 
 	char * writeBuffer;
 	int writeBufferPos;
@@ -157,6 +163,8 @@ class Client {
 		worker = false;
 		killed = false;
 		producedStream = nullptr;
+		streamWatcher = false;
+		watcherExpiry = nullptr;
 	}
 
 	void release() {
@@ -218,6 +226,9 @@ public:
 	// Is it waiting for a resource
 	bool isWaitingConsumer() const { return waitingConsumer; }
 	void setWaitingConsumer(bool b) { waitingConsumer = b; }
+
+	bool isStreamWatcher() const { return streamWatcher; }
+	void setStreamWatcher(bool b) { streamWatcher = b; }
 
 	SharedCacheServer * getServer() {
 		return server;
