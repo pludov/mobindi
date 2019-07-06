@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <cstdint>
 #include <stdio.h>
+#include <poll.h>
 #include <sys/uio.h>
 #include <cgicc/CgiDefs.h>
 #include <cgicc/Cgicc.h>
@@ -801,15 +802,35 @@ public:
 		}
 	}
 
+	bool checkOpenForWrite(int fd)
+	{
+		pollfd polls[1];
+		polls[0].fd = fd;
+		polls[0].events = POLLHUP|POLLERR|POLLRDHUP;
+		int rslt = poll(polls, 1, 0);
+		if (rslt == -1) {
+			perror("poll");
+			return true;
+		}
+		return !(polls[0].revents & (POLLHUP|POLLERR|POLLRDHUP));
+	}
+
+	void checkHttpOpen() {
+		if (!checkOpenForWrite(1)) {
+			std::cerr << "remote closed detected\n";
+			_exit(0);
+		}
+	}
+
 	void waitNextStream() {
 		if (!streaming) {
 			return;
 		}
 
-		while(!cache->waitStreamFrame(stream, lastSerialStream, 1000)) {
-			// FIXME: Check if http is still connected
+		while(!cache->waitStreamFrame(stream, lastSerialStream, 500)) {
+			checkHttpOpen();
 		}
-		// FIXME: checkif http is still connected
+		checkHttpOpen();
 	}
 
 	void sendJpeg()
