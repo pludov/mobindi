@@ -827,10 +827,14 @@ public:
 			return;
 		}
 
-		while(!cache->waitStreamFrame(stream, lastSerialStream, 500)) {
+		bool dead;
+		while(!cache->waitStreamFrame(stream, lastSerialStream, 500, dead)) {
 			checkHttpOpen();
 		}
 		checkHttpOpen();
+		if (dead) {
+			throw ResponseException("Stream not found");
+		}
 	}
 
 	void sendJpeg()

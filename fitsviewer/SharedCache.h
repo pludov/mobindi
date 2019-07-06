@@ -186,6 +186,7 @@ namespace SharedCache {
 		// Wait until a stream frame gets obsoleted
 		struct StreamWatchResult {
 			bool timedout;
+			bool dead;
 		};
 		void to_json(nlohmann::json&j, const StreamWatchResult & i);
 		void from_json(const nlohmann::json& j, StreamWatchResult & p);
@@ -374,7 +375,7 @@ namespace SharedCache {
 
 		Entry * getEntry(const Messages::ContentRequest & wanted);
 		Entry * startStreamImage();
-		bool waitStreamFrame(const std::string streamId, long serial, int timeout);
+		bool waitStreamFrame(const std::string streamId, long serial, int timeout, bool & dead);
 
 		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr);
 	};

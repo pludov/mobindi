@@ -340,7 +340,7 @@ void SharedCacheServer::killStream(Stream * stream)
 	this->checkAllStreamWatchersForFrame();
 }
 
-void SharedCacheServer::replyStreamWatcher(Client * watcher, bool expired)
+void SharedCacheServer::replyStreamWatcher(Client * watcher, bool expired, bool dead)
 {
 	if (watcher->watcherExpiry != nullptr) {
 		delete watcher->watcherExpiry;
@@ -352,6 +352,7 @@ void SharedCacheServer::replyStreamWatcher(Client * watcher, bool expired)
 	Messages::Result resultMessage;
 	resultMessage.streamWatchResult.build();
 	resultMessage.streamWatchResult->timedout = expired;
+	resultMessage.streamWatchResult->dead = dead;
 	watcher->reply(resultMessage);
 }
 
@@ -361,12 +362,12 @@ void SharedCacheServer::checkStreamWatcherForFrame(Client * c) {
 
 	auto streamIt = this->streams.find(streamId);
 	if (streamIt == this->streams.end()) {
-		this->replyStreamWatcher(c, false);
+		this->replyStreamWatcher(c, false, true);
 		return;
 	}
 	auto stream = streamIt->second;
 	if (stream->getLatestSerial() > serial) {
-		this->replyStreamWatcher(c, false);
+		this->replyStreamWatcher(c, false, false);
 	}
 }
 
@@ -381,7 +382,7 @@ void SharedCacheServer::checkAllStreamWatchersForFrame() {
 
 void SharedCacheServer::checkStreamWatcherForTimeout(Client *c , const std::chrono::time_point<std::chrono::steady_clock> & now) {
 	if (c->watcherExpiry != nullptr && (*c->watcherExpiry <= now)) {
-		this->replyStreamWatcher(c, true);
+		this->replyStreamWatcher(c, true, false);
 	}
 }
 

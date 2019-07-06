@@ -106,7 +106,7 @@ class SharedCacheServer {
 	void checkStreamWatcherForFrame(Client * client);
 	void checkAllStreamWatchersForTimeout();
 	void checkStreamWatcherForTimeout(Client * client, const std::chrono::time_point<std::chrono::steady_clock> & now);
-	void replyStreamWatcher(Client * watcher, bool expired);
+	void replyStreamWatcher(Client * watcher, bool expired, bool dead);
 
 	Stream * createStream(Client * c);
 	void killStream(Stream * s);

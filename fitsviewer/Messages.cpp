@@ -202,6 +202,7 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["timedout"] = i.timedout;
+			j["dead"] = i.dead;
 		}
 
 		void from_json(const nlohmann::json& j, StreamWatchResult & p) {
@@ -209,6 +210,11 @@ namespace SharedCache {
 				p.timedout = j.at("timedout").get<bool>();
 			} else {
 				p.timedout = false;
+			}
+			if (j.find("dead") != j.end()) {
+				p.dead = j.at("dead").get<bool>();
+			} else {
+				p.dead = false;
 			}
 		}
 

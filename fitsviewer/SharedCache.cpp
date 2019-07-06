@@ -249,7 +249,7 @@ namespace SharedCache {
 		return new Entry(this, *r.contentResult);
 	}
 
-	bool Cache::waitStreamFrame(const std::string streamId, long serial, int timeout)
+	bool Cache::waitStreamFrame(const std::string streamId, long serial, int timeout, bool & dead)
 	{
 		Messages::Request request;
 		request.streamWatchRequest.build();
@@ -258,6 +258,7 @@ namespace SharedCache {
 		request.streamWatchRequest->timeout = timeout;
 
 		Messages::Result r = clientSend(request);
+		dead = r.streamWatchResult->dead;
 		return !r.streamWatchResult->timedout;
 	}
 
