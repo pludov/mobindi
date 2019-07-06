@@ -165,12 +165,26 @@ int main (int argc, char ** argv) {
             nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
         }
 
+        if (nextEntryError != nullptr) {
+            fprintf(stderr, "stream error");
+            return 1;
+        }
+        RawDataStorage * storage = (RawDataStorage*)nextEntry->data();
+        int w = storage->w;
+        int h = storage->h;
+        storage = nullptr;
+
         SharedCache::Messages::StreamPublishResult res = nextEntry->streamPublish();
         delete nextEntry;
         nextEntry = nullptr;
 
+        auto streamSize = nlohmann::json::object();
+        streamSize["width"] = w;
+        streamSize["height"] = h;
+
         auto j = nlohmann::json::object();
         j["serial"] = res.serial;
+        j["streamSize"] = streamSize;
         outputJson(j);
      }
 }
