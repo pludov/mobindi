@@ -39,6 +39,7 @@ class ShootBton extends React.PureComponent<Props> {
 
         return <div className={'ShootBar' + (this.props.available && this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
             <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot"/>
+            <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.stream} className="ShootBton" value="Spy"/>
             <div className='ShootProgress' style={{position: 'relative'}}>
                 <div style={{position: 'absolute', left: '0px', top: '0px', bottom:'0px', width: progress + '%'}}
                     className='ShootProgressAdvance'>
@@ -61,6 +62,11 @@ class ShootBton extends React.PureComponent<Props> {
         this.props.onSuccess(rslt);
     }
 
+    stream = async()=>{
+        const rslt = await BackendRequest.RootInvoker("camera")("stream")(CancellationToken.CONTINUE, {});
+        console.log('got rslt:' + JSON.stringify(rslt));
+    }
+
     abort = async ()=>{
         await BackendRequest.RootInvoker("camera")("abort")(CancellationToken.CONTINUE, {});
     }
@@ -78,6 +84,16 @@ class ShootBton extends React.PureComponent<Props> {
             return {available}
         }
         available = true;
+
+        const currentStream = atPath(store, '$.backend.camera.currentStreams[' + JSON.stringify(active) + "]");
+        if (currentStream !== undefined) {
+            return {
+                available,
+                running: true,
+                elapsed:0,
+                exposure: 0,
+            }
+        }
 
         const currentShoot = atPath(store, '$.backend.camera.currentShoots[' + JSON.stringify(active) + "]");
 

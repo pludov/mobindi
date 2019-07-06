@@ -216,7 +216,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                     "searchRadius": 180,
                     "numberOfBinInUniformize": 10,
                     "source": {
-                        "source": { "path": message.image}
+                        "source": { 
+                            "path": message.image,
+                            streamId: "",
+                        }
                     }
                 }
 

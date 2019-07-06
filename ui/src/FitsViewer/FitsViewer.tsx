@@ -54,6 +54,8 @@ export type ContextMenuEvent = {
     imageY?: number;
 }
 
+const imageReleaseUrl = "about:blank";
+
 class JQImageDisplay {
 
     currentImg: HTMLImageElement|null = null;
@@ -75,6 +77,7 @@ class JQImageDisplay {
     loadingImgPath:string|null = null;
     loadingToDisplay?:boolean = false;
     nextLoadingImgSrc:string|null = null;
+    nextLoadingImgSize: ImageSize|undefined = undefined;
     
     child:JQuery<HTMLDivElement>;
     
@@ -181,7 +184,7 @@ class JQImageDisplay {
         this.abortDetailsLoading();
         this.abortLoading();
         if (this.currentImg !== null) {
-            this.currentImg.src = '#blank';
+            this.currentImg.src = imageReleaseUrl;
         }
     }
 
@@ -265,12 +268,12 @@ class JQImageDisplay {
             } else {
                 str = "";
             }
-            str += 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&path=' + encodeURIComponent(path);
+            str += 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&' + this.encodePathUrl(path);
             str += '&low=' + this.levels.low;
             str += '&med=' + this.levels.medium;
             str += '&high=' + this.levels.high;
         } else {
-            str = "#blank";
+            str = imageReleaseUrl;
         }
         return str;
     }
@@ -280,7 +283,24 @@ class JQImageDisplay {
         this.onViewSettingsChangeCb(this.getFullState());
     }
 
-    setFullState(path:string|null, params?:FullState) {
+    encodePathUrl(path: string) {
+        if (path.startsWith("file:")) {
+            return 'path=' + encodeURIComponent(path.substring(5));
+        } else if (path.startsWith("stream:")) {
+            return 'streamid=' + encodeURIComponent(path.substring(7));
+        } else {
+            throw new Error("invalid path: " + path);
+        }
+    }
+
+    setFullState(file: string|null, streamId:string|null, params?:FullState, imageSize?: ImageSize) {
+        // Don't display stream until ready
+        if (streamId !== null && !imageSize) {
+            streamId = null;
+        }
+
+        const path = file ? "file:" + file : streamId ? "stream:" + streamId : null;
+
         if (params !== undefined && 'levels' in params) {
             this.levels = params.levels;
         }
@@ -293,14 +313,17 @@ class JQImageDisplay {
             if (this.loadingImgSrc === newSrc) {
                 // Already loading... Just wait...
                 this.nextLoadingImgSrc = null;
+                this.nextLoadingImgSize = undefined;
             } else {
                 // Enqueue the loading
                 this.nextLoadingImgSrc = newSrc;
+                this.nextLoadingImgSize = imageSize;
             }
         } else {
             this.nextLoadingImgSrc = null;
+            this.nextLoadingImgSize = undefined;
             if (this.currentImgPath !== path) {
-                if (!this.setDetails(path)) {
+                if (!this.setDetails(path, imageSize)) {
                     // Stop loading for previous path
                     this.abortLoading();
                 } else {
@@ -312,6 +335,12 @@ class JQImageDisplay {
                 // Ready for new url. go
                 // Don't go back...
                 this.abortDetailsLoading();
+
+                // use new details if provided
+                if (imageSize !== undefined) {
+                    this.currentDetails = imageSize;
+                }
+
                 const newSrc = this.computeSrc(path);
                 this.setSrc(path, newSrc);
             }
@@ -319,10 +348,20 @@ class JQImageDisplay {
     }
 
     // True if ready, false otherwise
-    setDetails(path:string|null)
+    private setDetails(path:string|null, imageSize?: ImageSize)
     {
         if (this.currentDetailsPath === path) {
             this.abortDetailsLoading();
+            if (imageSize) {
+                this.currentDetails = imageSize;
+            }
+            return true;
+        }
+
+        if (imageSize) {
+            this.abortDetailsLoading();
+            this.currentDetailsPath = path;
+            this.currentDetails = imageSize;
             return true;
         }
 
@@ -340,7 +379,7 @@ class JQImageDisplay {
             return true;
         } else {
             this.loadingDetailsAjax = $.ajax({
-                url: 'fitsviewer/fitsviewer.cgi?size=true&path=' + encodeURIComponent(path),
+                url: 'fitsviewer/fitsviewer.cgi?size=true&' + this.encodePathUrl(path),
                 dataType: 'json',
                 error: (e)=>{
                     console.log('size query had error', e);
@@ -356,7 +395,7 @@ class JQImageDisplay {
         return false;
     }
 
-    gotDetails(path:string|null, rslt:ImageSize|null)
+    private gotDetails(path:string|null, rslt:ImageSize|null)
     {
         // FIXME: ajax request can be reordered (right path with the wrong request, is it important ?)
         if (path !== this.loadingDetailsPath) {
@@ -371,11 +410,11 @@ class JQImageDisplay {
         if (rslt !== null) {
             this.setSrc(this.currentDetailsPath, this.computeSrc(this.currentDetailsPath, rslt));
         } else {
-            this.setSrc(this.currentDetailsPath, "#blank");
+            this.setSrc(this.currentDetailsPath, imageReleaseUrl);
         }
     }
 
-    flushView()
+    public flushView()
     {
         if (this.loadingImg !== null && this.nextLoadingImgSrc !== null) {
             this.setSrc(this.loadingImgPath!, this.nextLoadingImgSrc);
@@ -383,7 +422,7 @@ class JQImageDisplay {
     }
 
     
-    setSrc(path:string|null, src: string) {
+    private setSrc(path:string|null, src: string) {
         if (this.currentImgSrc === src) {
             this.abortLoading();
             this.currentImgPath = path;
@@ -396,8 +435,21 @@ class JQImageDisplay {
         this.abortLoading();
 
         const newImage = new Image();
-        newImage.addEventListener("load", () => { console.warn('image loaded ok'); this.loaded(src, newImage, true) }, {once: true});
-        newImage.addEventListener("error", ((e) => { console.warn('image loading failed', e); this.loaded(src, newImage, false) }), {once: true});
+        let firstEvent = true;
+        newImage.addEventListener("load", () => {
+                console.log('image loaded', newImage.src);
+                if (!firstEvent) return;
+                firstEvent = false;
+                console.warn('image loaded ok');
+                this.loaded(src, newImage, true)
+        });
+        newImage.addEventListener("error", (e) => {
+                console.log('image error', newImage.src);
+                if (!firstEvent) return;
+                firstEvent = false;
+                console.warn('image loading failed', e);
+                this.loaded(src, newImage, false) ;
+        });
         newImage.src = src;
         $(newImage).css('display', 'block');
         $(newImage).css('pointer-events', 'none');
@@ -406,7 +458,7 @@ class JQImageDisplay {
             if (this.loadingImg.parentElement) {
                 this.loadingImg.parentElement.removeChild(this.loadingImg);
             }
-            this.loadingImg.src="#blank";
+            this.loadingImg.src=imageReleaseUrl;
         }
         this.loadingImg = newImage;
         this.loadingImgSrc = src;
@@ -431,7 +483,7 @@ class JQImageDisplay {
         this.child.removeClass('Error');
     }
 
-    loaded(newSrc:string, newImage:HTMLImageElement, result: boolean) {
+    private loaded(newSrc:string, newImage:HTMLImageElement, result: boolean) {
         if (newImage !== this.loadingImg) {
             console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
             return;
@@ -478,7 +530,7 @@ class JQImageDisplay {
             this.setSrc(this.currentImgPath, todo);
         }
         if (previousImg !== null) {
-            previousImg.src = "#blank";
+            previousImg.src = imageReleaseUrl;
         }
     }
 
@@ -665,7 +717,7 @@ class JQImageDisplay {
     }
 
 
-    contextMenuAt(pageX:number, pageY:number)
+    private contextMenuAt(pageX:number, pageY:number)
     {
         var offset = this.child.offset()!;
         var x = pageX - offset.left;
@@ -859,7 +911,9 @@ class JQImageDisplay {
 let uid:number = 0;
 
 export type Props = {
-    src: string|null;
+    path: string|null;
+    streamId: string|null;
+    streamSize: ImageSize|null;
     viewSettings?: Partial<FullState>;
     contextMenu?: ContextMenuEntry[];
     onViewSettingsChange: (state: FullState)=>(void);
@@ -891,7 +945,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     componentDidUpdate(prevProps: Props) {
-        this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     componentDidMount() {
@@ -900,7 +954,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
             this.onViewSettingsChange.bind(this));
-        this.ImageDisplay.setFullState(this.props.src, this.getViewSettingsCopy());
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     componentWillUnmount() {
@@ -1005,7 +1059,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
                     onFinishMove={this.flushView}
                     value={viewSettings.levels[this.state.histogramView]}/>;
         } else if (this.state.fwhm) {
-            histogramView = <FWHMDisplayer src={this.props.src}/>
+            histogramView = <FWHMDisplayer path={this.props.path} streamId={this.props.streamId}/>
         } else {
             histogramView = null;
         }

@@ -771,7 +771,7 @@ public:
 			wantSize = true;
 		}
 
-		fi = formData.getElement("stream");
+		fi = formData.getElement("streamid");
 		if (!fi->isEmpty() && fi != (*formData).end()) {
 			stream = **fi;
 			streaming = true;

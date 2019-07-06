@@ -90,6 +90,7 @@ export type FilterWheelAPI = {
 
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
+    stream: (stream: {})=>void;
     abort: (payload: {})=>void;
     setCamera: (payload: {device: string})=>void;
     setShootParam: <K extends keyof CameraDeviceSettings>(payload: {camera?: string, key: K, value: CameraDeviceSettings[K]})=>void;

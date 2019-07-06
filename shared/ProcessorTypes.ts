@@ -22,6 +22,7 @@ export type AstrometryResult = FailedAstrometryResult|SucceededAstrometryResult;
 
 export type ProcessorContentRequest = {
     path: string;
+    streamId: string;
 }
 
 export type ProcessorStarFieldRequest = {

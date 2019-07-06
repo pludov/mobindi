@@ -357,7 +357,10 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             const moveFocuserPromise = done(nextStep()) ? undefined : moveFocuser(nextStep());
             try {
                 const starFieldResponse = await this.imageProcessor.compute(ct, {
-                    starField: { source: { path: shootResult.path }}
+                    starField: { source: { 
+                        path: shootResult.path,
+                        streamId: "",
+                    }}
                 });
                 
                 const starField = starFieldResponse.stars;
@@ -408,7 +411,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         // This is ugly. but works
         const precision = Math.min(Math.abs(lastStep - firstStep), 128);
         let bestValue = undefined;
-        let bestPos;
+        let bestPos: number|undefined;
         for(let i = 0; i <= precision; ++i) {
             const pos = firstStep + (i === 0 ? 0 : i * (lastStep - firstStep) / precision);
             const pred = result.predict(pos);

@@ -159,10 +159,23 @@ export type CameraConfiguration = {
     deviceSettings : {[id: string] : CameraDeviceSettings};
 };
 
+export type StreamSize = {
+    width: number;
+    height: number;
+};
+
+export type CameraStream = {
+    streamId: string|null;
+    streamSize: StreamSize|null;
+    serial: number|null;            // Really usefull ?
+    autoexp: number|null;           // Trigger events or just wait
+};
+
 export type CameraStatus = {
     status: string;
     selectedDevice: string | null;
     availableDevices: string [];
+    currentStreams: {[deviceId: string]: CameraStream};
     currentShoots: {[deviceId:string]:any};
     lastByDevices: {[deviceId:string]:string};
     dynStateByDevices: {[deviceId: string] : CameraDeviceDynState};

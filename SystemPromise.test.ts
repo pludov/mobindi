@@ -51,5 +51,24 @@ describe("report error if exe not found", ()=> {
             new MemoryStreams.ReadableStream("coucou"));
         assert.strictEqual(content.substr(0, 32), "721a9b52bfceacc503c056e3b9b93cfa", "Pipe through md5");
     });
+    it('Can pipe data line by line', async function () {
+        this.timeout(5000);
+        const startTime = new Date().getTime();
+        let lines: Array<{line:string, t: number}> = [];
+
+        const content = await Pipe(CancellationToken.CONTINUE, {
+                command: [ "sh", "-c", "echo line0; sleep 0.2 ; echo line1; sleep 0.2; echo line2" ]
+            },
+            new MemoryStreams.ReadableStream(""),
+            (line)=>lines.push({line, t: Math.round((new Date().getTime() - startTime) / 200)})
+        );
+        assert.strictEqual(content.substr(0, 32), "", "Pipe with line callback outputs nothing");
+        assert.deepStrictEqual(lines, [
+                        {line: "line0", t: 0},
+                        {line: "line1", t: 1},
+                        {line: "line2", t: 2}
+        ], "Timed arrival of lines");
+    });
+
 });
 

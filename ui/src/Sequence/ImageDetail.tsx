@@ -12,7 +12,7 @@ type InputProps = {
 }
 
 type MappedProps = {
-    url: string|null;
+    path: string|null;
 }
 
 type Props = InputProps & MappedProps
@@ -22,7 +22,9 @@ class ImageDetail extends React.PureComponent<Props> {
     render() {
         return <FitsViewerWithAstrometry
                             contextKey="sequence"
-                            src={this.props.url || ""}
+                            path={this.props.path}
+                            streamId={null}
+                            streamSize={null}
                         />;
     }
 
@@ -31,15 +33,15 @@ class ImageDetail extends React.PureComponent<Props> {
 
         if (!selected) {
             return {
-                url: null
+                path: null
             };
         }
         var details = atPath(store, ownProps.detailPath + '[' + JSON.stringify(selected) + ']');
         if (details === undefined) {
-            return {url: null};
+            return {path: null};
         }
         return {
-            url: details.path
+            path: details.path
         };
     }
 }

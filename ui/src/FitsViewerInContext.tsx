@@ -6,7 +6,9 @@ import * as FitsViewerStore from "./FitsViewerStore";
 import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer/FitsViewer';
 
 type InputProps = {
-    src: FitsViewerProps["src"];
+    path: FitsViewerProps["path"];
+    streamId: FitsViewerProps["streamId"];
+    streamSize: FitsViewerProps["streamSize"];
     contextKey: string;
     contextMenu : FitsViewerProps["contextMenu"];
 };
@@ -31,7 +33,13 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
     }
 
     render() {
-        return <FitsViewer ref={this.fitsViewer} src={this.props.src} viewSettings={this.props.viewSettings} onViewSettingsChange={this.saveViewSettings} contextMenu={this.props.contextMenu}/>
+        return <FitsViewer ref={this.fitsViewer}
+                            path={this.props.path}
+                            streamId={this.props.streamId}
+                            streamSize={this.props.streamSize}
+                            viewSettings={this.props.viewSettings}
+                            onViewSettingsChange={this.saveViewSettings}
+                            contextMenu={this.props.contextMenu}/>
     }
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps) {

@@ -1,4 +1,5 @@
 import CancellationToken from 'cancellationtoken';
+import MemoryStreams from 'memory-streams';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
@@ -10,6 +11,7 @@ import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
+import { Pipe } from './SystemPromise';
 
 
 type ScopeState = "light"|"dark"|"flat";
@@ -29,6 +31,7 @@ export default class Camera
 {
     appStateManager: JsonProxy<BackofficeStatus>;
     shootPromises: {[camId: string]:Task<BackOfficeAPI.ShootResult>};
+    streamPromises: {[camId: string]:Task<void>};
     currentStatus: CameraStatus;
     context: AppContext;
     get indiManager() { return this.context.indiManager };
@@ -44,6 +47,8 @@ export default class Camera
             status: "idle",
             selectedDevice: null,
             availableDevices: [],
+
+            currentStreams: {},
 
             // Device => duration
             currentShoots: {
@@ -74,6 +79,7 @@ export default class Camera
 
         // Device => promise
         this.shootPromises = {};
+        this.streamPromises = {};
         this.currentStatus = this.appStateManager.getTarget().camera;
         this.context = context;
 
@@ -402,6 +408,10 @@ export default class Camera
             throw new Error("Shoot already started for " + device);
         }
 
+        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentStreams, device)) {
+            throw new Error("Stream is already started for " + device);
+        }
+
         if (!Obj.hasKey(this.currentStatus.configuration.deviceSettings, device)) {
             throw new Error("Device has no settings");
         }
@@ -599,6 +609,109 @@ export default class Camera
         });
     }
 
+    // Return a promise to stream the given camera
+    async doStream(cancellation: CancellationToken, device:string):Promise<void>
+    {
+        // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
+        var connection:any;
+        var ccdFilePathInitRevId:any;
+        let shootResult:BackOfficeAPI.ShootResult;
+
+        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
+            throw new Error("Shoot already started for " + device);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentStreams, device)) {
+            throw new Error("Stream is already started for " + device);
+        }
+
+        if (!Obj.hasKey(this.currentStatus.configuration.deviceSettings, device)) {
+            throw new Error("Device has no settings");
+        }
+
+        return await createTask<void>(cancellation, async (task)=>{
+            this.streamPromises[device] = task;
+
+            try {
+                this.currentStatus.currentStreams[device] = {
+                    streamId: null,
+                    streamSize: null,
+                    serial: null,
+                    autoexp: null,
+                };
+
+
+                task.cancellation.throwIfCancelled();
+
+                // Set the upload mode to at least upload_client
+                await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
+                        (vec:Vector) => {
+                            if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') === 'Off') {
+                                console.log('want upload_client\n');
+                                return {
+                                    UPLOAD_CLIENT: 'On'
+                                }
+                            } else {
+                                return ({});
+                            }
+                        });
+
+                task.cancellation.throwIfCancelled();
+
+                const unregister = task.cancellation.onCancelled(()=>{
+            
+                });
+                try {
+                    const onJson = (e:string)=> {
+                        console.log('received from streamer', e);
+                        if (e) {
+                            let val;
+                            try {
+                                val = JSON.parse(e);
+                            } catch(e) {
+                                console.warn('json parse error in streamer', e);
+                                return;
+                            }
+                            console.log('decoded from streamer', val);
+                            if (val.serial) {
+                                this.currentStatus.currentStreams[device].serial = val.serial;
+                            }
+                            if (val.streamId) {
+                                this.currentStatus.currentStreams[device].streamId = val.streamId;
+                            }
+                            if (val.streamSize) {
+                                this.currentStatus.currentStreams[device].streamSize = val.streamSize;
+                            }
+                            console.log(JSON.stringify(this.currentStatus.currentStreams[device], null, 2));
+                        }
+                    }
+                    await Pipe(task.cancellation,
+                        {
+                            // FIXME: gives indiserver connection info
+                            command: ["./fitsviewer/streamer", device]
+                        },
+                        new MemoryStreams.ReadableStream(""),
+                        onJson
+                    );
+
+                } finally {
+                    unregister();
+                }
+
+            } finally {
+                console.log('Doing cleanup');
+                delete this.streamPromises[device];
+                delete this.currentStatus.currentStreams[device];
+            }
+        });
+    }
+
+    stream = async (ct: CancellationToken, message: {})=>{
+        if (this.currentStatus.selectedDevice === null) {
+            throw new Error("No camera selected");
+        }
+        return await this.doStream(ct, this.currentStatus.selectedDevice);
+    }
 
     shoot = async (ct: CancellationToken, message:{})=>{
         if (this.currentStatus.selectedDevice === null) {
@@ -611,10 +724,18 @@ export default class Camera
         let currentDevice = this.currentStatus.selectedDevice;
         if (currentDevice === null) throw new Error("No camera selected");
 
+        let sthCanceled = false;
+        if (Object.prototype.hasOwnProperty.call(this.streamPromises, currentDevice)) {
+            this.streamPromises[currentDevice].cancel();
+            sthCanceled = true;
+        }
+
         if (Object.prototype.hasOwnProperty.call(this.shootPromises, currentDevice)) {
             this.shootPromises[currentDevice].cancel();
-        } else {
-            // FIXME: be more aggressive about abort !
+            sthCanceled = true;
+        }
+
+        if (!sthCanceled) {
             throw new Error("Shoot not initiated on our side. Not aborting");
         }
     }
@@ -622,6 +743,7 @@ export default class Camera
     getAPI() {
         return {
             shoot: this.shoot,
+            stream: this.stream,
             abort: this.abort,
             setCamera: this.setCamera,
             setShootParam: this.setShootParam,

@@ -14,7 +14,9 @@ import CancellationToken from 'cancellationtoken';
 
 
 type InputProps = {
-    src: string;
+    path: string|null;
+    streamId: string|null;
+    streamSize: BackOfficeStatus.StreamSize|null;
     contextKey: string;
 };
 
@@ -94,10 +96,13 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly start=async (forceWide?:boolean)=>
     {
+        if (this.props.path === null) {
+            throw new Error("Astrometry not possible on stream");
+        }
         return await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
-                image: this.props.src,
+                image: this.props.path,
                 forceWide:!!forceWide
             }
         );
@@ -190,7 +195,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     render() {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext contextKey={this.props.contextKey}
-                        src={this.props.src}
+                        path={this.props.path}
+                        streamId={this.props.streamId}
+                        streamSize={this.props.streamSize}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
                 />
@@ -210,8 +217,8 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     static mapStateToProps():(store:any, ownProps: InputProps)=>MappedProps {
 
         const selector = createSelector (
-            [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.src],
-            (astrometry:BackOfficeStatus.AstrometryStatus, src:string):AstrometryProps =>  {
+            [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.path],
+            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null):AstrometryProps =>  {
                 if (astrometry === undefined) {
                     return {
                         status: "empty",
@@ -244,7 +251,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                 };
 
                 const calcTrackScope=()=>{
-                    if (astrometry.image !== null && astrometry.image === src
+                    if (astrometry.image !== null && astrometry.image === path
                         && astrometry.status === "ready"
                         && astrometry.result !== null && astrometry.result.found ) {
 
@@ -275,7 +282,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     result.cancel = true;
                     result.status
                 } else {
-                    if (astrometry.image !== null && astrometry.image === src)
+                    if (astrometry.image !== null && astrometry.image === path)
                     {
                         switch(astrometry.status) {
                             case "empty":
@@ -300,7 +307,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     }
                 }
 
-                if (astrometry.image !== null && astrometry.image === src) {
+                if (astrometry.image !== null && astrometry.image === path) {
                     if (astrometry.lastOperationError !== null) {
                         result.error = astrometry.lastOperationError;
                     } else if (astrometry.scopeDetails !== null) {

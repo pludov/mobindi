@@ -15,12 +15,15 @@ import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
 import LiveFilterSelector from './LiveFilterSelector';
+import { StreamSize } from '@bo/BackOfficeStatus';
 
 type InputProps = {
 }
 
 type MappedProps = {
-    url: string;
+    path: string|null;
+    streamId: string|null;
+    streamSize: StreamSize|null;
 }
 
 type Props = InputProps & MappedProps;
@@ -32,11 +35,14 @@ class CameraView extends React.PureComponent<Props> {
     }
 
     startAstrometry = async () => {
-        console.log('Start astrometry ?' + this.props.url);
+        if (this.props.path === null) {
+            throw new Error("Astrometry require a fits file");
+        }
+        console.log('Start astrometry ?' + this.props.path);
         await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
-                image: this.props.url,
+                image: this.props.path,
             }
         );
         console.log('done astrometry ?');
@@ -78,7 +84,9 @@ class CameraView extends React.PureComponent<Props> {
             <div className="CameraViewDisplay">
                 <FitsViewerWithAstrometry
                     contextKey="default"
-                    src={this.props.url}/>
+                    path={this.props.path}
+                    streamId={this.props.streamId}
+                    streamSize={this.props.streamSize}/>
             </div>
             <ShootButton
                     activePath="$.backend.camera.selectedDevice"
@@ -90,22 +98,45 @@ class CameraView extends React.PureComponent<Props> {
     setPhoto = (rslt:ShootResult)=>{
     }
 
-    static mapStateToProps(store:Store.Content, ownProps: InputProps) {
+    static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
         try {
             const camera = noErr(()=>store.backend.camera!.selectedDevice, undefined);
             if (!camera) {
                 return {
-                    url: null,
+                    path: null,
+                    streamId: null,
+                    streamSize: null,
+                };
+            }
+            console.log('streaming camera ? ', store.backend.camera!.currentStreams);
+            if (Object.prototype.hasOwnProperty.call(store.backend.camera!.currentStreams, camera)
+                    && store.backend.camera!.currentStreams[camera].streamId) {
+                return {
+                    path: null,
+                    streamId: store.backend.camera!.currentStreams[camera].streamId,
+                    streamSize: store.backend.camera!.currentStreams[camera].streamSize,
                 };
             }
             if (Object.prototype.hasOwnProperty.call(store.backend.camera!.lastByDevices, camera)) {
-                return {url: store.backend.camera!.lastByDevices[camera]};
+                return {
+                    path: store.backend.camera!.lastByDevices[camera],
+                    streamId: null,
+                    streamSize: null,
+                };
             } else {
-                return {url: null};
+                return {
+                    path: null,
+                    streamId: null,
+                    streamSize: null,
+                };
             }
         } catch(e) {
             console.log('Ignored camera pb', e);
-            return {url: null}
+            return {
+                path: null,
+                streamId: null,
+                streamSize: null,
+            }
         }
     }
 }

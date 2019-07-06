@@ -2,6 +2,7 @@ import child_process, { SpawnOptions } from 'child_process';
 import Stream from 'stream';
 import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
+import { StringDecoder } from 'string_decoder';
 
 // Ugggglyyy fix for end of stream
 MemoryStreams.ReadableStream.prototype._read = function(n) {
@@ -67,8 +68,10 @@ export function Exec(ct: CancellationToken, p : ExecParams):Promise<number> {
     });
 }
 
-export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.Readable): Promise<string> {
-    let writableStream: MemoryStreams.WritableStream;
+export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.Readable, lineCb?: (e:string)=>(void)): Promise<string> {
+    let result: string = "";
+
+    let writableStream: Stream.Writable;
     let writableStreamDone: boolean = false;
     let writableStreamCb:undefined|(()=>(void));
 
@@ -80,12 +83,61 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
         }
     }
 
-    writableStream = new MemoryStreams.WritableStream();
+    if (!lineCb) {
+        let writableMemoryStream: MemoryStreams.WritableStream;
+
+        writableStream = writableMemoryStream = new MemoryStreams.WritableStream();
+        writableMemoryStream.on('finish', ()=> {
+            result = writableMemoryStream.toString()
+            captureDone();
+        });
+    } else {
+        const stringDecoder = new StringDecoder("utf8");
+        let currentLine: string = "";
+
+        const proceedCurrentLine=(finish:boolean)=>{
+            let p;
+            while((p = currentLine.indexOf('\n')) != -1) {
+                const line = currentLine.substring(0, p);
+                currentLine = currentLine.substring(p + 1);
+                try {
+                    lineCb(line);
+                } catch(e) {
+                    writableStream.emit('error', e);
+                    return;
+                }
+            }
+            if (finish && currentLine) {
+                try {
+                    lineCb(currentLine);
+                } catch(e) {
+                    writableStream.emit('error', e);
+                    return;
+                }
+            }
+        }
+
+        writableStream = new Stream.Writable();
+        writableStream._write = (chunk, encoding, next) => {
+            console.log('read from STDOUT', chunk, encoding);
+            if (encoding !== 'buffer') {
+                writableStream.emit('error', new Error('unsupported encoding'));
+            } else {
+                const str = stringDecoder.write(chunk);
+                currentLine += str;
+                proceedCurrentLine(false);
+            }
+            next();
+        }
+
+        writableStream.on('finish', ()=> {
+            proceedCurrentLine(true);
+            captureDone();
+        });
+    }
+
     writableStreamCb = undefined;
     writableStreamDone = false;
-    writableStream.on('finish', ()=> {
-        captureDone();
-    });
 
     const ret = await Exec(ct, {
             stdin: input,
@@ -112,7 +164,6 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
         throw new Error("Pipe failed " + JSON.stringify(p.command) + " with exit code: " + ret);
     }
 
-    const result = writableStream.toString();
     return result;
 }
 

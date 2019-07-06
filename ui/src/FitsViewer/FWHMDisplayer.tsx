@@ -3,11 +3,13 @@ import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
 
 export type Props = {
-    src: string|null;
+    path: string|null;
+    streamId: string|null;
 };
 
 export type State = {
-    src: string|null;
+    path: string|null;
+    streamId: string|null;
     value: string|null;
     loading: boolean;
 };
@@ -16,21 +18,23 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = {
-            src: null,
+            path: null,
+            streamId: null,
             value: null,
             loading: false
         }
     }
 
     async _loadData() {
-        if (this.props.src === this.state.src) {
+        if (this.props.path === this.state.path && this.props.streamId == this.state.streamId) {
             return;
         }
         // Start a new loading.
         // cancel the previous request
         this._cancelLoadData();
         this.setState({
-            src: this.props.src,
+            path: this.props.path,
+            streamId: this.props.streamId,
             value: null,
             loading: true
         });
@@ -40,7 +44,10 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
             const e = await BackendRequest.ImageProcessor(
                 CancellationToken.CONTINUE,
                 {
-                    starField: { "source": { "path":this.props.src!}}
+                    starField: { "source": {
+                        path: this.props.path || "",
+                        streamId: this.props.streamId || "",
+                    }}
                 }
             );
 
