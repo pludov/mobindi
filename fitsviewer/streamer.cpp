@@ -139,7 +139,7 @@ int main (int argc, char ** argv) {
     
     MyClient * client = new MyClient();
     client->setServer("127.0.0.1",7624);
-    client->watchDevice("CCD Simulator");
+    client->watchDevice("Will never exists");
     client->connectServer();
     client->setBLOBMode(BLOBHandling::B_ONLY, "CCD Simulator", "CCD1");
 
