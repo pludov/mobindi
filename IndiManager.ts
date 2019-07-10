@@ -115,6 +115,13 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         new IndiAutoGphotoSensorSize(this);
     }
 
+    public getIndiServerAddr() : {host: string, port: number} {
+        return {
+            host: "127.0.0.1",
+            port: 7624,
+        };
+    }
+
     public getAPI() {
         return {
             connectDevice: this.connectDevice,
@@ -369,7 +376,8 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 this.refreshStatus();
             };
 
-            indiConnection.connect('127.0.0.1');
+            const addr = this.getIndiServerAddr();
+            indiConnection.connect(addr.host, addr.port);
             indiConnection.addListener(listener);
             indiConnection.addMessageListener((msg)=>{
                 console.log('Received message : ', JSON.stringify(msg));

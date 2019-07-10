@@ -685,10 +685,10 @@ export default class Camera
                             console.log(JSON.stringify(this.currentStatus.currentStreams[device], null, 2));
                         }
                     }
+                    const addr = this.indiManager.getIndiServerAddr();
                     await Pipe(task.cancellation,
                         {
-                            // FIXME: gives indiserver connection info
-                            command: ["./fitsviewer/streamer", device]
+                            command: ["./fitsviewer/streamer", addr.host, "" + addr.port, device, "CCD1"]
                         },
                         new MemoryStreams.ReadableStream(""),
                         onJson

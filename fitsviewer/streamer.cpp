@@ -128,6 +128,10 @@ static void outputJson(const nlohmann::json & j) {
 
 
 int main (int argc, char ** argv) {
+    if (argc != 5) {
+        std::cerr << "Usage: " << argv[0] << " indi_host indi_port device property\n";
+        return 1;
+    }
 	// 128Mo cache
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
@@ -138,10 +142,10 @@ int main (int argc, char ** argv) {
     pipesize = fcntl(1, F_SETPIPE_SZ, &pipesize);
     
     MyClient * client = new MyClient();
-    client->setServer("127.0.0.1",7624);
+    client->setServer(argv[1], atoi(argv[2]));
     client->watchDevice("Will never exists");
     client->connectServer();
-    client->setBLOBMode(BLOBHandling::B_ONLY, "CCD Simulator", "CCD1");
+    client->setBLOBMode(BLOBHandling::B_ONLY, argv[3], argv[4]);
 
     bool first = true;
 
