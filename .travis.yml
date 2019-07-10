@@ -14,6 +14,7 @@ matrix:
       before_install:
         - sudo add-apt-repository ppa:mutlaqja/ppa -y
         - sudo apt-get update -q
+        - sudo apt-get install -y libindi-dev
       script: cd fitsviewer && cmake . && make -j2 && ./unittests
       addons:
         apt:
@@ -25,4 +26,3 @@ matrix:
           - libjpeg-dev
           - libpng-dev
           - libcgicc-dev
-          - libindi-dev
