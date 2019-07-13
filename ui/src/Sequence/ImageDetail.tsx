@@ -24,6 +24,7 @@ class ImageDetail extends React.PureComponent<Props> {
                             contextKey="sequence"
                             path={this.props.path}
                             streamId={null}
+                            streamSerial={null}
                             streamSize={null}
                         />;
     }

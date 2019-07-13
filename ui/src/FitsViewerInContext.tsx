@@ -8,6 +8,7 @@ import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} 
 type InputProps = {
     path: FitsViewerProps["path"];
     streamId: FitsViewerProps["streamId"];
+    streamSerial: FitsViewerProps["streamSerial"];
     streamSize: FitsViewerProps["streamSize"];
     contextKey: string;
     contextMenu : FitsViewerProps["contextMenu"];
@@ -37,6 +38,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
                             path={this.props.path}
                             streamId={this.props.streamId}
                             streamSize={this.props.streamSize}
+                            streamSerial={this.props.streamSerial}
                             viewSettings={this.props.viewSettings}
                             onViewSettingsChange={this.saveViewSettings}
                             contextMenu={this.props.contextMenu}/>

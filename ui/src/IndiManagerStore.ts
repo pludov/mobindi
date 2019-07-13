@@ -27,7 +27,7 @@ const switchToDevice=(state: Store.Content, payload: {dev: string})=>{
             expandedGroups: {
                 ...state.indiManager.expandedGroups,
                 [dev]:{
-                    ...(Utils.has(state.indiManager.expandedGroups, dev) ? state.indiManager.expandedGroups[dev] : {})
+                    ...(Utils.has(state.indiManager.expandedGroups || {}, dev) ? state.indiManager.expandedGroups[dev] : {})
                 }
             }
         }

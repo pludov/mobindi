@@ -23,6 +23,7 @@ type InputProps = {
 type MappedProps = {
     path: string|null;
     streamId: string|null;
+    streamSerial: string|null;
     streamSize: StreamSize|null;
 }
 
@@ -86,6 +87,7 @@ class CameraView extends React.PureComponent<Props> {
                     contextKey="default"
                     path={this.props.path}
                     streamId={this.props.streamId}
+                    streamSerial={this.props.streamSerial}
                     streamSize={this.props.streamSize}/>
             </div>
             <ShootButton
@@ -105,28 +107,33 @@ class CameraView extends React.PureComponent<Props> {
                 return {
                     path: null,
                     streamId: null,
+                    streamSerial: null,
                     streamSize: null,
                 };
             }
-            console.log('streaming camera ? ', store.backend.camera!.currentStreams);
-            if (Object.prototype.hasOwnProperty.call(store.backend.camera!.currentStreams, camera)
-                    && store.backend.camera!.currentStreams[camera].streamId) {
-                return {
-                    path: null,
-                    streamId: store.backend.camera!.currentStreams[camera].streamId,
-                    streamSize: store.backend.camera!.currentStreams[camera].streamSize,
-                };
+            if (Object.prototype.hasOwnProperty.call(store.backend.camera!.currentStreams, camera)) {
+                const stream= store.backend.camera!.currentStreams[camera];
+                if (stream.streamId) {
+                    return {
+                        path: null,
+                        streamId: stream.streamId,
+                        streamSerial: stream.serial === null ? null : "" + stream.serial,
+                        streamSize: stream.streamSize,
+                    };
+                }
             }
             if (Object.prototype.hasOwnProperty.call(store.backend.camera!.lastByDevices, camera)) {
                 return {
                     path: store.backend.camera!.lastByDevices[camera],
                     streamId: null,
+                    streamSerial: null,
                     streamSize: null,
                 };
             } else {
                 return {
                     path: null,
                     streamId: null,
+                    streamSerial: null,
                     streamSize: null,
                 };
             }
@@ -135,6 +142,7 @@ class CameraView extends React.PureComponent<Props> {
             return {
                 path: null,
                 streamId: null,
+                streamSerial: null,
                 streamSize: null,
             }
         }

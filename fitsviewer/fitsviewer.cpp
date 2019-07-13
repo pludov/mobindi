@@ -815,28 +815,6 @@ public:
 		return !(polls[0].revents & (POLLHUP|POLLERR|POLLRDHUP));
 	}
 
-	void checkHttpOpen() {
-		if (!checkOpenForWrite(1)) {
-			std::cerr << "remote closed detected\n";
-			_exit(0);
-		}
-	}
-
-	void waitNextStream() {
-		if (!streaming) {
-			return;
-		}
-
-		bool dead;
-		while(!cache->waitStreamFrame(stream, lastSerialStream, 500, dead)) {
-			checkHttpOpen();
-		}
-		checkHttpOpen();
-		if (dead) {
-			throw ResponseException("Stream not found");
-		}
-	}
-
 	void sendJpeg()
 	{
 		SharedCache::Messages::ContentRequest contentRequest;
@@ -988,37 +966,19 @@ public:
 	}
 
 	void startJpegBlock() {
-		if (!streaming) {
-			cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
-			header.addHeader("Content-Type", "image/jpeg");
-			header.addHeader("Transfer-Encoding", "chunked");
-			header.addHeader("connection", "close");
-			sendHttpHeader(header);
-		} else if (firstImage) {
-			cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
-			header.addHeader("Content-Type", "multipart/x-mixed-replace; boundary=\"" + MimeSeparator + "\"");
-			header.addHeader("Transfer-Encoding", "chunked");
-			header.addHeader("connection", "close");
-			sendHttpHeader(header);
-
-			writeStreamBuff("--" + MimeSeparator + "\r\nContent-Type: image/jpeg\r\n\r\n");
-			firstImage = false;
-		} else {
-			writeStreamBuff("Content-Type: image/jpeg\r\n\r\n");
-		}
+		cgicc::HTTPResponseHeader header("HTTP/1.1", 200, "OK");
+		header.addHeader("Content-Type", "image/jpeg");
+		header.addHeader("Transfer-Encoding", "chunked");
+		header.addHeader("connection", "close");
+		sendHttpHeader(header);
 	}
 
 	void endJpegBlock() {
-		if (streaming) {
-			writeStreamBuff("\r\n--" + MimeSeparator + "\r\n");
-		} else {
-			writeStreamBuff(nullptr, 0);
-		}
+		writeStreamBuff(nullptr, 0);
 	}
 
 	void perform() {
 		try {
-			waitNextStream();
 			sendJpeg();
 		} catch(const ResponseException & e) {
 			if (disableHttp) {
@@ -1027,19 +987,6 @@ public:
 				sendHttpHeader(cgicc::HTTPResponseHeader("HTTP/1.1", 500, e.what()));
 			}
 			return;
-		}
-		if (streaming) {
-			while(1) {
-				waitNextStream();
-
-				try {
-					sendJpeg();
-				} catch(const ResponseException & e) {
-					std::cerr << "Image failure: " << e.what() << '\n';
-					// FIXME: be more error resilient
-					return;
-				}
-			}
 		}
 	}
 };

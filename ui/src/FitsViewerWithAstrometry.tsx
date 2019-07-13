@@ -16,6 +16,7 @@ import CancellationToken from 'cancellationtoken';
 type InputProps = {
     path: string|null;
     streamId: string|null;
+    streamSerial: string|null;
     streamSize: BackOfficeStatus.StreamSize|null;
     contextKey: string;
 };
@@ -197,6 +198,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
             <FitsViewerInContext contextKey={this.props.contextKey}
                         path={this.props.path}
                         streamId={this.props.streamId}
+                        streamSerial={this.props.streamSerial}
                         streamSize={this.props.streamSize}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
