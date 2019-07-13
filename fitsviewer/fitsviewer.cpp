@@ -1001,16 +1001,16 @@ public:
 			header.addHeader("connection", "close");
 			sendHttpHeader(header);
 
-			writeStreamBuff("--" + MimeSeparator + "\nContent-Type: image/jpeg\n\n");
+			writeStreamBuff("--" + MimeSeparator + "\r\nContent-Type: image/jpeg\r\n\r\n");
 			firstImage = false;
 		} else {
-			writeStreamBuff("Content-Type: image/jpeg\n\n");
+			writeStreamBuff("Content-Type: image/jpeg\r\n\r\n");
 		}
 	}
 
 	void endJpegBlock() {
 		if (streaming) {
-			writeStreamBuff("\n--" + MimeSeparator + "\n");
+			writeStreamBuff("\r\n--" + MimeSeparator + "\r\n");
 		} else {
 			writeStreamBuff(nullptr, 0);
 		}
