@@ -143,7 +143,7 @@ int main (int argc, char ** argv) {
     
     MyClient * client = new MyClient();
     client->setServer(argv[1], atoi(argv[2]));
-    client->watchDevice("Will never exists");
+    client->watchDevice(argv[3]);
     client->connectServer();
     client->setBLOBMode(BLOBHandling::B_ONLY, argv[3], argv[4]);
 
