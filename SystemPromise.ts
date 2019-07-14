@@ -119,7 +119,6 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
 
         writableStream = new Stream.Writable();
         writableStream._write = (chunk, encoding, next) => {
-            console.log('read from STDOUT', chunk, encoding);
             if (encoding !== 'buffer') {
                 writableStream.emit('error', new Error('unsupported encoding'));
             } else {
