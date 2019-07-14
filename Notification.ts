@@ -126,7 +126,7 @@ export default class Notification
         console.log('Remaining notifications: ' + JSON.stringify(this.currentStatus));
     }
 
-    public message(content: string) {
+    private message(content: string) {
         // add this to indi logs for now
         this.context.indiManager.addMessage({
             $$: "message",
@@ -136,10 +136,17 @@ export default class Notification
         });
     }
 
+    public info(content: string) {
+        console.log('INFO: ' + content);
+        this.message(content);
+    }
+
     public error(content: string, reason?: any) {
         if (reason) {
+            console.log('ERROR: ' + content, reason);
             this.message(content + ": " + (reason.msg || reason));
         } else {
+            console.log('ERROR: ' + content);
             this.message(content);
         }
     }

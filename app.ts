@@ -117,7 +117,7 @@ context.notification = new Notification(app, appStateManager, context as AppCont
 
 context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
-context.phd = new Phd(app, appStateManager);
+context.phd = new Phd(app, appStateManager, context as AppContext);
 
 context.indiManager = new IndiManager(app, appStateManager, context as AppContext);
 

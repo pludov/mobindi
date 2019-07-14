@@ -3,7 +3,7 @@ import CancellationToken from 'cancellationtoken';
 import * as Obj from './Obj.js';
 import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
-import { ExpressApplication } from './ModuleBase.js';
+import { ExpressApplication, AppContext } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
 import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration } from './shared/BackOfficeStatus.js';
 import * as RequestHandler from "./RequestHandler";
@@ -37,15 +37,16 @@ export default class Phd
     private eventListeners: {[id:string]:Listener};
     public readonly currentStatus: PhdStatus;
     private readonly steps: PhdStatus["guideSteps"];
+    private readonly context: AppContext;
     private stepId: number;
     private reqId: number;
     private clientData: string;
     private client: undefined|net.Socket;
 
-    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>)
+    constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext)
     {
         this.appStateManager = appStateManager;
-
+        this.context= context;
         this.running = true;
         this.stepId = 0;
         this.reqId = 0;
@@ -138,13 +139,14 @@ export default class Phd
                             });
 
                             this.client.on('error', (e)=> {
-                                console.log('Phd socket error', e);
+                                this.context.notification.error('PHD connection error', e);
                             })
 
                             this.client.on('close', ()=>{
                                 console.log('Phd connection closed');
                                 this.client = undefined;
 
+                                this.context.notification.info('PHD connection closed');
                                 // FIXME: flushing these messages can lead to change (including reconnection ?)
                                 this.flushClientData();
 
@@ -167,8 +169,8 @@ export default class Phd
                                 resolve();
                             });
 
-                            this.client.connect(4400, '127.0.0.1', function() {
-                                console.log('Connected to phd');
+                            this.client.connect(4400, '127.0.0.1', ()=>{
+                                this.context.notification.info('PHD connection established');
                             });
                             task.cancellation.onCancelled(()=> {
                                 this.client!.destroy();
@@ -316,6 +318,12 @@ export default class Phd
                                 }
                                 console.log('PHD : settledone => ', JSON.stringify(newStatus));
                                 this.currentStatus.settling = newStatus;
+                                break;
+                            }
+                        case "Alert":
+                            {
+                                this.context.notification.info("[PHD] " + event.Type + ": " + event.Msg);
+                                this.context.notification.notify("[PHD] " + event.Type + ": " + event.Msg);
                                 break;
                             }
                         default:
@@ -473,8 +481,10 @@ export default class Phd
                 error: (err)=>{
                     unregister();
                     if (err.message) {
+                        this.context.notification.error('[PHD] ' + order.method + ': '  + err.message);
                         reject(new Error(order.method + ": " +err.message));
                     } else {
+                        this.context.notification.error('[PHD] ' + order.method + ' failed');
                         reject(new Error(order.method + " failed"));
                     }
                 },

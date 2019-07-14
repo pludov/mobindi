@@ -349,7 +349,7 @@ export default class SequenceManager
         const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
         try {
             this.indiManager.doUpdateDriverParam({driver: cameraId, key: "disableAskCoverScope", value: true});
-            this.context.notification.message("Cover scope message can be enabled in INDI tab");
+            this.context.notification.info("Cover scope message can be enabled in INDI tab");
         } catch(e) {
             this.context.notification.error("Unable to control cover scope message preference", e);
         }
