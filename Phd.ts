@@ -80,6 +80,8 @@ export default class Phd
             DECDistancePeak: null,
             RADECDistancePeak: null,
             star:null,
+            currentEquipment: {},
+            exposureDurations: [],
         }
 
         this.pendingRequests = {};
@@ -122,6 +124,60 @@ export default class Phd
         this.lifeCycle(CancellationToken.CONTINUE);
     }
 
+    private clearCurrentEquipment = ()=> {
+        this.currentStatus.currentEquipment = {};
+    }
+
+    private queryCurrentEquipment = async()=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_current_equipment",
+                params:[]
+            });
+            this.currentStatus.currentEquipment = ret as PhdStatus["currentEquipment"];
+        } catch(e) {
+            this.clearCurrentEquipment();
+        }
+    }
+
+    private clearExposureDurations = ()=> {
+        this.currentStatus.exposureDurations = [];
+    }
+
+    private queryExposureDurations = async()=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_exposure_durations",
+                params:[]
+            });
+            this.currentStatus.exposureDurations = ret as PhdStatus["exposureDurations"];
+        } catch(e) {
+            this.clearExposureDurations();
+        }
+    }
+
+    private clearPolledData = ()=> {
+        this.clearCurrentEquipment();
+        this.clearExposureDurations();
+    }
+
+    private polling: boolean = false;
+
+    private pollData = async ()=> {
+        if (this.polling) {
+            return;
+        }
+        this.polling = true;
+        try {
+            await Promise.all([
+                    this.queryCurrentEquipment(),
+                    this.queryExposureDurations(),
+            ]);
+        } finally {
+            this.polling = false;
+        }
+    }
+
 
     private lifeCycle=async (ct: CancellationToken)=>{
         while(true) {
@@ -129,6 +185,8 @@ export default class Phd
                 await createTask(ct, (task)=>new Promise(
                     (resolve, reject)=>
                         {
+                            let interval : NodeJS.Timeout|undefined;
+
                             this.clientData = "";
                             this.client = new net.Socket();
 
@@ -145,6 +203,10 @@ export default class Phd
                             this.client.on('close', ()=>{
                                 console.log('Phd connection closed');
                                 this.client = undefined;
+                                if (interval !== undefined) {
+                                    clearInterval(interval);
+                                    interval = undefined;
+                                }
 
                                 this.context.notification.info('PHD connection closed');
                                 // FIXME: flushing these messages can lead to change (including reconnection ?)
@@ -154,11 +216,13 @@ export default class Phd
                                 this.pendingRequests = {};
                                 for(const k of Object.keys(oldPendingRequests)) {
                                     try {
-                                        oldPendingRequests[k].error({message: 'PHD disconnected'});
+                                        oldPendingRequests[k].error({message: 'PHD disconnected', disconnected: true});
                                     } catch(e) {
                                         console.warn('Error in PHD request error handler', e);
                                     }
                                 }
+
+                                this.clearPolledData();
 
                                 this.currentStatus.star = null;
                                 this.currentStatus.AppState = "NotConnected";
@@ -171,6 +235,9 @@ export default class Phd
 
                             this.client.connect(4400, '127.0.0.1', ()=>{
                                 this.context.notification.info('PHD connection established');
+
+                                interval = setInterval(this.pollData, 10000);
+                                this.pollData();
                             });
                             task.cancellation.onCancelled(()=> {
                                 this.client!.destroy();
@@ -375,7 +442,6 @@ export default class Phd
                 } else if ("jsonrpc" in event) {
                     var id = event.id;
                     if (Object.prototype.hasOwnProperty.call(this.pendingRequests, id)) {
-                        console.log('got result for request ' + id);
                         const doneRequest = this.pendingRequests[id];
                         delete this.pendingRequests[id];
                         try {

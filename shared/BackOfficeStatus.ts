@@ -405,6 +405,11 @@ export type PhdStar = {
 
 export type PhdAppState ="NotConnected" | "Guiding" | "Paused" | "Calibrating" | "Looping" | "Stopped" | "LostLock"; 
 
+export type PhdEquipmentStatus = {
+    name: string;
+    connected: boolean;
+}
+
 export type PhdStatus = {
     phd_started: boolean;
     connected: boolean;
@@ -420,6 +425,11 @@ export type PhdStatus = {
     DECDistancePeak: number|null;
     RADECDistancePeak: number|null;
     star: PhdStar|null;
+    currentEquipment: {
+        camera?: PhdEquipmentStatus;
+        mount?:PhdEquipmentStatus;
+    };
+    exposureDurations: Array<number>;
 };
 
 export type ToolConfig = {
