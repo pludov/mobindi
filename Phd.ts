@@ -417,6 +417,11 @@ export default class Phd
             console.log('received json : ' + data);
             var statusUpdated = false;
             try {
+                // Quickfix for https://github.com/OpenPHDGuiding/phd2/issues/776
+                if (data.indexOf('\n') !== -1) {
+                    console.log('Received incorrect json. Patching');
+                    data = data.replace(/\n/g, ' ');
+                }
                 var event = JSON.parse(data);
                 if (Obj.hasKey(event, 'Timestamp')) {
                     event.TimeStamp = parseFloat(event.TimeStamp);
