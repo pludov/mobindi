@@ -705,7 +705,6 @@ export default class Phd
     }
 
     stopGuide = async(ct:CancellationToken)=>{
-        await this.connect(ct);
         await this.sendOrder(ct, {
                 method: 'stop_capture',
             });
