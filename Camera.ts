@@ -230,7 +230,7 @@ export default class Camera
                     this.previousImages[device] = stamp;
                     if (value != '') {
 
-                        var currentShoot;
+                        let currentShoot;
                         if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
                             currentShoot = this.currentStatus.currentShoots[device];
                         } else {
@@ -279,7 +279,7 @@ export default class Camera
                 continue;
             }
             connectedDevices.push(deviceId);
-            var currentShoot;
+            let currentShoot;
             if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, deviceId)) {
                 currentShoot = this.currentStatus.currentShoots[deviceId];
             } else {
@@ -292,7 +292,8 @@ export default class Camera
                     currentShoot= {
                         exposure: exposure,
                         expLeft: exposure,
-                        type: 'external'
+                        status: 'External' as 'External',
+                        managed: false,
                     };
                     this.currentStatus.currentShoots[deviceId] = currentShoot;
                 } else {
@@ -400,7 +401,6 @@ export default class Camera
     async doShoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings):Promise<BackOfficeAPI.ShootResult>
     {
         // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
-        var connection:any;
         var ccdFilePathInitRevId:any;
         let shootResult:BackOfficeAPI.ShootResult;
 
@@ -422,10 +422,11 @@ export default class Camera
         }
         console.log('Shoot settings:' + JSON.stringify(settings, null, 2));
         this.currentStatus.currentShoots[device] = Object.assign({
-                    status: 'init',
+                    status: 'init' as "init",
                     managed: true,
                     path: this.currentStatus.configuration.defaultImagePath || process.env.HOME,
-                    prefix: this.currentStatus.configuration.defaultImagePrefix || 'IMAGE_XXX'
+                    prefix: this.currentStatus.configuration.defaultImagePrefix || 'IMAGE_XXX',
+                    expLeft: settings.exposure,
                 }, settings);
 
         return await createTask<BackOfficeAPI.ShootResult>(cancellation, async (task)=>{
@@ -446,8 +447,8 @@ export default class Camera
                 {
                     task.cancellation.throwIfCancelled();
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_BINNING', {
-                                HOR_BIN: currentShootSettings.bin,
-                                VER_BIN: currentShootSettings.bin
+                                HOR_BIN: '' + currentShootSettings.bin!,
+                                VER_BIN: '' + currentShootSettings.bin!
                             });
                 }
                 // Reset the frame size - if prop is present only
@@ -523,7 +524,7 @@ export default class Camera
                 var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
                 task.cancellation.throwIfCancelled();
-                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: currentShootSettings.exposure }]);
+                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: '' + currentShootSettings.exposure! }]);
 
                 
                 const doneWithExposure = task.cancellation.onCancelled(() => {
@@ -617,7 +618,8 @@ export default class Camera
         var ccdFilePathInitRevId:any;
         let shootResult:BackOfficeAPI.ShootResult;
 
-        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
+        if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)
+                && this.currentStatus.currentShoots[device].managed) {
             throw new Error("Shoot already started for " + device);
         }
 
@@ -631,7 +633,7 @@ export default class Camera
 
         return await createTask<void>(cancellation, async (task)=>{
             this.streamPromises[device] = task;
-
+            delete this.currentStatus.currentShoots[device];
             try {
                 this.currentStatus.currentStreams[device] = {
                     streamId: null,

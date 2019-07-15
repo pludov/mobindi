@@ -21,6 +21,7 @@ type MappedProps = {
 {
     available: true;
     running: true;
+    managed: boolean;
     elapsed: number;
     exposure: number;
 }
@@ -39,7 +40,7 @@ class ShootBton extends React.PureComponent<Props> {
 
         return <div className={'ShootBar' + (this.props.available && this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
             <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot"/>
-            <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.stream} className="ShootBton" value="Spy"/>
+            <input disabled={(!this.props.available) || (this.props.running && this.props.managed)} type="button" onClick={this.stream} className="ShootBton" value="Spy"/>
             <div className='ShootProgress' style={{position: 'relative'}}>
                 <div style={{position: 'absolute', left: '0px', top: '0px', bottom:'0px', width: progress + '%'}}
                     className='ShootProgressAdvance'>
@@ -90,6 +91,7 @@ class ShootBton extends React.PureComponent<Props> {
             return {
                 available,
                 running: true,
+                managed: true,
                 elapsed:0,
                 exposure: 0,
             }
@@ -114,6 +116,7 @@ class ShootBton extends React.PureComponent<Props> {
         return {
             available,
             running,
+            managed: currentShoot.managed,
             elapsed,
             exposure,
         };

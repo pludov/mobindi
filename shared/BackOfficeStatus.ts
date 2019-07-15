@@ -7,6 +7,7 @@ export type CameraDeviceSettings = {
     bin?: number;
     exposure: number;
     iso?: null|string;
+    path?: string;
     preferedFocuserDevice?: null|string;
     preferedFilterWheelDevice?: null|string;
 }
@@ -171,12 +172,19 @@ export type CameraStream = {
     autoexp: number|null;           // Trigger events or just wait
 };
 
+export type CameraShoot = {
+    exposure: number;
+    expLeft: number;
+    managed: boolean;
+    status: 'External'|'init'|'Downloading'|'Exposing';
+} & Partial<CameraDeviceSettings>;
+
 export type CameraStatus = {
     status: string;
     selectedDevice: string | null;
     availableDevices: string [];
     currentStreams: {[deviceId: string]: CameraStream};
-    currentShoots: {[deviceId:string]:any};
+    currentShoots: {[deviceId:string]:CameraShoot};
     lastByDevices: {[deviceId:string]:string};
     dynStateByDevices: {[deviceId: string] : CameraDeviceDynState};
     images: {
