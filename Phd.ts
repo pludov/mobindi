@@ -148,6 +148,9 @@ export default class Phd
             this.currentStatus.streamingCamera = device;
             try {
                 await this.context.camera.doStream(task.cancellation, device);
+            } catch(e) {
+                console.log('phd capture for ' + device + ' failed', e);
+                await Sleep(task.cancellation, 2000);
             } finally {
                 console.log('phd capture for ' + device + ' terminated');
                 this.streamCapture = undefined;
