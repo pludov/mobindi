@@ -296,6 +296,9 @@ export default class Camera
                         managed: false,
                     };
                     this.currentStatus.currentShoots[deviceId] = currentShoot;
+                    if (Obj.hasKey(this.currentStatus.dynStateByDevices, deviceId)) {
+                        this.currentStatus.dynStateByDevices[deviceId].spyRecommanded = true;
+                    }
                 } else {
                     if (exposure > 0 || currentShoot.expLeft) {
                         currentShoot.expLeft = exposure;

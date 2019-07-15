@@ -3,6 +3,7 @@ import CancellationToken from 'cancellationtoken';
 
 import { atPath } from "./shared/JsonPath";
 import * as Store from "./Store";
+import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
 import { ShootResult } from '@bo/BackOfficeAPI';
 
@@ -12,15 +13,18 @@ type InputProps = {
 }
 
 type MappedProps = {
-    available: false
+    available: false;
+    streamBton: false;
 } |
 {
     available: true;
     running: false;
+    streamBton: boolean;
 } |
 {
     available: true;
     running: true;
+    streamBton: boolean;
     managed: boolean;
     elapsed: number;
     exposure: number;
@@ -40,7 +44,10 @@ class ShootBton extends React.PureComponent<Props> {
 
         return <div className={'ShootBar' + (this.props.available && this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
             <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot"/>
-            <input disabled={(!this.props.available) || (this.props.running && this.props.managed)} type="button" onClick={this.stream} className="ShootBton" value="Spy"/>
+            {this.props.streamBton
+                ? <input disabled={(!this.props.available) || (this.props.running && this.props.managed)} type="button" onClick={this.stream} className="ShootBton" value="Spy"/>
+                : null
+            }
             <div className='ShootProgress' style={{position: 'relative'}}>
                 <div style={{position: 'absolute', left: '0px', top: '0px', bottom:'0px', width: progress + '%'}}
                     className='ShootProgressAdvance'>
@@ -75,14 +82,15 @@ class ShootBton extends React.PureComponent<Props> {
     static mapStateToProps(store:Store.Content, ownProps:InputProps):MappedProps {
         const active = atPath(store, ownProps.activePath);
         let available = false;
+        let streamBton = false;
         if (active === undefined || active === null) {
-            return {available};
+            return {available, streamBton};
         }
 
         // Check if exposure is present
         var deviceNode = atPath(store, '$.backend.indiManager.deviceTree[' + JSON.stringify(active) + "].CCD_EXPOSURE");
         if (deviceNode === undefined) {
-            return {available}
+            return {available, streamBton}
         }
         available = true;
 
@@ -94,14 +102,17 @@ class ShootBton extends React.PureComponent<Props> {
                 managed: true,
                 elapsed:0,
                 exposure: 0,
+                streamBton: true,
             }
         }
+
+        streamBton = Utils.noErr(()=>store.backend.camera!.dynStateByDevices[active].spyRecommanded, false) || false;
 
         const currentShoot = atPath(store, '$.backend.camera.currentShoots[' + JSON.stringify(active) + "]");
 
         let running = (currentShoot != undefined);
         if (!running) {
-            return {available, running}
+            return {available, running, streamBton}
         }
 
         let elapsed, exposure;
@@ -119,6 +130,7 @@ class ShootBton extends React.PureComponent<Props> {
             managed: currentShoot.managed,
             elapsed,
             exposure,
+            streamBton,
         };
     }
 }

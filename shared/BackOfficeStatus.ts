@@ -15,6 +15,7 @@ export type CameraDeviceSettings = {
 export type CameraDeviceDynState = {
     focuserDevice?: null|string;
     filterWheelDevice?: null|string;
+    spyRecommanded?: boolean;
 };
 
 export type DitheringSettings = {

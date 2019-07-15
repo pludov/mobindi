@@ -165,8 +165,14 @@ export default class Phd
         let wantCaptureDevice:string|undefined;
         if (this.currentStatus.currentEquipment.camera) {
             const camEq = this.currentStatus.currentEquipment.camera;
-            if (camEq.connected && this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1) {
-                wantCaptureDevice = camEq.name;
+            if (this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1) {
+                if (Obj.hasKey(this.context.camera.currentStatus.dynStateByDevices, camEq.name)) {
+                    this.context.camera.currentStatus.dynStateByDevices[camEq.name].spyRecommanded = true;
+                }
+                this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1
+                if (camEq.connected) {
+                    wantCaptureDevice = camEq.name;
+                }
             } else {
                 wantCaptureDevice = undefined;
             }
