@@ -429,6 +429,7 @@ export type PhdStatus = {
         camera?: PhdEquipmentStatus;
         mount?:PhdEquipmentStatus;
     };
+    streamingCamera: string|null;
     exposureDurations: Array<number>;
 };
 

@@ -9,7 +9,7 @@ import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, Di
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
-import { createTask } from './Task.js';
+import { createTask, Task } from './Task.js';
 
 export type PhdRequest = {
     then: (result: any)=>(void);
@@ -42,6 +42,11 @@ export default class Phd
     private reqId: number;
     private clientData: string;
     private client: undefined|net.Socket;
+
+    /** current stream capture */
+    private streamCapture:Task<void>|undefined;
+    private streamCaptureCanceled: boolean|undefined;
+    private streamCaptureDevice: string|undefined;
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext)
     {
@@ -82,6 +87,7 @@ export default class Phd
             star:null,
             currentEquipment: {},
             exposureDurations: [],
+            streamingCamera: null,
         }
 
         this.pendingRequests = {};
@@ -122,6 +128,65 @@ export default class Phd
 
         // FIXME: handle autoconnect
         this.lifeCycle(CancellationToken.CONTINUE);
+
+        this.appStateManager.addSynchronizer(
+            [
+                [
+                    [   'camera', 'availableDevices'],
+                    [   'phd', 'currentEquipment', 'camera' ],
+                    [   'phd', 'streamingCamera' ],
+                ]
+            ], this.updateCaptureStatus, true);
+    }
+
+    private startCapture=(device:string)=>{
+        createTask<void>(undefined, async(task)=> {
+            console.log('Starting phd capture for ' + device);
+            this.streamCapture = task;
+            this.streamCaptureCanceled = false;
+            this.streamCaptureDevice = device;
+            this.currentStatus.streamingCamera = device;
+            try {
+                await this.context.camera.doStream(task.cancellation, device);
+            } finally {
+                console.log('phd capture for ' + device + ' terminated');
+                this.streamCapture = undefined;
+                this.streamCaptureCanceled = undefined;
+                this.streamCaptureDevice = undefined;
+                this.currentStatus.streamingCamera = null;
+            }
+        });
+    }
+
+    private updateCaptureStatus=()=> {
+        let wantCaptureDevice:string|undefined;
+        if (this.currentStatus.currentEquipment.camera) {
+            const camEq = this.currentStatus.currentEquipment.camera;
+            if (camEq.connected && this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1) {
+                wantCaptureDevice = camEq.name;
+            } else {
+                wantCaptureDevice = undefined;
+            }
+        } else {
+            wantCaptureDevice = undefined;
+        }
+
+        if (this.streamCaptureDevice !== wantCaptureDevice) {
+            if (this.streamCaptureDevice !== undefined) {
+                // Cancel current stream capture
+                if (!this.streamCaptureCanceled) {
+                    this.streamCaptureCanceled = true;
+                    console.log('Stopping PHD capture for ' + this.streamCaptureDevice);
+                    this.streamCapture!.cancel(new CancellationToken.CancellationError("canceled"));
+                }
+                return;
+            }
+
+            // Start a new streamCapture
+            if (wantCaptureDevice !== undefined) {
+                this.startCapture(wantCaptureDevice);
+            }
+        }
     }
 
     private clearCurrentEquipment = ()=> {
