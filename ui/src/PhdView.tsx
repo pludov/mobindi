@@ -13,6 +13,7 @@ import * as BackendRequest from "./BackendRequest";
 import './PhdView.css';
 import { PhdStatus } from '@bo/BackOfficeStatus';
 import CancellationToken from 'cancellationtoken';
+import PhdExposureSelector from './PhdExposureSelector';
 
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 
@@ -423,6 +424,7 @@ class PhdView extends React.PureComponent<Props, State> {
                 <input type="button" value="Stop" onClick={this.stopGuide}
                     disabled={bs.AppState == "Stopped"}
                     />
+                <PhdExposureSelector/>
                 </div>
             </div>);
     }

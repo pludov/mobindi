@@ -86,6 +86,7 @@ export default class Phd
             RADECDistancePeak: null,
             star:null,
             currentEquipment: {},
+            exposure: null,
             exposureDurations: [],
             calibration: null,
             streamingCamera: null,
@@ -203,7 +204,7 @@ export default class Phd
         this.currentStatus.calibration = null;
     }
 
-    private queryCalibration = async ()=> {
+    private queryCalibration = async (ct:CancellationToken)=> {
         try {
             const ret = await this.sendOrder(CancellationToken.CONTINUE, {
                 method: "get_calibration_data",
@@ -212,7 +213,9 @@ export default class Phd
             console.log('calibration data is ', ret);
             this.currentStatus.calibration = ret as PhdStatus["calibration"];
         } catch(e) {
-            this.clearCurrentEquipment();
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearCurrentEquipment();
+            }
         }
     }
 
@@ -220,7 +223,7 @@ export default class Phd
         this.currentStatus.currentEquipment = {};
     }
 
-    private queryCurrentEquipment = async()=> {
+    private queryCurrentEquipment = async(ct:CancellationToken)=> {
         try {
             const ret = await this.sendOrder(CancellationToken.CONTINUE, {
                 method: "get_current_equipment",
@@ -228,7 +231,9 @@ export default class Phd
             });
             this.currentStatus.currentEquipment = ret as PhdStatus["currentEquipment"];
         } catch(e) {
-            this.clearCurrentEquipment();
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearCurrentEquipment();
+            }
         }
     }
 
@@ -236,15 +241,17 @@ export default class Phd
         this.currentStatus.exposureDurations = [];
     }
 
-    private queryExposureDurations = async()=> {
+    private queryExposureDurations = async(ct:CancellationToken)=> {
         try {
-            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+            const ret = await this.sendOrder(ct, {
                 method: "get_exposure_durations",
                 params:[]
             });
             this.currentStatus.exposureDurations = ret as PhdStatus["exposureDurations"];
         } catch(e) {
-            this.clearExposureDurations();
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearExposureDurations();
+            }
         }
     }
 
@@ -252,15 +259,17 @@ export default class Phd
         this.currentStatus.exposure = null;
     }
 
-    private queryExposure = async()=> {
+    private queryExposure = async(ct:CancellationToken)=> {
         try {
-            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+            const ret = await this.sendOrder(ct, {
                 method: "get_exposure",
                 params:[]
             });
             this.currentStatus.exposure = ret as PhdStatus["exposure"];
         } catch(e) {
-            this.clearExposure();
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearExposure();
+            }
         }
     }
 
@@ -280,10 +289,10 @@ export default class Phd
         this.polling = true;
         try {
             await Promise.all([
-                    this.queryCurrentEquipment(),
-                    this.queryExposureDurations(),
-                    this.queryExposure(),
-                    this.queryCalibration(),
+                    this.queryCurrentEquipment(CancellationToken.CONTINUE),
+                    this.queryExposureDurations(CancellationToken.CONTINUE),
+                    this.queryExposure(CancellationToken.CONTINUE),
+                    this.queryCalibration(CancellationToken.CONTINUE),
             ]);
         } finally {
             this.polling = false;
@@ -513,7 +522,7 @@ export default class Phd
                         case "CalibrationComplete":
                             {
                                 this.clearCalibration();
-                                this.queryCalibration();
+                                this.queryCalibration(CancellationToken.CONTINUE);
                                 break;
                             }
                         default:
@@ -730,7 +739,7 @@ export default class Phd
             connect: this.connect,
             startGuide: this.startGuide,
             stopGuide: this.stopGuide,
-
+            setExposure: this.setExposure,
         }
         return ret;
     };
@@ -740,7 +749,7 @@ export default class Phd
             method: "set_connected",
             params: [ true ]
         });
-        this.queryExposure();
+        await this.queryExposure(ct);
     }
 
     startGuide = async(ct:CancellationToken)=>{
@@ -759,5 +768,13 @@ export default class Phd
         await this.sendOrder(ct, {
                 method: 'stop_capture',
             });
+    }
+
+    setExposure = async(ct:CancellationToken, payload: {exposure: number})=>{
+        await this.sendOrder(ct, {
+                method: 'set_exposure',
+                params: [ payload.exposure ]
+            });
+        await this.queryExposure(ct);
     }
 }

@@ -158,6 +158,7 @@ export type PhdAPI = {
     connect: (payload: {})=>void;
     startGuide: (payload: {})=>void;
     stopGuide: (payload: {})=>void;
+    setExposure: (payload: {exposure: number})=>void;
 }
 
 export type BackOfficeAPI = {
