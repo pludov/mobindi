@@ -13,7 +13,10 @@ type SelectorProps = PromiseSelector.Props<number|null> & {
 }
 
 
-function getTitle(x:number) {
+function getTitle(x:number|null) {
+    if (x === null) {
+        return "";
+    }
     if (x < 1000) {
         return (x) + "ms"
     }
@@ -22,7 +25,7 @@ function getTitle(x:number) {
 
 function getId(x:number|null) {
     if (x === null) {
-        return "null";
+        return "";
     }
     return "" + x;
 }
@@ -41,7 +44,7 @@ const PhdExposureSelector = connect((store: Store.Content, ownProps: InputProps)
     let active: number|null = phd ? phd.exposure : null;
     let availables = phd ? phd.exposureDurations : null;
     return {
-        active: getId(active),
+        active: active === null ? null : "" + active,
         availables,
         getTitle,
         getId,

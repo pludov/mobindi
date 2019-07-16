@@ -52,14 +52,17 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         var availables = this.props.availablesGenerator(this.props);
         if (!availables) availables = [];
         var options = [];
-
+        let disabled: boolean = true;
         if (this.state.forcedValue !== null) {
             active = this.state.forcedValue;
             console.log('Using forced value ' + active);
         }
 
         if (active == null || this.props.nullAlwaysPossible) {
-            options.push(<option value='null' key='null'>{this.props.placeholder}</option>)
+            options.push(<option disabled={!this.props.nullAlwaysPossible} hidden={!this.props.nullAlwaysPossible} value='null' key='null'>{this.props.placeholder}</option>)
+            if (this.props.nullAlwaysPossible) {
+                disabled = false;
+            }
         }
 
         if (active != null) {
@@ -71,23 +74,26 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             }
             if (!present) {
                 options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{active}</option>);
+                disabled = false;
             }
         }
 
         for(const v of availables) {
             const id = JSON.stringify(this.props.getId(v, this.props));
             options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
+            disabled = false;
         }
 
         if (this.props.controls) {
             for(const v of this.props.controls) {
                 var id = "ctrl:" + JSON.stringify(v.id);
                 options.push(<option value={id} key={id}>{v.title}</option>);
+                disabled = false;
             }
         }
 
         return <select ref={this.props.focusRef}
-                    disabled={this.state.runningPromise !== undefined}
+                    disabled={(this.state.runningPromise !== undefined) || disabled}
                     value={JSON.stringify(active)}
                     onChange={(e)=>this.clicked(e.target.value)}>{options}
             </select>;
