@@ -88,7 +88,8 @@ class CameraView extends React.PureComponent<Props> {
                     path={this.props.path}
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
-                    streamSize={this.props.streamSize}/>
+                    streamSize={this.props.streamSize}
+                    subframe={null}/>
             </div>
             <ShootButton
                     activePath="$.backend.camera.selectedDevice"

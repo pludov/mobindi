@@ -26,6 +26,7 @@ class ImageDetail extends React.PureComponent<Props> {
                             streamId={null}
                             streamSerial={null}
                             streamSize={null}
+                            subframe={null}
                         />;
     }
 

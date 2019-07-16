@@ -34,6 +34,15 @@ type ImagePos = {
     h:number;
 }
 
+// When content is actually a subframe
+// Gives actual margin in 0-1 range
+type Window = {
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+};
+
 type CompleteImagePos = ImagePos & {
     centerx: number;
     centery: number;
@@ -68,16 +77,19 @@ class JQImageDisplay {
     // The path (without cgi settings)
     currentImgPath: string|null = null;
     currentImgSerial: string|null = null;
+    currentImgWindow: Window|null = null;
     // Same with cgi settings ?
     currentImgSrc: string|null = null;
 
     currentDetails:ImageSize|null = null;
     currentDetailsPath: string|null = null;
     currentDetailsSerial: string|null = null;
+    currentDetailsWindow: Window|null = null;
 
     loadingDetailsAjax:JQueryXHR|null = null;
     loadingDetailsPath:string|null = null;
     loadingDetailsSerial:string|null = null;
+    loadingDetailsWindow: Window|null = null;
 
     loadingImg:HTMLImageElement|null = null;
 
@@ -85,11 +97,13 @@ class JQImageDisplay {
     loadingImgSrc:string|null = null;
     loadingImgPath:string|null = null;
     loadingImgSerial:string|null = null;
+    loadingImgWindow: Window|null = null;
 
     loadingToDisplay?:boolean = false;
     nextLoadingImgSrc:string|null = null;
     nextLoadingImgSerial:string|null = null;
     nextLoadingImgSize: ImageSize|undefined = undefined;
+    nextLoadingImgWindow: Window|null = null;
     
     child:JQuery<HTMLDivElement>;
     
@@ -311,7 +325,38 @@ class JQImageDisplay {
         }
     }
 
-    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, params?:FullState, imageSize?: ImageSize) {
+    private windowEquals(w1 : Window|null, w2: Window|null) {
+        if ((w1 === null) != (w2 === null)) {
+            return false;
+        }
+        if (w1 === null || w2 === null) {
+            return true;
+        }
+        return (w1.top === w2.top)
+            && (w1.bottom === w2.bottom)
+            && (w1.left === w2.left)
+            && (w1.right === w2.right);
+    }
+
+    private applyWindow(img: HTMLImageElement, window: Window|null) {
+        const jqimg = $(img);
+
+        if (window !== null) {
+            const h = jqimg.css("height");
+            jqimg.css("padding-top", `calc( ${window.top} * ${h} )`);
+            jqimg.css("padding-bottom", `calc( ${window.bottom} * ${h} )`);
+            const w = jqimg.css("width");
+            jqimg.css("padding-left", `calc( ${window.left} * ${w} )`);
+            jqimg.css("padding-right", `calc( ${window.right} * ${w} )`);
+        } else {
+            jqimg.css("padding-top", "0");
+            jqimg.css("padding-bottom", "0");
+            jqimg.css("padding-left", "0");
+            jqimg.css("padding-right", "0");
+        }
+    }
+
+    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: Window|null, params?:FullState, imageSize?: ImageSize) {
         // Don't display stream until ready
         if (streamId !== null && !imageSize) {
             streamId = null;
@@ -329,28 +374,37 @@ class JQImageDisplay {
         if (this.loadingImg !== null && this.loadingImgPath === path) {
             const newSrc = this.computeSrc(path, streamSerial);
             if (this.loadingImgSrc === newSrc) {
+                if (!this.windowEquals(this.loadingImgWindow, window)) {
+                    this.loadingImgWindow = window;
+                    if (this.loadingToDisplay) {
+                        this.applyWindow(this.loadingImg,  this.loadingImgWindow);
+                    }
+                }
                 // Already loading... Just wait...
                 this.nextLoadingImgSrc = null;
                 this.nextLoadingImgSerial = null;
                 this.nextLoadingImgSize = undefined;
+                this.nextLoadingImgWindow = null;
             } else {
                 // Enqueue the loading
                 this.nextLoadingImgSrc = newSrc;
                 this.nextLoadingImgSerial = streamSerial;
                 this.nextLoadingImgSize = imageSize;
+                this.nextLoadingImgWindow = window;
             }
         } else {
             this.nextLoadingImgSrc = null;
             this.nextLoadingImgSerial = null;
             this.nextLoadingImgSize = undefined;
+            this.nextLoadingImgWindow = null;
             if (this.currentImgPath !== path) {
-                if (!this.setDetails(path, imageSize)) {
+                if (!this.setDetails(path, window, imageSize)) {
                     // Stop loading for previous path
                     this.abortLoading();
                 } else {
                     // Ready for new url. go
                     const newSrc = this.computeSrc(path, streamSerial);
-                    this.setSrc(path, streamSerial, newSrc);
+                    this.setSrc(path, streamSerial, newSrc, window);
                 }
             } else {
                 // Ready for new url. go
@@ -363,19 +417,20 @@ class JQImageDisplay {
                 }
 
                 const newSrc = this.computeSrc(path, streamSerial);
-                this.setSrc(path, streamSerial, newSrc);
+                this.setSrc(path, streamSerial, newSrc, window);
             }
         }
     }
 
     // True if ready, false otherwise
-    private setDetails(path:string|null, imageSize?: ImageSize)
+    private setDetails(path:string|null, window: Window|null, imageSize?: ImageSize)
     {
         if (this.currentDetailsPath === path) {
             this.abortDetailsLoading();
             if (imageSize) {
                 this.currentDetails = imageSize;
             }
+            this.currentDetailsWindow = window;
             return true;
         }
 
@@ -383,10 +438,12 @@ class JQImageDisplay {
             this.abortDetailsLoading();
             this.currentDetailsPath = path;
             this.currentDetails = imageSize;
+            this.currentDetailsWindow = window;
             return true;
         }
 
         if ((this.loadingDetailsAjax !== null) && this.loadingDetailsPath === path) {
+            this.loadingDetailsWindow = window;
             return false;
         }
 
@@ -394,6 +451,7 @@ class JQImageDisplay {
 
         // Start an ajax load of the new path
         this.loadingDetailsPath = path;
+        this.loadingDetailsWindow = window;
         this.child.addClass('PreLoading');
         if (path === null) {
             this.gotDetails(path, null);
@@ -425,33 +483,45 @@ class JQImageDisplay {
         }
         this.currentDetailsPath = this.loadingDetailsPath;
         this.currentDetailsSerial = this.loadingDetailsSerial;
+        this.currentDetailsWindow = this.loadingDetailsWindow;
         this.currentDetails = rslt;
         this.loadingDetailsPath = null;
         this.loadingDetailsSerial = null;
         this.loadingDetailsAjax = null;
+        this.loadingDetailsWindow = null;
         this.child.removeClass('PreLoading');
         if (rslt !== null) {
-            this.setSrc(this.currentDetailsPath, this.currentDetailsSerial, this.computeSrc(this.currentDetailsPath, this.currentDetailsSerial, rslt));
+            this.setSrc(this.currentDetailsPath, this.currentDetailsSerial, this.computeSrc(this.currentDetailsPath, this.currentDetailsSerial, rslt), this.currentDetailsWindow);
         } else {
-            this.setSrc(this.currentDetailsPath, this.currentDetailsSerial, imageReleaseUrl);
+            this.setSrc(this.currentDetailsPath, this.currentDetailsSerial, imageReleaseUrl, this.currentDetailsWindow);
         }
     }
 
     public flushView()
     {
         if (this.loadingImg !== null && this.nextLoadingImgSrc !== null) {
-            this.setSrc(this.loadingImgPath!, this.loadingImgSerial, this.nextLoadingImgSrc);
+            this.setSrc(this.loadingImgPath!, this.loadingImgSerial, this.nextLoadingImgSrc, this.nextLoadingImgWindow);
         }
     }
 
-    private setSrc(path:string|null, serial: string|null, src: string) {
+    private setSrc(path:string|null, serial: string|null, src: string, window: Window|null) {
         if (this.currentImgSrc === src) {
             this.abortLoading();
             this.currentImgPath = path;
             this.currentImgSerial = serial;
+            if (!this.windowEquals(this.currentImgWindow, window)) {
+                this.currentImgWindow = window;
+                this.applyWindow(this.currentImg!, this.currentImgWindow);
+            }
             return;
         }
         if ((this.loadingImg !== null) && (this.loadingImgSrc === src)) {
+            if (!this.windowEquals(this.loadingImgWindow, window)) {
+                this.loadingImgWindow = window;
+                if (this.loadingToDisplay) {
+                    this.applyWindow(this.loadingImg, this.loadingImgWindow);
+                }
+            }
             return;
         }
 
@@ -471,6 +541,8 @@ class JQImageDisplay {
         newImage.src = src;
         $(newImage).css('display', 'block');
         $(newImage).css('pointer-events', 'none');
+        $(newImage).css('box-sizing', 'border-box');
+        $(newImage).css('border', '0px');
         console.log('Loading image: ', (newImage as any).debugid, src);
         if (this.loadingImg !== null) {
             if (this.loadingImg.parentElement) {
@@ -482,6 +554,7 @@ class JQImageDisplay {
         this.loadingImgSrc = src;
         this.loadingImgSerial = serial;
         this.loadingImgPath = path;
+        this.loadingImgWindow = window;
 
         // Do exposed loading if possible (display image while it is loading)
         // FIXME: only for image of the same geo ?
@@ -493,6 +566,7 @@ class JQImageDisplay {
             $(this.loadingImg).css("height", $(this.currentImg).css("height"));
             $(this.loadingImg).css('top', $(this.currentImg).css("top"));
             $(this.loadingImg).css('left', $(this.currentImg).css("left"));
+            this.applyWindow(this.loadingImg, this.loadingImgWindow);
             this.child.append(this.loadingImg);
         } else {
             this.loadingToDisplay = false;
@@ -525,6 +599,7 @@ class JQImageDisplay {
         this.currentImgSrc = newSrc;
         this.currentImgPath = this.loadingImgPath;
         this.currentImgSerial = this.loadingImgSerial;
+        this.currentImgWindow = this.loadingImgWindow;
         this.child.empty();
 
         if (this.currentImg !== null) {
@@ -542,13 +617,17 @@ class JQImageDisplay {
                 $(this.currentImg).css('width', $(previousImg).css('width'));
                 $(this.currentImg).css('height', $(previousImg).css('height'));
             }
+            this.applyWindow(this.currentImg, this.currentImgWindow);
         }
 
         if (this.nextLoadingImgSrc !== null) {
-            var todo = this.nextLoadingImgSrc;
+            const todoSrc = this.nextLoadingImgSrc;
+            const todoSerial = this.nextLoadingImgSerial;
+            const todoWindow = this.nextLoadingImgWindow;
             this.nextLoadingImgSrc = null;
             this.nextLoadingImgSerial = null;
-            this.setSrc(this.currentImgPath, this.nextLoadingImgSerial, todo);
+            this.nextLoadingImgWindow = null;
+            this.setSrc(this.currentImgPath, todoSerial, todoSrc, todoWindow);
         }
         if (previousImg !== null) {
             killImgLoad(previousImg);
@@ -825,12 +904,13 @@ class JQImageDisplay {
             $(this.currentImg).css("height", e.h + 'px');
             $(this.currentImg).css('top', e.y + 'px');
             $(this.currentImg).css('left', e.x + 'px');
-
+            this.applyWindow(this.currentImg, this.currentImgWindow);
             if(this.loadingToDisplay) {
                 $(this.loadingImg!).css("width", e.w + 'px');
                 $(this.loadingImg!).css("height", e.h + 'px');
                 $(this.loadingImg!).css('top', e.y + 'px');
                 $(this.loadingImg!).css('left', e.x + 'px');
+                this.applyWindow(this.loadingImg!, this.loadingImgWindow);
             }
         }
         this.currentImagePos = e;
@@ -876,16 +956,18 @@ class JQImageDisplay {
         // Adjust the bin
         if (this.loadingDetailsPath === null) {
             // No path change. Make sure the path is the latest
-            let path, serial;
+            let path, serial, window;
             if (this.loadingImgPath !== null) {
                 path = this.loadingImgPath;
                 serial = this.loadingImgSerial;
+                window = this.loadingImgWindow;
             } else {
                 path = this.currentImgPath;
                 serial = this.currentImgSerial;
+                window = this.currentImgWindow;
             }
             const newSrc = this.computeSrc(path!, serial);
-            this.setSrc(path, serial, newSrc);
+            this.setSrc(path, serial, newSrc, window);
         }
     }
 
@@ -937,6 +1019,7 @@ export type Props = {
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
+    subframe?: Window|null;
     streamSize: ImageSize|null;
     viewSettings?: Partial<FullState>;
     contextMenu?: ContextMenuEntry[];
@@ -969,7 +1052,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     componentDidUpdate(prevProps: Props) {
-        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     componentDidMount() {
@@ -978,7 +1061,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
             this.onViewSettingsChange.bind(this));
-        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     componentWillUnmount() {

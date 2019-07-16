@@ -6,7 +6,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
-import FitsViewerInContext, {UnmappedFitsViewerInContext} from './FitsViewerInContext';
+import FitsViewerInContext, {UnmappedFitsViewerInContext, InputProps as FitsViewerInContextInputProps} from './FitsViewerInContext';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
@@ -17,6 +17,7 @@ type InputProps = {
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
+    subframe: FitsViewerInContextInputProps["subframe"],
     streamSize: BackOfficeStatus.StreamSize|null;
     contextKey: string;
 };
@@ -200,6 +201,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         streamId={this.props.streamId}
                         streamSerial={this.props.streamSerial}
                         streamSize={this.props.streamSize}
+                        subframe={this.props.subframe}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
                 />
