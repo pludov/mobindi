@@ -12,14 +12,17 @@ import CancellationToken from 'cancellationtoken';
 import PhdExposureSelector from './PhdExposureSelector';
 import PhdGraph from './PhdGraph';
 import PhdStats from './PhdStats';
+import PhdStream from './PhdStream';
 
 const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
 
+type ViewId = "graph"|"image";
 
 type InputProps = {}
 type MappedProps = {
     SNR: PhdStar["SNR"]|null;
     AppState: PhdStatus["AppState"]|null;
+    streamingCamera: PhdStatus["streamingCamera"]|null;
 }
 type Props = InputProps & MappedProps;
 
@@ -29,16 +32,17 @@ type State = {
     min?: number;
     max?: number;
     width?: number;
+    view: ViewId;
 }
 
 // Afficher l'état de phd et permet de le controller
 class PhdView extends React.PureComponent<Props, State> {
-    pendingTimeout: NodeJS.Timeout|null;
-
     constructor(props:Props) {
         super(props);
-        this.state = {}
-        this.pendingTimeout = null;
+        // FIXME: maintains this globally (local storage, url ?)
+        this.state = {
+            view: "graph",
+        }
     }
 
     private startGuide = async ()=> {
@@ -47,6 +51,10 @@ class PhdView extends React.PureComponent<Props, State> {
 
     private stopGuide = async ()=>{
         await BackendRequest.RootInvoker("phd")("stopGuide")(CancellationToken.CONTINUE, {});
+    }
+
+    private setView = (e:React.ChangeEvent<HTMLSelectElement>)=> {
+        this.setState({view: e.target.value as ViewId});
     }
 
     render() {
@@ -59,8 +67,21 @@ class PhdView extends React.PureComponent<Props, State> {
                 </div>
                 <div>SNR: {this.props.SNR}
                 </div>
-                <PhdGraph/>
-                <PhdStats/>
+                <select value={this.state.view} onChange={this.setView}>
+                    <option value="graph">Graph</option>
+                    <option value="image" disabled={!this.props.streamingCamera}>Live</option>
+                </select>
+                {this.state.view === "graph"
+                    ?
+                        <>
+                            <PhdGraph/>
+                            <PhdStats/>
+                        </>
+                    :
+                        <>
+                            <PhdStream/>
+                        </>
+                }
                 <div className="ButtonBar">
                 <input type="button" value="Guide" onClick={this.startGuide}
                     disabled={StatusForGuiding.indexOf(this.props.AppState) == -1}
@@ -79,11 +100,13 @@ class PhdView extends React.PureComponent<Props, State> {
             return {
                 SNR: null,
                 AppState: null,
+                streamingCamera: null,
             };
         }
         return {
             SNR: phd.star ? phd.star.SNR : null,
             AppState: phd.AppState,
+            streamingCamera: phd.streamingCamera,
         }
     }
 }
