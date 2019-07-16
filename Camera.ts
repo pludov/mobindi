@@ -643,6 +643,8 @@ export default class Camera
                     streamSize: null,
                     serial: null,
                     autoexp: null,
+                    subframe: null,
+                    frameSize: null,
                 };
 
 
@@ -668,7 +670,6 @@ export default class Camera
                 });
                 try {
                     const onJson = (e:string)=> {
-                        console.log('received from streamer', e);
                         if (e) {
                             let val;
                             try {
@@ -678,16 +679,26 @@ export default class Camera
                                 return;
                             }
                             console.log('decoded from streamer', val);
+                            const target = this.currentStatus.currentStreams[device];
                             if (val.serial) {
-                                this.currentStatus.currentStreams[device].serial = val.serial;
+                                target.serial = val.serial;
                             }
                             if (val.streamId) {
-                                this.currentStatus.currentStreams[device].streamId = val.streamId;
+                                target.streamId = val.streamId;
                             }
                             if (val.streamSize) {
-                                this.currentStatus.currentStreams[device].streamSize = val.streamSize;
+                                target.streamSize = val.streamSize;
                             }
-                            console.log(JSON.stringify(this.currentStatus.currentStreams[device], null, 2));
+                            if (val.frameSize) {
+                                target.frameSize = val.frameSize;
+                            } else {
+                                target.frameSize = null;
+                            }
+                            if (val.subframe) {
+                                target.subframe = val.subframe;
+                            } else {
+                                target.subframe = null;
+                            }
                         }
                     }
                     const addr = this.indiManager.getIndiServerAddr();

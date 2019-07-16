@@ -38,8 +38,8 @@ class PhdStream extends React.PureComponent<Props, State> {
                         path={null}
                         streamId={this.props.streamId || null}
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
-                        subframe={null}
-                        streamSize={this.props.streamSize || null}/>
+                        subframe={this.props.subframe}
+                        streamSize={this.props.frameSize || this.props.streamSize || null}/>
         </div>);
     }
 

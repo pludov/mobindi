@@ -34,7 +34,7 @@ find_package(PNG REQUIRED)
 find_package(JPEG REQUIRED)
 
 find_package(CFITSIO REQUIRED)
-find_package(INDI 1.7 REQUIRED driver client)
+find_package(INDI 1.7 REQUIRED client driver)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -86,7 +86,7 @@ target_link_libraries (processor ${CFITSIO_LIBRARIES} cgicc)
 
 add_executable(streamer $<TARGET_OBJECTS:archive>  streamer.cpp)
 target_include_directories(streamer PUBLIC ${INDI_INCLUDE_DIR})
-target_link_libraries (streamer ${INDI_DRIVER_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LIBRARIES} Threads::Threads cgicc)
+target_link_libraries (streamer ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LIBRARIES} Threads::Threads cgicc)
 
 
 #####################

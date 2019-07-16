@@ -166,11 +166,22 @@ export type StreamSize = {
     height: number;
 };
 
+// When content is actually a subframe
+// Gives actual margin in 0-1 range
+export type Window = {
+    top: number;
+    left: number;
+    bottom: number;
+    right: number;
+};
+
 export type CameraStream = {
     streamId: string|null;
     streamSize: StreamSize|null;
     serial: number|null;            // Really usefull ?
     autoexp: number|null;           // Trigger events or just wait
+    frameSize: StreamSize|null;
+    subframe: Window|null;
 };
 
 export type CameraShoot = {

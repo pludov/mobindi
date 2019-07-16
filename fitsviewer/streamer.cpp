@@ -14,6 +14,7 @@
 #include <stdio.h>
 
 #include <baseclient.h>
+#include <indiproperty.h>
 
 #include "json.hpp"
 #include "SharedCache.h"
@@ -28,10 +29,20 @@ using nlohmann::json;
 static std::mutex nextEntryMutex;
 static std::condition_variable nextEntryCond;
 
+struct FrameContext {
+    double maxWidth = 0, maxHeight = 0;
+    double X = 0, Y = 0;
+    double W = 0, H = 0;
+    double hbin = 1, vbin = 1;
+};
+
 // This is protected under nextEntryMutex
 static bool nextEntryDone;
 static SharedCache::Entry * nextEntry;
 static SharedCache::WorkerError * nextEntryError;
+static FrameContext nextEntryFrame;
+
+static FrameContext indiFrame;
 
 class MyClient : public INDI::BaseClient
 {
@@ -47,6 +58,9 @@ protected:
     }
     virtual void newProperty(INDI::Property *property) {
         std::cerr << "new property\n";
+        if (property->getNumber()) {
+            this->newNumber(property->getNumber());
+        }
     };
     virtual void removeProperty(INDI::Property *property) {
         std::cerr << "remove property\n";
@@ -60,6 +74,7 @@ protected:
 
         nextEntryMutex.lock();
         nextEntryDone = true;
+        nextEntryFrame = indiFrame;
         FitsFile file;
         file.openMemory(bp->blob, bp->bloblen);
         try {
@@ -75,9 +90,64 @@ protected:
     virtual void newSwitch(ISwitchVectorProperty *svp) {
         std::cerr << "new switch\n";
     }
+
     virtual void newNumber(INumberVectorProperty *nvp) {
-        std::cerr << "new number\n";
+        std::cerr << "new number " << nvp->name << "\n";
+        if (!strcmp(nvp->name, "CCD_INFO")) {
+            indiFrame.maxWidth = -1;
+            indiFrame.maxHeight = -1;
+
+            for(int i = 0; i < nvp->nnp; ++i) {
+                auto prop = nvp->np+i;
+                if (!strcmp(prop->name, "CCD_MAX_X")) {
+                    indiFrame.maxWidth = prop->value;
+                }
+                if (!strcmp(prop->name, "CCD_MAX_Y")) {
+                    indiFrame.maxHeight = prop->value;
+                }
+            }
+            std::cerr << "got ccd info " << indiFrame.maxWidth << "x" << indiFrame.maxHeight << "\n";
+        }
+        if (!strcmp(nvp->name,"CCD_FRAME")) {
+            for(int i = 0; i < nvp->nnp; ++i) {
+                auto prop = nvp->np+i;
+                if (!strcmp(prop->name, "X")) {
+                    indiFrame.X = prop->value;
+                }
+                if (!strcmp(prop->name, "Y")) {
+                    indiFrame.Y = prop->value;
+                }
+                if (!strcmp(prop->name, "WIDTH")) {
+                    indiFrame.W = prop->value;
+                }
+                if (!strcmp(prop->name, "HEIGHT")) {
+                    indiFrame.H = prop->value;
+                }
+            }
+            std::cerr << "got ccd frame " << indiFrame.W << "x" << indiFrame.H << "@("<< indiFrame.X << "," << indiFrame.Y << ")\n";
+        }
+        if (!strcmp(nvp->name,"CCD_BINNING")) {
+            indiFrame.vbin = 1;
+            indiFrame.hbin = 1;
+            for(int i = 0; i < nvp->nnp; ++i) {
+                auto prop = nvp->np+i;
+                if (!strcmp(prop->name, "HOR_BIN")) {
+                    indiFrame.hbin = prop->value;
+                    if (indiFrame.hbin < 1) {
+                        indiFrame.hbin = 1;
+                    }
+                }
+                if (!strcmp(prop->name, "VER_BIN")) {
+                    indiFrame.vbin = prop->value;
+                    if (indiFrame.vbin < 1) {
+                        indiFrame.vbin = 1;
+                    }
+                }
+            }
+            std::cerr << "got ccd bin " << indiFrame.hbin << "x" << indiFrame.vbin << "\n";
+        }
     }
+
     virtual void newMessage(INDI::BaseDevice *dp, int messageID) {
         std::cerr << "new message\n";
     }
@@ -189,6 +259,22 @@ int main (int argc, char ** argv) {
         auto j = nlohmann::json::object();
         j["serial"] = res.serial;
         j["streamSize"] = streamSize;
+        if (nextEntryFrame.maxHeight > 0 && nextEntryFrame.maxWidth > 0) {
+            auto frameSize = nlohmann::json::object();
+            frameSize["width"] = nextEntryFrame.maxWidth / nextEntryFrame.hbin;
+            frameSize["height"] = nextEntryFrame.maxHeight / nextEntryFrame.vbin;
+            j["frameSize"] = frameSize;
+
+            if (nextEntryFrame.W > 0 && nextEntryFrame.H > 0) {
+                auto window = nlohmann::json::object();
+                window["left"] = nextEntryFrame.X / nextEntryFrame.maxWidth;
+                window["top"] = nextEntryFrame.Y / nextEntryFrame.maxHeight;
+                window["right"] = (nextEntryFrame.maxWidth - (nextEntryFrame.X + nextEntryFrame.W)) / nextEntryFrame.maxWidth;
+                window["bottom"] = (nextEntryFrame.maxHeight - (nextEntryFrame.Y + nextEntryFrame.H)) / nextEntryFrame.maxHeight;
+                j["subframe"] = window;
+            }
+        }
+
         outputJson(j);
      }
 }
