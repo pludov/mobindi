@@ -175,11 +175,15 @@ export default class Phd
                 this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1
                 if (camEq.connected) {
                     wantCaptureDevice = camEq.name;
+                } else {
+                    console.log('PHD camera not connected');
                 }
             } else {
+                console.log('PHD camera not available');
                 wantCaptureDevice = undefined;
             }
         } else {
+            console.log('PHD has no camera');
             wantCaptureDevice = undefined;
         }
 
@@ -215,7 +219,7 @@ export default class Phd
             this.currentStatus.calibration = ret as PhdStatus["calibration"];
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
-                this.clearCurrentEquipment();
+                this.clearCalibration();
             }
         }
     }
