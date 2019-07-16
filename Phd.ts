@@ -10,6 +10,7 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
 import { createTask, Task } from './Task.js';
+import PhdRpcError from './PhdRpcError.js';
 
 export type PhdRequest = {
     then: (result: any)=>(void);
@@ -644,6 +645,18 @@ export default class Phd
         });
     }
 
+    async sendOrderWithFailureLog(ct: CancellationToken, order: any) {
+        try {
+            return await this.sendOrder(ct, order);
+        } catch(e) {
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                console.log(`[PHD] ${order.method} failed`, e);
+                this.context.notification.error('[PHD] ' + (e.message || e));
+            }
+            throw e;
+        }
+    }
+
     // Return a promise that send the order (generator) and waits for a result
     async sendOrder(ct:CancellationToken, order:any) {
         return await new Promise((resolve, reject)=> {
@@ -678,13 +691,7 @@ export default class Phd
                 },
                 error: (err)=>{
                     unregister();
-                    if (err.message) {
-                        this.context.notification.error('[PHD] ' + order.method + ': '  + err.message);
-                        reject(new Error(order.method + ": " +err.message));
-                    } else {
-                        this.context.notification.error('[PHD] ' + order.method + ' failed');
-                        reject(new Error(order.method + " failed"));
-                    }
+                    reject(new PhdRpcError(order.method, err));
                 },
             };
             ctCb = ct.onCancelled((reason)=>{
@@ -697,18 +704,18 @@ export default class Phd
     public dither=async (ct:CancellationToken, settings: DitheringSettings)=>{
 
         // Il faut attendre un settledone
-        await this.sendOrder(ct, {
-                method: "dither",
-                params:[
-                    settings.amount, /* amount */
-                    settings.raOnly, /* ra only */
-                    {
-                        pixels: settings.pixels,
-                        time:   settings.time,
-                        timeout: settings.timeout
-                    }
-                ]
-            });
+        await this.sendOrderWithFailureLog(ct, {
+            method: "dither",
+            params:[
+                settings.amount, /* amount */
+                settings.raOnly, /* ra only */
+                {
+                    pixels: settings.pixels,
+                    time:   settings.time,
+                    timeout: settings.timeout
+                }
+            ]
+        });
 
         await this.wait(ct, () =>{
                 if (!this.currentStatus.connected) {
@@ -745,7 +752,7 @@ export default class Phd
     };
 
     connect = async(ct:CancellationToken)=>{
-        await this.sendOrder(ct, {
+        await this.sendOrderWithFailureLog(ct, {
             method: "set_connected",
             params: [ true ]
         });
@@ -755,7 +762,7 @@ export default class Phd
     startGuide = async(ct:CancellationToken)=>{
         await this.connect(ct);
 
-        await this.sendOrder(ct, {
+        await this.sendOrderWithFailureLog(ct, {
                 method: "guide",
                 params: [
                     {"pixels": 1.5, "time": 10, "timeout": 60},
@@ -765,13 +772,13 @@ export default class Phd
     }
 
     stopGuide = async(ct:CancellationToken)=>{
-        await this.sendOrder(ct, {
+        await this.sendOrderWithFailureLog(ct, {
                 method: 'stop_capture',
             });
     }
 
     setExposure = async(ct:CancellationToken, payload: {exposure: number})=>{
-        await this.sendOrder(ct, {
+        await this.sendOrderWithFailureLog(ct, {
                 method: 'set_exposure',
                 params: [ payload.exposure ]
             });
