@@ -87,6 +87,7 @@ export default class Phd
             star:null,
             currentEquipment: {},
             exposureDurations: [],
+            calibration: null,
             streamingCamera: null,
         }
 
@@ -198,6 +199,23 @@ export default class Phd
         }
     }
 
+    private clearCalibration = ()=> {
+        this.currentStatus.calibration = null;
+    }
+
+    private queryCalibration = async ()=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_calibration_data",
+                params:[]
+            });
+            console.log('calibration data is ', ret);
+            this.currentStatus.calibration = ret as PhdStatus["calibration"];
+        } catch(e) {
+            this.clearCurrentEquipment();
+        }
+    }
+
     private clearCurrentEquipment = ()=> {
         this.currentStatus.currentEquipment = {};
     }
@@ -230,7 +248,25 @@ export default class Phd
         }
     }
 
+    private clearExposure = ()=> {
+        this.currentStatus.exposure = null;
+    }
+
+    private queryExposure = async()=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_exposure",
+                params:[]
+            });
+            this.currentStatus.exposure = ret as PhdStatus["exposure"];
+        } catch(e) {
+            this.clearExposure();
+        }
+    }
+
     private clearPolledData = ()=> {
+        this.clearCalibration();
+        this.clearExposure();
         this.clearCurrentEquipment();
         this.clearExposureDurations();
     }
@@ -246,6 +282,8 @@ export default class Phd
             await Promise.all([
                     this.queryCurrentEquipment(),
                     this.queryExposureDurations(),
+                    this.queryExposure(),
+                    this.queryCalibration(),
             ]);
         } finally {
             this.polling = false;
@@ -472,6 +510,12 @@ export default class Phd
                                 this.context.notification.notify("[PHD] " + event.Type + ": " + event.Msg);
                                 break;
                             }
+                        case "CalibrationComplete":
+                            {
+                                this.clearCalibration();
+                                this.queryCalibration();
+                                break;
+                            }
                         default:
                             if (event.Event in eventToStatus) {
                                 var newStatus = eventToStatus[event.Event];
@@ -696,6 +740,7 @@ export default class Phd
             method: "set_connected",
             params: [ true ]
         });
+        this.queryExposure();
     }
 
     startGuide = async(ct:CancellationToken)=>{

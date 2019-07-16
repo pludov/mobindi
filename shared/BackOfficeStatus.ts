@@ -438,8 +438,10 @@ export type PhdStatus = {
         camera?: PhdEquipmentStatus;
         mount?:PhdEquipmentStatus;
     };
-    streamingCamera: string|null;
+    calibration: null|any;
     exposureDurations: Array<number>;
+    exposure: null|number;
+    streamingCamera: string|null;
 };
 
 export type ToolConfig = {
