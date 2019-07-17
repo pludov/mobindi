@@ -204,6 +204,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         subframe={this.props.subframe}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}
+                        children={this.props.children}
                 />
             <span className="AstrometryImageInfoRoot">
                 {this.props.scopeDeltaRa !== null ? "Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)  : null}

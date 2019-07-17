@@ -1,5 +1,5 @@
 
-import React, { Component, PureComponent} from 'react';
+import React, { Component, PureComponent, ReactElement} from 'react';
 import $ from 'jquery';
 import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
@@ -123,13 +123,15 @@ class JQImageDisplay {
     closeContextMenuCb:()=>void;
     onViewSettingsChangeCb:(state:FullState)=>void;
     contextMenuCb:(x:number, y:number)=>void;
+    posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void);
 
-    constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, onViewSettingsChangeCb:(state:FullState)=>void) {
+    constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, onViewSettingsChangeCb:(state:FullState)=>void, posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void)) {
         
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
         this.closeContextMenuCb = closeContextMenuCb;
         this.onViewSettingsChangeCb = onViewSettingsChangeCb;
+        this.posUpdatedCb = posUpdatedCb;
         elt.css('display', 'block');
         elt.css('width', '100%');
         elt.css('height', '100%');
@@ -894,9 +896,11 @@ class JQImageDisplay {
         };
         //window.alert('setting newpos:' + JSON.stringify(newPos));
         this.setCurrentImagePos(newPos);
-
     }
 
+    private dispatchNewPos(pos: ImagePos, size: ImageSize) {
+        this.posUpdatedCb(pos, size);
+    }
 
     private setRawCurrentImagePos(e:CompleteImagePos) {
         if (this.currentImg !== null) {
@@ -904,6 +908,7 @@ class JQImageDisplay {
             $(this.currentImg).css("height", e.h + 'px');
             $(this.currentImg).css('top', e.y + 'px');
             $(this.currentImg).css('left', e.x + 'px');
+            this.dispatchNewPos(e, this.currentImageSize);
             this.applyWindow(this.currentImg, this.currentImgWindow);
             if(this.loadingToDisplay) {
                 $(this.loadingImg!).css("width", e.w + 'px');
@@ -1032,6 +1037,68 @@ export type State = {
     fwhm: boolean;
 };
 
+export class MarkerToken {
+    private readonly el: React.RefObject<HTMLDivElement>;
+    private readonly fv: FitsViewer;
+    private readonly uid: string;
+    private imgx:number;
+    private imgy:number;
+    private pos?: ImagePos;
+    private size?: ImageSize;
+
+    constructor(fv: FitsViewer, uid:string, el: React.RefObject<HTMLDivElement>) {
+        this.el = el;
+        this.fv = fv;
+        this.uid = uid;
+        this.imgx = NaN;
+        this.imgy = NaN;
+        console.log('new marker', uid);
+    }
+
+    private doSetPosition=()=>{
+        if (this.pos === undefined || this.size === undefined) {
+            return;
+        }
+        if (isNaN(this.imgx) || isNaN(this.imgy)) {
+            return;
+        }
+        const elem = this.el.current;
+        if (elem === null) {
+            return;
+        }
+
+        let pos = this.size.width >= 1 && this.size.height >= 1
+            ?
+                {
+                    x: this.pos.x + this.imgx * this.pos.w / this.size.width,
+                    y: this.pos.y + this.imgy * this.pos.h / this.size.height,
+                }
+            :
+                {
+                    x: this.imgx,
+                    y: this.imgy,
+                };
+        elem.style.left = pos.x + "px";
+        elem.style.top = pos.y + "px";
+    }
+
+    public setPosition=(x:number, y:number)=>{
+        this.imgx = x;
+        this.imgy = y;
+        this.doSetPosition();
+    }
+
+    free=()=>{
+        this.fv.killMarker(this.uid);
+    }
+
+    updatePos=(pos?: ImagePos, size?: ImageSize)=>{
+        this.pos = pos;
+        this.size = size;
+        this.doSetPosition();
+    }
+}
+
 class FitsViewer extends React.PureComponent<Props, State> {
     uid:number;
     ImageDisplay: JQImageDisplay;
@@ -1060,8 +1127,35 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.ImageDisplay = new JQImageDisplay(this.$el,
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
-            this.onViewSettingsChange.bind(this));
+            this.onViewSettingsChange.bind(this),
+            this.onViewMoved);
         this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+    }
+
+    private markers: {[uid:string]: MarkerToken} = {};
+    private markerUid:number = 0;
+    private lastPos?: ImagePos;
+    private lastSize?: ImageSize;
+
+    onViewMoved=(pos: ImagePos, size: ImageSize)=>{
+        this.lastPos = {...pos};
+        this.lastSize = {...size};
+        for(const o of Object.keys(this.markers)) {
+            const marker = this.markers[o];
+            marker.updatePos(this.lastPos, this.lastSize);
+        }
+    }
+
+    createMarkerToken=(e:React.RefObject<HTMLDivElement>)=>{
+        const uid = "" + (this.markerUid++);
+        const ret = new MarkerToken(this, uid, e);
+        this.markers[uid] = ret;
+        ret.updatePos(this.lastPos, this.lastSize);
+        return ret;
+    }
+
+    killMarker=(uid:string)=>{
+        delete this.markers[uid];
     }
 
     componentWillUnmount() {
@@ -1138,6 +1232,11 @@ class FitsViewer extends React.PureComponent<Props, State> {
         }
     }
 
+    declareChild=()=>{
+        console.log('declareChild called');
+        return undefined;
+    }
+
     render() {
         console.log('state is ', this.state);
         var contextMenu, visor;
@@ -1170,10 +1269,16 @@ class FitsViewer extends React.PureComponent<Props, State> {
         } else {
             histogramView = null;
         }
+        const childrenWithProps = React.Children.map(this.props.children, child =>
+            React.cloneElement(child as ReactElement<any>, { __fitsViewerDeclareChild: this.createMarkerToken })
+        );
         return(
             <div className='FitsViewOverlayContainer'>
                 <div className='FitsView' ref={this.el}>
                     <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
+                </div>
+                <div className='FitsViewMarkers'>
+                    {childrenWithProps}
                 </div>
                 <div className='FitsViewLoading'/>
                 <div className='FitsSettingsOverlay'>

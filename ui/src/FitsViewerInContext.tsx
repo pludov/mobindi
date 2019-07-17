@@ -43,7 +43,8 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
                             subframe={this.props.subframe}
                             viewSettings={this.props.viewSettings}
                             onViewSettingsChange={this.saveViewSettings}
-                            contextMenu={this.props.contextMenu}/>
+                            contextMenu={this.props.contextMenu}
+                            children={this.props.children}/>
     }
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps) {

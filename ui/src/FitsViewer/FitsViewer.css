@@ -12,6 +12,16 @@
     pointer-events: none;
 }
 
+.FitsViewMarkers {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    top: 0px;
+    overflow: hidden;
+    pointer-events: none;
+}
+
 .FitsViewer.FitsViewFullScreen {
     position: absolute;
     left: 0px;
