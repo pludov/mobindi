@@ -67,6 +67,7 @@ div#root {
     flex-direction: row;
     flex-wrap: wrap;
     align-self: flex-start;
+    width: 100%;
 }
 
 .TextTitle {

@@ -72,10 +72,6 @@ class PhdView extends React.PureComponent<Props, State> {
                 </div>
                 <div>SNR: {this.props.SNR}
                 </div>
-                <select value={this.state.view} onChange={this.setView}>
-                    <option value="graph">Graph</option>
-                    <option value="image" disabled={!this.props.streamingCamera}>Live</option>
-                </select>
                 {this.state.view === "graph"
                     ?
                         <>
@@ -98,6 +94,12 @@ class PhdView extends React.PureComponent<Props, State> {
                     disabled={this.props.AppState == "Stopped"}
                     />
                 <PhdExposureSelector/>
+                <div className="PhdViewChoose">
+                    <select value={this.state.view} onChange={this.setView}>
+                        <option value="graph">Graph</option>
+                        <option value="image" disabled={!this.props.streamingCamera}>Live</option>
+                    </select>
+                </div>
                 </div>
             </div>);
     }

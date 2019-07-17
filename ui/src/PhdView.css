@@ -70,3 +70,8 @@ table.RADECTable tr td:first-child{
     height: calc(6 * var(--pct));
     border: 2px solid green;
 }
+
+.PhdViewChoose {
+    flex-grow: 100;
+    text-align: right;
+}
