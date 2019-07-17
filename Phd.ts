@@ -501,7 +501,7 @@ export default class Phd
         {
             var data = this.clientData.substr(0, cutAt);
             this.clientData = this.clientData.substr(cutAt + 2);
-            console.log('received json : ' + data);
+            console.log('[PHD] received json : ' + data);
             var statusUpdated = false;
             try {
                 // Quickfix for https://github.com/OpenPHDGuiding/phd2/issues/776
@@ -724,7 +724,7 @@ export default class Phd
             uid = "" + this.reqId++;
             order = {...order, id: uid};
 
-            console.log('Pushing request: ' + JSON.stringify(order));
+            console.log('[PHD] Pushing JSONRPC request: ' + JSON.stringify(order));
             this.client.write(JSON.stringify(order) + "\r\n");
 
             this.pendingRequests[uid] = {
@@ -787,9 +787,11 @@ export default class Phd
     public getAPI = ()=>{
         const ret : RequestHandler.APIAppImplementor<BackOfficeAPI.PhdAPI> = {
             connect: this.connect,
+            startLoop: this.startLoop,
             startGuide: this.startGuide,
             stopGuide: this.stopGuide,
             setExposure: this.setExposure,
+            setLockPosition: this.setLockPosition,
         }
         return ret;
     };
@@ -800,6 +802,14 @@ export default class Phd
             params: [ true ]
         });
         await this.queryExposure(ct);
+    }
+
+    startLoop = async(ct: CancellationToken)=>{
+        await this.connect(ct);
+        await this.sendOrderWithFailureLog(ct, {
+            method: "loop",
+            params: []
+        });
     }
 
     startGuide = async(ct:CancellationToken)=>{

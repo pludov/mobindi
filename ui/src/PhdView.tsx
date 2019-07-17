@@ -14,7 +14,8 @@ import PhdGraph from './PhdGraph';
 import PhdStats from './PhdStats';
 import PhdStream from './PhdStream';
 
-const StatusForGuiding = ["Paused", "Looping", "Stopped", "LostLock" ];
+const StatusForGuiding = ["Paused", "Looping", "LostLock" ];
+const StatusForLooping = ["Guiding", "Paused", "Stopped", "LostLock" ];
 
 type ViewId = "graph"|"image";
 
@@ -47,6 +48,10 @@ class PhdView extends React.PureComponent<Props, State> {
 
     private startGuide = async ()=> {
         await BackendRequest.RootInvoker("phd")("startGuide")(CancellationToken.CONTINUE, {});
+    }
+
+    private startLoop = async ()=> {
+        await BackendRequest.RootInvoker("phd")("startLoop")(CancellationToken.CONTINUE, {});
     }
 
     private stopGuide = async ()=>{
@@ -83,6 +88,9 @@ class PhdView extends React.PureComponent<Props, State> {
                         </>
                 }
                 <div className="ButtonBar">
+                <input type="button" value="Loop" onClick={this.startLoop}
+                    disabled={StatusForLooping.indexOf(this.props.AppState) == -1}
+                    />
                 <input type="button" value="Guide" onClick={this.startGuide}
                     disabled={StatusForGuiding.indexOf(this.props.AppState) == -1}
                     />

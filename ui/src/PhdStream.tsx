@@ -10,6 +10,7 @@ import { PhdStatus, CameraStream } from '@bo/BackOfficeStatus';
 import FitsViewerInContext from './FitsViewerInContext';
 import { hasKey } from './shared/Obj';
 import FitsMarker from './FitsViewer/FitsMarker';
+import CancellationToken from 'cancellationtoken';
 
 
 type InputProps = {}
@@ -24,12 +25,26 @@ type State = {}
 
 
 class PhdStream extends React.PureComponent<Props, State> {
-    private contextMenu=[];
-
     constructor(props:Props) {
         super(props);
         this.state = {}
     }
+
+    private setLockPos = async (pos: any)=>{
+        if (pos.imageX === undefined || pos.imageY === undefined) {
+            throw new Error("Position not set");
+        }
+        await BackendRequest.RootInvoker("phd")("setLockPosition")(CancellationToken.CONTINUE, {x: pos.imageX, y: pos.imageY, exact: false});
+    }
+
+    private readonly contextMenu = [
+        {
+            title: 'Sel. guide star',
+            key: 'lock',
+            cb: this.setLockPos,
+            positional: true,
+        }
+    ];
 
     render() {
         return (

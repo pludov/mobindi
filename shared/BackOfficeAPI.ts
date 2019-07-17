@@ -156,9 +156,11 @@ export type ImageProcessorAPI = {
 
 export type PhdAPI = {
     connect: (payload: {})=>void;
+    startLoop: (payload: {})=>void;
     startGuide: (payload: {})=>void;
     stopGuide: (payload: {})=>void;
     setExposure: (payload: {exposure: number})=>void;
+    setLockPosition: (payload: { x: number, y:number, exact: boolean})=>void;
 }
 
 export type BackOfficeAPI = {
