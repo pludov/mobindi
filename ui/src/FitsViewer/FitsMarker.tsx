@@ -34,7 +34,7 @@ export default class FitsMarker extends React.PureComponent<Props> {
     }
 
     
-    componentDidUnmount() {
+    componentWillUnmount() {
         if (this.token) {
             this.token.free();
         }

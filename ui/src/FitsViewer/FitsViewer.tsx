@@ -1238,7 +1238,6 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     render() {
-        console.log('state is ', this.state);
         var contextMenu, visor;
         if (this.state.contextmenu !== null) {
             contextMenu = <ContextMenu
