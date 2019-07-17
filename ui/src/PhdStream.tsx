@@ -9,11 +9,13 @@ import './PhdView.css';
 import { PhdStatus, CameraStream } from '@bo/BackOfficeStatus';
 import FitsViewerInContext from './FitsViewerInContext';
 import { hasKey } from './shared/Obj';
+import FitsMarker from './FitsViewer/FitsMarker';
 
 
 type InputProps = {}
 type MappedProps = {
-    streamingCamera?: PhdStatus["streamingCamera"]
+    streamingCamera?: PhdStatus["streamingCamera"];
+    lockPosition?: PhdStatus["lockPosition"];
 } & Partial<CameraStream>
 
 type Props = InputProps & MappedProps;
@@ -39,7 +41,19 @@ class PhdStream extends React.PureComponent<Props, State> {
                         streamId={this.props.streamId || null}
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
                         subframe={this.props.subframe}
-                        streamSize={this.props.frameSize || this.props.streamSize || null}/>
+                        streamSize={this.props.frameSize || this.props.streamSize || null}>
+                        {this.props.lockPosition
+                            ?
+                                <FitsMarker x={this.props.lockPosition.x} y={this.props.lockPosition.y}>
+                                    <div className="PhdStarLock">
+
+                                    </div>
+                                </FitsMarker>
+                            :
+                                null
+                        }
+                            
+                </FitsViewerInContext>
         </div>);
     }
 
@@ -59,6 +73,7 @@ class PhdStream extends React.PureComponent<Props, State> {
         const stream = cam.currentStreams[streamingCamera];
         return {
             streamingCamera,
+            lockPosition: phd.lockPosition,
             ...stream
         };
     }

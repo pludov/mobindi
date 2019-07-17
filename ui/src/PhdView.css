@@ -60,3 +60,13 @@ table.RADECTable tr td:first-child{
     padding: 0px;
     font-size: 0.6em;
 }
+
+.PhdStarLock {
+    display: block;
+    position: absolute;
+    top: calc(-3 * var(--pct) - 2px);
+    left: calc(-3 * var(--pct) - 2px);
+    width: calc(6 * var(--pct));
+    height: calc(6 * var(--pct));
+    border: 2px solid green;
+}

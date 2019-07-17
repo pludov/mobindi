@@ -91,6 +91,7 @@ export default class Phd
             exposureDurations: [],
             calibration: null,
             streamingCamera: null,
+            lockPosition: null,
         }
 
         this.pendingRequests = {};
@@ -283,11 +284,30 @@ export default class Phd
         }
     }
 
+    private clearLockPosition = ()=>{
+        this.currentStatus.lockPosition = null;
+    }
+
+    private queryLockPosition = async(ct:CancellationToken)=>{
+        try {
+            const ret = await this.sendOrder(ct, {
+                method: "get_lock_position",
+                params:[]
+            }) as null|number[];
+            this.currentStatus.lockPosition=ret === null ? null : {x: ret[0], y:ret[1]};
+        } catch(e) {
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearLockPosition();
+            }
+        }
+    }
+
     private clearPolledData = ()=> {
         this.clearCalibration();
         this.clearExposure();
         this.clearCurrentEquipment();
         this.clearExposureDurations();
+        this.clearLockPosition();
     }
 
     private polling: boolean = false;
@@ -303,6 +323,7 @@ export default class Phd
                     this.queryExposureDurations(CancellationToken.CONTINUE),
                     this.queryExposure(CancellationToken.CONTINUE),
                     this.queryCalibration(CancellationToken.CONTINUE),
+                    this.queryLockPosition(CancellationToken.CONTINUE),
             ]);
         } finally {
             this.polling = false;
@@ -533,6 +554,19 @@ export default class Phd
                             {
                                 this.clearCalibration();
                                 this.queryCalibration(CancellationToken.CONTINUE);
+                                break;
+                            }
+                        case "LockPositionLost":
+                            {
+                                this.clearLockPosition();
+                                break;
+                            }
+                        case "LockPositionSet":
+                            {
+                                this.currentStatus.lockPosition = {
+                                    x: event.X,
+                                    y: event.Y,
+                                }
                                 break;
                             }
                         default:
@@ -792,5 +826,12 @@ export default class Phd
                 params: [ payload.exposure ]
             });
         await this.queryExposure(ct);
+    }
+
+    setLockPosition = async(ct: CancellationToken, payload: { x: number, y:number, exact: boolean})=>{
+        await this.sendOrderWithFailureLog(ct, {
+                method: 'set_lock_position',
+                params: [payload.x, payload.y, payload.exact],
+            });
     }
 }

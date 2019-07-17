@@ -452,6 +452,7 @@ export type PhdStatus = {
     calibration: null|any;
     exposureDurations: Array<number>;
     exposure: null|number;
+    lockPosition: null|{x: number, y:number};
     streamingCamera: string|null;
 };
 
