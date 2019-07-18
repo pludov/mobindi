@@ -343,7 +343,7 @@ export default class Phd
 
                             this.clientData = "";
                             this.client = new net.Socket();
-
+                            this.parallelMode = false;
                             this.client.on('data', (data)=>{
                                 console.log('Received: ' + data);
                                 this.clientData += data;
@@ -527,6 +527,15 @@ export default class Phd
                         "StarLost":                 "LostLock"
                     };
                     switch (event.Event) {
+                        case "Version":
+                            {
+                                this.parallelMode = !!event.OverlapSupport;
+                                if (this.parallelMode) {
+                                    while(this.sendWritePendingRequest()) {
+                                    }
+                                }
+                                break;
+                            }
                         case "AppState":
                             this.currentStatus.connected = true;
                             this.currentStatus.AppState = event.State;
@@ -722,7 +731,7 @@ export default class Phd
 
     private sendWritePendingRequest() {
         if (this.writePendingRequest.length === 0) {
-            return;
+            return false;
         }
         const req = this.writePendingRequest.splice(0, 1)[0];
         req.sent = true;
@@ -730,6 +739,7 @@ export default class Phd
         console.log('[PHD] Pushing JSONRPC request: ' + req.toSend);
         this.client!.write(req.toSend + "\r\n");
         req.toSend = "";
+        return true;
     }
 
     // Return a promise that send the order (generator) and waits for a result
