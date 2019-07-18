@@ -176,13 +176,13 @@ export default class Phd
         let wantCaptureDevice:string|undefined;
         if (this.currentStatus.currentEquipment.camera) {
             const camEq = this.currentStatus.currentEquipment.camera;
-            if (this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1) {
-                if (Obj.hasKey(this.context.camera.currentStatus.dynStateByDevices, camEq.name)) {
-                    this.context.camera.currentStatus.dynStateByDevices[camEq.name].spyRecommanded = true;
+            const name = (camEq.name || "").replace(/^INDI Camera \[(.*)\]$/, "$1");
+            if (this.context.camera.currentStatus.availableDevices.indexOf(name) !== -1) {
+                if (Obj.hasKey(this.context.camera.currentStatus.dynStateByDevices, name)) {
+                    this.context.camera.currentStatus.dynStateByDevices[name].spyRecommanded = true;
                 }
-                this.context.camera.currentStatus.availableDevices.indexOf(camEq.name) !== -1
                 if (camEq.connected) {
-                    wantCaptureDevice = camEq.name;
+                    wantCaptureDevice = name;
                 } else {
                     console.log('PHD camera not connected');
                 }
