@@ -13,6 +13,8 @@ import { createTask, Task } from './Task.js';
 import PhdRpcError from './PhdRpcError.js';
 
 export type PhdRequest = {
+    sent: boolean;
+    toSend: string|undefined;
     then: (result: any)=>(void);
     error: (error: any)=>(void);
 };
@@ -364,6 +366,8 @@ export default class Phd
                                 // FIXME: flushing these messages can lead to change (including reconnection ?)
                                 this.flushClientData();
 
+                                this.runningRequest = 0;
+                                this.writePendingRequest = [];
                                 var oldPendingRequests = this.pendingRequests;
                                 this.pendingRequests = {};
                                 for(const k of Object.keys(oldPendingRequests)) {
@@ -620,6 +624,8 @@ export default class Phd
                     if (Object.prototype.hasOwnProperty.call(this.pendingRequests, id)) {
                         const doneRequest = this.pendingRequests[id];
                         delete this.pendingRequests[id];
+                        this.runningRequest--;
+                        this.sendWritePendingRequest();
                         try {
                             if (Object.prototype.hasOwnProperty.call(event, 'error')) {
                                 doneRequest.error(event.error);
@@ -700,11 +706,38 @@ export default class Phd
         }
     }
 
+    private parallelMode: boolean = false;
+    private runningRequest: number = 0;
+    private writePendingRequest: Array<PhdRequest> = [];
+
+    private activateRequest(r: PhdRequest)
+    {
+        this.writePendingRequest.push(r);
+        if (this.parallelMode || this.runningRequest === 0) {
+            this.sendWritePendingRequest();
+        } else {
+            console.log('[PHD] Queued JSONRPC request: ' + r.toSend);
+        }
+    }
+
+    private sendWritePendingRequest() {
+        if (this.writePendingRequest.length === 0) {
+            return;
+        }
+        const req = this.writePendingRequest.splice(0, 1)[0];
+        req.sent = true;
+        this.runningRequest++;
+        console.log('[PHD] Pushing JSONRPC request: ' + req.toSend);
+        this.client!.write(req.toSend + "\r\n");
+        req.toSend = "";
+    }
+
     // Return a promise that send the order (generator) and waits for a result
     async sendOrder(ct:CancellationToken, order:any) {
         return await new Promise((resolve, reject)=> {
             let uid:string|undefined;
             let ctCb: (()=>(void))|undefined;
+            let newRequest:PhdRequest;
 
             const unregister=()=>{
                 if (uid !== undefined) {
@@ -716,6 +749,13 @@ export default class Phd
                     ctCb();
                     ctCb = undefined;
                 }
+                if (!newRequest.sent) {
+                    // Remove from writePendingRequest
+                    const p = this.writePendingRequest.indexOf(newRequest);
+                    if (p !== -1) {
+                        this.writePendingRequest.splice(p, 1);
+                    }
+                }
                 return false;
             }
             if (this.client === undefined) {
@@ -724,10 +764,9 @@ export default class Phd
             uid = "" + this.reqId++;
             order = {...order, id: uid};
 
-            console.log('[PHD] Pushing JSONRPC request: ' + JSON.stringify(order));
-            this.client.write(JSON.stringify(order) + "\r\n");
-
-            this.pendingRequests[uid] = {
+            newRequest = {
+                toSend: JSON.stringify(order),
+                sent: false,
                 then: (rslt)=>{
                     unregister();
                     resolve(rslt);
@@ -737,6 +776,8 @@ export default class Phd
                     reject(new PhdRpcError(order.method, err));
                 },
             };
+            this.pendingRequests[uid] = newRequest;
+            this.activateRequest(newRequest);
             ctCb = ct.onCancelled((reason)=>{
                 unregister();
                 reject(new CancellationToken.CancellationError(reason));
