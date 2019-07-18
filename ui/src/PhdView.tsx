@@ -98,7 +98,7 @@ class PhdView extends React.PureComponent<Props, State> {
                     disabled={StatusForGuiding.indexOf(this.props.AppState) == -1}
                     />
                 <input type="button" value="Stop" onClick={this.stopGuide}
-                    disabled={this.props.AppState == "Stopped"}
+                    disabled={this.props.AppState === "Stopped" || this.props.AppState === "NotConnected"}
                     />
                 <PhdExposureSelector/>
                 <div className="PhdViewChoose">
