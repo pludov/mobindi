@@ -103,6 +103,17 @@ export const initialState:Content = {
     }
 }
 
+export function onImport(t:Content) {
+    t.sequence = t.sequence || {};
+    t.sequence.currentImage = t.sequence.currentImage || undefined;
+    t.sequence.currentSequence = t.sequence.currentSequence|| undefined;
+    t.sequence.editingSequence = t.sequence.editingSequence || undefined;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+}
+
 export function adjusters() {
     return [
         adjuster

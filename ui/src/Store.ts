@@ -64,7 +64,7 @@ function fork(state:Content, path?:string[], fn?:(t:any)=>any)
     return state;
 }
 
-let store:Store;
+let store:Store<Content>;
 let notifier:ReduxNotifier;
 
 export function init(newStore:Store, newNotifier: ReduxNotifier) {

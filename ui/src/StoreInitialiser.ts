@@ -28,6 +28,30 @@ export function start() {
         ...GenericUiStore.initialState,
     };
 
+    const onImport:Array<(store:Store.Content)=>(void)> = [
+        AppStore.onImport,
+        BackendStore.onImport,
+        FitsViewerStore.onImport,
+        IndiManagerStore.onImport,
+        MessageStore.onImport,
+        NotificationStore.onImport,
+        SequenceStore.onImport,
+        GeolocStore.onImport,
+        GenericUiStore.onImport,
+    ];
+
+    const onExport:Array<(store:Store.Content)=>(void)> = [
+        AppStore.onExport,
+        BackendStore.onExport,
+        FitsViewerStore.onExport,
+        IndiManagerStore.onExport,
+        MessageStore.onExport,
+        NotificationStore.onExport,
+        SequenceStore.onExport,
+        GeolocStore.onExport,
+        GenericUiStore.onExport,
+    ];
+
     var reducer = function() {
         var adjusters:Array<(state:Store.Content)=>Store.Content> = [
             ...AppStore.adjusters(),
@@ -75,19 +99,21 @@ export function start() {
         (persistState as any)(undefined, {
                 slicer: (paths:any)=> (state:any) => {
                     var rslt = Object.assign({}, state);
-                    delete rslt.backend;
-                    delete rslt.backendStatus;
-                    delete rslt.backendError;
-                    delete rslt.geoloc;
+
+                    // do not save useless data
+                    for(const childOnExport of onExport) {
+                        childOnExport(rslt);
+                    }
                     return rslt;
                 },
                 deserialize: (data:string)=>{
                     const ret = JSON.parse(data);
-                    delete ret.backend;
-                    delete ret.backendStatus;
-                    delete ret.backendError;
-                    delete ret.geoloc;
-                    // FIXME: ensure no missing property
+
+                    // ensure no missing property / no unsaved properties
+                    for(const childOnImport of onImport) {
+                        childOnImport(ret);
+                    }
+
                     return ret;
                 }
             })

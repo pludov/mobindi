@@ -68,6 +68,16 @@ export const initialState:Content = {
     }
 }
 
+export function onImport(t:Content) {
+    t.indiManager = t.indiManager || {};
+    t.indiManager.selectedDevice = t.indiManager.selectedDevice || undefined;
+    t.indiManager.expandedGroups =  t.indiManager.expandedGroups || {};
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+}
+
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {
     return [];
 }

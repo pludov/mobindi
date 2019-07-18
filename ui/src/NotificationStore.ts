@@ -22,6 +22,15 @@ export const initialState:Content = {
     }
 }
 
+export function onImport(t:Content) {
+    delete t.notifs;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+    delete t.notifs;
+}
+
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {
     return [];
 }

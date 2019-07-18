@@ -12,6 +12,14 @@ export const initialState:Content = {
     currentApp: null
 }
 
+export function onImport(t:Content) {
+    t.currentApp = t.currentApp || null;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+}
+
 const SwitchToApp: Actions.Handler<{ value: string }>
     = (state, action) => {
         console.log('SwitchToApp', action);

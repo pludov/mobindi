@@ -150,6 +150,15 @@ export const initialState:Content = {
     }
 }
 
+export function onImport(t:Content) {
+    delete t.messages;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+    delete t.messages;
+}
+
 export function adjusters() {
     return [
         new MessageAppSynchronizer().adjuster(),

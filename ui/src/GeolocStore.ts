@@ -86,6 +86,15 @@ export const initialState:Content = {
     }
 }
 
+export function onImport(t:Content) {
+    delete t.geoloc;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+    delete t.geoloc;
+}
+
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {
     return [];
 }

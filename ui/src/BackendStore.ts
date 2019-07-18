@@ -18,6 +18,19 @@ export const initialState:Content = {
     },
 }
 
+export function onImport(t:Content) {
+    delete t.backend;
+    delete t.backendStatus;
+    delete t.backendError;
+}
+
+// Swallow copy of the store. Do not inplace modify childs
+export function onExport(t:Content) {
+    delete t.backend;
+    delete t.backendStatus;
+    delete t.backendError;
+}
+
 export type BackendStatusValue = 0 | 1 | 2 | 3 | 4 | 5;
 
 export const BackendStatus : {[Id:string]: BackendStatusValue} = {
