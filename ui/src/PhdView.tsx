@@ -13,6 +13,7 @@ import PhdExposureSelector from './PhdExposureSelector';
 import PhdGraph from './PhdGraph';
 import PhdStats from './PhdStats';
 import PhdStream from './PhdStream';
+import * as GenericUiStore from './GenericUiStore';
 
 const StatusForGuiding = ["Paused", "Looping", "LostLock" ];
 const StatusForLooping = ["Guiding", "Paused", "Stopped", "LostLock" ];
@@ -36,13 +37,17 @@ type State = {
     view: ViewId;
 }
 
+const viewIdStateLocalStorageKey = "phdview.view";
+
 // Afficher l'état de phd et permet de le controller
 class PhdView extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
-        // FIXME: maintains this globally (local storage, url ?)
         this.state = {
-            view: "graph",
+            view:  GenericUiStore.initComponentState<ViewId>(
+                            viewIdStateLocalStorageKey,
+                            (t:ViewId|undefined)=> (t !== "image" ? "graph" : "image")
+            ),
         }
     }
 
@@ -59,7 +64,9 @@ class PhdView extends React.PureComponent<Props, State> {
     }
 
     private setView = (e:React.ChangeEvent<HTMLSelectElement>)=> {
-        this.setState({view: e.target.value as ViewId});
+        const view = e.target.value as ViewId;
+        GenericUiStore.updateComponentState<ViewId>(viewIdStateLocalStorageKey, view);
+        this.setState({view});
     }
 
     render() {
