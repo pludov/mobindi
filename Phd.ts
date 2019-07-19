@@ -1,3 +1,5 @@
+import util from 'util';
+import fs from 'fs';
 import net from 'net';
 import CancellationToken from 'cancellationtoken';
 import * as Obj from './Obj.js';
@@ -5,12 +7,13 @@ import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication, AppContext } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
-import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration } from './shared/BackOfficeStatus.js';
+import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration, PhdServerConfiguration } from './shared/BackOfficeStatus.js';
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
 import { createTask, Task } from './Task.js';
 import PhdRpcError from './PhdRpcError.js';
+import Notification from './Notification.js';
 
 export type PhdRequest = {
     sent: boolean;
@@ -79,6 +82,7 @@ export default class Phd
                 env: {},
                 preferredDithering: defaultDithering(),
             },
+            serverConfiguration: null,
             firstStepOfRun: this.stepIdToUid(this.stepId),
 
             RADistanceRMS:null,
@@ -304,6 +308,93 @@ export default class Phd
         }
     }
 
+    private clearServerConfiguration = ()=>{
+        this.currentStatus.serverConfiguration = null;
+    }
+
+    private parseServerConfiguration(contentStr: string): PhdServerConfiguration {
+        const ret: PhdServerConfiguration = {};
+        const content = contentStr.split(/[\n\r]+/);
+
+        if (content.length < 1) {
+            throw new Error("Invalid PHD config file");
+        }
+        if (content[0] !== 'PHD Config 1') {
+            console.log('[PHD] Encountered invalid config header: ' + content[0]);
+            throw new Error("Invalid PHD config format");
+        }
+
+        for(let i = 1; i < content.length; ++i) {
+            const line = content[i];
+            if (line === '') {
+                continue;
+            }
+            const [key, type, val] = line.split(/\t/g);
+            const keyParts = key.split(/\//g);
+            if (keyParts.length < 2 || keyParts[0] !== '') {
+                console.log('[PHD] encountered invalid config key: ' + key);
+                throw new Error('Invalid PHD config key');
+            }
+            let parent = ret;
+
+            for(let i = 1; i < keyParts.length - 1; ++i) {
+                const k = keyParts[i];
+                if (!Obj.hasKey(parent, k)) {
+                    parent[k] = {
+                    }
+                }
+                if (!parent[k].props) {
+                    parent[k].props = {};
+                }
+                parent = parent[k].props!;
+            }
+
+            const k = keyParts[keyParts.length - 1];
+            if (!Obj.hasKey(parent, k)) {
+                parent[k] = {};
+            }
+            switch(type) {
+                case '1': // string
+                    parent[k].val = "" + val;
+                    break;
+                case '2': // boolean
+                    parent[k].val = "" + val;
+                    break;
+                case '3': // int
+                    parent[k].val = "" + val;
+                    break;
+                case '4': // float
+                    parent[k].val = "" + val;
+                    break;
+                default:
+                    this.context.notification.info('[PHD] ignoring unsupported key type for ' + key);
+                    break;
+            }
+        }
+
+        return ret;
+    }
+
+    private queryServerConfiguration = async(ct:CancellationToken)=>{
+        // FIXME: prevent parallel execution
+        try {
+            const ret = await this.sendOrder(ct, {
+                method: "export_config_settings",
+                params: []
+            }) as {filename: string};
+            console.log('[PHD] Reading config file at ', ret.filename);
+            const content = await util.promisify(fs.readFile)(ret.filename, {encoding: 'utf8'})
+            this.currentStatus.serverConfiguration = this.parseServerConfiguration(content);
+            console.log('[PHD] configuration updated to ' + JSON.stringify(this.currentStatus.serverConfiguration, null, 2));
+        } catch(e) {
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearServerConfiguration();
+            }
+            this.context.notification.error('[PHD] could not read configuration', e);
+            throw e;
+        }
+    }
+
     private clearPolledData = ()=> {
         this.clearCalibration();
         this.clearExposure();
@@ -379,6 +470,7 @@ export default class Phd
                                 }
 
                                 this.clearPolledData();
+                                this.clearServerConfiguration();
 
                                 this.currentStatus.star = null;
                                 this.currentStatus.AppState = "NotConnected";
@@ -393,8 +485,10 @@ export default class Phd
                                 this.context.notification.info('PHD connection established');
 
                                 interval = setInterval(this.pollData, 10000);
+                                this.queryServerConfiguration(CancellationToken.CONTINUE);
                                 this.pollData();
                             });
+
                             task.cancellation.onCancelled(()=> {
                                 this.client!.destroy();
                             });

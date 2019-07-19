@@ -430,11 +430,22 @@ export type PhdEquipmentStatus = {
     connected: boolean;
 }
 
+export type PhdServerChildConfiguration = {
+    val?: string;
+    props?: PhdServerConfiguration;
+}
+
+export type PhdServerConfiguration = {
+    [id: string]: PhdServerChildConfiguration;
+};
+
 export type PhdStatus = {
     phd_started: boolean;
     connected: boolean;
     AppState: PhdAppState;
     settling: PhdSettling|null;
+    /** Polled configuration from PHD */
+    serverConfiguration: PhdServerConfiguration|null;
     guideSteps: {[id:string]: PhdGuideStep};
     configuration: PhdConfiguration;
     firstStepOfRun: string;
