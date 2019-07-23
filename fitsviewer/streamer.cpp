@@ -37,9 +37,9 @@ struct FrameContext {
 };
 
 // This is protected under nextEntryMutex
-static bool nextEntryDone;
-static SharedCache::Entry * nextEntry;
-static SharedCache::WorkerError * nextEntryError;
+static bool nextEntryDone = false;
+static void * nextEntryData = nullptr;
+static size_t nextEntrySize = 0;
 static FrameContext nextEntryFrame;
 
 static FrameContext indiFrame;
@@ -73,15 +73,19 @@ protected:
         }
 
         nextEntryMutex.lock();
-        nextEntryDone = true;
-        nextEntryFrame = indiFrame;
-        FitsFile file;
-        file.openMemory(bp->blob, bp->bloblen);
-        try {
-            SharedCache::Messages::RawContent::readFits(file, nextEntry);
-        } catch(const SharedCache::WorkerError & error) {
-            nextEntryError = new SharedCache::WorkerError(error);
+
+        // Don't leak dropped frames
+        if (nextEntryDone) {
+            free(nextEntryData);
         }
+
+        nextEntryData = bp->blob;
+        nextEntrySize = bp->bloblen;
+        // Free from INDI POV
+        bp->blob=nullptr;
+        bp->bloblen = 0;
+        nextEntryFrame = indiFrame;
+        nextEntryDone = true;
 
         nextEntryCond.notify_all();
         nextEntryMutex.unlock();
@@ -171,15 +175,15 @@ static int pipesize = -1;
 
 static void outputJson(const nlohmann::json & j) {
     std::string t = j.dump() + "\n";
-    auto tsize = t.size();
-    auto size = pipesize <= 0 ? (tsize + 1) : (tsize > (unsigned)pipesize ? tsize : pipesize + 1);
+    ssize_t tsize = t.size();
+    ssize_t size = pipesize <= 0 ? (tsize + 1) : (tsize > (unsigned)pipesize ? tsize : pipesize + 1);
     char * buff = (char*)malloc(size);
     if (!buff) {
         perror("malloc");
         _exit(1);
     }
     memcpy(buff, t.data(), tsize);
-    for(auto i = tsize; i < size; ++i) {
+    for(ssize_t i = tsize; i < size; ++i) {
         buff[i] = '\n';
     }
 
@@ -206,7 +210,6 @@ int main (int argc, char ** argv) {
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
 
-    std::unique_lock<std::mutex> lock(nextEntryMutex);
     std::string streamId;
 
     pipesize = fcntl(1, F_SETPIPE_SZ, &pipesize);
@@ -220,11 +223,8 @@ int main (int argc, char ** argv) {
     bool first = true;
 
     while(true) {
+        SharedCache::Entry * nextEntry;
         nextEntry = cache->startStreamImage();
-        if (nextEntryError != nullptr) {
-            delete nextEntryError;
-            nextEntryError = nullptr;
-        }
         if (first || nextEntry->getStreamId() != streamId) {
             first = false;
             streamId = nextEntry->getStreamId();
@@ -233,16 +233,39 @@ int main (int argc, char ** argv) {
             outputJson(j);
         }
 
-        nextEntryDone = false;
+        void * data;
+        size_t size;
+        {
+            std::unique_lock<std::mutex> lock(nextEntryMutex);
 
-        while(!nextEntryDone) {
-            nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
+            while(!nextEntryDone) {
+                nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
+            }
+            data = nextEntryData;
+            size = nextEntrySize;
+
+            nextEntryDone = false;
+            nextEntryData = nullptr;
+            nextEntrySize = 0;
+        }
+
+        SharedCache::WorkerError * nextEntryError;
+
+        FitsFile file;
+        file.openMemory(data, size);
+        try {
+            SharedCache::Messages::RawContent::readFits(file, nextEntry);
+        } catch(const SharedCache::WorkerError & error) {
+            nextEntryError = new SharedCache::WorkerError(error);
         }
 
         if (nextEntryError != nullptr) {
             fprintf(stderr, "stream error");
             return 1;
         }
+
+        free(data);
+
         RawDataStorage * storage = (RawDataStorage*)nextEntry->data();
         int w = storage->w;
         int h = storage->h;
