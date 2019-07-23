@@ -147,6 +147,9 @@ export default class Phd
                     [   'phd', 'streamingCamera' ],
                 ]
             ], this.updateCaptureStatus, true);
+        this.appStateManager.addSynchronizer(
+            [   'phd', 'serverConfiguration' ],
+            this.checkPhdWarning, true);
     }
 
     private startCapture=(device:string)=>{
@@ -330,7 +333,7 @@ export default class Phd
                 continue;
             }
             const [key, type, val] = line.split(/\t/g);
-            const keyParts = key.split(/\//g);
+            const keyParts = key.split(/\//g).map(s=>s.toLowerCase());
             if (keyParts.length < 2 || keyParts[0] !== '') {
                 console.log('[PHD] encountered invalid config key: ' + key);
                 throw new Error('Invalid PHD config key');
@@ -375,24 +378,111 @@ export default class Phd
         return ret;
     }
 
-    private queryServerConfiguration = async(ct:CancellationToken)=>{
-        // FIXME: prevent parallel execution
-        try {
-            const ret = await this.sendOrder(ct, {
-                method: "export_config_settings",
-                params: []
-            }) as {filename: string};
-            console.log('[PHD] Reading config file at ', ret.filename);
-            const content = await util.promisify(fs.readFile)(ret.filename, {encoding: 'utf8'})
-            this.currentStatus.serverConfiguration = this.parseServerConfiguration(content);
-            console.log('[PHD] configuration updated to ' + JSON.stringify(this.currentStatus.serverConfiguration, null, 2));
-        } catch(e) {
-            if (!(e instanceof CancellationToken.CancellationError)) {
-                this.clearServerConfiguration();
+    private queryServerConfigurationTask: null|Task<void> = null;
+
+    private refreshServerConfiguration = async()=> {
+        const conn = this.client;
+        if (this.queryServerConfigurationTask !== null) {
+            try {
+                await this.queryServerConfigurationTask;
+            } finally {
             }
-            this.context.notification.error('[PHD] could not read configuration', e);
-            throw e;
         }
+        if (this.client !== conn) {
+            console.log("[PHD] No re-reading configuration after conn drop");
+            return;
+        }
+        await this.queryServerConfiguration();
+    }
+
+    private queryServerConfiguration = async()=>{
+        if (this.queryServerConfigurationTask !== null) {
+            await this.queryServerConfigurationTask;
+            return;
+        }
+
+        const newTask = createTask(CancellationToken.CONTINUE, async (task:Task<void>)=> {
+            this.queryServerConfigurationTask = task;
+            try {
+                const ret = await this.sendOrder(task.cancellation, {
+                    method: "export_config_settings",
+                    params: []
+                }) as {filename: string};
+                console.log('[PHD] Reading config file at ', ret.filename);
+                task.cancellation.throwIfCancelled();
+                const content = await util.promisify(fs.readFile)(ret.filename, {encoding: 'utf8'})
+                task.cancellation.throwIfCancelled();
+                if (this.queryServerConfigurationTask === task) {
+                    this.currentStatus.serverConfiguration = this.parseServerConfiguration(content);
+                    console.log('[PHD] configuration updated to ' + JSON.stringify(this.currentStatus.serverConfiguration, null, 2));
+                }
+            } catch(e) {
+                if (!(e instanceof CancellationToken.CancellationError)) {
+                    if (this.queryServerConfigurationTask === task) {
+                        this.clearServerConfiguration();
+                        this.context.notification.error('[PHD] could not read configuration', e);
+                    }
+                }
+            } finally {
+                if (this.queryServerConfigurationTask === task) {
+                    this.queryServerConfigurationTask = null;
+                }
+            }
+        });
+
+        await newTask;
+    }
+
+    private lastPhdWarning: string|undefined|null = null;
+
+    private recheckPhdWarning = ()=> {
+        const serverConfiguration = this.currentStatus.serverConfiguration;
+        if (serverConfiguration === null) {
+            return;
+        }
+        try {
+            const currentProfileId = serverConfiguration.currentprofile.val!;
+            const currentProfile = serverConfiguration.profile.props![currentProfileId].props!;
+
+            const camName = currentProfile.camera.props!.lastmenuchoice.val!;
+            console.log('Found camName', camName);
+
+            const up2date = currentProfile.indi && currentProfile.indi.props!.indicam_forceexposure;
+
+            if ((!currentProfile.indi) || (!camName.match(/^INDI Camera \[.*\]$/))) {
+                return "PHD frame display only works for INDI camera. Please update PHD configuration to use the INDI driver for camera"
+                    + (!up2date? " and check you use a recent PHD version." : ".");
+            }
+            if (!up2date) {
+                return "PHD version is not fully supported. Please update to use a more recent PHD version";
+            }
+            if (currentProfile.indi.props!.indicam_forceexposure.val! === "0"
+                || currentProfile.indi.props!.indicam_forcevideo && currentProfile.indi.props!.indicam_forcevideo.val === "1") {
+                return "PHD frame display works better with INDI camera in exposure mode only. Please update PHD configuration of camera to use exposure only";
+            }
+
+            return undefined;
+        } catch(e) {
+            this.context.notification.error('[PHD] Error verifying configuration', e);
+            return "PHD configuration could not be verified. Please ensure PHD profile is valid and check you use a recent PHD version";
+        }
+    }
+
+    private checkPhdWarning = ()=> {
+        if (this.currentStatus.serverConfiguration === null) {
+            return;
+        }
+        const warning = this.recheckPhdWarning();
+        if (warning === this.lastPhdWarning) {
+            return;
+        }
+        this.lastPhdWarning = warning;
+        if (warning === undefined) {
+            this.context.notification.info('[PHD] Configuration seems good !');
+            return;
+        }
+        this.context.notification.info(warning);
+        this.context.notification.notify(warning);
     }
 
     private clearPolledData = ()=> {
@@ -457,6 +547,12 @@ export default class Phd
                                 // FIXME: flushing these messages can lead to change (including reconnection ?)
                                 this.flushClientData();
 
+                                if (this.queryServerConfigurationTask !== null) {
+                                    const deadTask = this.queryServerConfigurationTask;
+                                    this.queryServerConfigurationTask = null;
+                                    deadTask.cancel(new CancellationToken.CancellationError("connection closed"));
+                                }
+
                                 this.runningRequest = 0;
                                 this.writePendingRequest = [];
                                 var oldPendingRequests = this.pendingRequests;
@@ -485,7 +581,7 @@ export default class Phd
                                 this.context.notification.info('PHD connection established');
 
                                 interval = setInterval(this.pollData, 10000);
-                                this.queryServerConfiguration(CancellationToken.CONTINUE);
+                                this.queryServerConfiguration();
                                 this.pollData();
                             });
 
@@ -674,6 +770,12 @@ export default class Phd
                                     x: event.X,
                                     y: event.Y,
                                 }
+                                break;
+                            }
+                        case "ConfigurationChange":
+                            {
+                                // Starts an async refresh of configuration
+                                this.refreshServerConfiguration();
                                 break;
                             }
                         default:
