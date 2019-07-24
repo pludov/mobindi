@@ -42,7 +42,7 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
-Next version:
+Release 1.2.0 (July 2019):
   * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
     They require the use of a HTTPS connection and an authorization (accessible in the message tab)
   * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
@@ -53,6 +53,13 @@ Next version:
 
   * Improved sequence editor with hierachical settings
   * PHD2 dithering settings can be controled per sequence
+  * Live view for PHD. Mobindi can now display PHD frame stream (with adjustable levels), and allows to select the guide star.
+    For this to work, you need to have a recent PHD version (> July 20 2019) and PHD must be configured to use an INDI camera.
+
+![PHD live view](docs/phd_live.gif?raw=true "PHD live view/Star selection")
+
+  * Control PHD exposure duration
+  * Info/Warning messages from PHD are displayed as notification in Mobindi UI (messages like "Dark library does not match", ...)
   * Astrometry settings now persist accross restarts
 
 Release 1.1.0 (June 2019):
@@ -101,9 +108,13 @@ Creating a sequence that iterates multiple filters but shares other settings:
 
 The guiding tab displays current status of PHD2 as well as guiding statistics (pixels drifts). The settling periods are displayed in green. The graph can be zoomed for inspection.
 
-It is possible to start/stop PHD2 from here, as long as it has a valid configuration. That method rely on automatic star selection from PHD2.
+It is possible to start/stop PHD2 from here, as long as it has a valid configuration.
+
+If you use a INDI camera with PHD2, you can switch to "Live" view, to view the actual image stream processed by PHD. You can adjust levels, view PHD lock position and select guide star. For this to work, you need to have a recent PHD version (> July 20 2019) that is not using indi "stream".
 
 ![PHD2 UI](docs/phd2.png?raw=true "PHD2 UI")
+
+![PHD live view](docs/phd_live.gif?raw=true "PHD live view/Star selection")
 
 ### Focusing
 
