@@ -91,14 +91,17 @@ class PhdView extends React.PureComponent<Props, State> {
                         </>
                 }
                 <div className="ButtonBar">
-                <input type="button" value="Loop" onClick={this.startLoop}
+                <input type="button" value={"\u21BB"} onClick={this.startLoop}
                     disabled={StatusForLooping.indexOf(this.props.AppState) == -1}
+                    className="PhdControlBton"
                     />
-                <input type="button" value="Guide" onClick={this.startGuide}
+                <input type="button" value={"\u{2295}"} onClick={this.startGuide}
                     disabled={StatusForGuiding.indexOf(this.props.AppState) == -1}
+                    className="PhdControlBton"
                     />
-                <input type="button" value="Stop" onClick={this.stopGuide}
+                <input type="button" value={"\u{1F6D1}"} onClick={this.stopGuide}
                     disabled={this.props.AppState === "Stopped" || this.props.AppState === "NotConnected"}
+                    className="PhdControlBton"
                     />
                 <PhdExposureSelector/>
                 <div className="PhdViewChoose">

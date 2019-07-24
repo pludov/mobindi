@@ -84,7 +84,7 @@ input[type="checkbox"] {
 
 input, button, select, option, textarea {
     font-size: 100%;
-    margin: 0.2em;
+    margin: 0.1em;
     collapse: true;
     color: #000000;
 }
@@ -105,7 +105,8 @@ input[type=button] {
     vertical-align: bottom;
 }
 input:disabled {
-    color: #808080
+    color: #808080;
+    filter: grayscale(100%);
 }
 
 select {

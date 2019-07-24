@@ -75,3 +75,9 @@ table.RADECTable tr td:first-child{
     flex-grow: 100;
     text-align: right;
 }
+
+.PhdControlBton {
+    font-weight: bold;
+    font-family: "MobindiGlyphBton", "sans-serif";
+    min-width: 1.7em;
+}
