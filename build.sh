@@ -8,7 +8,7 @@ echo '***           Building Back office            ***'
 echo '***                                           ***'
 echo '*************************************************'
 
-npm install && npm run-script build
+( npm install && npm run-script build )
 
 echo '*************************************************'
 echo '***                                           ***'
