@@ -21,7 +21,7 @@ done
 if [ "$LOGDIR" != "" ]; then
 	echo "Logging into $LOGDIR"
 	exec < /dev/null
-	exec > >( multilog 's9999999' "$LOGDIR" )
+	exec > >( exec multilog 's9999999' "$LOGDIR" )
 	exec 2>&1
 fi
 
