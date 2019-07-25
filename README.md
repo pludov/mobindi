@@ -42,7 +42,7 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
-Release 1.2.0 (July 2019):
+### Release 1.2.0 (July 2019):
   * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
     They require the use of a HTTPS connection and an authorization (accessible in the message tab)
   * Sequence status notification : Sequence success/error are notified to user, using in app or system notification
@@ -62,7 +62,13 @@ Release 1.2.0 (July 2019):
   * Info/Warning messages from PHD are displayed as notification in Mobindi UI (messages like "Dark library does not match", ...)
   * Astrometry settings now persist accross restarts
 
-Release 1.1.0 (June 2019):
+**Upgrade notes**
+
+This version now uses libindiclient, so you'll need to have libindi-dev package installed (in case you did not compile indilib from source)
+
+
+
+### Release 1.1.0 (June 2019):
   * Filterwheel control in camera and sequence
   * Support for landscape orientation
   * Support for larger screen (tablet/desktop)
@@ -74,7 +80,7 @@ Release 1.1.0 (June 2019):
 
 See below for installation/upgrade instruction.
 
-Initial Release: 1.0
+### Initial Release: 1.0
 
 ## Features
 
@@ -170,6 +176,11 @@ The above instructions are valid for a debian based system (including raspbian f
 Some packages are required for building. Install them:
 ```
 sudo apt-get install git cmake zlib1g-dev libcurl4-openssl-dev libgsl-dev libraw-dev libcfitsio-dev libjpeg-dev libpng-dev libcgicc-dev daemontools nginx
+```
+
+If you did not compile indi from source, you'll need indi dev packages as well:
+```
+sudo apt-get install libindi-dev
 ```
 
 You also need nodejs installed, with a recent version (> v8). I use the latest v8 (v8.4.0)
