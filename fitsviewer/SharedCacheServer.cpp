@@ -97,8 +97,11 @@ Client::~Client()
 
 	server->clients.erase(this);
 
-	free(readBuffer);
-	free(writeBuffer);
+	if (pendingWrite != nullptr) {
+		delete(pendingWrite);
+		pendingWrite = nullptr;
+	}
+
 	if (watcherExpiry != nullptr) {
 		delete watcherExpiry;
 	}
@@ -154,7 +157,7 @@ std::string SharedCacheServer::newUuid() {
 }
 
 void SharedCacheServer::init() {
-	serverFd = socket(AF_UNIX, SOCK_STREAM, 0);
+	serverFd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if (serverFd < 0) {
 		perror("socket");
 		throw std::runtime_error("Unable to create socket");
@@ -245,19 +248,6 @@ void SharedCacheServer::doAccept()
 	}
 
 	clients.insert(new Client(this, fd, -1));
-}
-
-void SharedCacheServer::receiveMessage(Client * c, uint16_t size)
-{
-//		printf("Message from %d (%d):\n", c->fd, c->readBufferPos);
-	std::string jsonStr(c->readBuffer + 2, c->readBufferPos - 2);
-//		printf("%s\n", jsonStr.c_str());
-	c->readBufferPos = 0;
-	auto json = nlohmann::json::parse(jsonStr);
-	c->activeRequest = new Messages::Request(json.get<Messages::Request>());
-
-	nlohmann::json debug = *c->activeRequest;
-	std::cerr << "Server received request from " << c->identifier() << " : " << debug.dump(0) << "\n";
 }
 
 long SharedCacheServer::isExpiredContent(const Messages::RawContent * content) const
@@ -427,7 +417,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 
 		c->producing.erase(cfdLocInProducing);
 		cfd->produced = true;
-		cfd->memfd = c->activeRequest->finishedAnnounce->memfd;
+		cfd->memfd = c->activeRequest->streamPublishRequest->memfd;
 		cfd->size = c->activeRequest->streamPublishRequest->size;
 		cfd->lastUse = now();
 		currentSize += cfd->size;
@@ -712,7 +702,7 @@ void SharedCacheServer::startWorker()
 {
 	// FIXME: close all sockets...
 	int fd[2];
-	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd) == -1) {
+	if (socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, fd) == -1) {
 		perror("socketpair");
 		throw std::runtime_error("failed to create socket pair");
 	}
@@ -792,28 +782,6 @@ void SharedCacheServer::startWorker()
 	startedWorkerCount ++;
 }
 
-void SharedCacheServer::clearWorkingDirectory()
-{
-	DIR* dir = opendir(basePath.c_str());
-	if (dir == nullptr) {
-		perror("opendir");
-		return;
-	}
-	dirent * entry;
-	while((entry = readdir(dir))) {
-		std::string name(entry->d_name);
-		if (name == "." || name == "..") {
-			continue;
-		}
-		name = basePath + "/" + name;
-		if (unlink(name.c_str()) == -1) {
-			perror(name.c_str());
-		}
-	}
-
-	closedir(dir);
-}
-
 void SharedCacheServer::evict(CacheFileDesc * item)
 {
 	std::cerr << "Server evicts " << item->uuid << " of size " << item->size << " used at " << item->lastUse << "\n";
@@ -853,7 +821,6 @@ int SharedCacheServer::nextTimeout() const {
 
 void SharedCacheServer::server()
 {
-	clearWorkingDirectory();
 	// sigpipe condition is handled by checking write result code
 	// don't let sigpipe interrupt server
 	signal(SIGPIPE, SIG_IGN);
@@ -894,7 +861,7 @@ void SharedCacheServer::server()
 
 			c->poll = polls + (pollCount++);
 			c->poll->fd = c->fd;
-			if (c->writeBufferLeft) {
+			if (c->pendingWrite) {
 				c->poll->events=POLLOUT|POLLIN;
 			} else {
 				c->poll->events=POLLIN;
@@ -916,10 +883,11 @@ void SharedCacheServer::server()
 			if (!c->poll) {
 				continue;
 			}
-			if (c->writeBufferLeft && (c->poll->revents & POLLOUT)) {
-				int wr = write(c->fd, c->writeBuffer + c->writeBufferPos, c->writeBufferLeft);
+			if (c->pendingWrite && (c->poll->revents & POLLOUT)) {
+				// FIXME: pendingWrite will get altered if this does not work
+				int wr = Cache::write(c->fd, *c->pendingWrite);
 				if (wr == -1) {
-					if (errno == EAGAIN || errno == EINTR) {
+					if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
 						// Just ignore
 						continue;
 					} else {
@@ -927,60 +895,44 @@ void SharedCacheServer::server()
 						continue;
 					}
 				} else {
-					c->writeBufferLeft -= wr;
-					if (c->writeBufferLeft == 0) {
-						c->readBufferPos = 0;
-					}
+					delete c->pendingWrite;
+					c->pendingWrite = nullptr;
 				}
-			} else if ((!c->writeBufferLeft) && (c->poll->revents & POLLIN)) {
-				int rd = read(c->fd, c->readBuffer + c->readBufferPos, MAX_MESSAGE_SIZE - c->readBufferPos);
-				if (rd == -1) {
-					if (errno == EAGAIN || errno == EINTR) {
-						// Just ignore
-						continue;
-					} else {
-						c->release();
-						continue;
-					}
-				} else if (rd == 0 || c->activeRequest) {
-					if (rd != 0) {
-						std::cerr << "Client " << c->fd << " sent too much data\n";
-					} else {
-						std::cerr << "Client " << c->fd << " terminated\n";
-					}
-					c->release();
-					continue;
-				} else {
-					// FIXME: read 0 ? possible ?
-					c->readBufferPos += rd;
-					if (c->readBufferPos > 2) {
-						uint16_t size = *(uint16_t*)c->readBuffer;
-						if (size >= MAX_MESSAGE_SIZE || size <= 2) {
-							c->release();
+			} else if ((!c->pendingWrite) && (c->poll->revents & POLLIN)) {
+				Messages::Request request;
+				try {
+					int rd = Cache::read(c->fd, request);
+					if (rd == -1) {
+						if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+							// Just ignore
 							continue;
-						} else if (size >= c->readBufferPos){
-							// Process a message for the client.
-							try {
-								receiveMessage(c, size);
-
-							} catch(const std::exception& ex) {
-								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								c->release();
-								continue;
-							}
-							try {
-								proceedNewMessage(c);
-							} catch(const ClientError & ex) {
-								std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
-								c->release();
-								continue;
-							}
-
-						} else if (c->readBufferPos == MAX_MESSAGE_SIZE) {
+						} else {
 							c->release();
 							continue;
 						}
 					}
+					if (rd == 0 || c->activeRequest) {
+						if (rd != 0) {
+							std::cerr << "Client " << c->fd << " sent too much data\n";
+						} else {
+							std::cerr << "Client " << c->fd << " terminated\n";
+						}
+						c->release();
+						continue;
+					}
+				} catch(const std::exception& ex) {
+					std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
+					c->release();
+					continue;
+				}
+				c->activeRequest = new Messages::Request(request);
+
+				try {
+					proceedNewMessage(c);
+				} catch(const ClientError & ex) {
+					std::cerr << "Error on client " << c->fd << ": "<< ex.what() << "\n";
+					c->release();
+					continue;
 				}
 			}
 		}

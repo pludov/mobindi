@@ -249,18 +249,12 @@ int main (int argc, char ** argv) {
             nextEntrySize = 0;
         }
 
-        SharedCache::WorkerError * nextEntryError;
-
         FitsFile file;
         file.openMemory(data, size);
         try {
             SharedCache::Messages::RawContent::readFits(file, nextEntry);
         } catch(const SharedCache::WorkerError & error) {
-            nextEntryError = new SharedCache::WorkerError(error);
-        }
-
-        if (nextEntryError != nullptr) {
-            fprintf(stderr, "stream error");
+            std::cerr << "Stream error: " << error.what() << "\n";
             return 1;
         }
 

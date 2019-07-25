@@ -85,8 +85,6 @@ class SharedCacheServer {
 
 	[[ noreturn ]] void server();
 	void evict(CacheFileDesc * item);
-	void clearWorkingDirectory();
-	void receiveMessage(Client * client, uint16_t size);
 	// True if the client is no more blocked
 	void proceedNewMessage(Client * blocked);
 

@@ -16,6 +16,8 @@
 #include "SharedCache.h"
 #include "SharedCacheServer.h"
 
+#define MAXFD_PER_MESSAGE 16
+
 namespace SharedCache {
 	EntryRef::EntryRef(Entry * e) :entry(e) {
 	}
@@ -223,21 +225,200 @@ namespace SharedCache {
 		this->clientFd = fd;
 	}
 
-	Messages::Result Cache::clientSend(const Messages::Request & request)
-	{
+	int Cache::write(Messages::Writable & message) {
+		return write(this->clientFd, message);
+	}
+
+	int Cache::write(int clientFd, Messages::Writable & message) {
+		std::vector<int*> rawMemfdList;
+		message.collectMemfd(rawMemfdList);
+
+		std::vector<int*> memfdList;
+		for(int i = 0; i < rawMemfdList.size(); ++i) {
+			if ((*rawMemfdList[i]) != -1) {
+				memfdList.push_back(rawMemfdList[i]);
+			}
+		}
+		struct msghdr msgh;
+		struct iovec iov;
+		int cmsghdrlength;
+		struct cmsghdr * cmsgh;
+
+		if (memfdList.size() > 0) {
+			if (memfdList.size() > MAXFD_PER_MESSAGE) {
+				errno = EMSGSIZE;
+				return -1;
+			}
+			cmsghdrlength = CMSG_SPACE((memfdList.size() * sizeof(int)));
+			cmsgh = (cmsghdr*)malloc(cmsghdrlength);
+
+			/* Write the fd as ancillary data */
+			cmsgh->cmsg_len = CMSG_LEN(sizeof(int));
+			cmsgh->cmsg_level = SOL_SOCKET;
+			cmsgh->cmsg_type = SCM_RIGHTS;
+			msgh.msg_control = cmsgh;
+			msgh.msg_controllen = cmsghdrlength;
+			for(int i = 0; i < memfdList.size(); ++i) {
+				int fd = *memfdList[i];
+				((int *) CMSG_DATA(CMSG_FIRSTHDR(&msgh)))[i] = fd;
+				*memfdList[i] = i;
+			}
+		} else {
+			cmsgh = nullptr;
+			cmsghdrlength = 0;
+			msgh.msg_control = cmsgh;
+			msgh.msg_controllen = cmsghdrlength;
+		}
+
 		std::string str;
 		{
-			nlohmann::json j = request;
+			nlohmann::json j = message;
 			str = j.dump();
 		}
-		std::cerr << getpid() << ": Sending to server: " << str << "\n";
-		clientSendMessage(str.data(), str.length());
-		char buffer[SharedCache::MAX_MESSAGE_SIZE];
-		int sze = clientWaitMessage(buffer);
-		std::string received(buffer, sze);
-		std::cerr << getpid() << ": Received from server: " << received << "\n";
-		auto jsonResult = nlohmann::json::parse(received);
-		return jsonResult.get<Messages::Result>();
+		if (str.length() > MAX_MESSAGE_SIZE) {
+			free(cmsgh);
+			errno = EMSGSIZE;
+			return -1;
+		}
+		std::cerr << getpid() << ": Sending to " << clientFd << " : " << str << "\n";
+
+		iov.iov_base = str.data();
+		iov.iov_len = str.size();
+		msgh.msg_flags = 0;
+		msgh.msg_name = NULL;
+		msgh.msg_namelen = 0;
+		msgh.msg_iov = &iov;
+		msgh.msg_iovlen = 1;
+		
+		int ret = sendmsg(clientFd, &msgh, 0);
+
+		free(cmsgh);
+
+		return ret;
+	}
+
+	int Cache::read(Messages::Writable & message) {
+		return read(this->clientFd, message);
+	}
+
+	int Cache::read(int clientFd, Messages::Writable & message) {
+		struct msghdr msgh;
+		struct iovec iov;
+		void * buffer = malloc(MAX_MESSAGE_SIZE);
+		if (buffer == nullptr) {
+			throw new std::runtime_error("not enough memory");
+		}
+		int * fd = nullptr;
+		int fdCount = 0;
+		int ret = -1;
+
+		union {
+			struct cmsghdr cmsgh;
+			/* Space large enough to hold an 'int' */
+			char   control[CMSG_SPACE(MAXFD_PER_MESSAGE * sizeof(int))];
+		} control_un;
+		struct cmsghdr *cmsgh;
+
+		iov.iov_base = buffer;
+		iov.iov_len = MAX_MESSAGE_SIZE;
+
+		msgh.msg_name = NULL;
+		msgh.msg_namelen = 0;
+		msgh.msg_iov = &iov;
+		msgh.msg_iovlen = 1;
+		msgh.msg_flags = 0;
+		msgh.msg_control = control_un.control;
+		msgh.msg_controllen = sizeof(control_un.control);
+
+		int size = recvmsg(clientFd, &msgh, MSG_CMSG_CLOEXEC);
+		if (size == -1) {
+			goto End;
+		}
+
+		cmsgh = CMSG_FIRSTHDR(&msgh);
+		if (cmsgh) {
+			if (cmsgh->cmsg_level != SOL_SOCKET) {
+				throw std::runtime_error("invalid cmsg_level");
+			}
+
+			if (cmsgh->cmsg_type != SCM_RIGHTS) {
+				throw std::runtime_error("invalid cmsg_type");
+			}
+			while(CMSG_LEN(sizeof(int) * fdCount) < cmsgh->cmsg_len) {
+				fdCount++;
+			}
+			fd = ((int *) CMSG_DATA(cmsgh));
+		} else {
+			fdCount = 0;
+			fd = nullptr;
+		}
+
+		try {
+			if (size > 0) {
+				nlohmann::json jsonResult;
+				{
+					std::string content((char*)buffer, size);
+					std::cerr << getpid() << ": Received from " << clientFd << " : " << content << "\n";
+					jsonResult = nlohmann::json::parse(content);
+				}
+				message.from_json(jsonResult);
+
+				std::vector<int*> memfds;
+				message.collectMemfd(memfds);
+				for(int i = 0; i < memfds.size(); ++i) {
+					int fdId = *(memfds[i]);
+					if (fdId == -1) {
+						continue;
+					}
+					if (fdId < 0 || fdId >= fdCount) {
+						throw std::runtime_error("invalid fd in message");
+					}
+					if (fd[fdId] == -1) {
+						throw std::runtime_error("duplicated fd in message");
+					}
+					*memfds[i] = fd[fdId];
+					fd[fdId] = -1;
+				}
+			}
+		} catch(...) {
+			for(int i = 0; i < fdCount; ++i) {
+				if (fd[i] != -1) {
+					close(fd[i]);
+				}
+			}
+			free(buffer);
+			throw;
+		}
+		ret = size > 0 ? 1 : 0;
+
+	End:
+		int tmpErrno = errno;
+		for(int i = 0; i < fdCount; ++i) {
+			if (fd[i] != -1) {
+				std::cerr << "!!!!!!!!!!!!!!! closing leftover fd\n";
+				::close(fd[i]);
+			}
+		}
+		free(buffer);
+		errno = tmpErrno;
+		return ret;
+	}
+
+
+	Messages::Result Cache::clientSend(const Messages::Request & request)
+	{
+		Messages::Request altered(request);
+		if (write(altered) == -1) {
+			perror("sendmsg");
+			throw std::runtime_error("sendmsg failed");
+		}
+
+		Messages::Result result;
+		if (read(result) == -1) {
+			perror("recvmsg");
+			throw std::runtime_error("recvmsg failed");
+		}
+		return result;
 	}
 
 	Entry * Cache::getEntry(const Messages::ContentRequest & wanted)
@@ -273,7 +454,7 @@ namespace SharedCache {
 
 	bool Cache::connectExisting()
 	{
-		clientFd = socket(AF_UNIX, SOCK_STREAM, 0);
+		clientFd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 		if (clientFd == -1) {
 			perror("socket");
 			throw std::runtime_error("socket");
@@ -292,56 +473,6 @@ namespace SharedCache {
 		return true;
 	}
 
-	void Cache::clientSendMessage(const void * data, int length)
-	{
-		if (length > MAX_MESSAGE_SIZE - 2) {
-			throw std::runtime_error("Message too big");
-		}
-		uint16_t size = length + 2;
-		int wr = write(clientFd, &size, 2);
-		if (wr == -1) {
-			perror("write");
-			throw std::runtime_error("write");
-		}
-		if (wr < 2) {
-			throw std::runtime_error("short write");
-		}
-
-		wr = write(clientFd, data, length);
-		if (wr == -1) {
-			perror("write");
-			throw std::runtime_error("write");
-		}
-		if (wr < length) {
-			throw std::runtime_error("short write");
-		}
-	}
-
-	int Cache::clientWaitMessage(char * buffer)
-	{
-		uint16_t size;
-		int readen = read(clientFd, &size, 2);
-		if (readen == -1) {
-			perror("read");
-			throw std::runtime_error("read");
-		}
-		if (readen < 2) {
-			throw std::runtime_error("short read");
-		}
-		if (size > MAX_MESSAGE_SIZE) {
-			throw std::runtime_error("invalid size");
-		}
-		readen = read(clientFd, buffer, size);
-		if (readen == -1) {
-			perror("read");
-			throw std::runtime_error("read");
-		}
-		if (readen < size) {
-			throw std::runtime_error("short read");
-		}
-		return size;
-	}
-
 	void Cache::setSockAddr(const std::string basePath, struct sockaddr_un & addr)
 	{
 		memset(&addr, 0, sizeof(addr));
@@ -351,13 +482,6 @@ namespace SharedCache {
 
 	void Cache::init()
 	{
-		int rslt = mkdir(basePath.c_str(), 0777);
-		if (rslt == -1 && errno != EEXIST) {
-			perror(basePath.c_str());
-			throw std::runtime_error("Unable to create cache directory");
-		}
-
-
 		if (connectExisting()) {
 			return;
 		}

@@ -69,8 +69,19 @@ namespace SharedCache {
 	};
 
 	namespace Messages {
+		struct Writable {
+			Writable();
+			virtual ~Writable();
+			virtual void collectMemfd(std::vector<int*> & content);
 
-		struct RawContent {
+			virtual void to_json(nlohmann::json&j) const = 0;
+			virtual void from_json(const nlohmann::json& j) = 0;
+		};
+
+		void to_json(nlohmann::json&j, const Writable & i);
+		void from_json(const nlohmann::json& j, Writable & p);
+
+		struct RawContent: public Writable {
 			std::string path;
 			std::string stream;
 			// Used for video content, to get a specific serial (default to 0)
@@ -80,58 +91,61 @@ namespace SharedCache {
 
 			void produce(Entry * entry);
 			static void readFits(FitsFile & fitsFile, Entry * entry);
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const RawContent & i);
-		void from_json(const nlohmann::json& j, RawContent & p);
 
-		struct Histogram {
+		struct Histogram: public Writable {
 			RawContent source;
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const Histogram & i);
-		void from_json(const nlohmann::json& j, Histogram & p);
-
-		struct StarOccurence {
+		struct StarOccurence: public Writable {
 			double x, y;
 			double fwhm, stddev, flux;
 			double maxFwhm, maxStddev, maxFwhmAngle;
 			double minFwhm, minStddev, minFwhmAngle;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const StarOccurence & i);
-		void from_json(const nlohmann::json&j, StarOccurence & i);
-
-		struct StarField {
+		struct StarField: public Writable {
 			RawContent source;
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
-		};
-		void to_json(nlohmann::json&j, const StarField & i);
-		void from_json(const nlohmann::json& j, StarField & p);
 
-		struct StarFieldResult {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
+
+		struct StarFieldResult: public Writable {
 			int width, height;
 			std::vector<StarOccurence> stars;
-		};
-		void to_json(nlohmann::json&j, const StarFieldResult & i);
-		void from_json(const nlohmann::json& j, StarFieldResult & p);
 
-		struct AstrometryResult {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
+
+		struct AstrometryResult: public Writable {
 			bool found;
 			double raCenter, decCenter;
 			double refPixX, refPixY;
 			double cd1_1,cd1_2, cd2_1, cd2_2;
 			int width, height;
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
-		void to_json(nlohmann::json&j, const AstrometryResult & i);
-		void from_json(const nlohmann::json& j, AstrometryResult & p);
 
-		struct Astrometry {
+		struct Astrometry: public Writable {
 			StarField source;
 			std::string exePath;
 			std::string libraryPath;
@@ -143,22 +157,23 @@ namespace SharedCache {
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
-		void to_json(nlohmann::json&j, const Astrometry & i);
-		void from_json(const nlohmann::json& j, Astrometry & p);
 
 		// These queries produce json output
-		struct JsonQuery {
+		struct JsonQuery: public Writable {
 			ChildPtr<StarField> starField;
 			ChildPtr<Astrometry> astrometry;
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
-		};
-		void to_json(nlohmann::json&j, const JsonQuery & i);
-		void from_json(const nlohmann::json& j, JsonQuery & p);
 
-		struct ContentRequest {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
+
+		struct ContentRequest: public Writable {
 			ChildPtr<RawContent> fitsContent;
 			ChildPtr<Histogram> histogram;
 			ChildPtr<JsonQuery> jsonQuery;
@@ -168,91 +183,96 @@ namespace SharedCache {
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const ContentRequest & i);
-		void from_json(const nlohmann::json& j, ContentRequest & p);
-
 		// Wait until a stream frame gets obsoleted
-		struct StreamWatchRequest {
+		struct StreamWatchRequest: public Writable {
 			std::string stream;
 			long serial;
 			int timeout;
-		};
 
-		void to_json(nlohmann::json&j, const StreamWatchRequest & i);
-		void from_json(const nlohmann::json& j, StreamWatchRequest & p);
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
 
 		// Wait until a stream frame gets obsoleted
-		struct StreamWatchResult {
+		struct StreamWatchResult: public Writable {
 			bool timedout;
 			bool dead;
-		};
-		void to_json(nlohmann::json&j, const StreamWatchResult & i);
-		void from_json(const nlohmann::json& j, StreamWatchResult & p);
 
-		struct WorkRequest {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const WorkRequest & i);
-		void from_json(const nlohmann::json& j, WorkRequest & p);
+		struct WorkRequest: public Writable {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
 
 
-		struct WorkResponse {
+		struct WorkResponse: public Writable {
 			ChildPtr<ContentRequest> content;
 			std::string uuid;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const WorkResponse & i);
-		void from_json(const nlohmann::json& j, WorkResponse & p);
-
-		struct FinishedAnnounce {
+		struct FinishedAnnounce: public Writable {
 			bool error;
 			long size;
 			std::string uuid;
 			int memfd;
 			std::string errorDetails;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+			virtual void collectMemfd(std::vector<int*> & content);
 		};
 
-		void to_json(nlohmann::json&j, const FinishedAnnounce & i);
-		void from_json(const nlohmann::json& j, FinishedAnnounce & p);
-
-		struct ReleasedAnnounce {
+		struct ReleasedAnnounce: public Writable {
 			std::string uuid;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
 
-		void to_json(nlohmann::json&j, const ReleasedAnnounce & i);
-		void from_json(const nlohmann::json& j, ReleasedAnnounce & p);
-
-		struct StreamStartImageRequest {
+		struct StreamStartImageRequest: public Writable {
 			std::string streamId;
-		};
-		void to_json(nlohmann::json&j, const StreamStartImageRequest & i);
-		void from_json(const nlohmann::json& j, StreamStartImageRequest & p);
 
-		struct StreamStartImageResult {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
+
+		struct StreamStartImageResult: public Writable {
 			std::string streamId;
 			std::string uuid;
-		};
-		void to_json(nlohmann::json&j, const StreamStartImageResult & i);
-		void from_json(const nlohmann::json& j, StreamStartImageResult & p);
 
-		struct StreamPublishRequest {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+		};
+
+		struct StreamPublishRequest: public Writable {
 			long size;
 			int memfd;
 			std::string uuid;
-		};
-		void to_json(nlohmann::json&j, const StreamPublishRequest & i);
-		void from_json(const nlohmann::json& j, StreamPublishRequest & p);
 
-		struct StreamPublishResult {
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+			virtual void collectMemfd(std::vector<int*> & content);
+		};
+
+		struct StreamPublishResult: public Writable {
 			long serial;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
 		};
-		void to_json(nlohmann::json&j, const StreamPublishResult & i);
-		void from_json(const nlohmann::json& j, StreamPublishResult & p);
 
-
-		struct Request {
+		struct Request: public Writable {
 			ChildPtr<ContentRequest> contentRequest;
 			ChildPtr<StreamWatchRequest> streamWatchRequest;
 			ChildPtr<WorkRequest> workRequest;
@@ -260,36 +280,37 @@ namespace SharedCache {
 			ChildPtr<ReleasedAnnounce> releasedAnnounce;
 			ChildPtr<StreamStartImageRequest> streamStartImageRequest;
 			ChildPtr<StreamPublishRequest> streamPublishRequest;
-		};
 
-		void to_json(nlohmann::json&j, const Request & i);
-		void from_json(const nlohmann::json& j, Request & p);
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+			virtual void collectMemfd(std::vector<int*> & content);
+		};
 
 		// Return a content key (a file).
 		// if not ready, it is up to the caller to actually produce the content
-		struct ContentResult {
+		struct ContentResult: public Writable {
 			bool error;
 			std::string uuid;
 			int memfd;
 			std::string errorDetails;
 			ChildPtr<ContentRequest> actualRequest;
+
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+			virtual void collectMemfd(std::vector<int*> & content);
 		};
 
-		void to_json(nlohmann::json&j, const ContentResult & i);
-		void from_json(const nlohmann::json& j, ContentResult & p);
-
-		struct Result {
+		struct Result: public Writable {
 			ChildPtr<ContentResult> contentResult;
 			ChildPtr<StreamWatchResult> streamWatchResult;
 			ChildPtr<WorkResponse> todoResult;
 			ChildPtr<StreamStartImageResult> streamStartImageResult;
 			ChildPtr<StreamPublishResult> streamPublishResult;
 
+			virtual void to_json(nlohmann::json&j) const;;
+			virtual void from_json(const nlohmann::json& j);
+			virtual void collectMemfd(std::vector<int*> & content);
 		};
-
-		void to_json(nlohmann::json&j, const Result & i);
-		void from_json(const nlohmann::json& j, Result & p);
-
 	}
 
 	/** Reference to an Entry. Auto release */
@@ -362,9 +383,10 @@ namespace SharedCache {
 		int clientFd;
 		long maxSize;
 
-		// Wait a message and returns its size
-		int clientWaitMessage(char * buffer);
-		void clientSendMessage(const void * data, int length);
+		int write(Messages::Writable & alteredMessage);
+		int read(Messages::Writable & expected);
+		static int write(int fd, Messages::Writable & alteredMessage);
+		static int read(int fd, Messages::Writable & expected);
 		Messages::Result clientSend(const Messages::Request & request);
 
 		// Try to connect

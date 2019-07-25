@@ -111,18 +111,13 @@ class Client {
 	int fd;
 	pid_t workerPid;
 
-	char * readBuffer;
-	int readBufferPos;
-
 	Messages::Request * activeRequest;
 	std::list<CacheFileDesc *> reading;
 	std::list<CacheFileDesc *> producing;
 
 	std::chrono::time_point<std::chrono::steady_clock> * watcherExpiry;
 
-	char * writeBuffer;
-	int writeBufferPos;
-	int writeBufferLeft;
+	Messages::Writable * pendingWrite;
 
 	bool worker;
 
@@ -141,17 +136,13 @@ class Client {
 		}
 	}
 
-	Client(SharedCacheServer * server, int fd, pid_t workerPid) :readBuffer(), writeBuffer() {
+	Client(SharedCacheServer * server, int fd, pid_t workerPid) {
 		this->fd = fd;
 		this->server = server;
 		this->workerPid = workerPid;
 		poll = nullptr;
 		activeRequest = nullptr;
-		writeBufferPos = 0;
-		writeBufferLeft = 0;
-		readBufferPos = 0;
-		readBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
-		writeBuffer = (char*)malloc(MAX_MESSAGE_SIZE);
+		pendingWrite = nullptr;
 		waitingConsumer = false;
 		waitingWorker = false;
 		worker = false;
@@ -182,31 +173,10 @@ class Client {
 private:
 	~Client();
 public:
-	bool send(const std::string & str)
-	{
-		unsigned long l = str.length();
-		if (l > MAX_MESSAGE_SIZE - 2) {
-			std::cerr << "Unable to send message to" << this->identifier() << " : " << str << "\n";
-			release();
-			return false;
-		} else {
-
-			*((uint16_t*)writeBuffer) = l;
-			memcpy(writeBuffer + 2, str.c_str(), l);
-			writeBufferPos = 0;
-			writeBufferLeft = 2 + l;
-			return true;
-		}
-	}
-
 	bool reply(const Messages::Result & result) {
-		nlohmann::json j = result;
-		std::string reply = j.dump(0);
+		assert(this->pendingWrite == nullptr);
 
-		if (!send(reply)) {
-			return false;
-		}
-		std::cerr << "Server reply to " << this->identifier() << " : " << reply << "\n";
+		this->pendingWrite = new Messages::Result(result);
 
 		delete activeRequest;
 		activeRequest = nullptr;

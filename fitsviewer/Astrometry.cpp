@@ -15,38 +15,38 @@ using nlohmann::json;
 
 namespace SharedCache {
     namespace Messages {
-        void to_json(nlohmann::json&j, const AstrometryResult & i)
+        void AstrometryResult::to_json(nlohmann::json&j) const
         {
             j = nlohmann::json::object();
-            j["found"] = i.found;
-            j["width"] = i.width;
-            j["height"] = i.height;
-            if (i.found) {
-                j["raCenter"] = i.raCenter;
-                j["decCenter"] = i.decCenter;
-                j["refPixX"] = i.refPixX;
-                j["refPixY"] = i.refPixY;
-                j["cd1_1"] = i.cd1_1;
-                j["cd1_2"] = i.cd1_2;
-                j["cd2_1"] = i.cd2_1;
-                j["cd2_2"] = i.cd2_2;
+            j["found"] = this->found;
+            j["width"] = this->width;
+            j["height"] = this->height;
+            if (this->found) {
+                j["raCenter"] = this->raCenter;
+                j["decCenter"] = this->decCenter;
+                j["refPixX"] = this->refPixX;
+                j["refPixY"] = this->refPixY;
+                j["cd1_1"] = this->cd1_1;
+                j["cd1_2"] = this->cd1_2;
+                j["cd2_1"] = this->cd2_1;
+                j["cd2_2"] = this->cd2_2;
             }
         }
 
-        void from_json(const nlohmann::json& j, AstrometryResult & p)
+        void AstrometryResult::from_json(const nlohmann::json& j)
         {
-            p.found = j.at("found").get<bool>();
-            p.width = j.at("width").get<int>();
-            p.height = j.at("height").get<int>();
-            if (p.found) {
-                p.raCenter = j.at("raCenter").get<double>();
-                p.decCenter = j.at("decCenter").get<double>();
-                p.refPixX = j.at("refPixX").get<double>();
-                p.refPixY = j.at("refPixY").get<double>();
-                p.cd1_1 = j.at("cd1_1").get<double>();
-                p.cd1_2 = j.at("cd1_2").get<double>();
-                p.cd2_1 = j.at("cd2_1").get<double>();
-                p.cd2_2 = j.at("cd2_2").get<double>();
+            this->found = j.at("found").get<bool>();
+            this->width = j.at("width").get<int>();
+            this->height = j.at("height").get<int>();
+            if (this->found) {
+                this->raCenter = j.at("raCenter").get<double>();
+                this->decCenter = j.at("decCenter").get<double>();
+                this->refPixX = j.at("refPixX").get<double>();
+                this->refPixY = j.at("refPixY").get<double>();
+                this->cd1_1 = j.at("cd1_1").get<double>();
+                this->cd1_2 = j.at("cd1_2").get<double>();
+                this->cd2_1 = j.at("cd2_1").get<double>();
+                this->cd2_2 = j.at("cd2_2").get<double>();
             }
         }
     }

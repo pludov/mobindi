@@ -2,434 +2,514 @@
 
 namespace SharedCache {
 	namespace Messages {
+		Writable::Writable() {
+		}
+		Writable::~Writable() {
+		}
 
-		void to_json(nlohmann::json&j, const RawContent & i)
+		void Writable::collectMemfd(std::vector<int*> & content)
+		{}
+
+		void to_json(nlohmann::json&j, const Writable & i) {
+			i.to_json(j);
+		}
+
+		void from_json(const nlohmann::json& j, Writable & p) {
+			p.from_json(j);
+		}
+
+		void RawContent::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (!i.path.empty()) {
-				j["path"] = i.path;
+			if (!this->path.empty()) {
+				j["path"] = this->path;
 			}
-			if (!i.stream.empty()) {
-				j["stream"] = i.stream;
+			if (!this->stream.empty()) {
+				j["stream"] = this->stream;
 			}
-			if (i.serial != 0) {
-				j["serial"] = i.serial;
+			if (this->serial != 0) {
+				j["serial"] = this->serial;
 			}
-			if (i.exactSerial) {
-				j["exactSerial"] = i.exactSerial;
+			if (this->exactSerial) {
+				j["exactSerial"] = this->exactSerial;
 			}
 		}
 
-		void from_json(const nlohmann::json& j, RawContent & p) {
+		void RawContent::from_json(const nlohmann::json& j) {
 			if (j.find("path") != j.end()) {
-				p.path = j.at("path").get<std::string>();
+				this->path = j.at("path").get<std::string>();
 			}
 			if (j.find("stream") != j.end()) {
-				p.stream = j.at("stream").get<std::string>();
+				this->stream = j.at("stream").get<std::string>();
 			}
 			if (j.find("serial") != j.end()) {
-				p.serial = j.at("serial").get<long>();
+				this->serial = j.at("serial").get<long>();
 			} else {
-				p.serial = 0;
+				this->serial = 0;
 			}
 
 			if (j.find("exactSerial") != j.end()) {
-				p.exactSerial = j.at("exactSerial").get<bool>();
+				this->exactSerial = j.at("exactSerial").get<bool>();
 			} else {
-				p.exactSerial = false;
+				this->exactSerial = false;
 			}
 		}
 
-		void to_json(nlohmann::json&j, const Histogram & i)
+		void Histogram::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["source"] = i.source;
+			j["source"] = this->source;
 		}
 
-		void from_json(const nlohmann::json& j, Histogram & p) {
-			p.source = j.at("source").get<RawContent>();
+		void Histogram::from_json(const nlohmann::json& j) {
+			this->source = j.at("source").get<RawContent>();
 		}
 
-		void to_json(nlohmann::json&j, const StarField & i)
+		void StarField::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["source"] = i.source;
+			j["source"] = this->source;
 		}
 
-		void from_json(const nlohmann::json& j, StarField & p) {
-			p.source = j.at("source").get<RawContent>();
+		void StarField::from_json(const nlohmann::json& j) {
+			this->source = j.at("source").get<RawContent>();
 		}
 
-		void to_json(nlohmann::json&j, const StarOccurence & i)
+		void StarOccurence::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["x"] = i.x;
-			j["y"] = i.y;
-			j["fwhm"] = i.fwhm;
-			j["stddev"] = i.stddev;
-			j["maxFwhm"] = i.maxFwhm;
-			j["maxStddev"] = i.maxStddev;
-			j["maxFwhmAngle"] = i.maxFwhmAngle;
-			j["minFwhm"] = i.minFwhm;
-			j["minStddev"] = i.minStddev;
-			j["minFwhmAngle"] = i.minFwhmAngle;
-			j["flux"] = i.flux;
+			j["x"] = this->x;
+			j["y"] = this->y;
+			j["fwhm"] = this->fwhm;
+			j["stddev"] = this->stddev;
+			j["maxFwhm"] = this->maxFwhm;
+			j["maxStddev"] = this->maxStddev;
+			j["maxFwhmAngle"] = this->maxFwhmAngle;
+			j["minFwhm"] = this->minFwhm;
+			j["minStddev"] = this->minStddev;
+			j["minFwhmAngle"] = this->minFwhmAngle;
+			j["flux"] = this->flux;
 		}
 
-		void from_json(const nlohmann::json&j, StarOccurence & i)
+		void StarOccurence::from_json(const nlohmann::json&j)
 		{
-			i.x = j.at("x").get<double>();
-			i.y = j.at("y").get<double>();
-			i.fwhm = j.at("fwhm").get<double>();
-			i.stddev = j.at("stddev").get<double>();
-			i.maxFwhm = j.at("maxFwhm").get<double>();
-			i.maxStddev = j.at("maxStddev").get<double>();
-			i.maxFwhmAngle= j.at("maxFwhmAngle").get<double>();
-			i.minFwhm = j.at("minFwhm").get<double>();
-			i.minStddev = j.at("minStddev").get<double>();
-			i.minFwhmAngle = j.at("minFwhmAngle").get<double>();
-			i.flux = j.at("flux").get<double>();
+			this->x = j.at("x").get<double>();
+			this->y = j.at("y").get<double>();
+			this->fwhm = j.at("fwhm").get<double>();
+			this->stddev = j.at("stddev").get<double>();
+			this->maxFwhm = j.at("maxFwhm").get<double>();
+			this->maxStddev = j.at("maxStddev").get<double>();
+			this->maxFwhmAngle= j.at("maxFwhmAngle").get<double>();
+			this->minFwhm = j.at("minFwhm").get<double>();
+			this->minStddev = j.at("minStddev").get<double>();
+			this->minFwhmAngle = j.at("minFwhmAngle").get<double>();
+			this->flux = j.at("flux").get<double>();
 		}
 
-		void to_json(nlohmann::json&j, const StarFieldResult & i)
-		{
-			j = nlohmann::json::object();
-			j["width"] = i.width;
-			j["height"] = i.height;
-			j["stars"] = i.stars;
-		}
-
-		void from_json(const nlohmann::json& j, StarFieldResult & p)
-		{
-			p.width = j.at("width").get<double>();
-			p.height = j.at("height").get<double>();
-			p.stars = j.at("stars").get<std::vector<StarOccurence>>();
-		}
-
-		void to_json(nlohmann::json&j, const Astrometry & i)
+		void StarFieldResult::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["source"] = i.source;
-			j["exePath"] = i.exePath;
-			j["libraryPath"] = i.libraryPath;
-			j["fieldMin"] = i.fieldMin;
-			j["fieldMax"] = i.fieldMax;
-			j["raCenterEstimate"] = i.raCenterEstimate;
-			j["decCenterEstimate"] = i.decCenterEstimate;
-			j["searchRadius"] = i.searchRadius;
-			j["numberOfBinInUniformize"] = i.numberOfBinInUniformize;
+			j["width"] = this->width;
+			j["height"] = this->height;
+			j["stars"] = this->stars;
 		}
 
-		void from_json(const nlohmann::json& j, Astrometry & p) {
-			p.source = j.at("source").get<StarField>();
-			p.exePath = j.at("exePath").get<std::string>();
-			p.libraryPath = j.at("libraryPath").get<std::string>();
-			p.fieldMin = j.at("fieldMin").get<double>();
-			p.fieldMax = j.at("fieldMax").get<double>();
-			p.raCenterEstimate = j.at("raCenterEstimate").get<double>();
-			p.decCenterEstimate = j.at("decCenterEstimate").get<double>();
-			p.searchRadius = j.at("searchRadius").get<double>();
-			p.numberOfBinInUniformize = j.at("numberOfBinInUniformize").get<int>();
+		void StarFieldResult::from_json(const nlohmann::json& j)
+		{
+			this->width = j.at("width").get<double>();
+			this->height = j.at("height").get<double>();
+			this->stars = j.at("stars").get<std::vector<StarOccurence>>();
 		}
 
-		void to_json(nlohmann::json&j, const JsonQuery & i)
+		void Astrometry::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (i.starField) {
-				j["starField"] = *i.starField;
+			j["source"] = this->source;
+			j["exePath"] = this->exePath;
+			j["libraryPath"] = this->libraryPath;
+			j["fieldMin"] = this->fieldMin;
+			j["fieldMax"] = this->fieldMax;
+			j["raCenterEstimate"] = this->raCenterEstimate;
+			j["decCenterEstimate"] = this->decCenterEstimate;
+			j["searchRadius"] = this->searchRadius;
+			j["numberOfBinInUniformize"] = this->numberOfBinInUniformize;
+		}
+
+		void Astrometry::from_json(const nlohmann::json& j) {
+			this->source = j.at("source").get<StarField>();
+			this->exePath = j.at("exePath").get<std::string>();
+			this->libraryPath = j.at("libraryPath").get<std::string>();
+			this->fieldMin = j.at("fieldMin").get<double>();
+			this->fieldMax = j.at("fieldMax").get<double>();
+			this->raCenterEstimate = j.at("raCenterEstimate").get<double>();
+			this->decCenterEstimate = j.at("decCenterEstimate").get<double>();
+			this->searchRadius = j.at("searchRadius").get<double>();
+			this->numberOfBinInUniformize = j.at("numberOfBinInUniformize").get<int>();
+		}
+
+		void JsonQuery::to_json(nlohmann::json&j) const
+		{
+			j = nlohmann::json::object();
+			if (this->starField) {
+				j["starField"] = *this->starField;
 			}
-			if (i.astrometry) {
-				j["astrometry"] = *i.astrometry;
+			if (this->astrometry) {
+				j["astrometry"] = *this->astrometry;
 			}
 		}
 
-		void from_json(const nlohmann::json& j, JsonQuery & p) {
+		void JsonQuery::from_json(const nlohmann::json& j) {
 			if (j.find("starField") != j.end()) {
-				p.starField = new StarField(j.at("starField").get<StarField>());
+				this->starField = new StarField(j.at("starField").get<StarField>());
 			}
 			if (j.find("astrometry") != j.end()) {
-				p.astrometry = new Astrometry(j.at("astrometry").get<Astrometry>());
+				this->astrometry = new Astrometry(j.at("astrometry").get<Astrometry>());
 			}
 		}
 
-		void to_json(nlohmann::json&j, const ContentRequest & i)
+		void ContentRequest::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (i.fitsContent) {
-				j["fitsContent"] = *i.fitsContent;
+			if (this->fitsContent) {
+				j["fitsContent"] = *this->fitsContent;
 			}
-			if (i.histogram) {
-				j["histogram"] = *i.histogram;
+			if (this->histogram) {
+				j["histogram"] = *this->histogram;
 			}
-			if (i.jsonQuery) {
-				j["jsonQuery"] = *i.jsonQuery;
+			if (this->jsonQuery) {
+				j["jsonQuery"] = *this->jsonQuery;
 			}
 		}
 
-		void from_json(const nlohmann::json& j, ContentRequest & p) {
+		void ContentRequest::from_json(const nlohmann::json& j) {
 			if (j.find("fitsContent") != j.end()) {
-				p.fitsContent = new RawContent(j.at("fitsContent").get<RawContent>());
+				this->fitsContent = new RawContent(j.at("fitsContent").get<RawContent>());
 			}
 			if (j.find("histogram") != j.end()) {
-				p.histogram = new Histogram(j.at("histogram").get<Histogram>());
+				this->histogram = new Histogram(j.at("histogram").get<Histogram>());
 			}
 			if (j.find("jsonQuery") != j.end()) {
-				p.jsonQuery = new JsonQuery(j.at("jsonQuery").get<JsonQuery>());
+				this->jsonQuery = new JsonQuery(j.at("jsonQuery").get<JsonQuery>());
 			}
 		}
 
-		void to_json(nlohmann::json&j, const StreamWatchRequest & i)
+		void StreamWatchRequest::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["stream"] = i.stream;
-			j["serial"] = i.serial;
-			if (i.timeout) {
-				j["timeout"] = i.timeout;
+			j["stream"] = this->stream;
+			j["serial"] = this->serial;
+			if (this->timeout) {
+				j["timeout"] = this->timeout;
 			}
 		}
 
-		void from_json(const nlohmann::json& j, StreamWatchRequest & p) {
-			p.stream = j.at("stream").get<std::string>();
-			p.serial = j.at("serial").get<long>();
+		void StreamWatchRequest::from_json(const nlohmann::json& j) {
+			this->stream = j.at("stream").get<std::string>();
+			this->serial = j.at("serial").get<long>();
 			if (j.find("timeout") != j.end()) {
-				p.timeout = j.at("timeout").get<int>();
+				this->timeout = j.at("timeout").get<int>();
 			} else {
-				p.timeout = 0;
+				this->timeout = 0;
 			}
 		}
 
-		void to_json(nlohmann::json&j, const StreamWatchResult & i)
+		void StreamWatchResult::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["timedout"] = i.timedout;
-			j["dead"] = i.dead;
+			j["timedout"] = this->timedout;
+			j["dead"] = this->dead;
 		}
 
-		void from_json(const nlohmann::json& j, StreamWatchResult & p) {
+		void StreamWatchResult::from_json(const nlohmann::json& j) {
 			if (j.find("timedout") != j.end()) {
-				p.timedout = j.at("timedout").get<bool>();
+				this->timedout = j.at("timedout").get<bool>();
 			} else {
-				p.timedout = false;
+				this->timedout = false;
 			}
 			if (j.find("dead") != j.end()) {
-				p.dead = j.at("dead").get<bool>();
+				this->dead = j.at("dead").get<bool>();
 			} else {
-				p.dead = false;
+				this->dead = false;
 			}
 		}
 
-		void to_json(nlohmann::json&j, const WorkRequest & i)
+		void WorkRequest::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
 			j.object();
 		}
 
-		void from_json(const nlohmann::json& j, WorkRequest & p) {
+		void WorkRequest::from_json(const nlohmann::json& j) {
 		}
-		void to_json(nlohmann::json&j, const WorkResponse & i)
+		void WorkResponse::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (i.content) {
-				j["content"] = *i.content;
+			if (this->content) {
+				j["content"] = *this->content;
 			}
-			j["uuid"] = i.uuid;
+			j["uuid"] = this->uuid;
 		}
 
-		void from_json(const nlohmann::json& j, WorkResponse & p) {
+		void WorkResponse::from_json(const nlohmann::json& j) {
 			if (j.find("content") != j.end()) {
-				p.content = new ContentRequest(j.at("content").get<ContentRequest>());
+				this->content = new ContentRequest(j.at("content").get<ContentRequest>());
 			}
-			p.uuid = j["uuid"].get<std::string>();
+			this->uuid = j["uuid"].get<std::string>();
 		}
 
 
-		void to_json(nlohmann::json&j, const FinishedAnnounce & i)
+		void FinishedAnnounce::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["size"] = i.size;
-			j["error"] = i.error;
-			j["uuid"] = i.uuid;
-			j["memfd"] = i.memfd;
-			j["errorDetails"] = i.errorDetails;
+			j["size"] = this->size;
+			j["error"] = this->error;
+			j["uuid"] = this->uuid;
+			j["memfd"] = this->memfd;
+			j["errorDetails"] = this->errorDetails;
 		}
 
-		void from_json(const nlohmann::json& j, FinishedAnnounce & p) {
-			p.error = j.at("error").get<bool>();
-			p.size = j.at("size").get<long>();
-			p.uuid = j.at("uuid").get<std::string>();
-			p.memfd = j.at("memfd").get<int>();
-			p.errorDetails = j.at("errorDetails").get<std::string>();
+		void FinishedAnnounce::from_json(const nlohmann::json& j) {
+			this->error = j.at("error").get<bool>();
+			this->size = j.at("size").get<long>();
+			this->uuid = j.at("uuid").get<std::string>();
+			this->memfd = j.at("memfd").get<int>();
+			this->errorDetails = j.at("errorDetails").get<std::string>();
 		}
 
+		void FinishedAnnounce::collectMemfd(std::vector<int*> & content)
+		{
+			content.push_back(&this->memfd);
+		}
 
-		void to_json(nlohmann::json&j, const ReleasedAnnounce & i)
+		void ReleasedAnnounce::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["uuid"] = i.uuid;
+			j["uuid"] = this->uuid;
 		}
 
-		void from_json(const nlohmann::json& j, ReleasedAnnounce & p) {
-			p.uuid = j.at("uuid").get<std::string>();
+		void ReleasedAnnounce::from_json(const nlohmann::json& j) {
+			this->uuid = j.at("uuid").get<std::string>();
 		}
 
 
-		void to_json(nlohmann::json&j, const Request & i)
+		void Request::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (i.contentRequest) j["contentRequest"] = *i.contentRequest;
-			if (i.streamWatchRequest) j["streamWatchRequest"] = *i.streamWatchRequest;
-			if (i.workRequest) j["workRequest"] = *i.workRequest;
-			if (i.finishedAnnounce) j["finishedAnnounce"] = *i.finishedAnnounce;
-			if (i.releasedAnnounce) j["releasedAnnounce"] = *i.releasedAnnounce;
-			if (i.streamPublishRequest) j["streamPublishRequest"] = *i.streamPublishRequest;
-			if (i.streamStartImageRequest) j["streamStartImageRequest"] = *i.streamStartImageRequest;
+			if (this->contentRequest) j["contentRequest"] = *this->contentRequest;
+			if (this->streamWatchRequest) j["streamWatchRequest"] = *this->streamWatchRequest;
+			if (this->workRequest) j["workRequest"] = *this->workRequest;
+			if (this->finishedAnnounce) j["finishedAnnounce"] = *this->finishedAnnounce;
+			if (this->releasedAnnounce) j["releasedAnnounce"] = *this->releasedAnnounce;
+			if (this->streamPublishRequest) j["streamPublishRequest"] = *this->streamPublishRequest;
+			if (this->streamStartImageRequest) j["streamStartImageRequest"] = *this->streamStartImageRequest;
 		}
 
-		void from_json(const nlohmann::json& j, Request & p) {
+		void Request::from_json(const nlohmann::json& j) {
 			if (j.find("contentRequest") != j.end()) {
-				p.contentRequest = new ContentRequest(j.at("contentRequest").get<ContentRequest>());
+				this->contentRequest = new ContentRequest(j.at("contentRequest").get<ContentRequest>());
 			} else {
-				p.contentRequest = nullptr;
+				this->contentRequest = nullptr;
 			}
 			if (j.find("streamWatchRequest") != j.end()) {
-				p.streamWatchRequest = new StreamWatchRequest(j.at("streamWatchRequest").get<StreamWatchRequest>());
+				this->streamWatchRequest = new StreamWatchRequest(j.at("streamWatchRequest").get<StreamWatchRequest>());
 			} else {
-				p.streamWatchRequest = nullptr;
+				this->streamWatchRequest = nullptr;
 			}
 			if (j.find("workRequest") != j.end()) {
-				p.workRequest = new WorkRequest(j.at("workRequest").get<WorkRequest>());
+				this->workRequest = new WorkRequest(j.at("workRequest").get<WorkRequest>());
 			} else {
-				p.workRequest = nullptr;
+				this->workRequest = nullptr;
 			}
 			if (j.find("finishedAnnounce") != j.end()) {
-				p.finishedAnnounce = new FinishedAnnounce(j.at("finishedAnnounce").get<FinishedAnnounce>());
+				this->finishedAnnounce = new FinishedAnnounce(j.at("finishedAnnounce").get<FinishedAnnounce>());
 			} else {
-				p.finishedAnnounce = nullptr;
+				this->finishedAnnounce = nullptr;
 			}
 			if (j.find("releasedAnnounce") != j.end()) {
-				p.releasedAnnounce = new ReleasedAnnounce(j.at("releasedAnnounce").get<ReleasedAnnounce>());
+				this->releasedAnnounce = new ReleasedAnnounce(j.at("releasedAnnounce").get<ReleasedAnnounce>());
 			} else {
-				p.releasedAnnounce = nullptr;
+				this->releasedAnnounce = nullptr;
 			}
 			if (j.find("streamPublishRequest") != j.end()) {
-				p.streamPublishRequest = new StreamPublishRequest(j.at("streamPublishRequest").get<StreamPublishRequest>());
+				this->streamPublishRequest = new StreamPublishRequest(j.at("streamPublishRequest").get<StreamPublishRequest>());
 			} else {
-				p.streamPublishRequest = nullptr;
+				this->streamPublishRequest = nullptr;
 			}
 			if (j.find("streamStartImageRequest") != j.end()) {
-				p.streamStartImageRequest = new StreamStartImageRequest(j.at("streamStartImageRequest").get<StreamStartImageRequest>());
+				this->streamStartImageRequest = new StreamStartImageRequest(j.at("streamStartImageRequest").get<StreamStartImageRequest>());
 			} else {
-				p.streamStartImageRequest = nullptr;
+				this->streamStartImageRequest = nullptr;
+			}
+		}
+
+		void Request::collectMemfd(std::vector<int*> & content)
+		{
+			if (this->contentRequest) {
+				this->contentRequest->collectMemfd(content);
+			}
+			if (this->streamWatchRequest) {
+				this->streamWatchRequest->collectMemfd(content);
+			}
+			if (this->workRequest) {
+				this->workRequest->collectMemfd(content);
+			}
+			if (this->finishedAnnounce) {
+				this->finishedAnnounce->collectMemfd(content);
+			}
+			if (this->releasedAnnounce) {
+				this->releasedAnnounce->collectMemfd(content);
+			}
+			if (this->streamPublishRequest) {
+				this->streamPublishRequest->collectMemfd(content);
+			}
+			if (this->streamStartImageRequest) {
+				this->streamStartImageRequest->collectMemfd(content);
 			}
 		}
 
 
-		void to_json(nlohmann::json&j, const ContentResult & i)
+		void ContentResult::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["uuid"] = i.uuid;
-			j["memfd"] = i.memfd;
-			j["errorDetails"] = i.errorDetails;
-			j["error"] = i.error;
-			if (i.actualRequest) j["actualRequest"] = *i.actualRequest;
+			j["uuid"] = this->uuid;
+			j["memfd"] = this->memfd;
+			j["errorDetails"] = this->errorDetails;
+			j["error"] = this->error;
+			if (this->actualRequest) j["actualRequest"] = *this->actualRequest;
 		}
-		void from_json(const nlohmann::json& j, ContentResult & p)
+		void ContentResult::from_json(const nlohmann::json& j)
 		{
-			p.uuid = j.at("uuid").get<std::string>();
-			p.memfd = j.at("memfd").get<int>();
-			p.errorDetails = j.at("errorDetails").get<std::string>();
-			p.error = j.at("error").get<bool>();
+			this->uuid = j.at("uuid").get<std::string>();
+			this->memfd = j.at("memfd").get<int>();
+			this->errorDetails = j.at("errorDetails").get<std::string>();
+			this->error = j.at("error").get<bool>();
 			if (j.find("actualRequest") != j.end()) {
-				p.actualRequest = new ContentRequest(j.at("actualRequest").get<ContentRequest>());
+				this->actualRequest = new ContentRequest(j.at("actualRequest").get<ContentRequest>());
 			} else {
-				p.actualRequest = nullptr;
+				this->actualRequest = nullptr;
 			}
 		}
 
-		void to_json(nlohmann::json&j, const Result & i)
+		void ContentResult::collectMemfd(std::vector<int*> & content)
+		{
+			content.push_back(&this->memfd);
+		}
+
+		void Result::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			if (i.contentResult) j["contentResult"] = *i.contentResult;
-			if (i.streamWatchResult) j["streamWatchResult"] = *i.streamWatchResult;
-			if (i.todoResult) j["todoResult"] = *i.todoResult;
-			if (i.streamPublishResult) j["streamPublishResult"] = *i.streamPublishResult;
-			if (i.streamStartImageResult) j["streamStartImageResult"] = *i.streamStartImageResult;
+			if (this->contentResult) j["contentResult"] = *this->contentResult;
+			if (this->streamWatchResult) j["streamWatchResult"] = *this->streamWatchResult;
+			if (this->todoResult) j["todoResult"] = *this->todoResult;
+			if (this->streamPublishResult) j["streamPublishResult"] = *this->streamPublishResult;
+			if (this->streamStartImageResult) j["streamStartImageResult"] = *this->streamStartImageResult;
 		}
-		void from_json(const nlohmann::json& j, Result & p)
+
+		void Result::from_json(const nlohmann::json& j)
 		{
 			if (j.find("contentResult") != j.end()) {
-				p.contentResult = new ContentResult(j.at("contentResult").get<ContentResult>());
+				this->contentResult = new ContentResult(j.at("contentResult").get<ContentResult>());
 			} else {
-				p.contentResult = nullptr;
+				this->contentResult = nullptr;
 			}
 			if (j.find("streamWatchResult") != j.end()) {
-				p.streamWatchResult = new StreamWatchResult(j.at("streamWatchResult").get<StreamWatchResult>());
+				this->streamWatchResult = new StreamWatchResult(j.at("streamWatchResult").get<StreamWatchResult>());
 			} else {
-				p.streamWatchResult = nullptr;
+				this->streamWatchResult = nullptr;
 			}
 			if (j.find("todoResult") != j.end()) {
-				p.todoResult = new WorkResponse(j.at("todoResult").get<WorkResponse>());
+				this->todoResult = new WorkResponse(j.at("todoResult").get<WorkResponse>());
 			} else {
-				p.todoResult = nullptr;
+				this->todoResult = nullptr;
 			}
 			if (j.find("streamPublishResult") != j.end()) {
-				p.streamPublishResult = new StreamPublishResult(j.at("streamPublishResult").get<StreamPublishResult>());
+				this->streamPublishResult = new StreamPublishResult(j.at("streamPublishResult").get<StreamPublishResult>());
 			} else {
-				p.streamPublishResult = nullptr;
+				this->streamPublishResult = nullptr;
 			}
 			if (j.find("streamStartImageResult") != j.end()) {
-				p.streamStartImageResult = new StreamStartImageResult(j.at("streamStartImageResult").get<StreamStartImageResult>());
+				this->streamStartImageResult = new StreamStartImageResult(j.at("streamStartImageResult").get<StreamStartImageResult>());
 			} else {
-				p.streamStartImageResult = nullptr;
+				this->streamStartImageResult = nullptr;
 			}
 		}
 
 
-		void to_json(nlohmann::json&j, const StreamStartImageRequest & i)
+		void Result::collectMemfd(std::vector<int*> & content)
+		{
+			if (this->contentResult) {
+				this->contentResult->collectMemfd(content);
+			}
+
+			if (this->streamWatchResult) {
+				this->streamWatchResult->collectMemfd(content);
+			}
+
+			if (this->todoResult) {
+				this->todoResult->collectMemfd(content);
+			}
+
+			if (this->streamPublishResult) {
+				this->streamPublishResult->collectMemfd(content);
+			}
+
+			if (this->streamStartImageResult) {
+				this->streamStartImageResult->collectMemfd(content);
+			}
+
+		}
+
+
+		void StreamStartImageRequest::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
 		}
 
-		void from_json(const nlohmann::json& j, StreamStartImageRequest & p)
+		void StreamStartImageRequest::from_json(const nlohmann::json& j)
 		{}
 
-		void to_json(nlohmann::json&j, const StreamStartImageResult & i)
+		void StreamStartImageResult::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["uuid"] = i.uuid;
-			j["streamId"] = i.streamId;
+			j["uuid"] = this->uuid;
+			j["streamId"] = this->streamId;
 		}
 
-		void from_json(const nlohmann::json& j, StreamStartImageResult & p)
+		void StreamStartImageResult::from_json(const nlohmann::json& j)
 		{
-			p.uuid = j.at("uuid").get<std::string>();
-			p.streamId = j.at("streamId").get<std::string>();
+			this->uuid = j.at("uuid").get<std::string>();
+			this->streamId = j.at("streamId").get<std::string>();
 		}
 
-		void to_json(nlohmann::json&j, const StreamPublishRequest & i)
-		{
-			j = nlohmann::json::object();
-			j["size"] = i.size;
-			j["uuid"] = i.uuid;
-			j["memfd"] = i.memfd;
-		}
-
-		void from_json(const nlohmann::json& j, StreamPublishRequest & p)
-		{
-			p.size = j.at("size").get<long>();
-			p.uuid = j.at("uuid").get<std::string>();
-			p.memfd = j.at("memfd").get<int>();
-		}
-
-		void to_json(nlohmann::json&j, const StreamPublishResult & i)
+		void StreamPublishRequest::to_json(nlohmann::json&j) const
 		{
 			j = nlohmann::json::object();
-			j["serial"] = i.serial;
+			j["size"] = this->size;
+			j["uuid"] = this->uuid;
+			j["memfd"] = this->memfd;
 		}
 
-		void from_json(const nlohmann::json& j, StreamPublishResult & p)
+		void StreamPublishRequest::from_json(const nlohmann::json& j)
 		{
-			p.serial = j.at("serial").get<long>();
+			this->size = j.at("size").get<long>();
+			this->uuid = j.at("uuid").get<std::string>();
+			this->memfd = j.at("memfd").get<int>();
+		}
+
+		void StreamPublishRequest::collectMemfd(std::vector<int*> & content)
+		{
+			content.push_back(&this->memfd);
+		}
+
+		void StreamPublishResult::to_json(nlohmann::json&j) const
+		{
+			j = nlohmann::json::object();
+			j["serial"] = this->serial;
+		}
+
+		void StreamPublishResult::from_json(const nlohmann::json& j)
+		{
+			this->serial = j.at("serial").get<long>();
 		}
 	}
 }
