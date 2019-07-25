@@ -34,7 +34,7 @@ find_package(PNG REQUIRED)
 find_package(JPEG REQUIRED)
 
 find_package(CFITSIO REQUIRED)
-find_package(INDI 1.7 REQUIRED client driver)
+find_package(INDI 1.7 REQUIRED client)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
