@@ -146,23 +146,11 @@ SharedCacheServer::~SharedCacheServer() {
 	}
 }
 
-
-std::string SharedCacheServer::newFilename() {
-	std::string result;
-	int fd;
-	do {
+std::string SharedCacheServer::newUuid() {
 		std::ostringstream oss;
 		oss << "data" << std::setfill('0') << std::setw(12) << (fileGenerator++);
-		result = oss.str();
-		std::string path = basePath + result;
-		fd = open(path.c_str(), O_CREAT | O_EXCL, 0600);
-		if (fd == -1 && errno != EEXIST) {
-			perror(path.c_str());
-			throw std::runtime_error("Failed to create data file");
-		}
-	} while(fd == -1);
-	close(fd);
-	return result;
+		return oss.str();
+
 }
 
 void SharedCacheServer::init() {
@@ -411,7 +399,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		// c->producing.push_back();
 		Messages::Result resultMessage;
 		resultMessage.streamStartImageResult.build();
-		resultMessage.streamStartImageResult->filename = newContent->filename;
+		resultMessage.streamStartImageResult->uuid = newContent->uuid;
 		resultMessage.streamStartImageResult->streamId = c->producedStream->getId();
 
 		c->producing.push_back(newContent);
@@ -423,9 +411,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		if (c->producedStream == nullptr) {
 			throw ClientError("publish request for non streaming client");
 		}
-		std::string filename = c->activeRequest->streamPublishRequest->filename;
-		auto cfdLoc = contentByFilename.find(filename);
-		if (cfdLoc == contentByFilename.end()) {
+		std::string uuid = c->activeRequest->streamPublishRequest->uuid;
+		auto cfdLoc = contentByUuid.find(uuid);
+		if (cfdLoc == contentByUuid.end()) {
 			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
@@ -439,6 +427,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 
 		c->producing.erase(cfdLocInProducing);
 		cfd->produced = true;
+		cfd->memfd = c->activeRequest->finishedAnnounce->memfd;
 		cfd->size = c->activeRequest->streamPublishRequest->size;
 		cfd->lastUse = now();
 		currentSize += cfd->size;
@@ -494,9 +483,9 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 	}
 
 	if (c->activeRequest->finishedAnnounce) {
-		std::string filename = c->activeRequest->finishedAnnounce->filename;
-		auto cfdLoc = contentByFilename.find(filename);
-		if (cfdLoc == contentByFilename.end()) {
+		std::string uuid = c->activeRequest->finishedAnnounce->uuid;
+		auto cfdLoc = contentByUuid.find(uuid);
+		if (cfdLoc == contentByUuid.end()) {
 			throw ClientError("Access to unknown file rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
@@ -513,6 +502,7 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 			cfd->prodFailed(c->activeRequest->finishedAnnounce->errorDetails);
 		} else {
 			cfd->produced = true;
+			cfd->memfd = c->activeRequest->finishedAnnounce->memfd;
 			cfd->size = c->activeRequest->finishedAnnounce->size;
 			cfd->lastUse = now();
 			currentSize += cfd->size;
@@ -525,10 +515,10 @@ void SharedCacheServer::proceedNewMessage(Client * c)
 		return;
 	}
 	if (c->activeRequest->releasedAnnounce) {
-		std::string filename = c->activeRequest->releasedAnnounce->filename;
-		auto cfdLoc = contentByFilename.find(filename);
-		if (cfdLoc == contentByFilename.end()) {
-			throw ClientError("Release of unknown file rejected");
+		std::string uuid = c->activeRequest->releasedAnnounce->uuid;
+		auto cfdLoc = contentByUuid.find(uuid);
+		if (cfdLoc == contentByUuid.end()) {
+			throw ClientError("Release of unknown buffer rejected");
 		}
 		CacheFileDesc * cfd = cfdLoc->second;
 		if (!cfd->produced) {
@@ -582,7 +572,7 @@ public:
 			}
 			return
 					std::pair<CacheFileDesc *, Messages::ContentRequest>(
-						new CacheFileDesc(server, r.second, server->newFilename()),
+						new CacheFileDesc(server, r.second, server->newUuid()),
 						r.first);
 		}
 		return std::pair<CacheFileDesc *, Messages::ContentRequest>(nullptr, Messages::ContentRequest());
@@ -826,9 +816,8 @@ void SharedCacheServer::clearWorkingDirectory()
 
 void SharedCacheServer::evict(CacheFileDesc * item)
 {
-	std::cerr << "Server evicts " << item->filename << " of size " << item->size << " used at " << item->lastUse << "\n";
+	std::cerr << "Server evicts " << item->uuid << " of size " << item->size << " used at " << item->lastUse << "\n";
 	currentSize -= item->size;
-	item->unlink();
 	delete(item);
 }
 
@@ -1072,7 +1061,7 @@ void SharedCacheServer::server()
 			Messages::Result resultMessage;
 			resultMessage.todoResult.build();
 			resultMessage.todoResult->content = new Messages::ContentRequest(entry.second);
-			resultMessage.todoResult->filename = entry.first->filename;
+			resultMessage.todoResult->uuid = entry.first->uuid;
 			waitingWorkers.remove(c);
 			c->producing.push_back(entry.first);
 			c->reply(resultMessage);

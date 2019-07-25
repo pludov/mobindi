@@ -29,14 +29,17 @@ class CacheFileDesc {
 	std::string errorDetails;
 
 	std::string identifier;
-	// Path, without the basePath.
-	std::string filename;
+	// Internal uuid.
+	std::string uuid;
+	// Shared data buffer
+	int memfd;
 
-	CacheFileDesc(SharedCacheServer * server, const std::string & identifier, const std::string & filename):
+	CacheFileDesc(SharedCacheServer * server, const std::string & identifier, const std::string & uuid):
 		identifier(identifier),
-		filename(filename)
+		uuid(uuid)
 	{
 		this->server = server;
+		this->memfd = -1;
 		size = 0;
 		prodDuration = 0;
 		lastUse = now();
@@ -45,18 +48,10 @@ class CacheFileDesc {
 		error = false;
 		serial = 0;
 		server->contentByIdentifier[identifier] = this;
-		server->contentByFilename[filename] = this;
+		server->contentByUuid[uuid] = this;
 	}
 
-	~CacheFileDesc()
-	{
-		server->contentByIdentifier.erase(identifier);
-		if (filename.size()) {
-			server->contentByFilename.erase(filename);
-		}
-	}
-
-	void unlink();
+	~CacheFileDesc();
 
 	void addReader() {
 		clientCount++;
@@ -72,20 +67,19 @@ class CacheFileDesc {
 		// FIXME: mark as error
 		// Remove the producing.
 		// Remove the file as well
-		std::cerr << "Production of " << identifier << " in " << filename << " failed\n";
-		unlink();
+		std::cerr << "Production of " << identifier << " failed\n";
 		error = true;
 		errorDetails = message;
 	}
 
 	void prodAborted() {
-		unlink();
 		delete(this);
 	}
 
 	Messages::ContentResult toContentResult(const Messages::ContentRequest* actualRequest) const {
 		Messages::ContentResult r;
-		r.filename = filename;
+		r.memfd = memfd;
+		r.uuid = uuid;
 		r.error = this->error;
 		r.errorDetails = errorDetails;
 		r.actualRequest = new Messages::ContentRequest(*actualRequest);

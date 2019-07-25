@@ -34,7 +34,7 @@ namespace SharedCache {
 
         auto ret = new CacheFileDesc(server,
                             identifier,
-                            server->newFilename());
+                            server->newUuid());
 
         ret->serial = this->serial;
         return ret;

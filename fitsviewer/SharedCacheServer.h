@@ -54,7 +54,7 @@ class SharedCacheServer {
 	friend class CacheFileDesc;
 
 	std::map<std::string, CacheFileDesc*> contentByIdentifier;
-	std::map<std::string, CacheFileDesc*> contentByFilename;
+	std::map<std::string, CacheFileDesc*> contentByUuid;
 
 
 	std::map<std::string, Stream*> streams;
@@ -93,7 +93,7 @@ class SharedCacheServer {
 	bool checkWaitingConsumer(Client * blocked);
 
 	void doAccept();
-	std::string newFilename();
+	std::string newUuid();
 
 	void startWorker();
 

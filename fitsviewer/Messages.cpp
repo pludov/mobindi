@@ -232,14 +232,14 @@ namespace SharedCache {
 			if (i.content) {
 				j["content"] = *i.content;
 			}
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
 		}
 
 		void from_json(const nlohmann::json& j, WorkResponse & p) {
 			if (j.find("content") != j.end()) {
 				p.content = new ContentRequest(j.at("content").get<ContentRequest>());
 			}
-			p.filename = j["filename"].get<std::string>();
+			p.uuid = j["uuid"].get<std::string>();
 		}
 
 
@@ -248,14 +248,16 @@ namespace SharedCache {
 			j = nlohmann::json::object();
 			j["size"] = i.size;
 			j["error"] = i.error;
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
+			j["memfd"] = i.memfd;
 			j["errorDetails"] = i.errorDetails;
 		}
 
 		void from_json(const nlohmann::json& j, FinishedAnnounce & p) {
 			p.error = j.at("error").get<bool>();
 			p.size = j.at("size").get<long>();
-			p.filename = j.at("filename").get<std::string>();
+			p.uuid = j.at("uuid").get<std::string>();
+			p.memfd = j.at("memfd").get<int>();
 			p.errorDetails = j.at("errorDetails").get<std::string>();
 		}
 
@@ -263,11 +265,11 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ReleasedAnnounce & i)
 		{
 			j = nlohmann::json::object();
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
 		}
 
 		void from_json(const nlohmann::json& j, ReleasedAnnounce & p) {
-			p.filename = j.at("filename").get<std::string>();
+			p.uuid = j.at("uuid").get<std::string>();
 		}
 
 
@@ -325,14 +327,16 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const ContentResult & i)
 		{
 			j = nlohmann::json::object();
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
+			j["memfd"] = i.memfd;
 			j["errorDetails"] = i.errorDetails;
 			j["error"] = i.error;
 			if (i.actualRequest) j["actualRequest"] = *i.actualRequest;
 		}
 		void from_json(const nlohmann::json& j, ContentResult & p)
 		{
-			p.filename = j.at("filename").get<std::string>();
+			p.uuid = j.at("uuid").get<std::string>();
+			p.memfd = j.at("memfd").get<int>();
 			p.errorDetails = j.at("errorDetails").get<std::string>();
 			p.error = j.at("error").get<bool>();
 			if (j.find("actualRequest") != j.end()) {
@@ -392,13 +396,13 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const StreamStartImageResult & i)
 		{
 			j = nlohmann::json::object();
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
 			j["streamId"] = i.streamId;
 		}
 
 		void from_json(const nlohmann::json& j, StreamStartImageResult & p)
 		{
-			p.filename = j.at("filename").get<std::string>();
+			p.uuid = j.at("uuid").get<std::string>();
 			p.streamId = j.at("streamId").get<std::string>();
 		}
 
@@ -406,13 +410,15 @@ namespace SharedCache {
 		{
 			j = nlohmann::json::object();
 			j["size"] = i.size;
-			j["filename"] = i.filename;
+			j["uuid"] = i.uuid;
+			j["memfd"] = i.memfd;
 		}
 
 		void from_json(const nlohmann::json& j, StreamPublishRequest & p)
 		{
 			p.size = j.at("size").get<long>();
-			p.filename = j.at("filename").get<std::string>();
+			p.uuid = j.at("uuid").get<std::string>();
+			p.memfd = j.at("memfd").get<int>();
 		}
 
 		void to_json(nlohmann::json&j, const StreamPublishResult & i)

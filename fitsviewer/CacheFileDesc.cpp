@@ -19,13 +19,10 @@
 
 namespace SharedCache {
 
-    void CacheFileDesc::unlink()
-    {
-        std::string path = server->basePath + filename;
-        if (::unlink(path.c_str()) == -1) {
-            perror(path.c_str());
-        }
-        server->contentByFilename.erase(filename);
-        filename = "";
+    CacheFileDesc::~CacheFileDesc() {
+        server->contentByIdentifier.erase(identifier);
+		if (memfd != -1) {
+			::close(memfd);
+		}
     }
 }

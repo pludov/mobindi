@@ -200,7 +200,7 @@ namespace SharedCache {
 
 		struct WorkResponse {
 			ChildPtr<ContentRequest> content;
-			std::string filename;
+			std::string uuid;
 		};
 
 		void to_json(nlohmann::json&j, const WorkResponse & i);
@@ -209,7 +209,8 @@ namespace SharedCache {
 		struct FinishedAnnounce {
 			bool error;
 			long size;
-			std::string filename;
+			std::string uuid;
+			int memfd;
 			std::string errorDetails;
 		};
 
@@ -217,7 +218,7 @@ namespace SharedCache {
 		void from_json(const nlohmann::json& j, FinishedAnnounce & p);
 
 		struct ReleasedAnnounce {
-			std::string filename;
+			std::string uuid;
 		};
 
 		void to_json(nlohmann::json&j, const ReleasedAnnounce & i);
@@ -230,15 +231,16 @@ namespace SharedCache {
 		void from_json(const nlohmann::json& j, StreamStartImageRequest & p);
 
 		struct StreamStartImageResult {
-			std::string filename;
 			std::string streamId;
+			std::string uuid;
 		};
 		void to_json(nlohmann::json&j, const StreamStartImageResult & i);
 		void from_json(const nlohmann::json& j, StreamStartImageResult & p);
 
 		struct StreamPublishRequest {
 			long size;
-			std::string filename;
+			int memfd;
+			std::string uuid;
 		};
 		void to_json(nlohmann::json&j, const StreamPublishRequest & i);
 		void from_json(const nlohmann::json& j, StreamPublishRequest & p);
@@ -267,7 +269,8 @@ namespace SharedCache {
 		// if not ready, it is up to the caller to actually produce the content
 		struct ContentResult {
 			bool error;
-			std::string filename;
+			std::string uuid;
+			int memfd;
 			std::string errorDetails;
 			ChildPtr<ContentRequest> actualRequest;
 		};
@@ -309,7 +312,7 @@ namespace SharedCache {
 		friend class Cache;
 		friend class EntryRef;
 		friend class SharedCacheServer;
-		std::string filename;
+		std::string uuid;
 		std::string streamId;
 		long serial;
 		bool wasReady;

@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/memfd.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -29,7 +30,8 @@ namespace SharedCache {
 
 	Entry::Entry(Cache * cache, const Messages::ContentResult & result):
 			cache(cache),
-			filename(result.filename),
+			fd(result.memfd),
+			uuid(result.uuid),
 			wasReady(true),
 			streamId(),
 			actualRequest(result.actualRequest)
@@ -37,12 +39,10 @@ namespace SharedCache {
 		mmapped = nullptr;
 		dataSize = 0;
 		wasMmapped = false;
-		fd = -1;
 		if (!result.error) {
 			error = false;
 			errorDetails = "";
 			released = false;
-			
 		} else {
 			error = true;
 			errorDetails = result.errorDetails;
@@ -53,7 +53,7 @@ namespace SharedCache {
 
 	Entry::Entry(Cache * cache, const Messages::WorkResponse & result):
 						cache(cache),
-						filename(result.filename),
+						uuid(result.uuid),
 						wasReady(false),
 						error(false),
 						streamId()
@@ -67,7 +67,7 @@ namespace SharedCache {
 
 	Entry::Entry(Cache * cache, const Messages::StreamStartImageResult & result):
 						cache(cache),
-						filename(result.filename),
+						uuid(result.uuid),
 						wasReady(false),
 						error(false),
 						streamId(result.streamId)
@@ -93,30 +93,25 @@ namespace SharedCache {
 		return wasReady;
 	}
 
-	void Entry::open() {
-		if (fd != -1) {
-			return;
-		}
-		std::string path = cache->basePath  + filename;
-		fd = ::open(path.c_str(), O_CLOEXEC | (wasReady ? O_RDONLY : O_RDWR));
-		if (fd == -1) {
-			perror(path.c_str());
-			throw std::runtime_error("Failed to open data file");
-		}
-	}
-
 	void Entry::allocate(unsigned long int size)
 	{
 		assert(!wasReady);
 		assert(!wasMmapped);
-		open();
+		assert(fd == -1);
+		// FIXME: seal fd...
+		fd = memfd_create("buffer", MFD_CLOEXEC);
+		if (fd == -1) {
+			perror("memfd_create");
+			std::cerr << "unable to create buffer\n";
+			throw std::runtime_error("memfd_create failed");
+		}
 		wasMmapped = true;
 		if (size) {
 			posix_fallocate(fd, 0, size);
 			mmapped = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 			if (mmapped == MAP_FAILED) {
 				perror("mmap");
-				std::cerr << "mmap of fd " << fd << " for " << filename << " failed\n";
+				std::cerr << "mmap of fd " << fd << " for " << uuid << " failed\n";
 				throw std::runtime_error("Mmap failed");
 			}
 		}
@@ -124,12 +119,12 @@ namespace SharedCache {
 	}
 
 	void * Entry::data() {
+		assert(fd != -1);
 		if (!wasMmapped) {
-			open();
 			struct stat statbuf;
 			if (fstat(fd, &statbuf) == -1) {
 				perror("stat");
-				throw std::runtime_error("Unable to stat file");
+				throw std::runtime_error("Unable to stat buffer");
 			}
 
 			dataSize = statbuf.st_size;
@@ -158,7 +153,8 @@ namespace SharedCache {
 	void Entry::produced() {
 		Messages::Request request;
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
-		request.finishedAnnounce->filename = filename;
+		request.finishedAnnounce->memfd = fd;
+		request.finishedAnnounce->uuid = uuid;
 		request.finishedAnnounce->size = dataSize;
 		request.finishedAnnounce->error = false;
 		request.finishedAnnounce->errorDetails = "";
@@ -169,7 +165,8 @@ namespace SharedCache {
 	SharedCache::Messages::StreamPublishResult Entry::streamPublish() {
 		Messages::Request request;
 		request.streamPublishRequest = new Messages::StreamPublishRequest();
-		request.streamPublishRequest->filename = filename;
+		request.streamPublishRequest->memfd = fd;
+		request.streamPublishRequest->uuid = uuid;
 		request.streamPublishRequest->size = dataSize;
 		SharedCache::Messages::Result result = cache->clientSend(request);
 		released = true;
@@ -180,7 +177,8 @@ namespace SharedCache {
 	void Entry::failed(const std::string & str) {
 		Messages::Request request;
 		request.finishedAnnounce = new Messages::FinishedAnnounce();
-		request.finishedAnnounce->filename = filename;
+		request.finishedAnnounce->memfd = -1;
+		request.finishedAnnounce->uuid = uuid;
 		request.finishedAnnounce->size = 0;
 		request.finishedAnnounce->error = true;
 		request.finishedAnnounce->errorDetails = str;
@@ -189,10 +187,12 @@ namespace SharedCache {
 	}
 
 	void Entry::release() {
-		Messages::Request request;
-		request.releasedAnnounce = new Messages::ReleasedAnnounce();
-		request.releasedAnnounce->filename = filename;
-		cache->clientSend(request);
+		if (uuid.length()) {
+			Messages::Request request;
+			request.releasedAnnounce = new Messages::ReleasedAnnounce();
+			request.releasedAnnounce->uuid = uuid;
+			cache->clientSend(request);
+		}
 		released = true;
 	}
 
