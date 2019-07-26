@@ -13,6 +13,9 @@
 #include <signal.h>
 #include <assert.h>
 #include <iostream>
+extern "C" {
+#include "shm_open_anon/shm_open_anon.h"
+}
 #include "SharedCache.h"
 #include "SharedCacheServer.h"
 
@@ -101,11 +104,11 @@ namespace SharedCache {
 		assert(!wasMmapped);
 		assert(fd == -1);
 		// FIXME: seal fd...
-		fd = memfd_create("buffer", MFD_CLOEXEC);
+		fd = shm_open_anon();
 		if (fd == -1) {
-			perror("memfd_create");
+			perror("shm_open_anon");
 			std::cerr << "unable to create buffer\n";
-			throw std::runtime_error("memfd_create failed");
+			throw std::runtime_error("shm_open_anon failed");
 		}
 		wasMmapped = true;
 		if (size) {

@@ -1,0 +1,3 @@
+[submodule "fitsviewer/shm_open_anon"]
+	path = fitsviewer/shm_open_anon
+	url = https://github.com/lassik/shm_open_anon.git

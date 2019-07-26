@@ -41,9 +41,12 @@ find_package(Threads REQUIRED)
 
 include_directories( ${INDI_INCLUDE_DIR})
 
+file(GLOB SHM_OPEN_ANON_FILES ${PROJECT_SOURCE_DIR}/shm_open_anon/*.c)
+list(FILTER SHM_OPEN_ANON_FILES EXCLUDE REGEX "/test.*\.c$")
 
 add_library(archive OBJECT
       TempDir.cpp
+      ${SHM_OPEN_ANON_FILES}
       ChildProcess.cpp
       FitsFile.cpp
       Astrometry.cpp
