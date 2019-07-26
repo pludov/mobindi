@@ -383,7 +383,7 @@ namespace SharedCache {
 		int clientFd;
 		long maxSize;
 
-		int write(Messages::Writable & alteredMessage);
+		int write(Messages::Writable & message);
 		int read(Messages::Writable & expected);
 		static int write(int fd, Messages::Writable & alteredMessage);
 		static int read(int fd, Messages::Writable & expected);

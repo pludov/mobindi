@@ -884,7 +884,6 @@ void SharedCacheServer::server()
 				continue;
 			}
 			if (c->pendingWrite && (c->poll->revents & POLLOUT)) {
-				// FIXME: pendingWrite will get altered if this does not work
 				int wr = Cache::write(c->fd, *c->pendingWrite);
 				if (wr == -1) {
 					if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {

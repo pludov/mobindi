@@ -234,20 +234,25 @@ namespace SharedCache {
 		message.collectMemfd(rawMemfdList);
 
 		std::vector<int*> memfdList;
+		std::vector<int> memfdValue;
 		for(int i = 0; i < rawMemfdList.size(); ++i) {
 			if ((*rawMemfdList[i]) != -1) {
-				memfdList.push_back(rawMemfdList[i]);
+				int * fd = rawMemfdList[i];
+				memfdList.push_back(fd);
+				memfdValue.push_back(*fd);
 			}
 		}
 		struct msghdr msgh;
 		struct iovec iov;
 		int cmsghdrlength;
 		struct cmsghdr * cmsgh;
+		std::string str;
+		int ret = -1;
 
 		if (memfdList.size() > 0) {
 			if (memfdList.size() > MAXFD_PER_MESSAGE) {
 				errno = EMSGSIZE;
-				return -1;
+				goto End;
 			}
 			cmsghdrlength = CMSG_SPACE((memfdList.size() * sizeof(int)));
 			cmsgh = (cmsghdr*)malloc(cmsghdrlength);
@@ -270,15 +275,13 @@ namespace SharedCache {
 			msgh.msg_controllen = cmsghdrlength;
 		}
 
-		std::string str;
 		{
 			nlohmann::json j = message;
 			str = j.dump();
 		}
 		if (str.length() > MAX_MESSAGE_SIZE) {
-			free(cmsgh);
 			errno = EMSGSIZE;
-			return -1;
+			goto End;
 		}
 		std::cerr << getpid() << ": Sending to " << clientFd << " : " << str << "\n";
 
@@ -289,11 +292,18 @@ namespace SharedCache {
 		msgh.msg_namelen = 0;
 		msgh.msg_iov = &iov;
 		msgh.msg_iovlen = 1;
-		
-		int ret = sendmsg(clientFd, &msgh, 0);
 
+		ret = sendmsg(clientFd, &msgh, 0);
+End:
+		int tmpErrno = errno;
 		free(cmsgh);
 
+		// Hijack back message back
+		for(int i = 0; i < memfdList.size(); ++i) {
+			*memfdList[i] = memfdValue[i];
+		}
+
+		errno = tmpErrno;
 		return ret;
 	}
 
