@@ -379,6 +379,7 @@ module.exports = {
       async: false,
       tsconfig: paths.appTsProdConfig,
       tslint: paths.appTsLint,
+      memoryLimit: 512,
     }),
   ],
   // Some libraries import Node modules but don't use them in the browser.
