@@ -60,14 +60,22 @@ export default class ContextMenuContainer extends PureComponent<Props> {
         }
     }
 
+    private readonly onKeyPress = (e:KeyboardEvent)=>{
+        if (e.keyCode === 27) {
+            e.preventDefault();
+            this.props.close();
+        }
+    }
+
     register() {
         const item:HTMLDivElement|null = this.itemRef.current;
         if (item === null) return;
         const parent = item.parentElement;
         if (parent === null) return;
+        parent.addEventListener('keydown', this.onKeyPress, {capture: true});
         parent.addEventListener('mousedown', this.onParentEvent, {capture:true});
         parent.addEventListener('touchstart', this.onParentEvent, {capture:true});
-        parent.addEventListener('wheel', this.onParentEvent, {capture:true});
+        document.addEventListener('keydown', this.onKeyPress, {capture: true});
     }
 
     unregister() {
@@ -75,9 +83,10 @@ export default class ContextMenuContainer extends PureComponent<Props> {
         if (item === null) return;
         const parent = item.parentElement;
         if (parent === null) return;
+        parent.removeEventListener('keydown', this.onKeyPress, {capture: true});
         parent.removeEventListener('mousedown', this.onParentEvent, {capture:true});
         parent.removeEventListener('touchstart', this.onParentEvent, {capture:true});
-        parent.removeEventListener('wheel', this.onParentEvent, {capture:true});
+        document.removeEventListener('keydown', this.onKeyPress, {capture: true});
     }
 
     componentDidMount() {
