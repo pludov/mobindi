@@ -15,13 +15,15 @@ export default class ContextMenuCross extends PureComponent<Props> {
     render() {
         return <React.Fragment>
             <div className="ContextMenuCrossV"
+                    
                     style={{
                         position: 'absolute',
                         backgroundColor: "#red",
                         left: this.props.x - 10,
                         width: 20,
                         top: 0,
-                        bottom: 0
+                        bottom: 0,
+                        pointerEvents: "none"
                     }}/>
             <div className="ContextMenuCrossH"
                     style={{
@@ -30,7 +32,8 @@ export default class ContextMenuCross extends PureComponent<Props> {
                         top: this.props.y - 10,
                         height: 20,
                         left: 0,
-                        right: 0
+                        right: 0,
+                        pointerEvents: "none"
                     }}/>
         </React.Fragment>;
     }
