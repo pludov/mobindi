@@ -1,0 +1,3 @@
+[submodule "ui/public/VirtualSky"]
+	path = ui/public/VirtualSky
+	url = https://github.com/pludov/VirtualSky
