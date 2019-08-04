@@ -3,6 +3,7 @@ import React, { PureComponent, CSSProperties, RefObject, MouseEvent} from 'react
 export type Props = {
     x: number;
     y: number;
+    close: ()=>void;
 }
 
 export default class ContextMenuContainer extends PureComponent<Props> {
@@ -36,12 +37,60 @@ export default class ContextMenuContainer extends PureComponent<Props> {
         }
     }
 
+    private readonly onParentEvent = (e:Event)=>{
+        const item:HTMLDivElement|null = this.itemRef.current;
+        if (item === null) return;
+        const parent = item.parentElement;
+        if (parent === null) return;
+
+        let target = e.target;
+        while(target !== null) {
+            if (target === item) {
+                return;
+            }
+            if (target == parent) {
+                this.props.close();
+                return;
+            }
+            if ('parentNode' in target) {
+                target = (target as HTMLElement).parentNode;
+            } else {
+                target = null;
+            }
+        }
+    }
+
+    register() {
+        const item:HTMLDivElement|null = this.itemRef.current;
+        if (item === null) return;
+        const parent = item.parentElement;
+        if (parent === null) return;
+        parent.addEventListener('mousedown', this.onParentEvent, {capture:true});
+        parent.addEventListener('touchstart', this.onParentEvent, {capture:true});
+        parent.addEventListener('wheel', this.onParentEvent, {capture:true});
+    }
+
+    unregister() {
+        const item:HTMLDivElement|null = this.itemRef.current;
+        if (item === null) return;
+        const parent = item.parentElement;
+        if (parent === null) return;
+        parent.removeEventListener('mousedown', this.onParentEvent, {capture:true});
+        parent.removeEventListener('touchstart', this.onParentEvent, {capture:true});
+        parent.removeEventListener('wheel', this.onParentEvent, {capture:true});
+    }
+
     componentDidMount() {
         this.adjust();
+        this.register();
     }
 
     componentDidUpdate() {
         this.adjust();
+    }
+
+    componentWillUnmount() {
+        this.unregister();
     }
 
     contextMenu = (e: MouseEvent<HTMLDivElement>)=>{

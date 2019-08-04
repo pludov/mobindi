@@ -7,6 +7,7 @@ export type Props = {
     contextMenu?: ContextMenuEntry[];
     x: number;
     y: number;
+    close: ()=>void;
     xlateCoords: (x:number, y:number)=>{imageX: number, imageY:number}|null;
 }
 
@@ -24,7 +25,7 @@ export default class ContextMenu extends PureComponent<Props> {
 
     render() {
         return(
-            <ContextMenuContainer x={this.props.x} y={this.props.y}>
+            <ContextMenuContainer x={this.props.x} y={this.props.y} close={this.props.close}>
                 {
                     !this.props.contextMenu ? null :
                         this.props.contextMenu.map(e => <div

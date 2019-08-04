@@ -6,6 +6,7 @@ export type Props = {
     event: VirtualSkyRightClick;
     goto?: (e:VirtualSkyRightClick)=>void;
     sync?: (e:VirtualSkyRightClick)=>void;
+    close: ()=>void;
 }
 
 export default class ContextMenu extends PureComponent<Props> {
@@ -18,7 +19,7 @@ export default class ContextMenu extends PureComponent<Props> {
 
     render() {
         return(
-            <ContextMenuContainer x={this.props.event.canvasx} y={this.props.event.canvasy}>
+            <ContextMenuContainer x={this.props.event.canvasx} y={this.props.event.canvasy} close={this.props.close}>
                 {this.props.goto
                     ? <div className="Item" onClick={this.goto}>Goto here</div>
                     : null

@@ -1170,7 +1170,10 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.setState({contextmenu:{x, y}});
     }
 
-    closeContextMenu(x:number, y:number) {
+    closeContextMenu=()=>{
+        if (!this.state) {
+            console.log('closing without state', this);
+        }
         if (this.state.contextmenu !== null) {
             this.setState({contextmenu:null});
         }
@@ -1243,6 +1246,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             contextMenu = <ContextMenu
                             contextMenu={this.props.contextMenu}
                             x={this.state.contextmenu.x} y={this.state.contextmenu.y}
+                            close={this.closeContextMenu}
                             xlateCoords={this.xlateCoords}
                             displaySetting={this.displaySetting}
             />

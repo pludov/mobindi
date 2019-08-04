@@ -114,6 +114,7 @@ export default class Sky extends React.PureComponent<Props, State> {
                     {this.state.rightClick
                         ?<ContextMenu
                             event={this.state.rightClick}
+                            close={this.closeContextMenu}
                             goto={this.goto}
                             sync={this.goto}
                             />
@@ -122,14 +123,14 @@ export default class Sky extends React.PureComponent<Props, State> {
                 </div>);
     }
 
-    closeMenu=()=> {
+    closeContextMenu=()=> {
         this.setState({rightClick: undefined});
     }
     goto = (e:VirtualSkyRightClick)=> {
-        this.closeMenu();
+        this.closeContextMenu();
     }
     sync = (e:VirtualSkyRightClick)=> {
-        this.closeMenu();
+        this.closeContextMenu();
     }
 
     onRightClick = (e:VirtualSkyRightClick)=> {
