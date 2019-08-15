@@ -1,13 +1,19 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
-import './AstrometryView.css';
+import './ScopeView.css';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import AstrometryWizardBaseView from './Wizard/BaseView';
 import * as Store from './Store';
 import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
+import Sky from './Planetarium/Sky';
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
+
+import { ScopeSelector } from './ScopeSelector';
+import DeviceConnectBton from './DeviceConnectBton';
+import Modal from './Modal';
+
 
 type InputProps = {}
 
@@ -24,7 +30,7 @@ type State = {
     showProps: boolean;
 }
 
-class AstrometryView extends React.PureComponent<Props, State> {
+class ScopeView extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = {showPropsRequired: false, showProps: false}
@@ -85,7 +91,7 @@ class AstrometryView extends React.PureComponent<Props, State> {
     readonly wizards = [
         {
             title: "Polar alignment",
-            start: AstrometryView.startWizard("startPolarAlignmentWizard")
+            start: ScopeView.startWizard("startPolarAlignmentWizard")
         }
     ];
 
@@ -99,31 +105,44 @@ class AstrometryView extends React.PureComponent<Props, State> {
         }
     }
 
+    private readonly moreMenu = React.createRef<Modal>();
+
+    private readonly showMoreMenu=()=> {
+        this.moreMenu.current!.open();
+    }
+
     render() {
         return <div className="CameraView">
-            { this.state.showProps
-                ? <AstrometrySettingsView close={this.closeSettings} />
-                : this.props.currentWizard === null
-                    ?
-                        /* Welcome screen */
-                        <div>
-                            <div className="AstrometryWizardSelectTitle">Astrometry</div>
+            {
+                this.state.showProps
+                    ? <AstrometrySettingsView close={this.closeSettings} />
+                    : this.props.currentWizard === null
+                        ?<>
+                            <div>
+                                <ScopeSelector/>
+                                <DeviceConnectBton.forActivePath
+                                        activePath="$.backend.astrometry.selectedScope"
+                                        />
+                                    <Modal ref={this.moreMenu}>
+                                        <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
+                                        {this.wizards.map(e=>
+                                                <input type="button"
+                                                        value={e.title}
+                                                        className="AstrometryWizardSelectButton"
+                                                        onClick={e.start}
+                                                />
+                                            )}
 
-                            <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
-                            {this.wizards.map(e=>
-                                <input type="button"
-                                        value={e.title}
-                                        className="AstrometryWizardSelectButton"
-                                        onClick={e.start}
-                                />
-                            )}
-
-                        </div>
-                    :
-                    <AstrometryWizardBaseView showSettings={this.showSettings}>{this.wizardUi(this.props.currentWizard)}</AstrometryWizardBaseView>
+                                    </Modal>
+                                <input type="button" value="┅" onClick={this.showMoreMenu} className="ScopeBurgerBton"/>
+                            </div>
+                            <Sky></Sky>
+                        </>
+                        :
+                            <AstrometryWizardBaseView showSettings={this.showSettings}>{this.wizardUi(this.props.currentWizard)}</AstrometryWizardBaseView>
             }
         </div>;
     }
 }
 
-export default Store.Connect(AstrometryView);
+export default Store.Connect(ScopeView);

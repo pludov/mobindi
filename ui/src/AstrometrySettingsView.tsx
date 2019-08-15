@@ -6,18 +6,12 @@ import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Float from './primitives/Float';
 import Conditional from './primitives/Conditional';
-import PromiseSelector from './PromiseSelector';
 import BackendAccessor from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
-import * as BackendRequest from "./BackendRequest";
 import AstrometryBackendAccessor from "./AstrometryBackendAccessor";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
-
-const ScopeSelector = connect((store:any)=> ({
-    active: (store.backend && store.backend.astrometry) ? store.backend.astrometry.selectedScope : undefined,
-    availables: (store.backend && store.backend.astrometry) ? store.backend.astrometry.availableScopes : []
-}))(PromiseSelector);
+import { ScopeSelector } from './ScopeSelector';
 
 
 type Props = {
@@ -32,15 +26,6 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
         this.accessor = new AstrometryBackendAccessor("$.astrometry.settings");
     }
 
-    private setScope = async(deviceId:string)=> {
-        return await BackendRequest.RootInvoker("astrometry")("setScope")(
-            CancellationToken.CONTINUE,
-            {
-                deviceId
-            }
-        );
-    }
-
     public render() {
         return (
         <div className="AstrometryWizardRootView">
@@ -48,7 +33,7 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
 
                 <div className="AstrometryWizardSelectTitle">Astrometry Settings</div>
 
-                <ScopeSelector setValue={this.setScope}/>
+                <ScopeSelector/>
                 <DeviceConnectBton.forActivePath
                         activePath="$.backend.astrometry.selectedScope"
                         />

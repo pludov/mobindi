@@ -1,6 +1,6 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
-import AstrometryView from './AstrometryView';
+import ScopeView from './ScopeView';
 
 
 export default class AstrometryApp extends BaseApp {
@@ -10,7 +10,7 @@ export default class AstrometryApp extends BaseApp {
 
     getUi() {
         return (<div className="Page" key={this.appId}>
-                    <AstrometryView />
+                    <ScopeView />
                 </div>);
     }
 }

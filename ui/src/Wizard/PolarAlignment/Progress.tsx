@@ -2,7 +2,7 @@ import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import chartjs from "chart.js";
 import * as ReactChartJS from "react-chartjs-2";
-import '../../AstrometryView.css';
+import '../../AstrometryWizards.css';
 import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
 import * as Utils from "../../Utils";

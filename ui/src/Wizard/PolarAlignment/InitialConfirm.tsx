@@ -1,6 +1,6 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
-import '../../AstrometryView.css';
+import '../../AstrometryWizards.css';
 import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
 import * as Utils from "../../Utils";
