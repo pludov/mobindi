@@ -14,12 +14,10 @@ declare var S: any;
 
 
 export type VirtualSkyRightClick = {
-    canvasx: number;
-    canvasy: number;
-    skyPos?: {
-        ra: number;
-        dec: number;
-    }
+    x: number;
+    y: number;
+    ra?: number;
+    dec?: number;
 }
 
 class VirtualSkyAccessor {
@@ -49,7 +47,7 @@ class VirtualSkyAccessor {
             'constellations': true,
             'fov': 15,
             callback: {
-                rightclick: (e:VirtualSkyRightClick)=> {
+                contextmenu: (e:VirtualSkyRightClick)=> {
                     if (VirtualSkyAccessor.currentAccessor) {
                         VirtualSkyAccessor.currentAccessor.onRightClick(e);
                     }
@@ -107,8 +105,8 @@ export default class Sky extends React.PureComponent<Props, State> {
         return (<div ref={this.el} style={{width: '100%', height: '100%', position: 'relative' }}>
                     {this.state.rightClick
                         ?<ContextMenuCross
-                            x={this.state.rightClick.canvasx}
-                            y={this.state.rightClick.canvasy}/>
+                            x={this.state.rightClick.x}
+                            y={this.state.rightClick.y}/>
                         : null
                     }
                     {this.state.rightClick

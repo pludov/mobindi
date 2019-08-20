@@ -19,7 +19,7 @@ export default class ContextMenu extends PureComponent<Props> {
 
     render() {
         return(
-            <ContextMenuContainer x={this.props.event.canvasx} y={this.props.event.canvasy} close={this.props.close}>
+            <ContextMenuContainer x={this.props.event.x} y={this.props.event.y} close={this.props.close}>
                 {this.props.goto
                     ? <div className="Item" onClick={this.goto}>Goto here</div>
                     : null
