@@ -1,3 +1,4 @@
 nginx.pid
 nginx-selfsigned.crt
 nginx-selfsigned.key
+actual-nginx.conf

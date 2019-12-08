@@ -22,5 +22,10 @@ if [ -f "nginx.pid" ]; then
     fi
 fi
 
+CONF=nginx.conf
+if [ "${PORT+x}" ]; then
+	sed -e "s/:8080/:$PORT/g" nginx.conf > actual-nginx.conf
+	CONF=actual-nginx.conf
+fi
 
-nginx -p "$PWD" -c ./nginx.conf 2> /dev/null
+nginx -p "$PWD" -c ./$CONF 2> /dev/null
