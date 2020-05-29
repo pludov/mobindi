@@ -42,6 +42,12 @@ existing softwares. You can find full software stack for astro/PI in the followi
 
 ## What's new
 
+### Next release
+  * Support for custom http port. This is usefull if mobindi needs to coexist with other tool running on port 8080. To use, set the PORT env variable in mobindi.conf:
+```
+PORT=8081
+```
+
 ### Release 1.2.0 (July 2019):
   * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
     They require the use of a HTTPS connection and an authorization (accessible in the message tab)
