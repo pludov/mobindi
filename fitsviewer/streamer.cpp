@@ -249,7 +249,7 @@ int main (int argc, char ** argv) {
             nextEntrySize = 0;
         }
 
-        SharedCache::WorkerError * nextEntryError;
+        SharedCache::WorkerError * nextEntryError = nullptr;
 
         FitsFile file;
         file.openMemory(data, size);
