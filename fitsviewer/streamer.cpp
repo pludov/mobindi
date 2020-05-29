@@ -57,13 +57,13 @@ protected:
         std::cerr << "remove device\n";
     }
     virtual void newProperty(INDI::Property *property) {
-        std::cerr << "new property\n";
+        // std::cerr << "new property\n";
         if (property->getNumber()) {
             this->newNumber(property->getNumber());
         }
     };
     virtual void removeProperty(INDI::Property *property) {
-        std::cerr << "remove property\n";
+        // std::cerr << "remove property\n";
     }
     virtual void newBLOB(IBLOB *bp) {
         std::cerr << "new blob: " << bp->format << "\n";
@@ -92,11 +92,11 @@ protected:
     }
 
     virtual void newSwitch(ISwitchVectorProperty *svp) {
-        std::cerr << "new switch\n";
+        // std::cerr << "new switch\n";
     }
 
     virtual void newNumber(INumberVectorProperty *nvp) {
-        std::cerr << "new number " << nvp->name << "\n";
+        // std::cerr << "new number " << nvp->name << "\n";
         if (!strcmp(nvp->name, "CCD_INFO")) {
             indiFrame.maxWidth = -1;
             indiFrame.maxHeight = -1;
@@ -153,13 +153,13 @@ protected:
     }
 
     virtual void newMessage(INDI::BaseDevice *dp, int messageID) {
-        std::cerr << "new message\n";
+        // std::cerr << "new message\n";
     }
     virtual void newText(ITextVectorProperty *tvp) {
-        std::cerr << "new text\n";
+        // std::cerr << "new text\n";
     }
     virtual void newLight(ILightVectorProperty *lvp) {
-        std::cerr << "new light\n";
+        // std::cerr << "new light\n";
     }
     virtual void serverConnected() {
         std::cerr << "server connected\n";
