@@ -10,6 +10,7 @@ import { StringDecoder } from 'string_decoder';
 import { Buffer } from 'buffer';
 import { IndiMessage } from "./shared/IndiTypes";
 import { IndiDevice } from './shared/BackOfficeStatus';
+import { IndiMessageQueue } from './IndiMessageQueue';
 
 export type IndiListener = ()=>(void);
 export type IndiMessageListener = (m:IndiMessage)=>(void);
@@ -259,6 +260,7 @@ export class IndiConnection {
     private readonly messageListeners:IndiMessageListener[];
     private checkingListeners?:IndiListener[];
     private parser?: SAX.SAXParser;
+    private messageQueue?: IndiMessageQueue;
     private queue: string[];
 
     constructor() {
@@ -279,11 +281,15 @@ export class IndiConnection {
             port = 7624;
         }
         console.log('Opening indi connection to ' + host + ':' + port);
+        const messageQueue = new IndiMessageQueue(500, (msg:any)=>{
+            if (messageQueue === this.messageQueue) this.onMessage(msg);
+        });
         var socket = new net.Socket();
-        var parser = this.newParser((msg:any)=>self.onMessage(msg));
+        var parser = this.newParser((msg:any)=>messageQueue.queue(msg));
         const decoder = new StringDecoder(socketEncoding);
         this.socket = socket;
         this.parser = parser;
+        this.messageQueue = messageQueue;
         
         socket.on('connect', function() {
             console.log('socket connected');
@@ -314,6 +320,8 @@ export class IndiConnection {
             self.queue = [];
             self.socket = undefined;
             self.parser = undefined;
+            self.messageQueue!.dispose();
+            self.messageQueue = undefined;
             self.dead = true;
             self.checkListeners();
         })
