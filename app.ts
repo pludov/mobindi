@@ -109,6 +109,9 @@ appState.apps= {
     }
 };
 
+appState.uiConfig = {
+    directPort: parseInt(process.env.PORT || '8080')
+};
 
 var context:Partial<AppContext> = {
 };
@@ -253,10 +256,9 @@ wss.on('connection', (ws:WebSocket)=>{
 
 app.use(cgi('fitsviewer/fitsviewer.cgi',  { nph: true, dupfd: true }));
 
-var port = parseInt(process.env.PORT || '8080');
-app.set('port', port);
+app.set('port', appState.uiConfig.directPort);
 
-server.listen(port);
+server.listen(appState.uiConfig.directPort);
 
 context.notification.notify("Mobindi started");
 

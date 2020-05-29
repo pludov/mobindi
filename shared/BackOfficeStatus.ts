@@ -491,6 +491,11 @@ export type TriggerExecuterStatus = {
     triggers: {[id:string]:TriggerConfig};
 }
 
+export type UIConfig = {
+    // port available for direct image/video DL (bypass ssl)
+    directPort: number;
+}
+
 export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
@@ -503,4 +508,5 @@ export type BackofficeStatus = {
     toolExecuter: ToolExecuterStatus;
     triggerExecuter: TriggerExecuterStatus;
     notification: NotificationStatus;
+    uiConfig: UIConfig;
 };

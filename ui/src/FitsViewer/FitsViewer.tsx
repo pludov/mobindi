@@ -119,6 +119,7 @@ class JQImageDisplay {
     currentImagePos:CompleteImagePos = {x:0, y:0, w:0, h:0, centerx: 0.5, centery: 0.5, zoomToBestfit: 1};
 
     menuTimer:NodeJS.Timeout|null = null;
+    directPort: number = parseInt(document.location.port);
 
     closeContextMenuCb:()=>void;
     onViewSettingsChangeCb:(state:FullState)=>void;
@@ -295,7 +296,7 @@ class JQImageDisplay {
 
             const env = process.env.NODE_ENV;
             if (document.location.protocol === 'https:' || env === 'development') {
-                str = "http://" + document.location.hostname + ":8080" + (document.location.pathname.replace(/\/[^/]+/, '') || '/');
+                str = "http://" + document.location.hostname + ":" + this.directPort + (document.location.pathname.replace(/\/[^/]+/, '') || '/');
             } else {
                 str = "";
             }
@@ -358,11 +359,13 @@ class JQImageDisplay {
         }
     }
 
-    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: Window|null, params?:FullState, imageSize?: ImageSize) {
+    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: Window|null, directPort: number, params?:FullState, imageSize?: ImageSize) {
         // Don't display stream until ready
         if (streamId !== null && !imageSize) {
             streamId = null;
         }
+
+        this.directPort = directPort;
 
         const path = file ? "file:" + file : streamId ? "stream:" + streamId : null;
 
@@ -1028,6 +1031,7 @@ export type Props = {
     streamSize: ImageSize|null;
     viewSettings?: Partial<FullState>;
     contextMenu?: ContextMenuEntry[];
+    directPort: number;
     onViewSettingsChange: (state: FullState)=>(void);
 };
 
@@ -1119,7 +1123,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     componentDidUpdate(prevProps: Props) {
-        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     componentDidMount() {
@@ -1129,7 +1133,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             this.closeContextMenu.bind(this),
             this.onViewSettingsChange.bind(this),
             this.onViewMoved);
-        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
 
     private markers: {[uid:string]: MarkerToken} = {};

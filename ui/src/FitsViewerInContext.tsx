@@ -17,6 +17,7 @@ export type InputProps = {
 
 type MappedProps = {
     viewSettings: FitsViewerProps["viewSettings"];
+    directPort: number;
 };
 
 type Props = InputProps & MappedProps;
@@ -37,6 +38,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
     render() {
         return <FitsViewer ref={this.fitsViewer}
                             path={this.props.path}
+                            directPort={this.props.directPort}
                             streamId={this.props.streamId}
                             streamSize={this.props.streamSize}
                             streamSerial={this.props.streamSerial}
@@ -49,7 +51,8 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps) {
         return {
-            viewSettings: FitsViewerStore.getViewerState(store, ownProps.contextKey)
+            viewSettings: FitsViewerStore.getViewerState(store, ownProps.contextKey),
+            directPort: (store.backend && store.backend.uiConfig && store.backend.uiConfig.directPort) || parseInt(document.location.port),
         };
     }
 }
