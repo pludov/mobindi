@@ -51,7 +51,10 @@ class VirtualSkyAccessor {
                     if (VirtualSkyAccessor.currentAccessor) {
                         VirtualSkyAccessor.currentAccessor.onRightClick(e);
                     }
-                }
+                },
+                draw: (e:any, visible: boolean)=>{
+                    console.log('Got redrawn with', visible);
+                },
             }
         });
         console.log("Done virtual sky init", VirtualSkyAccessor.virtualSkyInstance);
