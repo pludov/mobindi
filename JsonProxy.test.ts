@@ -435,6 +435,30 @@ describe("Json proxy", () => {
         previousData = checkConst(data);
 
 
+        STEP = "array replace";
+        root.f = [ null, null, null ];
+        patches = changeTracker.diff(serial);
+        assert.deepEqual(patches, {update: {f: {newArray: {0: null, 1: null, 2:null}}}}, "Patch for " + STEP);
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+        data = JsonProxy.applyDiff(data, patches);
+        assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+        assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+        previousData = checkConst(data);
+
+
+        root.f = [ null, null ];
+        patches = changeTracker.diff(serial);
+        assert.deepEqual(patches, {update: {f: {delete: ["2"], update: {}}}}, "Patch for " + STEP);
+        assert.deepEqual(serial, changeTracker.takeSerialSnapshot(), "Serial update on diff for " + STEP);
+
+        data = JsonProxy.applyDiff(data, patches);
+        assert.deepEqual(data, root, "Patch apply for " + STEP);
+
+        assert.ok(previousData.unchanged(), "Patch return new instance for " + STEP);
+        previousData = checkConst(data);
+
 
 
 

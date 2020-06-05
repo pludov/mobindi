@@ -84,7 +84,7 @@ export function has(obj: any, key: string) {
  */
 function valueHasChild(v:any)
 {
-    return v != null && (typeof v == "object");
+    return v !== null && (typeof v == "object");
 }
 
 function emptyObjectFor(v:any) {
@@ -835,6 +835,7 @@ export default class JsonProxy<CONTENTTYPE> {
             deleteProperty: function(target:any, nom:string) {
                 if (has(details.value, nom)) {
                     var currentDesc = details.value[nom];
+                    console.log('Mark dirty for delete at ' + nom);
                     self.markDirty(currentDesc);
                 }
                 delete details.value[nom];
@@ -854,7 +855,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 var currentDesc = has(details.value, nom) ? details.value[nom] : undefined;
 
                 // Just create the node
-                if (currentDesc == undefined) {
+                if (currentDesc === undefined) {
                     if (valueHasChild(newValue)) {
                         currentDesc = self.newObjectNode(details, emptyObjectFor(newValue));
                         // Then merge
@@ -867,7 +868,6 @@ export default class JsonProxy<CONTENTTYPE> {
                     if (currentDesc.value === newValue) {
                         return true;
                     }
-
                     // Update existing value.
                     if (!valueHasChild(newValue)) {
                         if (currentDesc.proxy != undefined) {
@@ -919,7 +919,9 @@ export default class JsonProxy<CONTENTTYPE> {
     mergeValues(from: any, intoProxy: any)
     {
         if (Array.isArray(intoProxy)) {
-            intoProxy.length = from.length;
+            if (intoProxy.length > from.length) {
+                intoProxy.splice(from.length, intoProxy.length - from.length);
+            }
             for(var i = 0; i < from.length; ++i) {
                 intoProxy[i] = from[i];
             }
