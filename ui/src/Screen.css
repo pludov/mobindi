@@ -102,11 +102,15 @@ input[type=button] {
     border-radius: 0.3em;
     border-width: 0.15em;
     background-color: #ccc;
-    vertical-align: bottom;
+    vertical-align: baseline;
 }
 input:disabled {
     color: #808080;
     filter: grayscale(100%);
+}
+
+input {
+    font-family: "MobindiGlyphBton", "sans-serif";
 }
 
 select {
