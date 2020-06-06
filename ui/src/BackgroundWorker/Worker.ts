@@ -22,7 +22,11 @@ import { BackendStatusValue, BackendStatus } from '@src/BackendStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import JsonProxy, { has } from '@src/shared/JsonProxy';
 
-declare var self:SharedWorker.SharedWorkerGlobalScope;
+interface SharedWorkerGlobalScope extends Worker {
+    onconnect: (event: MessageEvent) => void;
+}
+
+declare var self:SharedWorkerGlobalScope;
 // Compatibility with Websocket (that uses window.setTimeout, ...)
 (self as any).window = self;
 

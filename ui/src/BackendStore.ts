@@ -88,9 +88,9 @@ const actions = {
     notification
 }
 
-export type Actions = typeof actions;
+export type BackendActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<BackendActions>(actions);
 
 
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {

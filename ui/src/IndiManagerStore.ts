@@ -57,9 +57,9 @@ const actions = {
     setGroupState,
 }
 
-export type Actions = typeof actions;
+export type IndiManagerActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<IndiManagerActions>(actions);
 
 export const initialState:Content = {
     indiManager: {

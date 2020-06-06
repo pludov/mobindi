@@ -171,7 +171,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
                         );
             }
         } else {
-            content = <div className="IndiProperty">{this.props.label}></div>;
+            content = <div className="IndiProperty">{this.props.label}&gt;</div>;
         }
 
         return <div className="IndiVector"><Led color={ledColor}/><div className="IndiVectorProps">{content}</div></div>

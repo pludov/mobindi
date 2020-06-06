@@ -26,7 +26,7 @@ class IndiDriverSelector extends React.Component<Props> {
 
     updateDriver = (e:React.ChangeEvent<HTMLSelectElement>)=> {
         const target = e.target.value;
-        Actions.dispatch<IndiManagerStore.Actions>()("switchToDevice", {dev: target});
+        Actions.dispatch<IndiManagerStore.IndiManagerActions>()("switchToDevice", {dev: target});
     }
 
     render() {

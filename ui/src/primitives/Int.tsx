@@ -20,7 +20,7 @@ class Int extends React.PureComponent<Props> {
                     />
     }
 
-    numberToString=(n:number)=>{
+    numberToString=(n?:number|null)=>{
         return "" + (n !== null && n !== undefined ? n :"");
     }
 

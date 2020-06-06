@@ -73,9 +73,9 @@ const actions = {
     setComponentState,
 }
 
-export type Actions = typeof actions;
+export type GenericUiActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<GenericUiActions>(actions);
 
 export function getPanelState(state:Store.Content, panelId: string) {
     return !!Utils.getOwnProp(state.panelMemory, panelId);
@@ -87,7 +87,7 @@ export function initComponentState<T>(key: string, validate: (t:T|undefined)=>T)
     const storedState:T|undefined = Utils.getOwnProp(state.stateMemory, key);
     const result = validate(storedState);
     if (result !== storedState) {
-        Actions.dispatch<Actions>()("setComponentState", {
+        Actions.dispatch<GenericUiActions>()("setComponentState", {
             id: key,
             state: result,
         });
@@ -96,7 +96,7 @@ export function initComponentState<T>(key: string, validate: (t:T|undefined)=>T)
 }
 
 export function updateComponentState<T>(key: string, t:T) {
-    Actions.dispatch<Actions>()("setComponentState", {
+    Actions.dispatch<GenericUiActions>()("setComponentState", {
         id: key,
         state: t,
     });

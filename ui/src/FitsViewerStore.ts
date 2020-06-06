@@ -44,9 +44,9 @@ const actions = {
     setViewerState,
 }
 
-export type Actions = typeof actions;
+export type FitsViewerActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<FitsViewerActions>(actions);
 
 export function adjusters():Array<(state:Store.Content)=>Store.Content> {
     return [];

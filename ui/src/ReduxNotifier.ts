@@ -30,7 +30,7 @@ export default class ReduxNotifier extends Notifier {
     protected onStatusChanged(backendStatus: BackendStore.BackendStatusValue, backendError?: string)
     {
         if (this.store == undefined) return;
-        Actions.dispatch<BackendStore.Actions>(this.store)("backendStatus", {
+        Actions.dispatch<BackendStore.BackendActions>(this.store)("backendStatus", {
             backendStatus: backendStatus,
             backendError: backendError
         });

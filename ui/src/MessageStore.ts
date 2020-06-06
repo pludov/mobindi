@@ -4,7 +4,6 @@ import * as Actions from "./Actions";
 import * as NotificationStore from './NotificationStore';
 import Worker from 'shared-worker-loader!./BackgroundWorker/Worker';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
-import * as MessageStore from './MessageStore';
 
 export type MessageStore = {
     lastMessageDisplayed: string|undefined;
@@ -183,9 +182,9 @@ const actions = {
     UpdateNotificationAuth,
 }
 
-export type Actions = typeof actions;
+export type MessageActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<MessageActions>(actions);
 
 let worker: Worker;
 try {
@@ -255,7 +254,7 @@ function getMessageAuthValue():undefined|boolean
 
 function dispatchAuthUpdate() {
     const value = getMessageAuthValue();
-    Actions.dispatch<MessageStore.Actions>()("UpdateNotificationAuth", {value});
+    Actions.dispatch<MessageActions>()("UpdateNotificationAuth", {value});
     try {
         worker.port.postMessage({notificationAllowed: !!value});
     } catch(e) {

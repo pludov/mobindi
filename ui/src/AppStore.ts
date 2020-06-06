@@ -36,10 +36,9 @@ const actions = {
     SwitchToApp,
 }
 
-export type Actions = typeof actions;
+export type AppActions = typeof actions;
 
-Actions.register<Actions>(actions);
-
+Actions.register<AppActions>(actions);
 function adjustInvalidApp(state:Store.Content) {
     // Assurer que l'app en cours est toujours autorisée
     if (state.backendStatus === BackendStatus.Connected &&

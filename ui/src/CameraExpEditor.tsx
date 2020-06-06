@@ -16,12 +16,12 @@ type InputProps = {
     focusRef?: React.RefObject<HTMLSelectElement>
 }
 
-type MappedProps = PromiseSelector.Props<number> & {
+type MappedProps = PromiseSelector.Props<number> & ({
     $min: undefined
-} & {
+} | {
     $min: string;
     $max: string;
-}
+})
 
 type Props = InputProps & MappedProps;
 

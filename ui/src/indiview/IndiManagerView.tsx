@@ -42,7 +42,7 @@ class IndiManagerView extends React.PureComponent<Props> {
 
     async setGroupState(dev: string, group: string, newState: boolean)
     {
-        await Actions.dispatch<IndiManagerStore.Actions>()("setGroupState", {dev, group, newState});
+        await Actions.dispatch<IndiManagerStore.IndiManagerActions>()("setGroupState", {dev, group, newState});
     }
 
     render() {

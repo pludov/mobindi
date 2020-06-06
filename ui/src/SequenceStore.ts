@@ -91,9 +91,9 @@ const actions = {
     setEditingSequence,
 }
 
-export type Actions = typeof actions;
+export type SequenceActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<SequenceActions>(actions);
 
 export const initialState:Content = {
     sequence: {

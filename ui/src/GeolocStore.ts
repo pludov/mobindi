@@ -23,7 +23,7 @@ function getGeolocWorker() {
                 (position)=>{
                     console.log('got geoloc', position);
                     geoloc = position;
-                    Actions.dispatch<Actions>()("updateGeoloc", {
+                    Actions.dispatch<GeolocActions>()("updateGeoloc", {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
                         altitude: position.coords.altitude,
@@ -73,9 +73,9 @@ const actions = {
     updateGeoloc
 }
 
-export type Actions = typeof actions;
+export type GeolocActions = typeof actions;
 
-Actions.register<Actions>(actions);
+Actions.register<GeolocActions>(actions);
 
 export const initialState:Content = {
     geoloc: {

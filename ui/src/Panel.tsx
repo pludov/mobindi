@@ -18,7 +18,7 @@ type Props = InputProps & MappedProps;
 class Panel extends React.PureComponent<Props> {
     private child = React.createRef<HTMLSpanElement>();
     setState = (b:boolean)=> {
-        Actions.dispatch<GenericUiStore.Actions>()("setPanelState", {
+        Actions.dispatch<GenericUiStore.GenericUiActions>()("setPanelState", {
             panelId: this.props.guid,
             panelState: b
         });

@@ -45,15 +45,15 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     }
 
     setCurrentImage = (image:string)=> {
-        Actions.dispatch<SequenceStore.Actions>()("setCurrentImage", {image});
+        Actions.dispatch<SequenceStore.SequenceActions>()("setCurrentImage", {image});
     }
 
     editSequence=(uid:string)=>{
-        Actions.dispatch<SequenceStore.Actions>()("setEditingSequence", {sequence: uid});
+        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid});
     }
 
     closeEditDialog = ()=> {
-        Actions.dispatch<SequenceStore.Actions>()("setEditingSequence", {sequence: undefined});
+        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: undefined});
     }
 
     render() {

@@ -21,14 +21,14 @@ type OwnProps = {
 };
 
 function setCurrentSequence(uid:string) {
-    Actions.dispatch<SequenceStore.Actions>()("setCurrentSequence", {sequence: uid});
+    Actions.dispatch<SequenceStore.SequenceActions>()("setCurrentSequence", {sequence: uid});
 }
 
 async function newSequence(onCreated: (uid:string)=>void) {
     const sequence = await BackendRequest.RootInvoker("sequence")("newSequence")(
         CancellationToken.CONTINUE,
         {});
-    Actions.dispatch<SequenceStore.Actions>()("setCurrentSequence", {sequence});
+    Actions.dispatch<SequenceStore.SequenceActions>()("setCurrentSequence", {sequence});
     onCreated(sequence);
 }
 
