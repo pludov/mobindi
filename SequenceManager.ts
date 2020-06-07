@@ -2,6 +2,7 @@ import {v4 as uuidv4} from 'node-uuid';
 const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
+import * as jsonpatch from 'json-patch';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
@@ -284,6 +285,12 @@ export default class SequenceManager
         const value = message.value;
 
         (seq as any)[param] = value;
+    }
+
+    public patchSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.PatchSequenceStepRequest)=>{
+        const parentStep = this.findStepFromRequest(message);
+
+        jsonpatch.apply(parentStep, message.patch);
     }
 
     public updateSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepRequest)=>{
@@ -775,6 +782,7 @@ export default class SequenceManager
         return {
             deleteSequenceStep: this.deleteSequenceStep,
             updateSequence: this.updateSequence,
+            patchSequenceStep: this.patchSequenceStep,
             updateSequenceStep: this.updateSequenceStep,
             updateSequenceStepDithering: this.updateSequenceStepDithering,
             moveSequenceSteps: this.moveSequenceSteps,

@@ -1,3 +1,5 @@
+import * as jsonpatch from 'json-patch';
+
 import * as ProcessorTypes from "./ProcessorTypes";
 import { CameraDeviceSettings, SequenceStep, DitheringSettings } from './BackOfficeStatus';
 
@@ -63,6 +65,12 @@ export type UpdateSequenceStepRequest = {
     value?: string|number|boolean|null;
 }
 
+export type PatchSequenceStepRequest = {
+    sequenceUid: string;
+    stepUidPath: string[];
+    patch: jsonpatch.OpPatch[];
+}
+
 export type UpdateSequenceStepDitheringRequest = {
     sequenceUid: string;
     stepUidPath: string[];
@@ -104,6 +112,7 @@ export type SequenceAPI = {
     dropSequence: (payload: {sequenceUid: string})=>void;
     updateSequence: (payload: UpdateSequenceRequest)=>void;
     newSequenceStep: (payload: NewSequenceStepRequest)=>string[];
+    patchSequenceStep: (payload: PatchSequenceStepRequest)=>void;
     updateSequenceStep: (payload: UpdateSequenceStepRequest)=>void;
     updateSequenceStepDithering: (payload: UpdateSequenceStepDitheringRequest)=>void;
     moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
