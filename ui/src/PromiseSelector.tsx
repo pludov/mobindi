@@ -47,7 +47,6 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
     render() {
         var active = this.props.active;
         if (active == undefined) active = null;
-        console.log('Promise Selector rendering with ' + active);
 
         var availables = this.props.availablesGenerator(this.props);
         if (!availables) availables = [];
