@@ -8,7 +8,7 @@ echo '***           Building Back office            ***'
 echo '***                                           ***'
 echo '*************************************************'
 
-( npm install && npm run-script build )
+( npm install --no-audit && npm run-script build )
 
 echo '*************************************************'
 echo '***                                           ***'
@@ -24,6 +24,6 @@ echo '***                Building UI                ***'
 echo '***                                           ***'
 echo '*************************************************'
 
-( cd ui && npm install && npm run-script build)
+( cd ui && npm install --no-audit && snpm run-script build)
 
 
