@@ -26,7 +26,7 @@ export type DitheringSettings = {
     timeout: number;
 };
 
-export type SequenceStep = {
+export type SequenceStepParameters = {
     exposure?:number;
     iso?: string;
     type?: string;
@@ -34,12 +34,25 @@ export type SequenceStep = {
     filter?: string|null;
 
     dithering?: null|DitheringSettings;
+}
 
+export type SequenceStep = SequenceStepParameters & {
     repeat?: number;
+    foreach?: SequenceForeach<keyof SequenceStepParameters>;
     childs?: {
         list: string[];
         byuuid: {[uuid:string]:SequenceStep}
     };
+}
+
+export type SequenceForeachItem<K extends keyof SequenceStepParameters> = {
+    [KEY in K]?: SequenceStepParameters[KEY]
+};
+
+export type SequenceForeach<K extends keyof SequenceStepParameters> = {
+    param: K;
+    list: string[];
+    byuuid: {[uuid: string] : SequenceForeachItem<K>};
 }
 
 export type SequenceStepStatus = {

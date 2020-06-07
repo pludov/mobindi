@@ -1,7 +1,7 @@
 import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
-import { CameraDeviceSettings, SequenceStep, DitheringSettings } from './BackOfficeStatus';
+import { CameraDeviceSettings, SequenceStep, DitheringSettings, SequenceForeach, SequenceStepParameters } from './BackOfficeStatus';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -62,7 +62,7 @@ export type UpdateSequenceStepRequest = {
     sequenceUid: string;
     stepUidPath: string[];
     param: keyof SequenceStep;
-    value?: string|number|boolean|null;
+    value?: string|number|boolean|null|SequenceForeach<keyof SequenceStepParameters>;
 }
 
 export type PatchSequenceStepRequest = {

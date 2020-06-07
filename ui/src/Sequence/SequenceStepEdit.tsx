@@ -1,8 +1,10 @@
 import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
 import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
+import uuid from 'uuid';
 
-import { SequenceStep, DitheringSettings } from '@bo/BackOfficeStatus';
+
+import { SequenceStep, DitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
@@ -12,9 +14,10 @@ import FilterSelector from '../FilterSelector';
 import ArrayReselect from '../utils/ArrayReselect';
 
 import { hasKey } from '../shared/Obj';
+import { atPath } from '../shared/JsonPath';
 
 import "./SequenceStepEdit.css";
-import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest } from '@bo/BackOfficeAPI';
+import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest, PatchSequenceStepRequest } from '@bo/BackOfficeAPI';
 import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
@@ -57,7 +60,7 @@ type State = {
 
     overridenChildList?: undefined|string[];
     sourceChildList?: undefined|string[];
-    parameterSplit: undefined|(ParamDesc& {id: keyof SequenceStep});
+    parameterSplit: undefined|(ParamDesc& {id: keyof SequenceStepParameters});
 
     // Force presence of a given parameter on childs (for split)
     forcedChilds?: ForcedParams;
@@ -150,19 +153,48 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         return this.props.detailsStack[this.props.detailsStack.length - 1];
     }
 
-    private updateSequenceStepParam = async(param: UpdateSequenceStepRequest["param"], value: UpdateSequenceStepRequest["value"]) => {
-        const payload:UpdateSequenceStepRequest = {
+    private patchSequenceStepParam = async(patch: jsonpatch.OpPatch[]) => {
+        const payload:PatchSequenceStepRequest = {
             sequenceUid: this.props.sequenceUid,
             stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
-            param
+            patch
         };
-        if (value !== undefined) {
-            payload.value = value;
-        }
-        await BackendRequest.RootInvoker("sequence")("updateSequenceStep")(
+        await BackendRequest.RootInvoker("sequence")("patchSequenceStep")(
             CancellationToken.CONTINUE,
             payload,
-            );
+        );
+    }
+
+    private updateSequenceStepParam = async(param: UpdateSequenceStepRequest["param"], value: UpdateSequenceStepRequest["value"]) => {
+        const patch: jsonpatch.OpPatch[] = []
+        if (value !== undefined) {
+            patch.push({
+                op: 'add',
+                path: '/' + param,
+                value: value
+            });
+        } else {
+            patch.push({
+                op: 'add',
+                path: '/' + param,
+                value: null
+            });
+            patch.push({
+                op: 'remove',
+                path: '/' + param
+            });
+        }
+        await this.patchSequenceStepParam(patch);
+    }
+
+    private updateIterableSequenceStepParam = async(param: UpdateSequenceStepRequest["param"], value: UpdateSequenceStepRequest["value"], foreachStepUuid: string|null) => {
+        if (foreachStepUuid === null) {
+            return await this.updateSequenceStepParam(param, value);
+        } else {
+            const stepDesc = this.props.detailsStack[this.props.detailsStack.length-1];
+
+            return await this.updateSequenceStepParam("foreach", this.updateForeachValue(stepDesc.foreach!, foreachStepUuid, value as any));
+        }
     }
 
     private updateSequenceStepDitheringParam = async(wanted: boolean, settings?: Partial<DitheringSettings>) => {
@@ -233,6 +265,93 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         }
     }
 
+    createForeachValue<K extends keyof SequenceStepParameters>(foreach: SequenceForeach<K>, v:SequenceStepParameters[K]):SequenceForeach<K> {
+        const pid = foreach.param;
+        const newUuid = uuid.v4();
+        const newValue : SequenceForeachItem<K> = {
+            [pid as K]: v
+        } as any;
+        return {
+            ...foreach,
+            byuuid: {
+                ...foreach.byuuid,
+                [newUuid]: newValue
+            },
+            list: [...foreach.list, newUuid]
+        };
+    }
+
+    updateForeachValue<K extends keyof SequenceStepParameters>(foreach: SequenceForeach<K>, uuid: string, v:SequenceStepParameters[K]):SequenceForeach<K> {
+        if (!hasKey(foreach.byuuid, uuid)) {
+            throw new Error("uuid not found");
+        }
+        return {
+            ...foreach,
+            byuuid: {
+                ...foreach.byuuid,
+                [uuid]: {
+                    ...foreach.byuuid[uuid],
+                    [foreach.param]: v
+                }
+            }
+        };
+    }
+
+    addForeachValue=async(param: ParamDesc& {id: keyof SequenceStepParameters})=> {
+        const stepDesc = this.props.detailsStack[this.props.detailsStack.length-1];
+        const patch:jsonpatch.OpPatch[] = [];
+
+        let foreach;
+        if (!stepDesc.foreach) {
+            foreach = {
+                param: param.id,
+                list: [],
+                byuuid: {}
+            };
+            foreach = this.createForeachValue(foreach, stepDesc[param.id] !== undefined ? stepDesc[param.id] : null);
+            patch.push({op: 'add', path: '/' + param.id, value: null});
+            patch.push({op: 'remove', path: '/' + param.id});
+        } else {
+            foreach = stepDesc.foreach;
+        }
+        foreach = this.createForeachValue(foreach, null);
+        patch.push({op: 'add', path: '/foreach', value: foreach});
+        
+        await this.patchSequenceStepParam(patch);
+    }
+
+    dropForeachValue=async(index:number)=> {
+        const stepDesc = this.props.detailsStack[this.props.detailsStack.length-1];
+        if (!stepDesc.foreach) {
+            return;
+        }
+        if (index && stepDesc.foreach.list.length <= index) {
+            return;
+        }
+
+        const newForeach = {
+            ...stepDesc.foreach,
+            byuuid: {...stepDesc.foreach.byuuid},
+            list: [...stepDesc.foreach.list]
+        };
+
+        const removedUuid = newForeach.list.splice(index, 1)[0];
+        delete newForeach.byuuid[removedUuid];
+
+        const patch:jsonpatch.OpPatch[] = [];
+        if (newForeach.list.length > 1) {
+            patch.push({op: 'add', path: '/foreach', value: newForeach});
+        } else {
+            // Convert back to single
+            patch.push({op: 'remove', path: '/foreach'});
+            if (newForeach.list.length) {
+                patch.push({op: 'add', path: '/' + newForeach.param, value: newForeach.byuuid[newForeach.list[0]][newForeach.param]});
+            }
+        }
+
+        await this.patchSequenceStepParam(patch);
+    }
+
     private getChildList = (propsOnly?:boolean)=>{
         if ((!propsOnly) && this.state.overridenChildList) {
             return this.state.overridenChildList;
@@ -283,15 +402,11 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         }
     }
 
-    private splitParameter=(param: ParamDesc& {id: keyof SequenceStep})=> {
-        this.setState({parameterSplit: param});
-    }
-
     private splittable=(param: ParamDesc)=> {
         if (!param.splittable) {
             return false;
         }
-        if (this.getCurrentDetails().childs) {
+        if (this.getCurrentDetails().foreach !== undefined && this.getCurrentDetails().foreach?.param !== param.id) {
             return false;
         }
         return true;
@@ -313,43 +428,45 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         this.setState({parameterSplit: undefined});
     }
 
-    renderType=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    
+
+    renderType=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraFrameTypeEditor
                         device={this.props.camera}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.type'}
-                        setValue={(e:string)=>Utils.promiseToState(()=>this.updateSequenceStepParam('type', e), this)}
+                        setValue={(e:string)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('type', e, foreachUuid), this)}
                         />
     }
 
-    renderExposure=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderExposure=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraExpEditor
                         device={this.props.camera}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.exposure'}
-                        setValue={(e:number)=>Utils.promiseToState(()=>this.updateSequenceStepParam('exposure', e), this)}
+                        setValue={(e:number)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('exposure', e, foreachUuid), this)}
                         />
     }
 
-    renderIso=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderIso=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraIsoEditor
                         device={this.props.camera}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.iso'}
-                        setValue={(e:string)=>Utils.promiseToState(()=>this.updateSequenceStepParam('iso', e), this)}
+                        setValue={(e:string)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('iso', e, foreachUuid), this)}
                         />
     }
 
-    renderBin=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderBin=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraBinEditor
                         device={this.props.camera}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.bin'}
-                        setValue={(e:number)=>Utils.promiseToState(()=>this.updateSequenceStepParam('bin', e), this)}
+                        setValue={(e:number)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('bin', e, foreachUuid), this)}
                         />
     }
 
-    renderFilter=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderFilter=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <FilterSelector
                         deviceId={this.props.camera}
                         focusRef={focusRef}
@@ -357,15 +474,15 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                             if (filterId === null && filterWheelDeviceId !== null) {
                                 return;
                             }
-                            await this.updateSequenceStepParam('filter', filterId);
+                            await this.updateIterableSequenceStepParam('filter', filterId, foreachUuid);
                         }}
-                        getFilter={()=>this.getCurrentDetails().filter || null}
+                        getFilter={(store)=>atPath(store, settingsPath + ".filter") || null}
                     />
     }
 
     private ditheringDetailsModal = React.createRef<Modal>();
 
-    renderDithering=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderDithering=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
 
         return <>
@@ -399,7 +516,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 : null
     }
 
-    renderRepeat=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
+    renderRepeat=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         const valnum = this.props.detailsStack[this.props.detailsStack.length-1].repeat;
         
         if (valnum === undefined || (valnum >= 2 && valnum <= 10)) {
@@ -471,6 +588,67 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             settingsPath += ".childs.byuuid[" + JSON.stringify(uid) + "]";
         }
 
+        const renderSingle = (param:ParamDesc)=>{
+            if (param.hidden || !param.render
+                    || (!hasKey(details || {}, param.id)
+                                && (details.foreach?.param !== param.id)
+                                && !hasKey(this.state.newItems, param.id))) {
+                return null;
+            }
+            const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
+            const renderer = param.render(this);
+
+            return (<>
+                <div className="SequenceStepProperty" key={param.id}>
+                    <span className="SequenceStepPropertyTitle">Iterate {param.title}:</span>
+                        {details.foreach?.param !== param.id
+                            ?
+                                <span>
+                                        {renderer(param, settingsPath, null, isTheLastNew ? this.lastNewItemFocusRef : undefined)}
+
+                                        <input type="button"
+                                            className="SequenceStepParameterDropBton"
+                                            value={"X"}
+                                            onClick={()=>Utils.promiseToState(()=>this.dropParam(param), this)}/>
+
+                                </span>
+                            :
+                                details.foreach.list.map((uuid, index)=>
+                                    <span>
+                                        {renderer(param, settingsPath+".foreach.byuuid[" +  JSON.stringify(uuid) + "]", uuid, undefined)}
+                                        <input type="button"
+                                            className="SequenceStepParameterDropBton"
+                                            value={"X"}
+                                            onClick={()=>Utils.promiseToState(()=>this.dropForeachValue(index), this)}/>
+
+                                    </span>
+                                )
+                        }
+                        {
+                            this.splittable(param) && param.id !== "childs" && param.id !== "foreach" && param.id !== "repeat"
+                                ?
+                                    <input type="button"
+                                        className="SequenceStepParameterAddBton"
+                                        value={"+"}
+                                        onClick={()=>Utils.promiseToState(()=>this.addForeachValue(param as ParamDesc & {id: keyof SequenceStepParameters}), this)}/>
+                                : null
+                        }
+                </div>
+                {param.renderMore ? param.renderMore(this)(param, settingsPath): null}
+            </>);
+        }
+
+        const displayParameters = parameters.map((group)=>group.childs).flat();
+        // Display the foreach last (in case a repeat is here)
+        if (hasKey(details, 'repeat') && hasKey(details, 'foreach')) {
+            // Move repeat just above foreach parameter
+            const paramId = displayParameters.map(param=>param.id).indexOf(details.foreach!.param);
+            if (paramId !== -1) {
+                const foreach = displayParameters.splice(paramId, 1)[0];
+                displayParameters.push(foreach);
+            }
+        }
+
         return <div ref={this.props.bodyRef}>
             {this.state.parameterSplit !== undefined
                 ? <SequenceStepParameterSplitter
@@ -482,34 +660,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                         onClose={this.closeParameterSplitter}/>
                 : null
             }
-            {parameters.map((group)=>group.childs.map(param=>{
-                if (param.hidden || !param.render || (!hasKey(details || {}, param.id) && !hasKey(this.state.newItems, param.id))) {
-                    return null;
-                }
-                const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
-                const renderer = param.render(this);
-                return (<>
-                    <div className="SequenceStepProperty" key={param.id} ref={isTheLastNew ? this.lastNewItemRef : undefined}>
-                            <span className="SequenceStepPropertyTitle">{param.title}:</span>
 
-                            {renderer(param, settingsPath, isTheLastNew ? this.lastNewItemFocusRef : undefined)}
-
-                            {this.splittable(param)
-                                ? <input type="button"
-                                    className="SequenceStepParameterForkBton"
-                                    value={"\u{1d306}"}
-                                    onClick={()=>this.splitParameter(param as ParamDesc & {id: keyof SequenceStep})}
-                                    />
-                                : null
-                            }
-                            <input type="button"
-                                    className="SequenceStepParameterDropBton"
-                                    value={"X"}
-                                    onClick={()=>Utils.promiseToState(()=>this.dropParam(param), this)}/>
-                    </div>
-                    {param.renderMore ? param.renderMore(this)(param, settingsPath): null}
-                </>);
-            }))}
+            {displayParameters.map((param)=>renderSingle(param))}
 
             <select ref={this.props.focusRef} value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More...">
                 <option value="" disabled hidden>More...</option>
