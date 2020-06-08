@@ -61,6 +61,8 @@ export type SequenceStepStatus = {
     parentExecUuid: string|null;
     /** Erased on each arrival */
     finishedLoopCount: number;
+    /** Erased on each arrival / foreach increment */
+    currentForeach: string|null;
     activeChild?: string;
     lastDitheredExecUuid?: string;
 }
