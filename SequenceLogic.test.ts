@@ -195,7 +195,7 @@ describe("SequenceLogic", () => {
                 "execUuid": "00000005",
                 "finishedLoopCount": 1,
                 "parentExecUuid": null,
-                "activeChild": "bbbbb",
+                "activeChild": "bbbb",
             },
             {
                 "currentForeach": null,
