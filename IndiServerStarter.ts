@@ -207,7 +207,7 @@ export default class IndiServerStarter {
                     }
                     todo!.done();
                 },
-                5000,
+                30000,
                 ()=>{
                     const e = new Error(todo!.cmd === 'ping' ? 'Indi ping timedout' : 'Indi fifo command timedout');
                     (e as any).isFifoTimeout = true;
