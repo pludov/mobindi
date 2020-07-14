@@ -27,7 +27,7 @@ export type DitheringSettings = {
 };
 
 export type SequenceDitheringSettings = DitheringSettings & {
-    // If set, apply the dithering only on step entrance
+    // If set, apply the dithering only on step entrance (whatever repeat, foreach are)
     once: boolean;
 }
 
@@ -43,6 +43,8 @@ export type SequenceStepParameters = {
 
 export type SequenceStep = SequenceStepParameters & {
     repeat?: number;
+
+    // If both repeat and foreach are set, the foreach cycle "repeat" times
     foreach?: SequenceForeach<keyof SequenceStepParameters>;
     childs?: {
         list: string[];
@@ -68,6 +70,7 @@ export type SequenceStepStatus = {
     finishedLoopCount: number;
     /** Erased on each arrival / foreach increment */
     currentForeach: string|null;
+    finishedForeach: {[id:string]: boolean} | null;
     activeChild?: string;
     lastDitheredExecUuid?: string;
 }
