@@ -35,9 +35,10 @@ describe("SequenceLogic", () => {
         
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
         let nextStep = logic.getNextStep();
-        
+        let nextStepParams;
+
         // Check parameters are exactly one
-        assert.deepEqual(nextStep, [
+        assert.deepStrictEqual(nextStep, [
             {
                 "status": {
                     "currentForeach": null,
@@ -53,11 +54,17 @@ describe("SequenceLogic", () => {
             }
         ],
         "First status");
-        
+
+        nextStepParams = logic.getParameters(nextStep!);
+        assert.deepStrictEqual(nextStepParams, {
+            bin: 1,
+            exposure: 10,
+        });
+
         logic.finish(nextStep![nextStep!.length - 1]);
-        
+
         nextStep = logic.getNextStep();
-        assert.deepEqual(nextStep, [
+        assert.deepStrictEqual(nextStep, [
             {
                 "status": {
                     "currentForeach": null,
@@ -73,11 +80,17 @@ describe("SequenceLogic", () => {
             }
         ]
         , "Second status");
-        
+
+        nextStepParams = logic.getParameters(nextStep!);
+        assert.deepStrictEqual(nextStepParams, {
+            bin: 1,
+            exposure: 10,
+        });
+
         logic.finish(nextStep![nextStep!.length - 1]);
-        
+
         nextStep = logic.getNextStep();
-        assert.deepEqual(nextStep, undefined);
+        assert.deepStrictEqual(nextStep, undefined);
     });
     
     
@@ -115,11 +128,12 @@ describe("SequenceLogic", () => {
         
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
         let nextStep = logic.getNextStep();
+        let nextStepParams;
         
         // Check parameters are exactly one
         assert.notStrictEqual(nextStep, undefined);
         assert.equal(nextStep!.length, 2);
-        assert.deepEqual(nextStep!.map(e=>e.status),
+        assert.deepStrictEqual(nextStep!.map(e=>e.status),
         [
             {
                 "currentForeach": null,
@@ -137,12 +151,19 @@ describe("SequenceLogic", () => {
         ]);
         assert.strictEqual(nextStep![1].step, sequence.root.childs!.byuuid.aaaa);
         
+        nextStepParams = logic.getParameters(nextStep!);
+
+        assert.deepStrictEqual(nextStepParams, {
+            exposure: 10,
+            bin: 2,
+        });
+
         logic.finish(nextStep![nextStep!.length - 1]);
         
         nextStep = logic.getNextStep();
         assert.notStrictEqual(nextStep, undefined);
         assert.equal(nextStep!.length, 2);
-        assert.deepEqual(nextStep!.map(e=>e.status),
+        assert.deepStrictEqual(nextStep!.map(e=>e.status),
         [
             {
                 "currentForeach": null,
@@ -160,12 +181,19 @@ describe("SequenceLogic", () => {
         ]);
         assert.strictEqual(nextStep![1].step, sequence.root.childs!.byuuid.bbbb);
         
+        nextStepParams = logic.getParameters(nextStep!);
+
+        assert.deepStrictEqual(nextStepParams, {
+            bin: 4,
+            exposure: 10,
+        });
+
         logic.finish(nextStep![nextStep!.length - 1]);
         
         nextStep = logic.getNextStep();
         assert.notStrictEqual(nextStep, undefined);
         assert.equal(nextStep!.length, 2);
-        assert.deepEqual(nextStep!.map(e=>e.status),
+        assert.deepStrictEqual(nextStep!.map(e=>e.status),
         [
             {
                 "currentForeach": null,
@@ -183,12 +211,20 @@ describe("SequenceLogic", () => {
         ]);
         assert.strictEqual(nextStep![1].step, sequence.root.childs!.byuuid.aaaa);
         
+        nextStepParams = logic.getParameters(nextStep!);
+
+        assert.deepStrictEqual(nextStepParams, {
+            bin: 2,
+            exposure: 10,
+        });
+
+
         logic.finish(nextStep![nextStep!.length - 1]);
         
         nextStep = logic.getNextStep();
         assert.notStrictEqual(nextStep, undefined);
         assert.equal(nextStep!.length, 2);
-        assert.deepEqual(nextStep!.map(e=>e.status),
+        assert.deepStrictEqual(nextStep!.map(e=>e.status),
         [
             {
                 "currentForeach": null,
@@ -205,10 +241,17 @@ describe("SequenceLogic", () => {
             }
         ]);
         assert.strictEqual(nextStep![1].step, sequence.root.childs!.byuuid.bbbb);
-        
+
+        nextStepParams = logic.getParameters(nextStep!);
+
+        assert.deepStrictEqual(nextStepParams, {
+            bin: 4,
+            exposure: 10,
+        });
+
         logic.finish(nextStep![nextStep!.length - 1]);
         
         nextStep = logic.getNextStep();
-        assert.deepEqual(nextStep, undefined);
+        assert.strictEqual(nextStep, undefined);
     });
 });
