@@ -596,11 +596,13 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 return null;
             }
             const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
+            const moreThanOne = details.foreach?.param === param.id && details.foreach.list.length > 1;
+
             const renderer = param.render(this);
 
             return (<>
                 <div className="SequenceStepProperty" key={param.id}>
-                    <span className="SequenceStepPropertyTitle">Iterate {param.title}:</span>
+                    <span className="SequenceStepPropertyTitle">{moreThanOne ? "Iterate" : ""} {param.title}:</span>
                         {details.foreach?.param !== param.id
                             ?
                                 <span>
