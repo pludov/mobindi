@@ -26,6 +26,11 @@ export type DitheringSettings = {
     timeout: number;
 };
 
+export type SequenceDitheringSettings = DitheringSettings & {
+    // If set, apply the dithering only on step entrance
+    once: boolean;
+}
+
 export type SequenceStepParameters = {
     exposure?:number;
     iso?: string;
@@ -33,7 +38,7 @@ export type SequenceStepParameters = {
     bin?: number;
     filter?: string|null;
 
-    dithering?: null|DitheringSettings;
+    dithering?: null|SequenceDitheringSettings;
 }
 
 export type SequenceStep = SequenceStepParameters & {
