@@ -835,7 +835,6 @@ export default class JsonProxy<CONTENTTYPE> {
             deleteProperty: function(target:any, nom:string) {
                 if (has(details.value, nom)) {
                     var currentDesc = details.value[nom];
-                    console.log('Mark dirty for delete at ' + nom);
                     self.markDirty(currentDesc);
                 }
                 delete details.value[nom];
