@@ -4,7 +4,7 @@ import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc'
 import uuid from 'uuid';
 
 
-import { SequenceStep, DitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
+import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
@@ -197,15 +197,30 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         }
     }
 
-    private updateSequenceStepDitheringParam = async(wanted: boolean, settings?: Partial<DitheringSettings>) => {
+    private updateSequenceStepDithering = async(wanted: boolean | "once") => {
         const payload:UpdateSequenceStepDitheringRequest = {
             sequenceUid: this.props.sequenceUid,
             stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
-            dithering: wanted,
+            dithering: !!wanted,
         };
-        if (settings) {
-            payload.settings = settings;
+        if (!!wanted) {
+            payload.settings = {once : wanted === "once"};
         }
+
+        await BackendRequest.RootInvoker("sequence")("updateSequenceStepDithering")(
+            CancellationToken.CONTINUE,
+            payload,
+            );
+    }
+
+    private updateSequenceStepDitheringParam = async(settings: Partial<SequenceDitheringSettings>) => {
+        const payload:UpdateSequenceStepDitheringRequest = {
+            sequenceUid: this.props.sequenceUid,
+            stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
+            dithering: true,
+            settings,
+        };
+
         await BackendRequest.RootInvoker("sequence")("updateSequenceStepDithering")(
             CancellationToken.CONTINUE,
             payload,
@@ -487,14 +502,15 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
         return <>
             <select
-                        value={val === undefined ? "" : val === null ? "false" : "true"}
+                        value={val === undefined ? "" : val === null ? "false" : (val.once ? "once" : "true" ) }
                         ref={focusRef}
                         onChange={
                             (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
-                                        ()=>this.updateSequenceStepDitheringParam(e.target.value === 'true'), this)
+                                        ()=>this.updateSequenceStepDithering(e.target.value === "once" ? "once" : e.target.value === 'true'), this)
                         }>
                     <option value="" disabled hidden>Choose...</option>
                     <option value="true">On</option>
+                    <option value="once">Once</option>
                     <option value="false">Off</option>
             </select>
             <input type="button" value="..." disabled={!val} onClick={()=>{
@@ -510,7 +526,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 ?<Modal ref={this.ditheringDetailsModal}>
                     <DitheringSettingEdit settings={val} update={
                             ({field, value})=> Utils.promiseToState(
-                                ()=>this.updateSequenceStepDitheringParam(true, {[field]: value}), this)
+                                ()=>this.updateSequenceStepDitheringParam({[field]: value}), this)
                         }/>
                 </Modal>
                 : null
@@ -596,11 +612,13 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 return null;
             }
             const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
+            const moreThanOne = details.foreach?.param === param.id && details.foreach.list.length > 1;
+
             const renderer = param.render(this);
 
             return (<>
                 <div className="SequenceStepProperty" key={param.id}>
-                    <span className="SequenceStepPropertyTitle">Iterate {param.title}:</span>
+                    <span className="SequenceStepPropertyTitle">{moreThanOne ? "Iterate" : ""} {param.title}:</span>
                         {details.foreach?.param !== param.id
                             ?
                                 <span>

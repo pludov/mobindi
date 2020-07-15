@@ -5,7 +5,7 @@ import MemoryStreams from 'memory-streams';
 import { StringDecoder } from 'string_decoder';
 
 // Ugggglyyy fix for end of stream
-MemoryStreams.ReadableStream.prototype._read = function(n) {
+MemoryStreams.ReadableStream.prototype._read = function(n:any) {
     const self : any = this;
     this.push(self._data);
     self._data = null;
@@ -31,13 +31,13 @@ export function Exec(ct: CancellationToken, p : ExecParams):Promise<number> {
         };
         const child = child_process.spawn(p.command[0], p.command.slice(1), opts);
         if (p.stdin) {
-            p.stdin.pipe(child.stdin);
+            p.stdin.pipe(child.stdin!);
         }
         if (p.stdout) {
-            child.stdout.pipe(p.stdout);
+            child.stdout!.pipe(p.stdout);
         }
         if (p.stderr) {
-            child.stderr.pipe(p.stderr);
+            child.stderr!.pipe(p.stderr);
         }
 
         let killed = false;
@@ -119,7 +119,7 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
 
         writableStream = new Stream.Writable();
         writableStream._write = (chunk, encoding, next) => {
-            if (encoding !== 'buffer') {
+            if (encoding as any !== 'buffer') {
                 writableStream.emit('error', new Error('unsupported encoding'));
             } else {
                 const str = stringDecoder.write(chunk);

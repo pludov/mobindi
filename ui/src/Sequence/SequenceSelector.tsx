@@ -52,8 +52,8 @@ const SequenceSelector = connect(()=>{
         ... sequenceSelectorBaseProps,
         controls: controls(store, ownProps),
         active: atPath(store, ownProps.currentPath),
-        availables: store.backend.sequence!.sequences.list,
-        definitions: store.backend.sequence!.sequences.byuuid
+        availables: store.backend.sequence?.sequences.list,
+        definitions: store.backend.sequence?.sequences.byuuid
     })
 })(PromiseSelector);
 

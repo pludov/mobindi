@@ -446,6 +446,7 @@ export default class Camera
                     
                     // Set the binning - if prop is present only
                 if (currentShootSettings.bin !== null
+                    && currentShootSettings.bin !== undefined
                     && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists())
                 {
                     task.cancellation.throwIfCancelled();
@@ -461,6 +462,7 @@ export default class Camera
 
                 // Set the iso
                 if (currentShootSettings.iso !== null
+                        && currentShootSettings.iso !== undefined
                         && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()) {
                     task.cancellation.throwIfCancelled();
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',

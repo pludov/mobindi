@@ -138,7 +138,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
         if (!selected) {
             return {}
         }
-        var currentSequence = store.backend.sequence!.sequences.byuuid[selected];
+        var currentSequence = store.backend.sequence?.sequences.byuuid[selected];
         return {
             uuid: selected,
             current: currentSequence

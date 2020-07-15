@@ -304,7 +304,7 @@ export default class SequenceManager
             parentStep.dithering = null;
         } else {
             if (!parentStep.dithering) {
-                parentStep.dithering = {...this.context.phd.currentStatus.configuration.preferredDithering}
+                parentStep.dithering = {...this.context.phd.currentStatus.configuration.preferredDithering, once: false}
             }
             if (message.settings) {
                 const s = message.settings;

@@ -37,8 +37,55 @@ export class SequenceLogic {
         return false;
     }
 
+    // Assume a foreach is ongoing. null if nothing left to iterate
+    getNextForeach(current: SequenceWithStatus) : string | null {
+        for(let i = 0; i < current.step.foreach!.list.length; ++i) {
+            const foreachId = current.step.foreach!.list[i];
+            if (!Object.prototype.hasOwnProperty.call(current.status.finishedForeach, foreachId)) {
+                return foreachId;
+            }
+        }
+        return null;
+    }
+
+    // Get the finished foreach count, ignored removed foreach
+    getEffectiveFinishedForeachCount(current: SequenceWithStatus): number {
+        if (!current.step.foreach) {
+            return 0;
+        }
+        if (!current.status.finishedForeach) {
+            return 0;
+        }
+
+        let ret = 0;
+        for(const foreachId of current.step.foreach.list) {
+            if (Object.prototype.hasOwnProperty.call(current.status.finishedForeach, foreachId)) {
+                ret++;
+            }
+        }
+        return ret;
+    }
+
     finish(current: SequenceWithStatus){
+        // We can't decide here if foreach is the last...
+        if (current.status.currentForeach !== null) {
+            if (!current.status.finishedForeach) {
+                current.status.finishedForeach = {};
+            }
+            current.status.finishedForeach[current.status.currentForeach] = true;
+            
+            const newForeach = this.getNextForeach(current);
+            if (newForeach !== null) {
+                current.status.currentForeach = newForeach;
+                current.status.execUuid = this.uuid();
+                return;
+            }
+        }
         current.status.finishedLoopCount = (current.status.finishedLoopCount || 0) + 1;
+
+        // Set those here to allow proper display of paused sequence.
+        current.status.finishedForeach = (current.step.foreach ? {} : null);
+        current.status.currentForeach = (current.step.foreach ? this.getNextForeach(current) : null);
         current.status.execUuid = this.uuid();
     }
 
@@ -65,6 +112,7 @@ export class SequenceLogic {
             parentExecUuid: parentExec ? parentExec.execUuid : null,
             finishedLoopCount: 0,
             currentForeach: null,
+            finishedForeach: null,
         };
         sequence.stepStatus[stepUuid] = newStatus;
         // Read back
@@ -105,7 +153,7 @@ export class SequenceLogic {
         return size;
     }
 
-    getProgress(stepStack: Array<{step: SequenceStep, status: SequenceStepStatus}>, start?: number):Progress {
+    getProgress(stepStack: Array<SequenceWithStatus>, start?: number):Progress {
         if (start === undefined) {
             start = 0;
         }
@@ -114,14 +162,17 @@ export class SequenceLogic {
         const loopCount = Math.max(v.step.repeat || 0, 1);
         const doneCount = v.status.finishedLoopCount;
 
+        const foreachCount = Math.max(v.step.foreach?.list.length || 0, 1);
+        const doneForeachCount = this.getEffectiveFinishedForeachCount(v);
+
         if (start === stepStack.length -1) {
             const expValue = this.calcExposure(stepStack.map(e=>e.step));
             return {
-                totalCount: loopCount,
-                imagePosition: doneCount,
-                totalTime: loopCount * expValue,
-                timeSpent: doneCount * expValue,
-            }
+                totalCount: foreachCount * loopCount,
+                imagePosition: doneCount * foreachCount + doneForeachCount,
+                totalTime: foreachCount * loopCount * expValue,
+                timeSpent: (doneCount * foreachCount + doneForeachCount) * expValue,
+            };
         }
 
         let ret: Progress = {
@@ -153,6 +204,12 @@ export class SequenceLogic {
             }
         }
 
+        // account for foreach
+        ret.imagePosition += ret.totalCount * doneForeachCount;
+        ret.timeSpent += ret.totalTime * doneForeachCount;
+        ret.totalCount *= foreachCount;
+        ret.totalTime *= foreachCount;
+
         // account for repeat
         ret.imagePosition += ret.totalCount * doneCount;
         ret.timeSpent += ret.totalTime * doneCount;
@@ -171,45 +228,83 @@ export class SequenceLogic {
         const enter= ()=>
         {
             const current = stepStack[stepStack.length - 1];
-            if (current.step.childs) {
-                // step has childs. Must go down
-                // Iterate all childs. If they are all done, the exec is finished
 
-                for(let inc = 0; (!this.statusDone(current)) && inc <= 1; ++inc) {
-                    // Restart from activeChild
-                    const childUuid = current.status.activeChild;
-                    let toTry = childUuid
-                                ? [childUuid, ...current.step.childs.list.filter(e=>e!==childUuid)]
-                                : current.step.childs.list;
+            for(let incLoop = 0; (!this.statusDone(current)) && incLoop <= 1; ++incLoop) {
 
-                    for(const childUid of toTry) {
-                        stepStack.push({
-                            step: current.step.childs.byuuid[childUid],
-                            status: this.getOrCreateExecution(childUid, current.status)
-                        });
+                for(let incForeach = 0; incForeach <= 1; ++incForeach) {
 
-                        if (enter()) {
-                            current.status.activeChild = childUid;
-                            return true;
+                    if (current.step.foreach) {
+                        if (current.status.finishedForeach === null) {
+                            current.status.finishedForeach = {};
                         }
-                        if (current.status.activeChild !== undefined) {
-                            delete current.status.activeChild;
+
+                        if (current.status.currentForeach === null
+                                || Object.prototype.hasOwnProperty.call(current.status.finishedForeach, current.status.currentForeach))
+                        {
+                            let newForeach = this.getNextForeach(current);
+                            if (current.status.currentForeach !== null) {
+                                current.status.execUuid = this.uuid();
+                            }
+                            current.status.currentForeach = newForeach;
+                            if (newForeach === null) {
+                                // Foreach is exhausted
+                                break;
+                            }
                         }
                     }
 
-                    if (inc == 0) {
-                        // Nothing is possible. Start a new loop
-                        this.finish(current);
+                    if (current.step.childs) {
+                        // step has childs. Must go down
+                        // Iterate all childs. If they are all done, the exec is finished
+
+                        // Restart from activeChild
+                        const childUuid = current.status.activeChild;
+                        let toTry = childUuid
+                                    ? [childUuid, ...current.step.childs.list.filter(e=>e!==childUuid)]
+                                    : current.step.childs.list;
+
+                        for(const childUid of toTry) {
+                            stepStack.push({
+                                step: current.step.childs.byuuid[childUid],
+                                status: this.getOrCreateExecution(childUid, current.status)
+                            });
+
+                            if (enter()) {
+                                current.status.activeChild = childUid;
+                                return true;
+                            }
+                            if (current.status.activeChild !== undefined) {
+                                delete current.status.activeChild;
+                            }
+                        }
+
+                    } else {
+                        return true;
+                    }
+
+                    // Arrive here when current foreach is exhausted (child became so)
+                    if (incForeach === 0) {
+                        if (current.status.currentForeach !== null) {
+                            if (!current.status.finishedForeach) {
+                                current.status.finishedForeach = {};
+                            }
+                            current.status.finishedForeach[current.status.currentForeach] = true;
+                        }
                     }
                 }
-            } else {
-                if (!this.statusDone(current)) {
-                    return true;
+
+                if (incLoop === 0) {
+                    current.status.finishedLoopCount = (current.status.finishedLoopCount || 0) + 1;
+                    // Looping is still possible. Start a new foreach loop
+                    current.status.currentForeach = current.step.foreach ? current.step.foreach.list[0] : null;
+                    current.status.finishedForeach = current.step.foreach ? {} : null;
+                    current.status.execUuid = this.uuid();
                 }
             }
 
             // Pop the entry
             stepStack.splice(stepStack.length - 1, 1);
+            return false;
         }
 
         stepStack.push({step: this.sequence.root, status: this.getOrCreateExecution("root")});
@@ -229,15 +324,55 @@ export class SequenceLogic {
             ret[p] = foreach.byuuid[step.status.currentForeach][p] as any;
         }
 
+        // Handle dither once here
+        if (ret.dithering && ret.dithering.once) {
+            if (step.status.finishedLoopCount) {
+                delete ret.dithering;
+            }
+        }
+
         return ret;
     }
 
     getParameters(steps: Array<SequenceWithStatus>):SequenceStepParameters {
-        // FIXME: not valid for dither once
         const param:SequenceStepParameters = {};
-        for(const o of steps) {
-            Object.assign(param, this.getStepParameters(o));
+        let ditheringStepId: number|undefined;
+
+        for(let i = 0; i < steps.length; ++i) {
+            const o = steps[i];
+            const stepParams = this.getStepParameters(o);
+            if (Object.prototype.hasOwnProperty.call(stepParams, 'dithering')) {
+                ditheringStepId = i;
+            }
+            Object.assign(param, stepParams);
         }
+
+        if (ditheringStepId !== undefined && param.dithering?.once) {
+            // We want loopCount == 0 + activeChild = firstChild + activeForeach = first
+            let first = true;
+            for(let i = ditheringStepId; i < steps.length; ++i) {
+                const o = steps[i];
+                if (o.status.finishedLoopCount) {
+                    first = false;
+                    break;
+                }
+
+                if (o.step.childs && o.status.activeChild !== o.step.childs.list[0]) {
+                    first = false;
+                    break;
+                }
+
+                if (o.step.foreach && o.status.currentForeach !== null && o.status.currentForeach !== o.step.foreach.list[0]) {
+                    first = false;
+                    break;
+                }
+
+            }
+            if (!first) {
+                delete param.dithering;
+            }
+        }
+
         return param;
 
     }

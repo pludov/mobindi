@@ -1,4 +1,4 @@
-import {Application as ExpressApplication} from "express-serve-static-core";
+import {Application as ExpressApplicationFromExpress} from "express-serve-static-core";
 
 import Phd from './Phd';
 import Camera from './Camera';
@@ -12,7 +12,7 @@ import FilterWheel from "./FilterWheel";
 import SequenceManager from "./SequenceManager";
 import Notification from "./Notification";
 
-export type ExpressApplication = ExpressApplication;
+export type ExpressApplication = ExpressApplicationFromExpress;
 
 export type AppContext = {
     imageProcessor: ImageProcessor;
