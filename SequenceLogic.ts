@@ -48,6 +48,23 @@ export class SequenceLogic {
         return null;
     }
 
+    // Get the finished foreach count, ignored removed foreach
+    getEffectiveFinishedForeachCount(current: SequenceWithStatus): number {
+        if (!current.step.foreach) {
+            return 0;
+        }
+        if (!current.status.finishedForeach) {
+            return 0;
+        }
+
+        let ret = 0;
+        for(const foreachId of current.step.foreach.list) {
+            if (Object.prototype.hasOwnProperty.call(current.status.finishedForeach, foreachId)) {
+                ret++;
+            }
+        }
+        return ret;
+    }
 
     finish(current: SequenceWithStatus){
         // We can't decide here if foreach is the last...
@@ -136,7 +153,7 @@ export class SequenceLogic {
         return size;
     }
 
-    getProgress(stepStack: Array<{step: SequenceStep, status: SequenceStepStatus}>, start?: number):Progress {
+    getProgress(stepStack: Array<SequenceWithStatus>, start?: number):Progress {
         if (start === undefined) {
             start = 0;
         }
@@ -145,14 +162,17 @@ export class SequenceLogic {
         const loopCount = Math.max(v.step.repeat || 0, 1);
         const doneCount = v.status.finishedLoopCount;
 
+        const foreachCount = Math.max(v.step.foreach?.list.length || 0, 1);
+        const doneForeachCount = this.getEffectiveFinishedForeachCount(v);
+
         if (start === stepStack.length -1) {
             const expValue = this.calcExposure(stepStack.map(e=>e.step));
             return {
-                totalCount: loopCount,
-                imagePosition: doneCount,
-                totalTime: loopCount * expValue,
-                timeSpent: doneCount * expValue,
-            }
+                totalCount: foreachCount * loopCount,
+                imagePosition: doneCount * foreachCount + doneForeachCount,
+                totalTime: foreachCount * loopCount * expValue,
+                timeSpent: (doneCount * foreachCount + doneForeachCount) * expValue,
+            };
         }
 
         let ret: Progress = {
@@ -183,6 +203,12 @@ export class SequenceLogic {
                 }
             }
         }
+
+        // account for foreach
+        ret.imagePosition += ret.totalCount * doneForeachCount;
+        ret.timeSpent += ret.totalTime * doneForeachCount;
+        ret.totalCount *= foreachCount;
+        ret.totalTime *= foreachCount;
 
         // account for repeat
         ret.imagePosition += ret.totalCount * doneCount;
