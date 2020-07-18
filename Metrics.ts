@@ -17,7 +17,7 @@ export function format(metrics: Definition[]) {
         }
 
         if (metric.type) {
-            ret.push(`# TYPE ${metric.name} ${metric.help}\n`);
+            ret.push(`# TYPE ${metric.name} ${metric.type}\n`);
         }
 
         if (Object.prototype.hasOwnProperty.call(metric, 'value')) {
