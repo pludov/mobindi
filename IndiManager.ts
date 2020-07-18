@@ -15,6 +15,7 @@ import IndiServerStarter from './IndiServerStarter';
 import ConfigStore from './ConfigStore';
 import IndiAutoConnect from './IndiAutoConnect';
 import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
+import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 
@@ -130,6 +131,68 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             updateDriverParam: this.updateDriverParam,
             updateVector: this.updateVector,
         }
+    }
+
+    public async metrics():Promise<Array<Metrics.Definition>> {
+        const ret : Array<Metrics.Definition> = [];
+
+        ret.push({
+            name: 'indi_connection_status',
+            help: 'is connection to indi established',
+            type: 'gauge',
+            value: (this.connection?.connected) ? 1 : 0,
+        });
+
+        if (this.connection?.connected) {
+
+            for(const deviceId of Object.keys(this.currentStatus.deviceTree).sort()) {
+                const device = this.currentStatus.deviceTree[deviceId];
+                for(const vectorId of Object.keys(device)) {
+                    const vector = device[vectorId];
+                    if (vector.$perm === "wo") {
+                        continue;
+                    }
+
+                    if (vector.$type !== "Number" && vector.$type !== "Switch") {
+                        continue;
+
+                    }
+
+                    const promVectorId = vectorId.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
+                    const labels = {
+                        device: deviceId,
+                    }
+                    ret.push({
+                        name: `indi_vec_${promVectorId}_busy`,
+                        labels,
+                        value: vector.$state === "Busy" ? 1 : 0
+                    });
+                    ret.push({
+                        name: `indi_vec_${promVectorId}_error`,
+                        labels,
+                        value: vector.$state === "Error" ? 1 : 0
+                    });
+
+                    for(const propId of Object.keys(vector.childs)) {
+                        const prop = vector.childs[propId];
+                        const value = vector.$type === "Switch" ? (prop.$_ === 'On' ? 1 : 0) : parseFloat(prop.$_);
+
+                        ret.push({
+                            name: `indi_vec_${promVectorId}_value`,
+                            help: vector.$label,
+                            labels: {
+                                ...labels,
+                                prop: propId
+                            },
+                            value
+                        });
+                    }
+                }
+            }
+        }
+
+        return ret;
     }
 
     public createPreferredDeviceSelector<T>(params: {

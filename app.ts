@@ -40,6 +40,8 @@ import FilterWheel from "./FilterWheel";
 import SequenceManager from "./SequenceManager";
 import Notification from "./Notification";
 
+import * as Metrics from "./Metrics";
+
 const app:ExpressApplication = express();
 const FileStore = SessionFileStore(session);
 
@@ -164,6 +166,18 @@ app.use(function(req, res:Response, next) {
         res.send(JSON.stringify(jsonResult));
     } else {
         next();
+    }
+});
+
+// FIXME: restrict that endpoint (auth ?)
+app.get('/metrics', async (req, res, next) => {
+    try {
+        const metrics = await context.indiManager!.metrics();
+
+        res.send(Metrics.format(metrics));
+    } catch (e) {
+      //this will eventually be handled by your error handling middleware
+      next(e);
     }
 });
 
