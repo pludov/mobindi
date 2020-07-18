@@ -134,7 +134,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     }
 
     public async metrics():Promise<Array<Metrics.Definition>> {
-        const ret : Array<Metrics.Definition> = [];
+        let ret : Array<Metrics.Definition> = [];
 
         ret.push({
             name: 'indi_connection_status',
@@ -190,6 +190,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                     }
                 }
             }
+        }
+
+        if (this.indiServerStarter) {
+            ret = [...ret, ...await this.indiServerStarter.metrics()];
         }
 
         return ret;

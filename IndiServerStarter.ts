@@ -5,6 +5,7 @@ import * as SystemPromise from './SystemPromise';
 import Timeout from './Timeout';
 import { Task, createTask } from './Task';
 import Sleep from './Sleep';
+import * as Metrics from "./Metrics";
 
 import * as Obj from './Obj.js';
 
@@ -15,6 +16,11 @@ export default class IndiServerStarter {
     private currentConfiguration: IndiServerState;
     private wantedConfiguration: IndiServerConfiguration;
     private lifeCycle: Task<void>|null;
+
+    private indiFifoError : number = 0;
+    private indiServerStartAttempt : number = 0;
+    private indiDriverStartAttempt : {[id:string]: number} = {};
+    private indiDriverStopAttempt : {[id:string]: number} = {};
 
     constructor(wantedConfiguration: IndiServerConfiguration) {
         // The actual status of indiserver
@@ -31,6 +37,49 @@ export default class IndiServerStarter {
         this.lifeCycle = null;
 
         if (this.wantedConfiguration.autorun) this.startLifeCycle();
+    }
+
+    public async metrics(): Promise<Array<Metrics.Definition>> {
+        const ret : Array<Metrics.Definition> = [];
+
+        ret.push({
+            name: 'indi_fifo_error_count',
+            type: "counter",
+            help: 'Number of communication error over indi server fifo',
+            value: this.indiFifoError
+        });
+
+        ret.push({
+            name: 'indi_server_start_attempt_count',
+            type: "counter",
+            help: 'Number of attempt to start indi server',
+            value: this.indiServerStartAttempt
+        });
+
+        for(const driver of Object.keys(this.indiDriverStartAttempt)) {
+            ret.push({
+                name: 'indi_driver_start_attempt_count',
+                type: "counter",
+                help: 'Number of attempt to start indi driver',
+                labels: {
+                    driver
+                },
+                value: this.indiDriverStartAttempt[driver]
+            });
+        }
+        for(const driver of Object.keys(this.indiDriverStopAttempt)) {
+            ret.push({
+                name: 'indi_driver_stop_attempt_count',
+                type: "counter",
+                help: 'Number of attempt to stop indi driver',
+                labels: {
+                    driver
+                },
+                value: this.indiDriverStopAttempt[driver]
+            });
+        }
+
+        return ret;
     }
 
     // check if a valid indiserver process exists
@@ -53,6 +102,7 @@ export default class IndiServerStarter {
     }
 
     private startIndiServer=async (ct: CancellationToken)=>{
+        this.indiServerStartAttempt++;
 
             //console.log('Starting indiserver for configuration: ' + JSON.stringify(self.currentConfiguration, null, 2));
         this.currentConfiguration.fifopath = this.wantedConfiguration.fifopath;
@@ -132,6 +182,16 @@ export default class IndiServerStarter {
             return true;
         }
 
+        // Ensure all drivers are know of stats
+        for(const drvId of [...Object.keys(this.currentConfiguration.devices), ...Object.keys(this.wantedConfiguration.devices)]) {
+            if (!Object.prototype.hasOwnProperty.call(this.indiDriverStartAttempt, drvId)) {
+                this.indiDriverStartAttempt[drvId] = 0;
+            }
+            if (!Object.prototype.hasOwnProperty.call(this.indiDriverStopAttempt, drvId)) {
+                this.indiDriverStopAttempt[drvId] = 0;
+            }
+        }
+
         // Stop what is not required anymore
         for(const running of Object.keys(this.currentConfiguration.devices)) {
             const restartId = this.currentConfiguration.restartList.indexOf(running);
@@ -142,7 +202,7 @@ export default class IndiServerStarter {
                 if (restartId !== -1) {
                     this.currentConfiguration.restartList.splice(restartId, 1);
                 }
-
+                this.indiDriverStopAttempt[running] ++;
                 return {
                     cmd: cmdFor(false, running, this.currentConfiguration.devices[running]),
                     done: ()=>{
@@ -158,6 +218,7 @@ export default class IndiServerStarter {
             if (!Object.prototype.hasOwnProperty.call(this.currentConfiguration.devices, wanted)) {
                 var details = Obj.deepCopy(this.wantedConfiguration.devices[wanted]);
 
+                this.indiDriverStartAttempt[wanted] ++;
                 return {
                     cmd: cmdFor(true, wanted, details),
                     done: ()=>{
@@ -219,6 +280,7 @@ export default class IndiServerStarter {
         } catch(e) {
             console.warn('IndiServer error', e);
             this.currentConfiguration.devices = {};
+            this.indiFifoError++;
             return 'dead';
         }
     }
