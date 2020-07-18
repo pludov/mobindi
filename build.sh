@@ -24,6 +24,6 @@ echo '***                Building UI                ***'
 echo '***                                           ***'
 echo '*************************************************'
 
-( cd ui && npm install --no-audit && snpm run-script build)
+( cd ui && npm install --no-audit && npm run-script build)
 
 
