@@ -612,7 +612,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                 return null;
             }
             const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
-            const moreThanOne = details.foreach?.param === param.id && details.foreach.list.length > 1;
+            const moreThanOne = details.foreach?.param === param.id && details.foreach.list?.length > 1;
 
             const renderer = param.render(this);
 
@@ -631,7 +631,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
                                 </span>
                             :
-                                details.foreach.list.map((uuid, index)=>
+                                (details.foreach.list || []).map((uuid, index)=>
                                     <span>
                                         {renderer(param, settingsPath+".foreach.byuuid[" +  JSON.stringify(uuid) + "]", uuid, undefined)}
                                         <input type="button"
