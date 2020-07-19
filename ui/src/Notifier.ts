@@ -364,7 +364,7 @@ export default class Notifier {
                 }, 1000);
             };
             this.socket.onerror = (error)=>{
-                console.log('Websocket: error: ' + JSON.stringify(error));
+                console.log('Websocket: error: ' + JSON.stringify(error), error);
                 flushNotifications();
                 this._close();
                 this.dispatchBackendStatus('Connection aborted');
