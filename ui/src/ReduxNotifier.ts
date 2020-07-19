@@ -56,7 +56,7 @@ export default class ReduxNotifier extends Notifier {
                 console.log('Websocket: Hiding timeout expired');
                 this.hidingTimeout = undefined;
                 this.updateState();
-            }, 10000);
+            }, 60000);
         } else {
             console.log('Websocket: Became visible');
             this.cancelHidingTimeout();
