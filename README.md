@@ -47,6 +47,9 @@ existing softwares. You can find full software stack for astro/PI in the followi
 ```
 PORT=8081
 ```
+  * Metrics endpoint for monitoring using Prometheus.
+  * Improved sequence editor allowing to iterate various values of a parameter (like filters ...)
+
 
 ### Release 1.2.0 (July 2019):
   * Push notifications: Push notifications deliver system notifications on mobile, even when screen is off. Tab must not be closed though.
@@ -189,9 +192,9 @@ If you did not compile indi from source, you'll need indi dev packages as well:
 sudo apt-get install libindi-dev
 ```
 
-You also need nodejs installed, with a recent version (> v8). I use the latest v8 (v8.4.0)
+You also need nodejs installed, with a recent version (> v8). I use the latest (v12.18.2)
 ```
-curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
 sudo apt-get install -y nodejs
 npm install
 ```
@@ -259,7 +262,7 @@ The REACT http server on port 3000 will automatically push changes to UI, and re
 
 ## Licence
 
-Copyright ©2017-2019 Ludovic Pollet &lt;<a mailto="pludow@gmail.com">pludow@gmail.com</a>&gt;. All rights reserved.
+Copyright ©2017-2020 Ludovic Pollet &lt;<a mailto="pludow@gmail.com">pludow@gmail.com</a>&gt;. All rights reserved.
 
 This software is provided under the GPL-3 licence.
 
