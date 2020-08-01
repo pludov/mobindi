@@ -40,7 +40,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
         if (seq !== undefined) {
             return seq.images;
         } else {
-            return store.backend.camera === undefined ? [] : store.backend.camera.images.list
+            return [];
         }
     }
 
