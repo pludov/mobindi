@@ -616,7 +616,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
             const renderer = param.render(this);
 
-            return (<>
+            return (<React.Fragment key={param.id}>
                 <div className="SequenceStepProperty" key={param.id}>
                     <span className="SequenceStepPropertyTitle">{moreThanOne ? "Iterate" : ""} {param.title}:</span>
                         {details.foreach?.param !== param.id
@@ -632,7 +632,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                 </span>
                             :
                                 (details.foreach.list || []).map((uuid, index)=>
-                                    <span>
+                                    <span key={uuid}>
                                         {renderer(param, settingsPath+".foreach.byuuid[" +  JSON.stringify(uuid) + "]", uuid, undefined)}
                                         <input type="button"
                                             className="SequenceStepParameterDropBton"
@@ -653,7 +653,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                         }
                 </div>
                 {param.renderMore ? param.renderMore(this)(param, settingsPath): null}
-            </>);
+            </React.Fragment>);
         }
 
         const displayParameters = parameters.map((group)=>group.childs).flat();
