@@ -183,7 +183,27 @@ app.get('/metrics', async (req, res, next) => {
 
 const server = http.createServer(app);
 
-const wss = new WebSocket.Server({ server: server });
+const wss = new WebSocket.Server({
+    server: server,
+    perMessageDeflate: {
+        zlibDeflateOptions: {
+            // See zlib defaults.
+            chunkSize: 1024,
+            memLevel: 7,
+            level: 3
+        },
+        zlibInflateOptions: {
+            chunkSize: 8 * 1024
+        },
+        // // Other options settable:
+        // clientNoContextTakeover: true, // Defaults to negotiated value.
+        // serverNoContextTakeover: true, // Defaults to negotiated value.
+        serverMaxWindowBits: 10, // Defaults to negotiated value.
+        // Below options specified as default values.
+        concurrencyLimit: 4, // Limits zlib concurrency for perf.
+        threshold: 1024 // Size (in bytes) below which messages should not be compressed.
+    }
+});
 
 //wss.use(sharedsession(session));
 
