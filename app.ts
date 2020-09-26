@@ -172,7 +172,10 @@ app.use(function(req, res:Response, next) {
 // FIXME: restrict that endpoint (auth ?)
 app.get('/metrics', async (req, res, next) => {
     try {
-        const metrics = await context.indiManager!.metrics();
+        const metrics = [
+            ...await context.indiManager!.metrics(),
+            ...await context.phd!.metrics()
+        ];
 
         res.send(Metrics.format(metrics));
     } catch (e) {

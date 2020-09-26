@@ -8,6 +8,7 @@ import ProcessStarter from './ProcessStarter';
 import { ExpressApplication, AppContext } from './ModuleBase.js';
 import JsonProxy from './JsonProxy.js';
 import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration, PhdServerConfiguration } from './shared/BackOfficeStatus.js';
+import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import Sleep from './Sleep.js';
@@ -1042,6 +1043,40 @@ export default class Phd
         }
         return ret;
     };
+
+    public async metrics():Promise<Array<Metrics.Definition>> {
+        let ret : Array<Metrics.Definition> = [];
+        ret.push({
+            name: 'phd_connection',
+            help: 'is connection to phd established',
+            type: 'gauge',
+            value: (this.currentStatus.connected) ? 1 : 0,
+        });
+
+        if (this.currentStatus.connected) {
+            // Report the status
+            ret.push({
+                name: 'phd_app_state',
+                help: 'status of PHD',
+            });
+            for(const state of ["NotConnected" , "Guiding" , "Paused" , "Calibrating" , "Looping" , "Stopped" , "LostLock"]) {
+
+                ret.push({
+                    name: 'phd_app_state',
+                    labels: {state},
+                    type: 'gauge',
+                    value: (this.currentStatus.AppState == state) ? 1 : 0,
+                });
+            }
+
+        }
+        // FIXME: report the sum of delta and guiding count... Possible?
+
+        // FIXME: report the sum of delta and settled count... Possible?
+        // (sum delta x, delta x², delta y, delta y², correctionx, correctiony, and number of images)
+
+        return ret;
+    }
 
     connect = async(ct:CancellationToken)=>{
         await this.sendOrderWithFailureLog(ct, {
