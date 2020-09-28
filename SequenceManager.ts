@@ -10,10 +10,11 @@ import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
 import {IdGenerator} from "./IdGenerator";
 import * as Obj from "./Obj";
+import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
-import { SequenceLogic } from './SequenceLogic';
+import { SequenceLogic, Progress } from './SequenceLogic';
 
 
 
@@ -52,9 +53,14 @@ export default class SequenceManager
     readonly currentStatus: SequenceStatus;
     currentSequenceUuid:string|null = null;
     currentSequencePromise:Task<void>|null = null;
+    currentSequenceProgress:Progress|null = null;
+
     sequenceIdGenerator: IdGenerator;
+    lastFwhm: number|undefined;
+    lastStarCount: number|undefined;
+    lastImageTime: number = 0;
     get indiManager() { return this.context.indiManager };
-    
+    get imageProcessor() { return this.context.imageProcessor };
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().sequence = {
@@ -357,6 +363,34 @@ export default class SequenceManager
             return rslt;
         }
 
+        const computeFwhm = async (shootResult: BackOfficeAPI.ShootResult)=> {
+            ct.throwIfCancelled();
+            console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
+            const starFieldResponse = await this.imageProcessor.compute(ct, {
+                starField: { source: {
+                    path: shootResult.path,
+                    streamId: "",
+                }}
+            });
+            
+            // FIXME: mutualise that somwhere
+            const starField = starFieldResponse.stars;
+            console.log('StarField', JSON.stringify(starField, null, 2));
+            let fwhm, starCount;
+            starCount = starField.length;
+            if (starField.length) {
+                fwhm = 0;
+                for(let star of starField) {
+                    fwhm += star.fwhm;
+                }
+                fwhm /= starField.length;
+            }
+
+            this.lastFwhm = fwhm;
+            this.lastStarCount = starCount;
+            this.lastImageTime = Date.now();
+        }
+
         const sequenceLogic = async (ct: CancellationToken) => {
             let scopeState: ScopeState = "light";
 
@@ -391,6 +425,7 @@ export default class SequenceManager
                         || 'image';
 
                 const progress = sequenceLogic.getProgress(nextStep);
+                this.currentSequenceProgress = progress;
 
                 const shootTitle = (progress.imagePosition + 1) + "/" + progress.totalCount
                             + (progress.totalTime > 0
@@ -458,8 +493,15 @@ export default class SequenceManager
                 ct.throwIfCancelled();
                 const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
                 
+                progress.imagePosition++;
+                progress.timeSpent += param.exposure;
+
                 sequence.images.push(shootResult.uuid);
                 sequenceLogic.finish(currentExecutionStatus);
+
+                if (param.type === 'FRAME_LIGHT') {
+                    computeFwhm(shootResult);
+                }
             }
         }
 
@@ -502,6 +544,7 @@ export default class SequenceManager
         
         await (createTask(ct, async (task:Task<void>)=> {
             this.currentSequencePromise = task;
+            this.currentSequenceProgress = null;
             this.currentSequenceUuid = uuid;
             this.currentStatus.sequences.byuuid[uuid].status = 'running';
             this.currentStatus.sequences.byuuid[uuid].errorMessage = null;
@@ -568,6 +611,55 @@ export default class SequenceManager
             this.currentStatus.sequences.list.splice(i, 1);
         }
         delete(this.currentStatus.sequences.byuuid[key]);
+    }
+
+    public async metrics():Promise<Array<Metrics.Definition>> {
+        let ret : Array<Metrics.Definition> = [];
+        const alive = Date.now() - this.lastImageTime < 60000;
+
+        ret.push({
+            name: 'sequence_fwhm',
+            help: 'last fwhm of LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? this.lastFwhm : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_star_count',
+            help: 'number of stars detected in LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? this.lastStarCount : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_image_total',
+            help: 'target number of image in current sequence',
+            type: 'gauge',
+            value: this.currentSequenceProgress?.totalCount
+        });
+
+        ret.push({
+            name: 'sequence_image_done',
+            help: 'number of image done in current sequence',
+            type: 'gauge',
+            value: this.currentSequenceProgress?.imagePosition
+        });
+
+        ret.push({
+            name: 'sequence_duration_total',
+            help: 'target number of exposure seconds for current sequence',
+            type: 'gauge',
+            value: this.currentSequenceProgress?.totalTime
+        });
+
+        ret.push({
+            name: 'sequence_duration_done',
+            help: 'number of exposed seconds in current sequence',
+            type: 'gauge',
+            value: this.currentSequenceProgress?.timeSpent
+        });
+
+        return ret;
     }
 
     getAPI() {
