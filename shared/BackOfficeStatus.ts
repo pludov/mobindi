@@ -104,6 +104,8 @@ export type IndiMessageWithUid = IndiMessage & {
     uid: string;
 };
 
+export type FilterWheelDeltas = {[filterId:string]: number};
+
 export type IndiDeviceConfiguration = {
     driver: string;
     config?: string;
@@ -114,6 +116,9 @@ export type IndiDeviceConfiguration = {
         disableAskCoverScope?: boolean;
         autoConnect?: boolean;
         confirmFilterChange?: boolean;
+
+        // For focuser device
+        filterDeltaByFocuser?: {[focuserId: string]: FilterWheelDeltas}
     };
 };
 
