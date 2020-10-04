@@ -2,6 +2,7 @@ import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
 import { CameraDeviceSettings, SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters } from './BackOfficeStatus';
+import { Json } from './Json';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -22,7 +23,7 @@ export type AstrometryGotoScopeRequest = {
 export type UpdateIndiDriverParamRequest = {
     driver: string;
     key: string;
-    value: number|boolean|string;
+    value: Json;
 }
 
 export type UpdateIndiVectorRequest = {
