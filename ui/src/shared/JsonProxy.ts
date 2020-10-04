@@ -28,7 +28,7 @@
 
 
 export function has(obj: any, key: string) {
-    if (obj === null) {
+    if (obj === null || obj === undefined) {
         return false;
     }
     return Object.prototype.hasOwnProperty.call(obj, key);
