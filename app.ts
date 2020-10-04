@@ -174,7 +174,8 @@ app.get('/metrics', async (req, res, next) => {
     try {
         const metrics = [
             ...await context.indiManager!.metrics(),
-            ...await context.phd!.metrics()
+            ...await context.phd!.metrics(),
+            ...await context.sequenceManager!.metrics(),
         ];
 
         res.send(Metrics.format(metrics));
