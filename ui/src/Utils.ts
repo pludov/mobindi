@@ -37,6 +37,13 @@ function noErr<T,R>(f:()=>T, def:R):T|R
 function has(o: any, s: undefined|null):false;
 function has(o: any, s: string):boolean;
 function has(o: any, s: any):boolean {
+    if (o === null || o === undefined) {
+        return false;
+    }
+    if (s === null || s === undefined) {
+        return false;
+    }
+
     return Object.prototype.hasOwnProperty.call(o, s);
 }
 
