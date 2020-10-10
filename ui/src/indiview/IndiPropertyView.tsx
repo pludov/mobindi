@@ -4,10 +4,7 @@
 import React, { Component, PureComponent} from 'react';
 import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
-import * as Actions from "../Actions";
-import * as BackendRequest from "../BackendRequest";
-import * as IndiManagerStore from "../IndiManagerStore";
-import * as Utils from "../Utils";
+import * as IndiUtils from '../IndiUtils';
 import "./IndiManagerView.css";
 import { createSelector } from 'reselect';
 import { IndiVector, IndiProperty } from '@bo/BackOfficeStatus';
@@ -242,7 +239,7 @@ class IndiPropertyView extends PureComponent<Props> {
 
 
     static mapStateToProps=(store: Store.Content, ownProps:InputProps)=>{
-        const vec = Utils.noErr(()=>store.backend.indiManager!.deviceTree[ownProps.dev][ownProps.vec], undefined);
+        const vec = IndiUtils.getVectorDesc(store, ownProps.dev, ownProps.vec);
 
         const prop = vec === undefined
             ? undefined

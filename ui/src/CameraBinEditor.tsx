@@ -52,7 +52,7 @@ function BinTitle(x:number) {
 }
 
 const CameraBinSelector = connect((store: Store.Content, ownProps: InputProps) => {
-    const desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)!.CCD_BINNING, undefined);
+    const desc = IndiUtils.getDeviceDesc(store, ownProps.device)?.CCD_BINNING;
     const root = {
             active: atPath(store, ownProps.valuePath),
             availablesGenerator: BinValueGenerator,

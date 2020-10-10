@@ -34,13 +34,24 @@ function noErr<T,R>(f:()=>T, def:R):T|R
     }
 }
 
-function has(o: any, s: string) {
+function has(o: any, s: undefined|null):false;
+function has(o: any, s: string):boolean;
+function has(o: any, s: any):boolean {
     return Object.prototype.hasOwnProperty.call(o, s);
 }
 
-export function getOwnProp<T>(o: {[id: string]: T}, s: string):T|undefined {
+export function getOwnProp<T>(o: {[id: string]: T}, s: string):T|undefined;
+export function getOwnProp<T>(o: {[id: string]: T}|undefined|null, s: string):T|undefined;
+export function getOwnProp<T>(o: {[id: string]: T}, s: undefined|null):undefined;
+export function getOwnProp<T>(o: {[id: string]: T}|undefined|null, s: string|undefined|null):T|undefined;
+export function getOwnProp<T>(o: undefined|null, s: any):undefined;
+
+export function getOwnProp(o: any, s: any) {
+    if (s === null || s === undefined) {
+        return undefined;
+    }
     if (has(o, s)) {
-        return o[s];
+        return o![s];
     }
     return undefined;
 }

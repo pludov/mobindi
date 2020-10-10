@@ -26,7 +26,7 @@ class MessageAppSynchronizer {
 
     adjuster() {
         return (state:Store.Content):Store.Content => {
-            var newByUid = Utils.noErr(()=>state.backend.indiManager!.messages.byUid, undefined);
+            var newByUid = state.backend.indiManager?.messages.byUid;
             if (state.currentApp === this.currentApp && newByUid === this.currentByUid) {
                 return state;
             }

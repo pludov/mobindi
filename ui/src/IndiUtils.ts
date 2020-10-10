@@ -1,13 +1,16 @@
 import * as Store from './Store';
-import { IndiDevice } from '@bo/BackOfficeStatus';
+import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
+import { has } from './shared/JsonProxy';
+import { getOwnProp } from './Utils';
 
 export function getDeviceDesc(store:Store.Content, device:string) : IndiDevice|undefined
 {
-    try {
-        return store.backend.indiManager!.deviceTree[device];
-    } catch(e) {
-        return undefined;
-    }
+    return getOwnProp(store.backend.indiManager?.deviceTree, device);
+}
+
+export function getVectorDesc(store:Store.Content, device:string, vector: string) : IndiVector|undefined
+{
+    return getOwnProp(getDeviceDesc(store, device), vector);
 }
 
 export function timestampToDate(timestamp:string):Date

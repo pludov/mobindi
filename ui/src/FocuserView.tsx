@@ -390,18 +390,17 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
             </div>);
     }
 
+    static getFocuserForCamera(store: Store.Content, camera: string|null)
+    {
+        const focuser = Utils.getOwnProp(store.backend.camera?.dynStateByDevices, camera)?.focuserDevice;
+        return focuser !== undefined ? focuser : null;
+    }
+
     static mapStateToProps(store: Store.Content) {
-        const camera = store.backend.focuser!.selectedCamera;
-        let focuser = Utils.noErr(()=>{
-            if (camera === null) {
-                return null;
-            }
-            const d = store.backend.camera!.dynStateByDevices;
-            if (!Utils.has(d, camera)) {
-                return null;
-            }
-            return d[camera!].focuserDevice
-        }, null);
+        let camera = store.backend.focuser?.selectedCamera;
+        if (camera === undefined) camera = null;
+
+        let focuser = UnmappedFocuserView.getFocuserForCamera(store, camera);
 
         if (focuser === undefined) {
             focuser = null;
@@ -410,8 +409,8 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         return {
             camera,
             focuser,
-            status: store.backend.focuser!.current.status,
-            error: store.backend.focuser!.current.error
+            status: store.backend.focuser?.current.status || "error",
+            error: store.backend.focuser?.current.error || null
         }
     }
 }

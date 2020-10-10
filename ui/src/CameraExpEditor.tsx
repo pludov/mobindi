@@ -56,7 +56,7 @@ function ExpTitle(x:number) {
 }
 
 const CameraExpEditor = connect((store: Store.Content, ownProps:InputProps) => {
-    const indiDeviceDesc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)!.CCD_EXPOSURE, undefined);
+    const indiDeviceDesc = IndiUtils.getDeviceDesc(store, ownProps.device)?.CCD_EXPOSURE;
     return ({
         active: atPath(store, ownProps.valuePath),
         availablesGenerator: ExpValueGenerator,

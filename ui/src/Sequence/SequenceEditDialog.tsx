@@ -71,7 +71,10 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                         Camera:
                         <CameraSelector
-                            getValue={(store)=>Utils.noErr(()=>store.backend.sequence!.sequences.byuuid[this.props.uid!].camera, null)}
+                            getValue={(store)=> {
+                                    const v = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid)?.camera
+                                    return v !== undefined ? v : null;
+                            }}
                             setValue={(e)=>this.updateSequenceParam('camera', e)}
                         />
                         <DeviceConnectBton.forActivePath
@@ -95,15 +98,15 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{
         const cameraCapacitySelector = SequenceStepParameter.cameraCapacityReselect();
         return (store: Store.Content, ownProps: InputProps)=> {
-            var selected = atPath(store, ownProps.currentPath);
+            const selected = atPath(store, ownProps.currentPath);
             if (!selected) {
                 return {
                     displayable: false,
                     cameraCapacity: {},
                 };
             }
-            var details = Utils.noErr(()=>store.backend.sequence!.sequences.byuuid[selected], undefined);
-            if (details == undefined) {
+            const details = Utils.getOwnProp(store.backend.sequence?.sequences.byuuid, selected);
+            if (details === undefined) {
                 return {
                     displayable: false,
                     cameraCapacity: {},

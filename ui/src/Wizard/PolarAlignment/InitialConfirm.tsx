@@ -104,7 +104,7 @@ class InitialConfirm extends React.PureComponent<Props> {
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
         return {
-            currentScope: Utils.noErr(()=>store.backend.astrometry!.selectedScope, "") || ""
+            currentScope: store.backend.astrometry?.selectedScope || ""
         }
     }
 }

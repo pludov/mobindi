@@ -7,7 +7,7 @@ import * as Store from "../Store";
 import * as Actions from "../Actions";
 import * as BackendRequest from "../BackendRequest";
 import * as IndiManagerStore from "../IndiManagerStore";
-import * as Utils from "../Utils";
+import * as IndiUtils from '../IndiUtils';
 import { IndiVector, IndiProperty } from '@bo/BackOfficeStatus';
 import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import IndiSelectorPropertyView from "./IndiSelectorPropertyView";
@@ -179,7 +179,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
 
     public static mapStateToProps(store: Store.Content, ownProps: InputProps) {
         let rslt:MappedProps;
-        const vec = Utils.noErr(()=>store.backend.indiManager!.deviceTree[ownProps.dev][ownProps.vec], undefined);
+        const vec = IndiUtils.getVectorDesc(store, ownProps.dev, ownProps.vec);
 
         if (vec != undefined) {
             rslt = {

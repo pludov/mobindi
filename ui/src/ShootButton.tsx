@@ -106,7 +106,7 @@ class ShootBton extends React.PureComponent<Props> {
             }
         }
 
-        streamBton = Utils.noErr(()=>store.backend.camera!.dynStateByDevices[active].spyRecommanded, false) || false;
+        streamBton = !!(store.backend.camera?.dynStateByDevices[active]?.spyRecommanded);
 
         const currentShoot = atPath(store, '$.backend.camera.currentShoots[' + JSON.stringify(active) + "]");
 

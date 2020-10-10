@@ -185,46 +185,45 @@ class Adjust extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
-        return Utils.noErr(()=>{
-                const status = store.backend.astrometry!.runningWizard!.polarAlignment!;
-                let nextFrame : MappedProps["nextFrame"];
-                if (status.adjusting) {
-                    nextFrame = null;
-                } else {
-                    if (!status.hasRefFrame) {
-                        nextFrame = "refframe";
-                    } else {
-                        nextFrame = store.backend.astrometry!.settings.polarAlign.dyn_nextFrameIsReferenceFrame ? "refframe" : "frame";
-                    }
-                }
-                return {
-                    canTakeMoveFrame: !!status.hasRefFrame,
-                    canChangeFrameType: (!status.shootRunning) && (!status.astrometryRunning),
-                    tooEast: status.axis ? status.axis!.tooEast : null,
-                    tooHigh: status.axis ? status.axis!.tooHigh : null,
-                    distance: status.axis ? status.axis!.distance : null,
-                    error: status.adjustError,
-                    adjusting: status.adjusting,
-                    adjustError: status.adjustError,
-                    nextFrame,
-                    adjustPositionWarningId: status.adjustPositionWarning ? status.adjustPositionWarning.id : null,
-                    adjustPositionWarningDst: status.adjustPositionWarning ? status.adjustPositionWarning.dst : null,
-                    adjustPositionError: status.adjustPositionError,
-                };
-            }, {
+        const status = store.backend.astrometry?.runningWizard?.polarAlignment;
+        if (status === undefined) {
+            return {
                 canTakeMoveFrame: false,
                 canChangeFrameType: false,
                 tooEast: null,
                 tooHigh: null,
                 distance: null,
-                error: "Not running",
                 adjustError: null,
                 adjusting: null,
                 nextFrame: null,
                 adjustPositionWarningId: null,
                 adjustPositionWarningDst: null,
                 adjustPositionError: null,
-            });
+            };
+        }
+        let nextFrame : MappedProps["nextFrame"];
+        if (status.adjusting) {
+            nextFrame = null;
+        } else {
+            if (!status.hasRefFrame) {
+                nextFrame = "refframe";
+            } else {
+                nextFrame = store.backend.astrometry?.settings.polarAlign.dyn_nextFrameIsReferenceFrame ? "refframe" : "frame";
+            }
+        }
+        return {
+            canTakeMoveFrame: !!status.hasRefFrame,
+            canChangeFrameType: (!status.shootRunning) && (!status.astrometryRunning),
+            tooEast: status.axis ? status.axis!.tooEast : null,
+            tooHigh: status.axis ? status.axis!.tooHigh : null,
+            distance: status.axis ? status.axis!.distance : null,
+            adjusting: status.adjusting,
+            adjustError: status.adjustError,
+            nextFrame,
+            adjustPositionWarningId: status.adjustPositionWarning ? status.adjustPositionWarning.id : null,
+            adjustPositionWarningDst: status.adjustPositionWarning ? status.adjustPositionWarning.dst : null,
+            adjustPositionError: status.adjustPositionError,
+        };
     }
 }
 

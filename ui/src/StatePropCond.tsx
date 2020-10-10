@@ -41,7 +41,7 @@ class StatePropCond extends React.PureComponent<Props> {
                 }
             }
         }
-        const desc = ownProps.device === null ? undefined : Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device!)![ownProps.property], undefined);
+        const desc = ownProps.device === null ? undefined : IndiUtils.getVectorDesc(store, ownProps.device, ownProps.property);
         let result;
         if (ownProps.condition !== undefined) {
             result = ownProps.condition(desc);

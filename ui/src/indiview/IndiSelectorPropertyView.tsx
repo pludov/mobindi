@@ -7,6 +7,7 @@ import * as Store from "../Store";
 import * as Actions from "../Actions";
 import * as BackendRequest from "../BackendRequest";
 import * as IndiManagerStore from "../IndiManagerStore";
+import * as IndiUtils from '../IndiUtils';
 import * as Utils from "../Utils";
 import "./IndiManagerView.css";
 import { createSelector } from 'reselect';
@@ -57,7 +58,7 @@ class IndiSelectorPropertyView extends React.PureComponent<Props> {
 
     static mapStateToProps:()=>(store: Store.Content, ownProps:InputProps)=>MappedProps = ()=>{
         return createSelector(
-            (store: Store.Content, ownProps:InputProps)=>Utils.noErr(()=>store.backend.indiManager!.deviceTree[ownProps.dev][ownProps.vec], undefined),
+            (store: Store.Content, ownProps:InputProps)=>IndiUtils.getVectorDesc(store, ownProps.dev, ownProps.vec),
             (vec)=>
                 vec === undefined
                     ?  {childs: {}, childNames: [] }

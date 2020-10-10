@@ -58,8 +58,8 @@ class IndiDriverControlPanel extends React.PureComponent<Props> {
 
         const currentDevice = store.indiManager.selectedDevice || "";
 
-        const configuredDevices = Utils.noErr(()=>backend!.configuration.indiServer.devices, undefined);
-        const configured = (configuredDevices && Object.prototype.hasOwnProperty.call(configuredDevices, currentDevice));
+        const configuredDevices = backend?.configuration.indiServer.devices;
+        const configured = Utils.has(configuredDevices, currentDevice);
 
         return {
             current: currentDevice,

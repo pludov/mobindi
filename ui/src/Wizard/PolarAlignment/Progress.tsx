@@ -129,27 +129,28 @@ class Progress extends React.PureComponent<Props> {
         </>
     }
 
-    static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
-        const polarAlignment:MappedProps = Utils.noErr(()=>store.backend.astrometry!.runningWizard!.polarAlignment!, undefined) ||
-                {
-                    astrometryFailed: 0,
-                    astrometryRunning: false,
-                    astrometrySuccess: 0,
-                    data: {},
-                    maxStepId: 0,
-                    scopeMoving: false,
-                    shootDone: 0,
-                    shootRunning: false,
-                    status: "paused",
-                    stepId: 0,
-                    adjustError: null,
-                    adjusting: null,
-                    hasRefFrame: false,
-                    fatalError: "Wizard not ready",
-                    adjustPositionError: null,
-                    adjustPositionWarning: null,
-                }
-        return polarAlignment;
+    static mapStateToProps: () => (store: Store.Content, props: InputProps)=>MappedProps = () => {
+        const defaultValues:MappedProps = {
+            astrometryFailed: 0,
+            astrometryRunning: false,
+            astrometrySuccess: 0,
+            data: {},
+            maxStepId: 0,
+            scopeMoving: false,
+            shootDone: 0,
+            shootRunning: false,
+            status: "paused",
+            stepId: 0,
+            adjustError: null,
+            adjusting: null,
+            hasRefFrame: false,
+            fatalError: "Wizard not ready",
+            adjustPositionError: null,
+            adjustPositionWarning: null,
+        };
+
+        return (store: Store.Content, props: InputProps) =>
+            store.backend.astrometry?.runningWizard?.polarAlignment || defaultValues;
     }
 }
 

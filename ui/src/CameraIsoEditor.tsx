@@ -97,7 +97,7 @@ function IsoTitle(x:string) {
 }
 
 const CameraIsoEditor = connect((store:Store.Content, ownProps:InputProps) => {
-    const desc = Utils.noErr(()=>IndiUtils.getDeviceDesc(store, ownProps.device)!.CCD_ISO, undefined);
+    const desc = IndiUtils.getDeviceDesc(store, ownProps.device)?.CCD_ISO;
 
     var root = ({
         placeholder: 'ISO...',

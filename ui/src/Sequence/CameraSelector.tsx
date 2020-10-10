@@ -9,11 +9,13 @@ type InputProps = {
     getValue: (store:Store.Content, props: InputProps)=>string|null
 }
 
+const emptyArray: [] = [];
+
 const CameraSelector = connect((store:Store.Content, ownProps:InputProps)=> {
     const active = ownProps.getValue(store, ownProps);
     return ({
         active: active,
-        availables: Utils.noErr(()=>store.backend.camera!.availableDevices, [])
+        availables: store.backend.camera?.availableDevices || emptyArray
     })
 })(PromiseSelector);
 

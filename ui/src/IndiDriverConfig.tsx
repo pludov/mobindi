@@ -17,7 +17,7 @@ type InputProps = {
 
 type MappedProps = {
     driver: BackofficeStatus.IndiDeviceConfiguration["driver"];
-    details: BackofficeStatus.IndiDeviceConfiguration["options"];
+    details?: BackofficeStatus.IndiDeviceConfiguration["options"];
     cameraList: string[] | undefined;
     filterWheelList: string[] | undefined;
 }
@@ -73,7 +73,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                 Confirm filter changes:
                     <input
                             type="checkbox"
-                            checked={!!this.props.details.confirmFilterChange}
+                            checked={!!this.props.details?.confirmFilterChange}
                             onChange={this.confirmFilterChange}
                     />
             </div>
@@ -86,7 +86,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                 Ask to cover scope:
                     <input
                             type="checkbox"
-                            checked={this.props.details.disableAskCoverScope ? false : true}
+                            checked={this.props.details?.disableAskCoverScope ? false : true}
                             onChange={this.askCoverScope}
                     />
             </div>
@@ -95,7 +95,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                     Auto sensor size (gphoto):
                     <input
                             type="checkbox"
-                            checked={this.props.details.autoGphotoSensorSize ? true : false}
+                            checked={this.props.details?.autoGphotoSensorSize ? true : false}
                             onChange={this.autoGphotoSensorSize}
                     />
                 </div>
@@ -113,7 +113,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                 Auto connect:
                 <input
                         type="checkbox"
-                        checked={this.props.details.autoConnect ? true : false}
+                        checked={!!(this.props.details?.autoConnect)}
                         onChange={this.autoConnect}
                 />
             </div>
@@ -124,10 +124,10 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
 
         const result = {
-            driver: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].driver || "", ""),
-            cameraList: Utils.noErr(()=>store.backend.camera!.availableDevices, undefined),
-            filterWheelList: Utils.noErr(()=>store.backend.filterWheel!.availableDevices, undefined),
-            details: Utils.noErr(()=>store.backend.indiManager!.configuration.indiServer.devices[ownProps.driverId].options || {}, {})
+            driver: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.driver || "",
+            cameraList: store.backend.camera?.availableDevices,
+            filterWheelList: store.backend.filterWheel?.availableDevices,
+            details: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.options,
         };
         return result;
     }
