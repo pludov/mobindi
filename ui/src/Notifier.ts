@@ -274,35 +274,50 @@ export default class Notifier {
             this.dispatchBackendStatus('' + e);
         }
 
-        let notifications:any[] = [];
-        let flushTimeout: NodeJS.Timeout|undefined = undefined;
-
-        const flushNotifications=()=>{
-            if (flushTimeout !== undefined) {
-                clearTimeout(flushTimeout);
-                flushTimeout = undefined;
-            }
-            if (notifications.length) {
-                const toSend = notifications;
-                notifications = [];
-                
-                // console.log('batching notifications: ', toSend.length);
-                this.handleNotifications({batch: toSend});
-            }
-        }
-
-        const pushNotification=(diff:any)=>{
-            notifications.push(diff);
-            if (flushTimeout === undefined) {
-                flushTimeout = setTimeout(()=> {
-                    flushTimeout = undefined;
-                    flushNotifications();
-                }, 40);
-            }
-        }
-
         if (this.socket) {
+            let notifications:any[] = [];
+            let flushTimeout: NodeJS.Timeout|undefined = undefined;
+
+            const orgSocket = this.socket;
+
+            const discardEvent = (event:string)=>{
+                if (this.socket !== orgSocket) {
+                    console.log(`Discarding ${event} on old socket`);
+                    return true;
+                }
+                return false;
+            }
+
+            const flushNotifications=()=>{
+                if (flushTimeout !== undefined) {
+                    clearTimeout(flushTimeout);
+                    flushTimeout = undefined;
+                }
+
+                if (discardEvent("flushNotifications")) return;
+
+                if (notifications.length) {
+                    const toSend = notifications;
+                    notifications = [];
+
+                    // console.log('batching notifications: ', toSend.length);
+                    this.handleNotifications({batch: toSend});
+                }
+            }
+
+            const pushNotification=(diff:any)=>{
+                notifications.push(diff);
+                if (flushTimeout === undefined) {
+                    flushTimeout = setTimeout(()=> {
+                        flushTimeout = undefined;
+                        flushNotifications();
+                    }, 40);
+                }
+            }
+
             this.socket.onopen = (data)=>{
+                if (discardEvent("onopen")) return;
+
                 console.log('Websocket: connected');
                 this.write({
                     type: "auth",
@@ -310,6 +325,8 @@ export default class Notifier {
                 });
             };
             this.socket.onmessage = (event)=>{
+                if (discardEvent("onmessage")) return;
+
                 const data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
                     console.log('Websocket: welcomed', data);
@@ -353,6 +370,8 @@ export default class Notifier {
                 }
             };
             this.socket.onclose = (data)=>{
+                if (discardEvent("onclose")) return;
+
                 console.log('Websocket: closed');
                 flushNotifications();
                 this.socket = undefined;
@@ -364,6 +383,8 @@ export default class Notifier {
                 }, 1000);
             };
             this.socket.onerror = (error)=>{
+                if (discardEvent("onerror")) return;
+
                 console.log('Websocket: error: ' + JSON.stringify(error), error);
                 flushNotifications();
                 this._close();
