@@ -3,6 +3,7 @@ import React, { Component, PureComponent, ReactElement} from 'react';
 import $ from 'jquery';
 import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
+import MouseMoveListener from '../MouseMoveListener';
 import ContextMenu from './ContextMenu';
 import LevelBar from './LevelBar';
 import FWHMDisplayer from './FWHMDisplayer';
@@ -109,12 +110,7 @@ class JQImageDisplay {
     
     levels: Levels;
 
-    mouseIsDown:boolean = false;
-    mouseDragged:boolean = false;
-    mouseDragPos?:{x:number, y:number} = undefined;
-
-    touches = {};
-
+    
     currentImageSize:ImageSize = {width: -1, height: -1};
     currentImagePos:CompleteImagePos = {x:0, y:0, w:0, h:0, centerx: 0.5, centery: 0.5, zoomToBestfit: 1};
 
@@ -125,6 +121,8 @@ class JQImageDisplay {
     onViewSettingsChangeCb:(state:FullState)=>void;
     contextMenuCb:(x:number, y:number)=>void;
     posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void);
+
+    mouseListener: MouseMoveListener;
 
     constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, onViewSettingsChangeCb:(state:FullState)=>void, posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void)) {
         
@@ -138,21 +136,18 @@ class JQImageDisplay {
         elt.css('height', '100%');
         elt.css('overflow', 'hidden');
 
-        // const jqBindedEvents = ['click', 'wheel','mousedown', 'mouseup', 'mousemove', 'mouseleave', 'dragstart', 'touchmove', 
-        // 'touchstart', 'touchend', 'touchcancel', 'touchleave', 'contextmenu' ];
-        elt.on('click', this.click);
-        elt.on('wheel', this.wheel);
-        elt.on('mousedown', this.mousedown);
-        elt.on('mouseup', this.mouseup);
-        elt.on('mousemove', this.mousemove);
-        elt.on('mouseleave', this.mouseleave);
-        elt.on('dragstart', this.dragstart);
-        elt.on('touchmove', this.touchmove);
-        elt.on('touchstart', this.touchstart);
-        elt.on('touchend', this.touchend);
-        elt.on('touchcancel', this.touchcancel);
-        elt.on('touchleave', this.touchleave);
-        elt.on('contextmenu', this.contextmenu);
+        this.mouseListener = new MouseMoveListener(elt, {
+            zoom: this.zoom,
+            drag:(dx:number, dy:number)=>this.setCurrentImagePos({
+                x: this.currentImagePos.x + dx,
+                y: this.currentImagePos.y + dy,
+                w: this.currentImagePos.w,
+                h: this.currentImagePos.h
+            }),
+
+            openContextMenu: this.contextMenuCb,
+            closeContextMenu: this.closeMenu,
+        });
 
         this.levels = {
             low: 0.05,
@@ -186,30 +181,11 @@ class JQImageDisplay {
         this.setCurrentImagePos(bestFit);
     }
 
-    cancelMenuTimer() {
-        if (this.menuTimer !== null) {
-            clearTimeout(this.menuTimer);
-            this.menuTimer =  null;
-        }
-    }
 
 
     dispose() {
-        this.cancelMenuTimer();
-        this.child.off('click', this.click);
-        this.child.off('wheel', this.wheel);
-        this.child.off('mousedown', this.mousedown);
-        this.child.off('mouseup', this.mouseup);
-        this.child.off('mousemove', this.mousemove);
-        this.child.off('mouseleave', this.mouseleave);
-        this.child.off('dragstart', this.dragstart);
-        this.child.off('touchmove', this.touchmove);
-        this.child.off('touchstart', this.touchstart);
-        this.child.off('touchend', this.touchend);
-        this.child.off('touchcancel', this.touchcancel);
-        this.child.off('touchleave', this.touchleave);
-        this.child.off('contextmenu', this.contextmenu);
-        this.child.empty();
+        this.mouseListener.dispose();
+
         this.abortDetailsLoading();
         this.abortLoading();
         if (this.currentImg !== null) {
@@ -639,227 +615,8 @@ class JQImageDisplay {
         }
     }
 
-    closeMenu() {
+    closeMenu=()=>{
         this.closeContextMenuCb();
-    }
-
-    private readonly touchstart=(e:JQuery.TouchStartEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-        var touches = e.originalEvent!.changedTouches;
-        for (var i=0; i<touches.length; i++) {
-            var uid = "t:" + touches[i].identifier;
-            this.touches[uid] = {
-                x: touches[i].pageX,
-                y: touches[i].pageY
-            }
-        }
-
-        // Start a timer
-        this.cancelMenuTimer();
-        var activeTouches = Object.keys(this.touches);
-        if (activeTouches.length == 1) {
-            var where = this.touches[activeTouches[0]];
-            where = {x: where.x, y: where.y};
-            this.menuTimer = setTimeout(()=> {
-                this.contextMenuAt(where.x, where.y);
-            }, 400);
-        } else {
-            this.closeMenu();
-        }
-    }
-
-    private readonly touchend=(e:JQuery.TouchEventBase<HTMLDivElement>)=>{
-        e.preventDefault();
-        this.cancelMenuTimer();
-        var touches = e.originalEvent!.changedTouches;
-        for (var i = 0; i < touches.length; i++) {
-            var uid = "t:" + touches[i].identifier;
-            delete this.touches[uid];
-        }
-    }
-
-    private readonly touchcancel=(e:JQuery.TouchCancelEvent<HTMLDivElement>)=>{
-        this.touchend(e);
-    }
-
-    private readonly touchleave=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-        // Forget all current touches
-        this.touches = {};
-    }
-
-    private readonly touchmove=(e:JQuery.TouchMoveEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-        this.cancelMenuTimer();
-        var touches = e.originalEvent!.changedTouches;
-        var newTouches = {};
-        for (var i = 0; i<touches.length; i++) {
-            var uid = "t:" + touches[i].identifier;
-            if (Object.prototype.hasOwnProperty.call(this.touches, uid)) {
-                newTouches[uid] = {
-                    x: touches[i].pageX,
-                    y: touches[i].pageY
-                }
-            }
-        }
-
-        var activeTouches = Object.keys(this.touches);
-        if (activeTouches.length === 2) {
-
-            var self = this;
-            const getPosAndDist = function() {
-                var cx = 0, cy = 0, dx = 0, dy = 0;
-                for(var i = 0; i < activeTouches.length; ++i) {
-                    var uid = activeTouches[i];
-                    cx += self.touches[uid].x;
-                    cy += self.touches[uid].y;
-                    dx += self.touches[uid].x * (i > 0 ? -1 : 1);
-                    dy += self.touches[uid].y * (i > 0 ? -1 : 1);
-                }
-
-                return {
-                    x: cx / 2,
-                    y: cy / 2,
-                    d: Math.sqrt(dx*dx + dy*dy)
-                }
-            }
-
-            var before = getPosAndDist();
-            Object.assign(this.touches, newTouches);
-            var after = getPosAndDist();
-
-            var offset = this.child.offset()!;
-
-            if (before.d > 1 && after.d > 1) {
-                var cx = (after.x + before.x) / 2;
-                var cy = (after.y + before.y) / 2;
-
-                this.zoom(cx - offset.left, cy - offset.top, after.d / before.d);
-            }
-
-            if (before.x != after.x || before.y != after.y) {
-                var dx = after.x - before.x;
-                var dy = after.y - before.y;
-                /*this.setCurrentImagePos({
-                    x: this.currentImagePos.x + dx,
-                    y: this.currentImagePos.y + dy,
-                    w: this.currentImagePos.w,
-                    h: this.currentImagePos.h
-                });*/
-            }
-
-        } else if (activeTouches.length == 1 && Object.prototype.hasOwnProperty.call(newTouches, activeTouches[0])) {
-            var uid = activeTouches[0];
-            var oldPos = this.touches[uid];
-            var newPos = newTouches[uid];
-            // It's a drag
-            var dx = newPos.x - oldPos.x;
-            var dy = newPos.y - oldPos.y;
-
-            this.setCurrentImagePos({
-                x: this.currentImagePos.x + dx,
-                y: this.currentImagePos.y + dy,
-                w: this.currentImagePos.w,
-                h: this.currentImagePos.h
-            });
-            Object.assign(this.touches, newTouches);
-        } else {
-            Object.assign(this.touches, newTouches);
-        }
-
-    }
-
-
-    private readonly dragstart=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-    }
-
-    private readonly mousedown=(e:JQuery.MouseDownEvent<HTMLDivElement>)=>{
-        if (e.which == 1) {
-            this.mouseIsDown = true;
-            this.setMouseDragged(false);
-            this.mouseDragPos = {x: e.originalEvent!.screenX, y: e.originalEvent!.screenY};
-            this.closeMenu();
-        }
-    }
-
-    private readonly mouseleave=(e:JQuery.MouseLeaveEvent<HTMLDivElement>)=>{
-        this.mouseIsDown = false;
-        this.setMouseDragged(false);
-        this.mouseDragPos = undefined;
-    }
-
-    private readonly mousemove=(e:JQuery.MouseMoveEvent<HTMLDivElement>)=>{
-        if (this.mouseIsDown) {
-            this.setMouseDragged(true);
-
-            var prevPos = this.mouseDragPos!;
-            this.mouseDragPos = {x: e.originalEvent!.screenX, y: e.originalEvent!.screenY};
-
-
-            this.setCurrentImagePos({
-                x: this.currentImagePos.x + (this.mouseDragPos.x - prevPos.x),
-                y: this.currentImagePos.y + (this.mouseDragPos.y - prevPos.y),
-                w: this.currentImagePos.w,
-                h: this.currentImagePos.h
-            });
-        }
-    }
-
-    private readonly mouseup=(e:JQuery.MouseUpEvent<HTMLDivElement>)=>{
-        if (e.which == 1) {
-            this.mouseIsDown = false;
-            e.preventDefault()
-
-            this.setMouseDragged(false);
-        }
-    }
-
-    private readonly setMouseDragged=(to:boolean)=>{
-        if (this.mouseDragged == to) return;
-        this.mouseDragged = to;
-        this.child.css('pointer', to ? 'hand' : 'inherit');
-    }
-
-
-    private contextMenuAt(pageX:number, pageY:number)
-    {
-        var offset = this.child.offset()!;
-        var x = pageX - offset.left;
-        var y = pageY - offset.top;
-        this.contextMenuCb(x, y);
-    }
-
-    private readonly contextmenu=(e:JQuery.ContextMenuEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-        this.contextMenuAt(e.pageX, e.pageY);
-    }
-
-    private readonly click=(e:JQuery.ClickEvent<HTMLDivElement>)=>{
-        e.preventDefault();
-        // FIXME: prevent clic from drag from mouseup ?
-
-    }
-
-    private readonly wheel=(e:JQuery.TriggeredEvent<HTMLDivElement>)=>{
-        const deltaY = (e.originalEvent! as any).deltaY;
-        if (deltaY) {
-            e.preventDefault();
-
-
-            const offset = this.child.offset()!;
-            const x = e.pageX! - offset.left;
-            const y = e.pageY! - offset.top;
-
-            let zoom = 0;
-            // deltaX => ignore
-
-            zoom = Math.sign(deltaY);
-
-            zoom = Math.pow(2, -zoom / 8.0);
-
-            this.zoom(x, y, zoom);
-        }
     }
 
     readonly getImagePosFromParent=(x:number, y:number):{imageX:number, imageY:number}|null=>
