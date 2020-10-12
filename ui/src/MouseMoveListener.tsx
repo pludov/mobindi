@@ -5,6 +5,7 @@ type MouseMoveListenerOptions= {
     closeContextMenu: ()=>void;
     zoom: (cx:number, cy:number, z:number)=>void;
     drag: (dx: number, dy: number)=>void;
+    endDrag: ()=>void;
 }
 
 type PendingAction = {
@@ -20,7 +21,7 @@ class ScreenMouseMoveListener {
     mouseIsDown:boolean = false;
     mouseDragged:boolean = false;
     mouseDragPos?:{x:number, y:number} = undefined;
-
+    draggedSinceInstall: boolean  = false;
     child : JQuery<HTMLDivElement>;
     options: MouseMoveListenerOptions;
 
@@ -64,6 +65,7 @@ class ScreenMouseMoveListener {
             }
         }
         if (a.drag) {
+            this.draggedSinceInstall = true;
             if (this.pendingAction.zoom) {
                 this.flushActions();
             }
@@ -87,6 +89,7 @@ class ScreenMouseMoveListener {
             globalListener.dispose();
         }
         globalListener = this;
+        this.draggedSinceInstall = false;
         const body:JQuery<HTMLDivElement> = $(document.body) as any;
         body.on('click', this.click);
         body.on('wheel', this.wheel);
@@ -123,6 +126,9 @@ class ScreenMouseMoveListener {
         body.off('touchcancel', this.touchcancel);
         body.off('touchleave', this.touchleave);
         body.off('contextmenu', this.contextmenu);
+        if (this.draggedSinceInstall) {
+            this.options.endDrag();
+        }
     }
 
     cancelMenuTimer() {

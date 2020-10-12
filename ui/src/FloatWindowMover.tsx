@@ -27,6 +27,9 @@ export default class FloatWindowMover extends React.PureComponent<Props, State> 
             zoom:()=>{},
             drag:(dx, dy)=>{
                 this.context.deltaMove(dx, dy)
+            },
+            endDrag:()=> {
+                this.context.deltaMoveEnd();
             }
         });
     }

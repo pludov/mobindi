@@ -144,7 +144,7 @@ class JQImageDisplay {
                 w: this.currentImagePos.w,
                 h: this.currentImagePos.h
             }),
-
+            endDrag: ()=>{},
             openContextMenu: this.contextMenuCb,
             closeContextMenu: this.closeMenu,
         });

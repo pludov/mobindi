@@ -1,6 +1,7 @@
 import React, { Component, PureComponent, ReactNode} from 'react';
 import FloatWindow from './FloatWindow';
 import ReactResizeDetector from 'react-resize-detector';
+import { has } from './Utils';
 
 type Props = {
 
@@ -23,15 +24,31 @@ type Size = {
 }
 
 type Pref = {
-    x: number|undefined;
-    y: number|undefined;
+    // Prefered pos (uncliped)
+    x?: number;
+    y?: number;
+    // Last drag pos (uncliped)
+    dragx?: number;
+    dragy?: number;
 }
 
 export type FloatContainerContext = {
     deltaMove:(dx:number, dy:number)=>void;
+    deltaMoveEnd: ()=>void;
+}
+
+function fit(x:number, size: number, max?:number) {
+    if (max !== undefined && x + size >  max) {
+        x = max - size;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    return x;
 }
 
 export default class FloatContainer extends React.PureComponent<Props, State> {
+    private container: React.RefObject<HTMLDivElement> = React.createRef();
     private childRefs: {[id:string]: React.RefObject<HTMLDivElement>} = {};
     private childResizeHandlers : {[id:string]: (w:number, h:number)=>void} = {};
     private childSizes: {[id: string]: Size|undefined} = {};
@@ -39,7 +56,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
 
     private childPrefs: {[id: string]: Pref } = {};
 
-    public static Context = React.createContext<FloatContainerContext>({deltaMove: ()=>{}});
+    public static Context = React.createContext<FloatContainerContext>({deltaMove: ()=>{}, deltaMoveEnd:()=>{}});
 
     constructor(props:Props) {
         super(props);
@@ -53,14 +70,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         console.log('relayout', this.childSizes);
         // For every child that has a size, make sure it fits within parent area
         for(const id of Object.keys(this.childRefs)) {
-            const div:HTMLDivElement|null = this.childRefs[id]!.current;
-            console.log('relayout child', div);
-            if (div === null) {
-                continue;
-            }
-
-            div.style.left = '15px';
-            div.style.top = '55px';
+            this.prefOp(id, ()=>{});
         }
     }
 
@@ -81,16 +91,54 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         this.childSizes[id] = {w, h};
     }
 
-    moveChild=(id:string, dx: number, dy: number)=> {
+    prefOp=(id:string, op: (pref:Pref, item: HTMLDivElement)=>void)=>{
         const item = this.childRefs[id]?.current;
-        console.log('Moving child ', item, id, dx, dy);
-        
+         
         if (item) {
-            const x = item.offsetLeft + dx;
-            const y = item.offsetTop + dy;
-            item.style.left = x + "px";
-            item.style.top = y + "px";
+            if (!has(this.childPrefs, id)) {
+                this.childPrefs[id] = {};
+            }
+            const pref = this.childPrefs[id];
+
+            op(pref, item);
+
+            if (pref.x !== undefined) {
+                item.style.left = fit(pref.x, item.clientWidth, this.container.current?.clientWidth) + "px";
+            }
+            if (pref.y !== undefined) {
+                item.style.top = fit(pref.y, item.clientHeight, this.container.current?.clientHeight) + "px";
+            }
         }
+    }
+
+    moveChild=(id:string, dx: number, dy: number)=> {
+        this.prefOp(id, (pref, item)=>{
+            if (pref.x === undefined) {
+                pref.x = item.offsetLeft;
+            }
+            if (pref.y === undefined) {
+                pref.y = item.offsetTop;
+            }
+
+            if (pref.dragx === undefined) {
+                pref.dragx = item.offsetLeft;
+            }
+            if (pref.dragy === undefined) {
+                pref.dragy = item.offsetTop;
+            }
+
+            pref.dragx += dx;
+            pref.dragy += dy;
+            pref.x = pref.dragx;
+            pref.y = pref.dragy;
+        });
+    }
+
+    commitChild=(id:string)=>{
+        this.prefOp(id, (pref, item)=>{
+            pref.dragx = undefined;
+            pref.dragy = undefined;
+        });
     }
 
     static getFloatingWindows(children?: ReactNode) {
@@ -128,10 +176,11 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         FloatContainer.refreshPerChild(this.childRefs, windows, React.createRef);
         FloatContainer.refreshPerChild(this.childResizeHandlers, windows, (child, key)=>(w, h)=>this.onChildResize(key, w, h));
         FloatContainer.refreshPerChild(this.childContext, windows, (child,key)=> ({
-            deltaMove: (dx, dy)=>this.moveChild(key, dx, dy)
+            deltaMove: (dx, dy)=>this.moveChild(key, dx, dy),
+            deltaMoveEnd: ()=>this.commitChild(key),
         }));
 
-        return (<div style={{
+        return (<div ref={this.container} style={{
             position: "relative",
             pointerEvents: "none",
             left: 0,
