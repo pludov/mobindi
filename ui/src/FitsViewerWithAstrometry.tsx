@@ -11,6 +11,10 @@ import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';
+import CanvasTest from './CanvasTest';
+import FloatContainer from './FloatContainer';
+import FloatWindow from './FloatWindow';
+import FloatWindowMover from './FloatWindowMover';
 
 
 type InputProps = {
@@ -47,6 +51,7 @@ type Props = InputProps & MappedProps;
 
 type State = {
     fs: boolean;
+    histoVisible: boolean;
 }
 
 class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
@@ -54,7 +59,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     constructor(props:Props) {
         super(props);
-        this.state = {fs: false};
+        this.state = {fs: false, histoVisible: false};
     }
 
     private readonly cancel = async () => {
@@ -118,6 +123,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         this.setState({fs: !this.state.fs});
     }
 
+    private readonly toggleHisto = () => {
+        this.setState({histoVisible: !this.state.histoVisible});
+    }
+
     private readonly contextMenuSelector = createSelector(
             [
                 (m:MappedProps)=>m.start,
@@ -158,6 +167,12 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         positional: true,
                     });
                 }
+                ret.push({
+                    title: 'Histogram',
+                    key: 'histo',
+                    cb: this.toggleHisto,
+                    positional: false,
+                })
                 return ret;
             }
     );
@@ -216,6 +231,23 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     : null
                 }
             </span>
+
+
+            <FloatContainer>
+                <FloatWindow key="histogram">
+                    <FloatWindowMover>move here</FloatWindowMover>
+                    <CanvasTest
+                        path={this.props.path}
+                        streamId={this.props.streamId}
+                        streamSerial={this.props.streamSerial}
+                        streamSize={this.props.streamSize}
+                        subframe={this.props.subframe}
+                        />
+                </FloatWindow>
+
+
+            </FloatContainer>
+
         </div>;
     }
 
