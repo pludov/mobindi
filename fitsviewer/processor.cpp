@@ -25,9 +25,7 @@ int main (int argc, char ** argv) {
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
 
 
-	SharedCache::Messages::ContentRequest contentRequest;
-    SharedCache::Messages::JsonQuery jsonQuery = request;
-    contentRequest.jsonQuery = new SharedCache::Messages::JsonQuery(jsonQuery);
+	SharedCache::Messages::ContentRequest contentRequest = request;
 
 
 	SharedCache::EntryRef result(cache->getEntry(contentRequest));
@@ -35,7 +33,15 @@ int main (int argc, char ** argv) {
 		cerr << result->getErrorDetails();
 		exit(1);
 	}
-    write(1, result->data(), result->size());
-    result->release();
-    return 0;
+	json prettyResult;
+	if (((argc == 2) && (!strcmp(argv[1], "-r"))) || !contentRequest.asJsonResult(result, prettyResult)) {
+		write(1, result->data(), result->size());
+	} else {
+		std::string t = prettyResult.dump();
+		if (t.length()) {
+			write(1, t.data(), t.length());
+		}
+	}
+	result->release();
+	return 0;
 }

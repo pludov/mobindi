@@ -3,6 +3,7 @@
 
 #include <string>
 #include <list>
+#include <vector>
 #include "json.hpp"
 
 
@@ -90,6 +91,8 @@ namespace SharedCache {
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
+
+			bool asJsonResult(Entry * e, nlohmann::json& j) const;
 		};
 
 		void to_json(nlohmann::json&j, const Histogram & i);
@@ -147,27 +150,19 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const Astrometry & i);
 		void from_json(const nlohmann::json& j, Astrometry & p);
 
-		// These queries produce json output
-		struct JsonQuery {
-			ChildPtr<StarField> starField;
-			ChildPtr<Astrometry> astrometry;
-			void produce(Entry * entry);
-
-			void collectRawContents(std::list<RawContent *> & into);
-		};
-		void to_json(nlohmann::json&j, const JsonQuery & i);
-		void from_json(const nlohmann::json& j, JsonQuery & p);
-
 		struct ContentRequest {
 			ChildPtr<RawContent> fitsContent;
 			ChildPtr<Histogram> histogram;
-			ChildPtr<JsonQuery> jsonQuery;
+			ChildPtr<StarField> starField;
+			ChildPtr<Astrometry> astrometry;
 
 			std::string uniqKey();
 
 			void produce(Entry * entry);
 
 			void collectRawContents(std::list<RawContent *> & into);
+
+			bool asJsonResult(Entry * e, nlohmann::json & j) const;
 		};
 
 		void to_json(nlohmann::json&j, const ContentRequest & i);

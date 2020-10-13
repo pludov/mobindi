@@ -172,6 +172,30 @@ void SharedCache::Messages::Histogram::produce(Entry * entry)
 	});
 }
 
+bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j) const {
+	j = nlohmann::json::array();
+	HistogramStorage * hs = (HistogramStorage *)e->data();
+	for(int channel = 0; channel < hs->channelCount; ++channel)
+	{
+		HistogramChannelData * chdata = hs->channel(channel);
+		std::vector<uint32_t> data;
+		uint32_t sampleCount = chdata->sampleCount();
+		data.resize(sampleCount);
+		for(uint32_t i = 0; i < sampleCount; ++i) {
+			data[i] = chdata->data[i];
+		}
+
+		j.push_back(nlohmann::json({
+			{"min", chdata->min},
+			{"max", chdata->max},
+			{"pixcount", chdata->pixcount},
+			{"data", data}
+		}));
+	}
+	return true;
+}
+
+
 // Adjust x to the min x>=x0 such as x & 1 = xOffset
 static int toNextBayer(int x, int xOffset)
 {

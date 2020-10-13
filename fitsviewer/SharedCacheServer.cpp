@@ -617,9 +617,16 @@ void SharedCacheServer::workerLogic(Cache * cache)
 	}
 }
 
-
-void Messages::JsonQuery::produce(Entry * entry)
+void Messages::ContentRequest::produce(Entry * entry)
 {
+	if (this->fitsContent) {
+		this->fitsContent->produce(entry);
+		return;
+	}
+	if (this->histogram) {
+		this->histogram->produce(entry);
+		return;
+	}
 	if (this->starField) {
 		this->starField->produce(entry);
 		std::cerr << "Json produced!\n";
@@ -632,25 +639,15 @@ void Messages::JsonQuery::produce(Entry * entry)
 
 		return;
 	}
-	throw WorkerError("Invalid JsonQuery");
-}
-
-void Messages::ContentRequest::produce(Entry * entry)
-{
-	if (this->fitsContent) {
-		this->fitsContent->produce(entry);
-		return;
-	}
-	if (this->histogram) {
-		this->histogram->produce(entry);
-		return;
-	}
-	if (this->jsonQuery) {
-		this->jsonQuery->produce(entry);
-		return;
-	}
 	throw WorkerError("Invalid ContentRequest");
 
+}
+
+bool Messages::ContentRequest::asJsonResult(Entry * e, nlohmann::json & j) const {
+	if (histogram) {
+		return histogram->asJsonResult(e, j);
+	}
+	return false;
 }
 
 void Messages::StarField::collectRawContents(std::list<Messages::RawContent*> & into)
@@ -661,16 +658,6 @@ void Messages::StarField::collectRawContents(std::list<Messages::RawContent*> & 
 void Messages::Astrometry::collectRawContents(std::list<Messages::RawContent*> & into)
 {
 	this->source.collectRawContents(into);
-}
-
-void Messages::JsonQuery::collectRawContents(std::list<Messages::RawContent*> & into)
-{
-	if (this->starField) {
-		this->starField->collectRawContents(into);
-	}
-	if (this->astrometry) {
-		this->astrometry->collectRawContents(into);
-	}
 }
 
 void Messages::Histogram::collectRawContents(std::list<Messages::RawContent*> & into)
@@ -686,8 +673,11 @@ void Messages::ContentRequest::collectRawContents(std::list<Messages::RawContent
 	if (this->histogram) {
 		this->histogram->collectRawContents(into);
 	}
-	if (this->jsonQuery) {
-		this->jsonQuery->collectRawContents(into);
+	if (this->starField) {
+		this->starField->collectRawContents(into);
+	}
+	if (this->astrometry) {
+		this->astrometry->collectRawContents(into);
 	}
 }
 

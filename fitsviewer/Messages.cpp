@@ -132,26 +132,6 @@ namespace SharedCache {
 			p.numberOfBinInUniformize = j.at("numberOfBinInUniformize").get<int>();
 		}
 
-		void to_json(nlohmann::json&j, const JsonQuery & i)
-		{
-			j = nlohmann::json::object();
-			if (i.starField) {
-				j["starField"] = *i.starField;
-			}
-			if (i.astrometry) {
-				j["astrometry"] = *i.astrometry;
-			}
-		}
-
-		void from_json(const nlohmann::json& j, JsonQuery & p) {
-			if (j.find("starField") != j.end()) {
-				p.starField = new StarField(j.at("starField").get<StarField>());
-			}
-			if (j.find("astrometry") != j.end()) {
-				p.astrometry = new Astrometry(j.at("astrometry").get<Astrometry>());
-			}
-		}
-
 		void to_json(nlohmann::json&j, const ContentRequest & i)
 		{
 			j = nlohmann::json::object();
@@ -161,8 +141,11 @@ namespace SharedCache {
 			if (i.histogram) {
 				j["histogram"] = *i.histogram;
 			}
-			if (i.jsonQuery) {
-				j["jsonQuery"] = *i.jsonQuery;
+			if (i.starField) {
+				j["starField"] = *i.starField;
+			}
+			if (i.astrometry) {
+				j["astrometry"] = *i.astrometry;
 			}
 		}
 
@@ -173,8 +156,11 @@ namespace SharedCache {
 			if (j.find("histogram") != j.end()) {
 				p.histogram = new Histogram(j.at("histogram").get<Histogram>());
 			}
-			if (j.find("jsonQuery") != j.end()) {
-				p.jsonQuery = new JsonQuery(j.at("jsonQuery").get<JsonQuery>());
+			if (j.find("starField") != j.end()) {
+				p.starField = new StarField(j.at("starField").get<StarField>());
+			}
+			if (j.find("astrometry") != j.end()) {
+				p.astrometry = new Astrometry(j.at("astrometry").get<Astrometry>());
 			}
 		}
 

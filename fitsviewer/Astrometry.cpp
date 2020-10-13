@@ -228,8 +228,7 @@ void SharedCache::Messages::Astrometry::produce(SharedCache::Entry* entry)
     json j;
 
 	SharedCache::Messages::ContentRequest contentRequest;
-	contentRequest.jsonQuery = new SharedCache::Messages::JsonQuery();
-    contentRequest.jsonQuery->starField = new SharedCache::Messages::StarField(source);
+    contentRequest.starField = new SharedCache::Messages::StarField(source);
 	SharedCache::EntryRef starField(entry->getServer()->getEntry(contentRequest));
 	if (starField->hasError()) {
         starField->release();

@@ -10,16 +10,16 @@ TEST_CASE( "ChildPtr transfert is ok", "[ChildPtr]" ) {
 
         contentRequest->fitsContent = new SharedCache::Messages::RawContent();
         contentRequest->fitsContent->path = "/glop";
-        contentRequest->jsonQuery = new SharedCache::Messages::JsonQuery();
-        contentRequest->jsonQuery->starField = new SharedCache::Messages::StarField();
-        contentRequest->jsonQuery->starField->source.path = "/plop";
+        contentRequest->astrometry = new SharedCache::Messages::Astrometry();
+        contentRequest->astrometry->source = SharedCache::Messages::StarField();
+        contentRequest->astrometry->source.source.path = "/plop";
 
         SharedCache::Messages::ContentRequest * duplicate = new SharedCache::Messages::ContentRequest(*contentRequest);
 
 
         REQUIRE(&*(duplicate->fitsContent) != &*(contentRequest->fitsContent));
-        REQUIRE(&*(duplicate->jsonQuery) != &*(contentRequest->jsonQuery));
-        REQUIRE(&*(duplicate->jsonQuery->starField) != &*(contentRequest->jsonQuery->starField));
+        REQUIRE(&*(duplicate->astrometry) != &*(contentRequest->astrometry));
+        // REQUIRE(&*(duplicate->astrometry->source) != &*(contentRequest->astrometry->source));
 
         delete(contentRequest);
         delete(duplicate);
