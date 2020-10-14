@@ -1,21 +1,27 @@
 import React, { Component, PureComponent} from 'react';
+import * as BackendRequest from "./BackendRequest";
+import CancellationToken from 'cancellationtoken';
 
 import Konva from 'konva';
 import { render } from 'react-dom';
 import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
 
 import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer/FitsViewer';
+import { ProcessorHistogramResult } from '@bo/ProcessorTypes';
 
 type Props = {
     path: FitsViewerProps["path"];
     streamId: FitsViewerProps["streamId"];
     streamSerial: FitsViewerProps["streamSerial"];
-    streamSize: FitsViewerProps["streamSize"];
-    subframe: FitsViewerProps["subframe"];
 }
 
 type State = {
-    cpt: number;
+    path: FitsViewerProps["path"] | null;
+    streamId: FitsViewerProps["streamId"] | null;
+    streamSerial: FitsViewerProps["streamSerial"] | null;
+    value: ProcessorHistogramResult | null;
+    loading: boolean;
+
 }
 
 function init() {
@@ -54,60 +60,158 @@ const histo = createHisto();
 
 const starLines:Array<Array<number>> = initLines();
 
-export default class CanvasTest extends React.PureComponent<Props, State> {
-    timeout: NodeJS.Timeout;
+type PreRenderedHistogram = {
+    color: string;
+    shadow: string;
+    y: Array<number>;
+}
 
+function renderHistogramData(value: any, height:number):PreRenderedHistogram {
+    const yValues:number[] = [];
+
+    let max = 0;
+    let lastCumul = 0;
+    for(let i = 0; i < 256; ++i) {
+        let cumul;
+        if (i < value.min || i > value.max) {
+            cumul = lastCumul;
+        } else {
+            cumul = value.data[i - value.min];
+        }
+        const v = (cumul - lastCumul);
+        if (max < v) {
+            max = v;
+        }
+        yValues[i] = v;
+        lastCumul = cumul;
+    }
+
+    const scale = max ? (height - 1) / max : 0;
+    for(let i = 0; i < 256; ++i) {
+        yValues[i] = (height - 1) - yValues[i] * scale;
+
+    }
+
+    return {
+        color: "rgb(0,255,0)",
+        shadow: "rgb(0,127,0)",
+        y: yValues,
+    }
+}
+
+export default class CanvasTest extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
-        this.state = {cpt: 0};
+        this.state = {
+            path: null,
+            streamId: null,
+            streamSerial: null,
+            loading: false,
+            value: null,
+        };
+    }
+
+    async _loadData() {
+        if (this.props.path === this.state.path && this.props.streamId == this.state.streamId) {
+            return;
+        }
+        // Start a new loading.
+        // cancel the previous request
+        this._cancelLoadData();
+        this.setState({
+            path: this.props.path,
+            streamId: this.props.streamId,
+            value: null,
+            loading: true
+        });
+        const self = this;
+
+        try {
+            const e = await BackendRequest.ImageProcessor(
+                CancellationToken.CONTINUE,
+                {
+                    histogram: { "source": {
+                        path: this.props.path || "",
+                        streamId: this.props.streamId || "",
+                    }}
+                }
+            );
+
+            console.log('loaded', e);
+            this.setState({
+                value: e,
+                loading: false
+            });
+        } catch(e) {
+            this.setState({
+                value: null,
+                loading: false
+            });
+        };
+
+    }
+
+
+    _cancelLoadData() {
+        // Not implemented
+        console.log('FIXME: canceling FWHMDisplayer is not implemented');
+    }
+
+    componentWillUnmount() {
+        this._cancelLoadData();
     }
 
     componentDidMount() {
-        this.timeout = setInterval(()=>this.tick(), 10);
+        this._loadData();
     }
 
-    tick() {
-        this.setState({cpt: this.state.cpt+1});
+    componentDidUpdate(prevProps:Props, prevState:State) {
+        this._loadData();
     }
+
 
     render() {
-        return <div style={{backgroundColor: "#112233" , width: "15em", height:"10em" }}>
+        const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data:any)=>renderHistogramData(data, 150));
 
-            <Stage width={100} height={150} opacity={1}>
+        return <div style={{backgroundColor: "#112233" , width: "256px", height:"150px", border: "1px solid #d0d0d0" }}>
+
+            <Stage width={256} height={150} opacity={1}>
                 <Layer>
-                <Shape
-                    sceneFunc={(context, shape) => {
-                        context.beginPath();
-                        context.moveTo(0,0);
-                        for(let i = 0; i < 256; ++i) {
-                            context.lineTo(i, histo[(i+this.state.cpt)%256]);
-                        }
-                        context.lineTo(255,0);
-                        context.closePath();
-                        // (!) Konva specific method, it is very important
-                        context.fillShape(shape);
-                    }}
-                    fill="rgb(0,128,0)"
-                />
-                <Shape
-                    sceneFunc={(context, shape) => {
-                        context.beginPath();
-                        
-                        for(let i = 0; i < 256; ++i) {
-                            if (i === 0) {
-                                context.moveTo(i, histo[(i+this.state.cpt)%256]);
-                            } else {
-                                context.lineTo(i, histo[(i+this.state.cpt)%256]);
-                            }
-                        }
+                    {channels.map((c, id)=>
+                        <Shape key={"shadow:" + id}
+                            sceneFunc={(context, shape) => {
+                                context.beginPath();
+                                context.moveTo(0,150);
+                                for(let i = 0; i < 256; ++i) {
+                                    context.lineTo(i, c.y[i]);
+                                }
+                                context.lineTo(255,150);
+                                context.closePath();
+                                context.fillShape(shape);
+                            }}
+                            fill={c.shadow}
+                        />
+                    )}
 
-                        // context.endPath();
-                        // (!) Konva specific method, it is very important
-                        context.strokeShape(shape);
-                    }}
-                    stroke="rgb(0,255,0)"
-                    strokeWidth={2}
-                />
+                    {channels.map((c, id)=>
+                        <Shape key={"light:" + id}
+                            sceneFunc={(context, shape) => {
+                                context.beginPath();
+
+                                for(let i = 0; i < 256; ++i) {
+                                    if (i === 0) {
+                                        context.moveTo(i, c.y[i]);
+                                    } else {
+                                        context.lineTo(i, c.y[i]);
+                                    }
+                                }
+
+                                context.strokeShape(shape);
+                            }}
+                            stroke={c.color}
+                            strokeWidth={1}
+                        />
+                    )}
                 </Layer>
             </Stage>
         </div>;
@@ -117,15 +221,15 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
 
     renderStars() {
         
-        const cs = 200 * Math.cos(this.state.cpt / 100);
-        const sn = 200 * Math.sin(this.state.cpt / 100);
+        const cs = 200 * Math.cos(1 / 100);
+        const sn = 200 * Math.sin(1 / 100);
         const starPos = stars.map(e=>
             [ 
                     200 + cs * e[0] + sn * e[1], 
                     200 + cs * e[1] - sn * e[0], 
                     e[2]]);
 
-        return <div style={{backgroundColor: "#112233" }} className={"FitsViewer"}>
+        return <div style={{backgroundColor: "#112233", border: "1px solid #ffffff" }} className={"FitsViewer"}>
 
             <Stage width={1000} height={500} opacity={1}>
                 <Layer>

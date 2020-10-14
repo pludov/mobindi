@@ -240,8 +240,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         path={this.props.path}
                         streamId={this.props.streamId}
                         streamSerial={this.props.streamSerial}
-                        streamSize={this.props.streamSize}
-                        subframe={this.props.subframe}
                         />
                 </FloatWindow>
 
