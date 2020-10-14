@@ -45,6 +45,12 @@ export type ProcessorAstrometryRequest = {
     source: ProcessorStarFieldRequest;
 }
 
+export type ProcessorHistogramRequest = {
+    source: ProcessorContentRequest;
+}
+
+export type ProcessorHistogramResult = Array<{min: number, max:number, pixcount: number, data: Array<number>}>;
+
 export type ProcessorAstrometryResult = AstrometryResult;
 
 export type Order<Req, Res> = {
@@ -59,9 +65,12 @@ export type Astrometry = Order<ProcessorAstrometryRequest, ProcessorAstrometryRe
 
 export type StarField = Order<ProcessorStarFieldRequest, ProcessorStarFieldResult>;
 
+export type Histogram = Order<ProcessorHistogramRequest, ProcessorHistogramResult>;
+
 type Registry = {
     astrometry: Astrometry,
     starField: StarField,
+    histogram: Histogram,
 }
 
 export type Request = {
