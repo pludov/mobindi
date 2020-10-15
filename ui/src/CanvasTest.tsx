@@ -8,6 +8,9 @@ import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
 
 import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer/FitsViewer';
 import { ProcessorHistogramResult } from '@bo/ProcessorTypes';
+import ReactResizeDetector from 'react-resize-detector';
+
+import "./Histogram.css"
 
 type Props = {
     path: FitsViewerProps["path"];
@@ -21,7 +24,8 @@ type State = {
     streamSerial: FitsViewerProps["streamSerial"] | null;
     value: ProcessorHistogramResult | null;
     loading: boolean;
-
+    canvas_x: number;
+    canvas_y: number;
 }
 
 function init() {
@@ -108,6 +112,8 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
             streamSerial: null,
             loading: false,
             value: null,
+            canvas_x: 0,
+            canvas_y: 0,
         };
     }
 
@@ -169,23 +175,27 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
         this._loadData();
     }
 
+    onCanvasResize=(canvas_x:number, canvas_y:number)=>{
+        this.setState({canvas_x, canvas_y});
+    }
 
     render() {
-        const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data:any)=>renderHistogramData(data, 150));
+        const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data:any)=>renderHistogramData(data, this.state.canvas_y));
+        const xscale = this.state.canvas_x / 255;
 
-        return <div style={{backgroundColor: "#112233" , width: "256px", height:"150px", border: "1px solid #d0d0d0" }}>
-
-            <Stage width={256} height={150} opacity={1}>
+        return <div className="HistogramDetail plop">
+            <ReactResizeDetector handleWidth handleHeight onResize={this.onCanvasResize} />
+            <Stage width={this.state.canvas_x} height={this.state.canvas_y} opacity={1}>
                 <Layer>
                     {channels.map((c, id)=>
                         <Shape key={"shadow:" + id}
                             sceneFunc={(context, shape) => {
                                 context.beginPath();
-                                context.moveTo(0,150);
+                                context.moveTo(0,this.state.canvas_y);
                                 for(let i = 0; i < 256; ++i) {
-                                    context.lineTo(i, c.y[i]);
+                                    context.lineTo(i * xscale, c.y[i]);
                                 }
-                                context.lineTo(255,150);
+                                context.lineTo(255 * xscale,this.state.canvas_y);
                                 context.closePath();
                                 context.fillShape(shape);
                             }}
@@ -200,9 +210,9 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
 
                                 for(let i = 0; i < 256; ++i) {
                                     if (i === 0) {
-                                        context.moveTo(i, c.y[i]);
+                                        context.moveTo(i * xscale, c.y[i]);
                                     } else {
-                                        context.lineTo(i, c.y[i]);
+                                        context.lineTo(i * xscale, c.y[i]);
                                     }
                                 }
 

@@ -1,0 +1,10 @@
+.HistogramDetail {
+    background-color: #112233;
+    display: inline-block;
+    overflow: hidden;
+    width: min(40vw, 256px);
+    width: 40vw;
+    height: calc(0.7 * min(40vw, 256px));
+    height: calc(0.7 * 40vw);
+    border: 1px solid #d0d0d0;
+}
