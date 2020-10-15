@@ -48,13 +48,13 @@ function fit(x:number, size: number, max?:number) {
 }
 
 export default class FloatContainer extends React.PureComponent<Props, State> {
-    private container: React.RefObject<HTMLDivElement> = React.createRef();
     private childRefs: {[id:string]: React.RefObject<HTMLDivElement>} = {};
     private childResizeHandlers : {[id:string]: (w:number, h:number)=>void} = {};
     private childSizes: {[id: string]: Size|undefined} = {};
     private childContext: {[id: string]: FloatContainerContext} = {};
 
     private childPrefs: {[id: string]: Pref } = {};
+    private parentSize = {width: 0, height: 0};
 
     public static Context = React.createContext<FloatContainerContext>({deltaMove: ()=>{}, deltaMoveEnd:()=>{}});
 
@@ -84,6 +84,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
 
     onParentResize=(width:number, height:number)=> {
         console.log('onResize');
+        this.parentSize = {width, height};
         this.relayout();
     }
 
@@ -103,10 +104,10 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
             op(pref, item);
 
             if (pref.x !== undefined) {
-                item.style.left = fit(pref.x, item.clientWidth, this.container.current?.clientWidth) + "px";
+                item.style.left = fit(pref.x, item.clientWidth, this.parentSize.width) + "px";
             }
             if (pref.y !== undefined) {
-                item.style.top = fit(pref.y, item.clientHeight, this.container.current?.clientHeight) + "px";
+                item.style.top = fit(pref.y, item.clientHeight, this.parentSize.height) + "px";
             }
         }
     }
@@ -180,7 +181,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
             deltaMoveEnd: ()=>this.commitChild(key),
         }));
 
-        return (<div ref={this.container} style={{
+        return (<div style={{
             position: "relative",
             pointerEvents: "none",
             left: 0,
