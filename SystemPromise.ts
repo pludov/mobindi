@@ -85,11 +85,27 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
 
     if (!lineCb) {
         let writableMemoryStream: MemoryStreams.WritableStream;
-
+        let finishCall = 0;
+        const buffers:Array<Buffer> = [];
         writableStream = writableMemoryStream = new MemoryStreams.WritableStream();
+        writableStream._write = (chunk, encoding, next) => {
+            if (encoding as any !== 'buffer') {
+                console.log('Received not a buffer');
+                writableStream.emit('error', new Error('unsupported encoding'));
+            } else {
+                buffers.push(chunk);
+            }
+            next();
+            return true;
+        }
+
         writableMemoryStream.on('finish', ()=> {
-            result = writableMemoryStream.toString()
-            captureDone();
+            if (finishCall === 0) {
+                finishCall++;
+                result = Buffer.concat(buffers).toString();
+                buffers.splice(0, buffers.length);
+                captureDone();
+            }
         });
     } else {
         const stringDecoder = new StringDecoder("utf8");
