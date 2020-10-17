@@ -3,11 +3,10 @@ import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
 
 import Konva from 'konva';
-import { render } from 'react-dom';
 import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
 
 import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer/FitsViewer';
-import { ProcessorHistogramResult } from '@bo/ProcessorTypes';
+import { ProcessorHistogramResult, ProcessorHistogramChannel } from '@bo/ProcessorTypes';
 import ReactResizeDetector from 'react-resize-detector';
 
 import "./Histogram.css"
@@ -70,7 +69,27 @@ type PreRenderedHistogram = {
     y: Array<number>;
 }
 
-function renderHistogramData(value: any, height:number):PreRenderedHistogram {
+const colors = {
+    red: {
+        color: "rgb(255,0,0)",
+        shadow: "rgb(128,0,0)",
+    },
+    green: {
+        color: "rgb(0,255,0)",
+        shadow: "rgb(0,128,0)",
+    },
+    blue: {
+        color: "rgb(0,0,255)",
+        shadow: "rgb(0,0,128)",
+    },
+    light: {
+        color: "rgb(240,240,240)",
+        shadow: "rgb(128,128,128)",
+    }
+}
+
+
+function renderHistogramData(value: ProcessorHistogramChannel, height:number):PreRenderedHistogram {
     const yValues:number[] = [];
 
     let max = 0;
@@ -96,9 +115,10 @@ function renderHistogramData(value: any, height:number):PreRenderedHistogram {
 
     }
 
+    const colorId = Object.prototype.hasOwnProperty.call(colors, value.identifier) ? value.identifier : 'light';
+
     return {
-        color: "rgb(0,255,0)",
-        shadow: "rgb(0,127,0)",
+        ...colors[colorId],
         y: yValues,
     }
 }
@@ -143,12 +163,12 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
                 }
             );
 
-            console.log('loaded', e);
             this.setState({
                 value: e,
                 loading: false
             });
         } catch(e) {
+            console.warn('Unable to load histogram', e);
             this.setState({
                 value: null,
                 loading: false
@@ -180,9 +200,8 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
     }
 
     render() {
-        const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data:any)=>renderHistogramData(data, this.state.canvas_y));
+        const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data)=>renderHistogramData(data, this.state.canvas_y));
         const xscale = this.state.canvas_x / 255;
-
         return <div className="HistogramDetail plop">
             <ReactResizeDetector handleWidth handleHeight onResize={this.onCanvasResize} />
             <Stage width={this.state.canvas_x} height={this.state.canvas_y} opacity={1}>

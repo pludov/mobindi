@@ -190,6 +190,7 @@ bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j)
 			{"max", chdata->max},
 			{"pixcount", chdata->pixcount},
 			{"bitpix", hs->bitpix},
+			{"identifier", chdata->identifier},
 			{"data", data}
 		}));
 	}
@@ -247,6 +248,8 @@ static bool flatWindow(int interline, int x0, int y0, int x1, int y1, int & offs
 	return true;
 }
 
+const char *channelNames[] =  {"red", "green", "blue"};
+
 HistogramStorage * HistogramStorage::build(
 						const RawDataStorage *rcs,
 						int x0, int y0, int x1, int y1,
@@ -299,6 +302,7 @@ HistogramStorage * HistogramStorage::build(
 		}
 	}
 	for(int i = 0; i < channelCount; ++i) {
+		strcpy(hs->channel(i)->identifier, rcs->hasColors() ? channelNames[i] : "light");
 		hs->channel(i)->cumulative();
 	}
 	return hs;

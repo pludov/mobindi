@@ -49,7 +49,8 @@ export type ProcessorHistogramRequest = {
     source: ProcessorContentRequest;
 }
 
-export type ProcessorHistogramResult = Array<{min: number, max:number, pixcount: number, data: Array<number>}>;
+export type ProcessorHistogramChannel = {min: number, max:number, pixcount: number, bitpix: number, identifier: string, data: Array<number>};
+export type ProcessorHistogramResult = Array<ProcessorHistogramChannel>;
 
 export type ProcessorAstrometryResult = AstrometryResult;
 

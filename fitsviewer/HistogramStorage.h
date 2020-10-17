@@ -5,6 +5,7 @@
 struct HistogramChannelData {
 	uint16_t min, max;
 	uint32_t pixcount;
+	char identifier[8];
 	uint32_t data[0];
 
 	uint32_t sampleCount() const {
