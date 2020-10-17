@@ -33,6 +33,11 @@ void RawDataStorage::setBayer(const std::string & str)
 	}
 }
 
+void RawDataStorage::setBitPix(uint8_t bitpix)
+{
+	this->bitpix = bitpix;
+}
+
 long int RawDataStorage::requiredStorage(int w, int h)
 {
 	return sizeof(RawDataStorage) + (sizeof(uint16_t) * w * h);
@@ -136,6 +141,13 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
 
 		storage->setSize(w, h);
 		storage->setBayer(bayer);
+		switch(bitpix) {
+			case BYTE_IMG:
+				storage->setBitPix(8);
+			case SHORT_IMG:
+			default:
+				storage->setBitPix(16);
+		}
 
 		long fpixels[2]= {1,1};
 		if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {

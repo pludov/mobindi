@@ -189,6 +189,7 @@ bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j)
 			{"min", chdata->min},
 			{"max", chdata->max},
 			{"pixcount", chdata->pixcount},
+			{"bitpix", hs->bitpix},
 			{"data", data}
 		}));
 	}
@@ -280,6 +281,7 @@ HistogramStorage * HistogramStorage::build(
 	long int size = HistogramStorage::requiredStorage(channelCount, min, max);
 	
 	HistogramStorage * hs = (HistogramStorage *)allocator(size);
+	hs->bitpix = 16;
 	hs->init(channelCount, min, max);
 	if (rcs->hasColors()) {
 		for(int i = 0; i < 4; ++i) {

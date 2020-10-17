@@ -51,6 +51,7 @@ struct HistogramChannelData {
 
 struct HistogramStorage {
 	int channelCount;
+	uint8_t bitpix;
 
 	char datas[0];
 
