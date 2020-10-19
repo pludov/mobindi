@@ -1,5 +1,7 @@
 #include <math.h>
 
+#include <iostream>
+
 #include "fitsio.h"
 
 #include "SharedCache.h"
@@ -172,12 +174,19 @@ void SharedCache::Messages::Histogram::produce(Entry * entry)
 	});
 }
 
-bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j) const {
+bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j, const nlohmann::json& jsonOptions) const {
+	HistogramOptions options = jsonOptions;
+	
 	j = nlohmann::json::array();
 	HistogramStorage * hs = (HistogramStorage *)e->data();
 	for(int channel = 0; channel < hs->channelCount; ++channel)
 	{
 		HistogramChannelData * chdata = hs->channel(channel);
+		HistogramChannelData * resizedData = nullptr;
+		if (options.maxBits > -1 && hs->bitpix > options.maxBits) {
+			chdata = resizedData = HistogramChannelData::resample(chdata, hs->bitpix - options.maxBits, [](long int size){ return malloc(size); });
+		}
+
 		std::vector<uint32_t> data;
 		uint32_t sampleCount = chdata->sampleCount();
 		data.resize(sampleCount);
@@ -193,6 +202,10 @@ bool SharedCache::Messages::Histogram::asJsonResult(Entry * e, nlohmann::json&j)
 			{"identifier", chdata->identifier},
 			{"data", data}
 		}));
+
+		if (resizedData != nullptr) {
+			free(resizedData);
+		}
 	}
 	return true;
 }
@@ -307,3 +320,29 @@ HistogramStorage * HistogramStorage::build(
 	}
 	return hs;
 }
+
+HistogramChannelData * HistogramChannelData::resample(
+						const HistogramChannelData  *rcs,
+						int shift,
+						std::function<void* (long int)> allocator) {
+							std::cerr << "Shifting " << shift << "\n";
+	long int size = HistogramChannelData::requiredStorage(rcs->min >> shift, rcs->max >> shift);
+	HistogramChannelData * ret = (HistogramChannelData *)allocator(size);
+	memcpy(ret, rcs, sizeof(HistogramChannelData));
+	ret->min = rcs->min >> shift;
+	ret->max = rcs->max >> shift;
+
+	int offset = 0;
+	for(int i = ret->min; i <= ret->max; ++i)
+	{
+		int inOffset = (i<<shift);
+
+		if (inOffset > rcs->max) inOffset = rcs->max;
+		if (inOffset < rcs->min) inOffset = rcs->min;
+		inOffset -= rcs->min;
+		ret->data[offset++] = rcs->data[inOffset];
+	}
+
+	return ret;
+}
+

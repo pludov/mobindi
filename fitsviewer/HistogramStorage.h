@@ -48,6 +48,15 @@ struct HistogramChannelData {
 	double getMoy(int minAdu, int maxAdu);
 	double getStdDev(int minAdu, int maxAdu);
 
+	static long int requiredStorage(uint16_t min, uint16_t max) {
+		long int size = sizeof(HistogramChannelData);
+		if (max >= min) {
+			size += sizeof(uint32_t) * ((uint32_t)max - (uint32_t)min  + 1);
+		}
+		return size;
+	}
+
+	static HistogramChannelData * HistogramChannelData::resample(const HistogramChannelData  *rcs, int shift, std::function<void* (long int)> allocator);
 };
 
 struct HistogramStorage {
@@ -64,10 +73,7 @@ struct HistogramStorage {
 		size += sizeof(HistogramStorage);
 		for(int i = 0 ; i < channelCount; ++i)
 		{
-			size += sizeof(HistogramChannelData);
-			if (max[i] >= min[i]) {
-				size += sizeof(uint32_t) * ((uint32_t)max[i] - (uint32_t)min[i]  + 1);
-			}
+			size += HistogramChannelData::requiredStorage(min[i], max[i]);
 		}
 		return size;
 	}

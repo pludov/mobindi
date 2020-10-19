@@ -92,11 +92,17 @@ namespace SharedCache {
 
 			void collectRawContents(std::list<RawContent *> & into);
 
-			bool asJsonResult(Entry * e, nlohmann::json& j) const;
+			bool asJsonResult(Entry * e, nlohmann::json& j, const nlohmann::json & options) const;
 		};
 
 		void to_json(nlohmann::json&j, const Histogram & i);
 		void from_json(const nlohmann::json& j, Histogram & p);
+
+		struct HistogramOptions {
+			int maxBits = -1;
+		};
+
+		void from_json(const nlohmann::json& j, HistogramOptions & p);
 
 		struct StarOccurence {
 			double x, y;
@@ -162,7 +168,7 @@ namespace SharedCache {
 
 			void collectRawContents(std::list<RawContent *> & into);
 
-			bool asJsonResult(Entry * e, nlohmann::json & j) const;
+			bool asJsonResult(Entry * e, nlohmann::json & j, const nlohmann::json & options) const;
 		};
 
 		void to_json(nlohmann::json&j, const ContentRequest & i);

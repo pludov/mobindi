@@ -2,6 +2,7 @@
 #define SHAREDCACHESERVERCLIENT_H_
 
 #include <chrono>
+#include <iostream>
 #include "SharedCacheServer.h"
 
 struct pollfd;

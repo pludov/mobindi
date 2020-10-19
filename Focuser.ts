@@ -357,7 +357,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             const moveFocuserPromise = done(nextStep()) ? undefined : moveFocuser(nextStep());
             try {
                 const starFieldResponse = await this.imageProcessor.compute(ct, {
-                    starField: { source: { 
+                    starField: { source: {
                         path: shootResult.path,
                         streamId: "",
                     }}

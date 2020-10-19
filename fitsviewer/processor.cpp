@@ -18,14 +18,21 @@ using nlohmann::json;
 
 
 int main (int argc, char ** argv) {
-    json request;
-    std::cin >> request;
+    json rawRequest;
+	json options;
+    std::cin >> rawRequest;
+
+	if (rawRequest.contains("options")) {
+		options = rawRequest["options"];
+		rawRequest.erase("options");
+	} else {
+		options = nullptr;
+	}
+
+	SharedCache::Messages::ContentRequest contentRequest = rawRequest;
 
 	// 128Mo cache
 	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
-
-
-	SharedCache::Messages::ContentRequest contentRequest = request;
 
 
 	SharedCache::EntryRef result(cache->getEntry(contentRequest));
@@ -34,7 +41,7 @@ int main (int argc, char ** argv) {
 		exit(1);
 	}
 	json prettyResult;
-	if (((argc == 2) && (!strcmp(argv[1], "-r"))) || !contentRequest.asJsonResult(result, prettyResult)) {
+	if (((argc == 2) && (!strcmp(argv[1], "-r"))) || !contentRequest.asJsonResult(result, prettyResult, options)) {
 		write(1, result->data(), result->size());
 	} else {
 		std::string t = prettyResult.dump();

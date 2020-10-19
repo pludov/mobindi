@@ -50,6 +50,12 @@ namespace SharedCache {
 			p.source = j.at("source").get<RawContent>();
 		}
 
+		void from_json(const nlohmann::json& j, HistogramOptions & p) {
+			if (j.find("maxBits") != j.end()) {
+				p.maxBits = j.at("maxBits").get<int>();
+			}
+		}
+
 		void to_json(nlohmann::json&j, const StarField & i)
 		{
 			j = nlohmann::json::object();

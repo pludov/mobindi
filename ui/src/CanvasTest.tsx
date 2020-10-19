@@ -156,10 +156,15 @@ export default class CanvasTest extends React.PureComponent<Props, State> {
             const e = await BackendRequest.ImageProcessor(
                 CancellationToken.CONTINUE,
                 {
-                    histogram: { "source": {
-                        path: this.props.path || "",
-                        streamId: this.props.streamId || "",
-                    }}
+                    histogram: {
+                        "source": {
+                            path: this.props.path || "",
+                            streamId: this.props.streamId || "",
+                        },
+                        options: {
+                            maxBits: 8,
+                        }
+                    }
                 }
             );
 

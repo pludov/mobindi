@@ -27,11 +27,21 @@ export default class ImageProcessor
                 payload: Pick<ProcessorTypes.Request, K>
             ):Promise<ProcessorTypes.Result[K]>=>
     {
+        // Options are within up to there, to allow TS typing.
+        const payloadWithTopLevelOptions:any = {...payload};
+        for(const o of Object.keys(payload)) {
+            if (Object.prototype.hasOwnProperty.call(payloadWithTopLevelOptions[o], "options")) {
+                const {options, ...rest} = payloadWithTopLevelOptions[o];
+                payloadWithTopLevelOptions[o] = rest;
+                payloadWithTopLevelOptions.options = options;
+            }
+        }
+
         const result = await Pipe(ct,
             {
                 command: ["./fitsviewer/processor"]
             },
-            new MemoryStreams.ReadableStream(JSON.stringify(payload))
+            new MemoryStreams.ReadableStream(JSON.stringify(payloadWithTopLevelOptions))
         );
 
         return JSON.parse(result);

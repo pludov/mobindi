@@ -49,24 +49,27 @@ export type ProcessorHistogramRequest = {
     source: ProcessorContentRequest;
 }
 
+export type ProcessorHistogramOptions = {maxBits: number};
 export type ProcessorHistogramChannel = {min: number, max:number, pixcount: number, bitpix: number, identifier: string, data: Array<number>};
 export type ProcessorHistogramResult = Array<ProcessorHistogramChannel>;
 
 export type ProcessorAstrometryResult = AstrometryResult;
 
-export type Order<Req, Res> = {
+export type Order<Req, Res, Options> = {
     req: Req,
     res: Res,
+    options: Options,
 };
 
-type OrderRequest<ORDER> = ORDER extends Order<infer Req, any> ? Req : never;
-type OrderResult<ORDER> = ORDER extends Order<any, infer Res> ? Res : never;
+type OrderRequest<ORDER> = ORDER extends Order<infer Req, any, any> ? Req : never;
+type OrderOptions<ORDER> = ORDER extends Order<any, any, infer Options> ? Options : never;
+type OrderResult<ORDER> = ORDER extends Order<any, infer Res, any> ? Res : never;
 
-export type Astrometry = Order<ProcessorAstrometryRequest, ProcessorAstrometryResult>;
+export type Astrometry = Order<ProcessorAstrometryRequest, ProcessorAstrometryResult, void>;
 
-export type StarField = Order<ProcessorStarFieldRequest, ProcessorStarFieldResult>;
+export type StarField = Order<ProcessorStarFieldRequest, ProcessorStarFieldResult, void>;
 
-export type Histogram = Order<ProcessorHistogramRequest, ProcessorHistogramResult>;
+export type Histogram = Order<ProcessorHistogramRequest, ProcessorHistogramResult, ProcessorHistogramOptions>;
 
 type Registry = {
     astrometry: Astrometry,
@@ -75,7 +78,7 @@ type Registry = {
 }
 
 export type Request = {
-    [k in keyof Registry]: OrderRequest<Registry[k]>
+    [k in keyof Registry]: OrderRequest<Registry[k]> | { options?: OrderOptions<Registry[k]> }
 }
 
 export type Result = {

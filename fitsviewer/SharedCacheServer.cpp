@@ -19,6 +19,8 @@
 #include <signal.h>
 #include <assert.h>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <dirent.h>
 
 #include <chrono>
@@ -643,9 +645,9 @@ void Messages::ContentRequest::produce(Entry * entry)
 
 }
 
-bool Messages::ContentRequest::asJsonResult(Entry * e, nlohmann::json & j) const {
+bool Messages::ContentRequest::asJsonResult(Entry * e, nlohmann::json & j, const nlohmann::json & options) const {
 	if (histogram) {
-		return histogram->asJsonResult(e, j);
+		return histogram->asJsonResult(e, j, options);
 	}
 	return false;
 }
