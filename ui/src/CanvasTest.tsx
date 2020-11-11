@@ -109,9 +109,10 @@ function renderHistogramData(value: ProcessorHistogramChannel, height:number):Pr
         lastCumul = cumul;
     }
 
-    const scale = max ? (height - 1) / max : 0;
+    const scaleTo1 = max ? 1 / max : 0;
+    const scale = (height - 1);
     for(let i = 0; i < 256; ++i) {
-        yValues[i] = (height - 1) - yValues[i] * scale;
+        yValues[i] = (height - 1) - Math.pow( yValues[i] * scaleTo1, 0.3) * scale;
 
     }
 
