@@ -10,7 +10,7 @@ import FWHMDisplayer from './FWHMDisplayer';
 import BaseApp from 'src/BaseApp';
 import ContextMenuCross from './ContextMenuCross';
 import ReactResizeDetector from 'react-resize-detector';
-import CanvasTest from '../CanvasTest';
+import Histogram from './Histogram';
 import FloatContainer from '../FloatContainer';
 import FloatWindow from '../FloatWindow';
 import FloatWindowMover from '../FloatWindowMover';
@@ -1056,12 +1056,13 @@ class FitsViewer extends React.PureComponent<Props, State> {
                     {this.state.histogramWindow
                         ?
                             <FloatWindow key="fits_view_overlay">
-                                <FloatWindowMover>move here</FloatWindowMover>
-                                <CanvasTest
-                                    path={this.props.path}
-                                    streamId={this.props.streamId}
-                                    streamSerial={this.props.streamSerial}
-                                    />
+                                <FloatWindowMover>
+                                    <Histogram
+                                        path={this.props.path}
+                                        streamId={this.props.streamId}
+                                        streamSerial={this.props.streamSerial}
+                                        />
+                                </FloatWindowMover>
                             </FloatWindow>
                         :
                             null

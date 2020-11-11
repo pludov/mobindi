@@ -16,7 +16,6 @@ import DeviceSettingsBton from './DeviceSettingsBton';
 import './CameraView.css'
 import LiveFilterSelector from './LiveFilterSelector';
 import { StreamSize } from '@bo/BackOfficeStatus';
-import CanvasTest from './CanvasTest';
 
 type InputProps = {
 }

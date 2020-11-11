@@ -198,7 +198,6 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
                 return (
                     <FloatContainer.Context.Provider value={this.childContext[wid]} key={wid}>
                         <div style={{pointerEvents: "auto", display: "inline-block", position: "absolute"}} ref={this.childRefs[wid]}>
-                            <div>Title</div>
                             {w}
                         </div>
                     </FloatContainer.Context.Provider>
