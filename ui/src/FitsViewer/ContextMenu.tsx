@@ -2,7 +2,7 @@ import React, { Component, PureComponent, CSSProperties, RefObject} from 'react'
 import { ContextMenuEntry, LevelId } from './FitsViewer';
 
 export type Props = {
-    displaySetting:(s:LevelId|"fwhm"|null)=>void;
+    displaySetting:(s:LevelId|"fwhm"|"histogram"|null)=>void;
     contextMenu?: ContextMenuEntry[];
     x: number;
     y: number;
@@ -20,7 +20,7 @@ export default class ContextMenu extends PureComponent<Props> {
     showMedium= () => this.props.displaySetting('medium');
     showHigh= () => this.props.displaySetting('high');
     showFwhm= () => this.props.displaySetting('fwhm');
-
+    showHistogram = () => this.props.displaySetting('histogram');
     adjust() {
         // ensure that the menu does not go outside the container
         const item:HTMLDivElement|null = this.itemRef.current;
@@ -82,6 +82,7 @@ export default class ContextMenu extends PureComponent<Props> {
                 <div className="Item" onClick={this.showLow}>Low level</div>
                 <div className="Item" onClick={this.showMedium}>Median</div>
                 <div className="Item" onClick={this.showHigh}>High level</div>
+                <div className="Item" onClick={this.showHistogram}>Histogram</div>
                 <div className="Item" onClick={this.showFwhm}>FWHM</div>
             </div>);
     }

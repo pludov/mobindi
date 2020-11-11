@@ -10,6 +10,10 @@ import FWHMDisplayer from './FWHMDisplayer';
 import BaseApp from 'src/BaseApp';
 import ContextMenuCross from './ContextMenuCross';
 import ReactResizeDetector from 'react-resize-detector';
+import CanvasTest from '../CanvasTest';
+import FloatContainer from '../FloatContainer';
+import FloatWindow from '../FloatWindow';
+import FloatWindowMover from '../FloatWindowMover';
 
 export type LevelId = "low"|"medium"|"high";
 
@@ -795,6 +799,7 @@ export type Props = {
 export type State = {
     contextmenu: {x:number, y:number}|null;
     histogramView: null|LevelId;
+    histogramWindow: boolean;
     fwhm: boolean;
 };
 
@@ -873,10 +878,9 @@ class FitsViewer extends React.PureComponent<Props, State> {
             contextmenu: null,
             histogramView: null,
             fwhm: false,
+            histogramWindow: false,
         };
-
-        this.displaySetting = this.displaySetting.bind(this);
-        this.updateHisto = this.updateHisto.bind(this);
+        // FIXME: persist state : histogram is visible
     }
 
     componentDidUpdate(prevProps: Props) {
@@ -942,8 +946,10 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.props.onViewSettingsChange(state);
     }
 
-    private readonly displaySetting=(which: LevelId|"fwhm"|null)=>{
-        if (which === 'fwhm') {
+    private readonly displaySetting=(which: LevelId|"fwhm"|"histogram"|null)=>{
+        if (which === "histogram") {
+            this.setState({contextmenu: null, histogramWindow: !this.state.histogramWindow});
+        } else if (which === 'fwhm') {
             this.setState({contextmenu: null, histogramView: null, fwhm: true});
         } else {
             this.setState({contextmenu: null, histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
@@ -967,7 +973,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
         return propValue as FullState;
     }
 
-    updateHisto(which: string, v:number) {
+    updateHisto = (which: string, v:number)=>{
         var newViewSettings = this.getViewSettingsCopy();
         newViewSettings.levels[which] = v;
 
@@ -1045,6 +1051,25 @@ class FitsViewer extends React.PureComponent<Props, State> {
                     {histogramView}
                 </div>
                 {visor}
+
+                <FloatContainer>
+                    {this.state.histogramWindow
+                        ?
+                            <FloatWindow key="fits_view_overlay">
+                                <FloatWindowMover>move here</FloatWindowMover>
+                                <CanvasTest
+                                    path={this.props.path}
+                                    streamId={this.props.streamId}
+                                    streamSerial={this.props.streamSerial}
+                                    />
+                            </FloatWindow>
+                        :
+                            null
+                    }
+
+
+                </FloatContainer>
+
                 {contextMenu}
             </div>);
     }
