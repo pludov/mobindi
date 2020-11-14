@@ -1,6 +1,14 @@
 import { AstrometryResult } from "./ProcessorTypes";
 import { IndiMessage } from "./IndiTypes";
 
+export type ImagingSetup = {
+    cameraDevice: null|string;
+    focuserDevice: null|string;
+    filterWheelDevice: null|string;
+
+    availableFilters: string[];
+}
+
 export type CameraDeviceSettings = {
     prefix?:string;
     type?:string;
@@ -507,6 +515,12 @@ export type PhdStatus = PhdGuideStats & {
     streamingCamera: string|null;
 };
 
+export type ImagingSetupStatus = {
+    configuration: {
+        byuuid: {[uuid:string]:ImagingSetup}
+    }
+};
+
 export type ToolConfig = {
     desc?: string;
     hidden?: boolean;
@@ -540,6 +554,7 @@ export type BackofficeStatus = {
     apps: {[appId:string]: {enabled:boolean,position:number}};
     indiManager: IndiManagerStatus;
     camera: CameraStatus;
+    imagingSetup: ImagingSetupStatus;
     sequence: SequenceStatus;
     filterWheel: FilterWheelStatus;
     astrometry: AstrometryStatus;

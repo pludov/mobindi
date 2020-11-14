@@ -21,6 +21,8 @@ import IndiManager from './IndiManager';
 import Camera from './Camera';
 import Focuser from './Focuser';
 import ImageProcessor from './ImageProcessor';
+import ImagingSetupManager from './ImagingSetupManager';
+
 
 import JsonProxy from './JsonProxy';
 import TriggerExecuter from './TriggerExecuter';
@@ -294,6 +296,8 @@ function init() {
 
         context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
+        context.imagingSetupManager = new ImagingSetupManager(app, appStateManager, context as AppContext);
+
         apiRoot = {
             notification: context.notification.getAPI(),
             focuser: context.focuser.getAPI(),
@@ -305,8 +309,9 @@ function init() {
             sequence: context.sequenceManager.getAPI(),
             imageProcessor: context.imageProcessor.getAPI(),
             phd: context.phd.getAPI(),
+            imagingSetupManager: context.imagingSetupManager.getAPI(),
         };
-
+        
         initWss(server);
 
         context.notification!.notify("Mobindi started");
