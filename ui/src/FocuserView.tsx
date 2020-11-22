@@ -20,7 +20,6 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FocuserView.css';
 import Panel from './Panel';
-import LiveFilterSelector from './LiveFilterSelector';
 
 const logger = Log.logger(__filename);
 
@@ -368,7 +367,8 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                             ?
                             <>
                                 <div>
-                                    <LiveFilterSelector.forActivePath activePath="$.backend.focuser.selectedCamera"/>
+                                    {/* TODO : broken until ImagingSetup */}
+                                    {/* <LiveFilterSelector.forActivePath activePath="$.backend.focuser.selectedCamera"/> */}
                                 </div>
                                 <div>
                                     Focuser: <FocuserSelector setValue={this.setFocuser} helpKey={UnmappedFocuserView.focuserSelectorHelp}/>
