@@ -3,7 +3,7 @@ import CancellationToken from 'cancellationtoken';
 import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
 import Log from '../shared/Log';
-import { SequenceStep } from '@bo/BackOfficeStatus';
+import { SequenceStep, ImagingSetup } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
@@ -22,7 +22,8 @@ type InputProps = {
     sequenceUid: string;
     sequenceStepUidPath: string;
     parameter: ParamDesc & {id: keyof SequenceStep};
-    camera: string;
+    imagingSetup: ImagingSetup,
+    imagingSetupId: string,
     onClose: ()=>(void);
     onSplit: (removeFromParent: string, p:ForcedParams)=>(void);
 }

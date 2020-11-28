@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Sequence } from '@bo/BackOfficeStatus';
+import { Sequence, ImagingSetup } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
 import * as Help from '../Help';
@@ -14,6 +14,9 @@ import * as SequenceStepParameter from "./SequenceStepParameter";
 import SequenceStepEdit from "./SequenceStepEdit";
 import CancellationToken from 'cancellationtoken';
 import SequenceWarning from './SequenceWarning';
+import ImagingSetupSelector from '@src/ImagingSetupSelector';
+import EditableImagingSetupSelector from '@src/EditableImagingSetupSelector';
+
 
 type InputProps = {
     currentPath: string;
@@ -24,6 +27,8 @@ type MappedProps = {
     displayable: boolean;
     uid?: string;
     details?: Sequence;
+    imagingSetupId?: string|null;
+    imagingSetup?: ImagingSetup;
     cameraCapacity: SequenceStepParameter.CameraCapacity;
 }
 
@@ -75,26 +80,29 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 </div>
                 <SequenceWarning uid={this.props.uid}/>
                 <div className="IndiProperty">
-                        Camera:
-                        <CameraSelector
+                        Imaging setup:
+                        <EditableImagingSetupSelector
                             getValue={(store)=> {
-                                    const v = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid)?.camera
+                                    const v = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid)?.imagingSetup
                                     return v !== undefined ? v : null;
                             }}
-                            setValue={(e)=>this.updateSequenceParam('camera', e)}
-                        />
-                        <DeviceConnectBton.forActivePath
-                            activePath={"$.backend.sequence.sequences.byuuid[" + JSON.stringify(this.props.uid) +"].camera"}
+                            setValue={(e)=>this.updateSequenceParam('imagingSetup', e)}
                         />
                 </div>
 
-                <SequenceStepEdit
-                        allowRemove={false}
-                        camera={this.props.details.camera || ""}
-                        cameraCapacity={this.props.cameraCapacity}
-                        sequenceUid={this.props.uid}
-                        sequenceStepUidPath="[]"
-                    />
+                {this.props.imagingSetup && this.props.imagingSetupId
+                    ?
+                        <SequenceStepEdit
+                                allowRemove={false}
+                                imagingSetup={this.props.imagingSetup}
+                                imagingSetupId={this.props.imagingSetupId}
+                                cameraCapacity={this.props.cameraCapacity}
+                                sequenceUid={this.props.uid}
+                                sequenceStepUidPath="[]"
+                            />
+                    :
+                        null
+                }
 
                 <input type='button' value='Close' onClick={this.props.onClose} {...SequenceEditDialog.closeBtonHelp.dom()}/>
             </div>
@@ -118,11 +126,25 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                     cameraCapacity: {},
                 };
             }
+            const imagingSetupId = details.imagingSetup;
+            const imagingSetup = Utils.getOwnProp(store.backend.imagingSetup?.configuration.byuuid, imagingSetupId);
+            if (imagingSetup === undefined) {
+                return {
+                    displayable: true,
+                    details,
+                    uid: selected,
+                    imagingSetupId,
+                    cameraCapacity: {},
+                };
+            }
+
             return {
                 displayable: true,
                 uid: selected,
                 details: details,
-                cameraCapacity: details.camera !== null ? cameraCapacitySelector(store, details.camera) : {},
+                imagingSetup,
+                imagingSetupId,
+                cameraCapacity: imagingSetup.cameraDevice !== null ? cameraCapacitySelector(store, imagingSetup.cameraDevice) : {},
             };
         }
     }
