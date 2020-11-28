@@ -4,7 +4,7 @@ import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc'
 import uuid from 'uuid';
 
 
-import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
+import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem, ImagingSetup } from '@bo/BackOfficeStatus';
 import Log from '../shared/Log';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
@@ -36,7 +36,8 @@ type InputProps = {
     sequenceUid: string;
     sequenceStepUidPath: string;
     allowRemove: boolean;
-    camera: string;
+    imagingSetupId: string;
+    imagingSetup: ImagingSetup;
     cameraCapacity: CameraCapacity;
 
     // Force a new parameter
@@ -75,7 +76,8 @@ type State = {
 };
 
 const SortableItem = SortableElement<{
-                        camera:string,
+                        imagingSetupId: string;
+                        imagingSetup: ImagingSetup;
                         cameraCapacity: CameraCapacity,
                         sequenceUid: string,
                         parentPath: string,
@@ -84,10 +86,11 @@ const SortableItem = SortableElement<{
                         forcedParamUid?: string,
                         itemRef?: React.RefObject<any>,
                         itemFocusRef?: React.RefObject<any>,
-        }>(({camera, cameraCapacity, sequenceUid, sequenceStepUid, parentPath, forcedParam, forcedParamUid, itemRef, itemFocusRef})=> {
+        }>(({imagingSetupId, imagingSetup, cameraCapacity, sequenceUid, sequenceStepUid, parentPath, forcedParam, forcedParamUid, itemRef, itemFocusRef})=> {
     return (<li className="SequenceStepMovableBlock">
                 <MappedSequenceStepEdit
-                        camera={camera}
+                        imagingSetup={imagingSetup}
+                        imagingSetupId={imagingSetupId}
                         cameraCapacity={cameraCapacity}
                         sequenceUid={sequenceUid}
                         sequenceStepUidPath={JSON.stringify(JSON.parse(parentPath).concat([sequenceStepUid]))}
@@ -101,7 +104,8 @@ const SortableItem = SortableElement<{
 
 const SortableList = SortableContainer<{
                         items: string[],
-                        camera:string,
+                        imagingSetupId: string;
+                        imagingSetup: ImagingSetup;
                         cameraCapacity: CameraCapacity,
                         sequenceUid:string,
                         parentPath: string,
@@ -109,7 +113,7 @@ const SortableList = SortableContainer<{
                         lastNewItem?: string,
                         lastNewItemRef?: React.RefObject<any>,
                         lastNewItemFocusRef?: React.RefObject<any>,
-        }>(({items, camera, cameraCapacity, sequenceUid, parentPath, forcedParams, lastNewItem, lastNewItemRef, lastNewItemFocusRef}) => {
+        }>(({items, imagingSetupId, imagingSetup, cameraCapacity, sequenceUid, parentPath, forcedParams, lastNewItem, lastNewItemRef, lastNewItemFocusRef}) => {
     return (
       <ul className="SequenceStepContainer">
         {items.map((sequenceStepUid: string, index:number) => {
@@ -121,7 +125,8 @@ const SortableList = SortableContainer<{
             return <SortableItem
                     key={`item-${sequenceStepUid}`}
                     index={index}
-                    camera={camera}
+                    imagingSetup={imagingSetup}
+                    imagingSetupId={imagingSetupId}
                     cameraCapacity={cameraCapacity}
                     sequenceUid={sequenceUid}
                     parentPath={parentPath}
@@ -482,7 +487,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     renderType=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraFrameTypeEditor
-                        device={this.props.camera}
+                        device={this.props.imagingSetup.cameraDevice || undefined}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.type'}
                         setValue={(e:string)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('type', e, foreachUuid), this)}
@@ -491,7 +496,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     renderExposure=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraExpEditor
-                        device={this.props.camera}
+                        device={this.props.imagingSetup.cameraDevice || undefined}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.exposure'}
                         setValue={(e:number)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('exposure', e, foreachUuid), this)}
@@ -500,7 +505,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     renderIso=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraIsoEditor
-                        device={this.props.camera}
+                        device={this.props.imagingSetup.cameraDevice || undefined}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.iso'}
                         setValue={(e:string)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('iso', e, foreachUuid), this)}
@@ -509,7 +514,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     renderBin=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
         return <CameraBinEditor
-                        device={this.props.camera}
+                        device={this.props.imagingSetup.cameraDevice || undefined}
                         focusRef={focusRef}
                         valuePath={settingsPath + '.bin'}
                         setValue={(e:number)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('bin', e, foreachUuid), this)}
@@ -517,18 +522,17 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     }
 
     renderFilter=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
-        throw new Error("Filter rendering broken until convertion to ImagingSetup");
-        // return <FilterSelector
-        //                 deviceId={this.props.camera}
-        //                 focusRef={focusRef}
-        //                 setFilter={async(filterWheelDeviceId:string|null, filterId: string|null)=>{
-        //                     if (filterId === null && filterWheelDeviceId !== null) {
-        //                         return;
-        //                     }
-        //                     await this.updateIterableSequenceStepParam('filter', filterId, foreachUuid);
-        //                 }}
-        //                 getFilter={(store)=>atPath(store, settingsPath + ".filter") || null}
-        //             />
+        return <FilterSelector
+                        filterWheelDevice={this.props.imagingSetup.filterWheelDevice || undefined}
+                        focusRef={focusRef}
+                        setFilter={async(filterWheelDeviceId:string|null, filterId: string|null)=>{
+                            if (filterId === null && filterWheelDeviceId !== null) {
+                                return;
+                            }
+                            await this.updateIterableSequenceStepParam('filter', filterId, foreachUuid);
+                        }}
+                        getFilter={(store)=>atPath(store, settingsPath + ".filter") || null}
+                    />
     }
 
     private ditheringDetailsModal = React.createRef<Modal>();
@@ -714,7 +718,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         return <div ref={this.props.bodyRef}>
             {this.state.parameterSplit !== undefined
                 ? <SequenceStepParameterSplitter
-                        camera={this.props.camera}
+                        imagingSetup={this.props.imagingSetup}
+                        imagingSetupId={this.props.imagingSetupId}
                         sequenceUid={this.props.sequenceUid}
                         sequenceStepUidPath={this.props.sequenceStepUidPath}
                         parameter={this.state.parameterSplit}
@@ -751,7 +756,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     sequenceUid={this.props.sequenceUid}
                     forcedParams={this.state.forcedChilds||{}}
                     items={this.state.overridenChildList||details.childs.list}
-                    camera={this.props.camera}
+                    imagingSetup={this.props.imagingSetup}
+                    imagingSetupId={this.props.imagingSetupId}
                     cameraCapacity={this.props.cameraCapacity}
                     parentPath={this.props.sequenceStepUidPath}
                     onSortEnd={this.moveSteps}

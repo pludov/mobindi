@@ -67,7 +67,7 @@ import * as Store from './Store';
 
 type InputProps = {
   // name of the device (indi id)
-  device: string;
+  device: string|undefined;
   // Location of the value in the store
   valuePath: string;
   // Function that build a promises
@@ -99,7 +99,7 @@ function IsoTitle(x:string) {
 const cameraIsoEditorHelp = Help.key("ISO", "Select the ISO value for the frame exposure");
 
 const CameraIsoEditor = connect((store:Store.Content, ownProps:InputProps) => {
-    const desc = IndiUtils.getDeviceDesc(store, ownProps.device)?.CCD_ISO;
+    const desc = ownProps.device === undefined ? undefined : IndiUtils.getDeviceDesc(store, ownProps.device)?.CCD_ISO;
 
     var root = ({
         placeholder: 'ISO...',
