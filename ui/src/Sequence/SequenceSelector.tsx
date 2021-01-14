@@ -38,7 +38,7 @@ const sequenceSelectorHelp = Help.key("Sequence selector", "Select the sequence 
 const SequenceSelector = connect(()=>{
     const sequenceSelectorBaseProps = {
         placeholder: 'Sequence...',
-        nullAlwaysPossible: true,
+        nullAlwaysPossible: false,
         getTitle: (id:string, props:any)=>(id && props.definitions[id] ? props.definitions[id].title : null),
         setValue: setCurrentSequence,
         helpKey: sequenceSelectorHelp,
@@ -48,7 +48,7 @@ const SequenceSelector = connect(()=>{
             (store: Store.Content, ownProps: OwnProps)=>ownProps.onCreated,
             (onCreated)=> [{
                 id:'new',
-                title:'New',
+                title:'✏️ New',
                 run: ()=>newSequence(onCreated)
             }]);
 
