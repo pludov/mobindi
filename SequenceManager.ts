@@ -4,7 +4,7 @@ const TraceError = require('trace-error');
 import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
@@ -59,8 +59,10 @@ export default class SequenceManager
     lastFwhm: number|undefined;
     lastStarCount: number|undefined;
     lastImageTime: number = 0;
+    lastGuideStats: PhdGuideStats|undefined;
     get indiManager() { return this.context.indiManager };
     get imageProcessor() { return this.context.imageProcessor };
+    get phd() { return this.context.phd };
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().sequence = {
@@ -363,7 +365,7 @@ export default class SequenceManager
             return rslt;
         }
 
-        const computeFwhm = async (shootResult: BackOfficeAPI.ShootResult)=> {
+        const computeStats = async (shootResult: BackOfficeAPI.ShootResult, guideSteps: Array<PhdGuideStep>)=> {
             ct.throwIfCancelled();
             console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
             const starFieldResponse = await this.imageProcessor.compute(ct, {
@@ -389,6 +391,8 @@ export default class SequenceManager
             this.lastFwhm = fwhm;
             this.lastStarCount = starCount;
             this.lastImageTime = Date.now();
+
+            this.lastGuideStats = this.phd.computeGuideStats(guideSteps);
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
@@ -491,7 +495,16 @@ export default class SequenceManager
 
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;
                 ct.throwIfCancelled();
-                const shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
+
+                const guideSteps:Array<PhdGuideStep> = [];
+                const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
+
+                let shootResult;
+                try {
+                    shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
+                } finally {
+                    unregisterPhd();
+                }
                 
                 progress.imagePosition++;
                 progress.timeSpent += param.exposure;
@@ -500,7 +513,7 @@ export default class SequenceManager
                 sequenceLogic.finish(currentExecutionStatus);
 
                 if (param.type === 'FRAME_LIGHT') {
-                    computeFwhm(shootResult);
+                    computeStats(shootResult, guideSteps);
                 }
             }
         }
@@ -625,6 +638,49 @@ export default class SequenceManager
         });
 
         ret.push({
+            name: 'sequence_guiding_rms',
+            help: 'rms error for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.RADECDistanceRMS) : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_guiding_rms_ra',
+            help: 'rms error (ra) for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.RADistanceRMS) : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_guiding_rms_dec',
+            help: 'rms error (dec) for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.DECDistanceRMS) : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_guiding_peak',
+            help: 'peak error for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.RADECDistancePeak) : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_guiding_peak_ra',
+            help: 'peak error (ra) for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.RADistancePeak) : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_guiding_peak_dec',
+            help: 'rms error (peak) for the last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? nullToUndefined(this.lastGuideStats?.DECDistancePeak) : undefined,
+        });
+
+
+        ret.push({
             name: 'sequence_star_count',
             help: 'number of stars detected in LIGHT image from sequence',
             type: 'gauge',
@@ -677,5 +733,14 @@ export default class SequenceManager
             resetSequence: this.resetSequence,
             dropSequence: this.dropSequence,
         }
+    }
+}
+
+
+function nullToUndefined(e:number|null|undefined):number|undefined {
+    if (e === null) {
+        return undefined;
+    } else {
+        return e;
     }
 }

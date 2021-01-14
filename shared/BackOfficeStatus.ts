@@ -462,7 +462,16 @@ export type PhdServerConfiguration = {
     [id: string]: PhdServerChildConfiguration;
 };
 
-export type PhdStatus = {
+export type PhdGuideStats = {
+    RADistanceRMS:number|null;
+    DECDistanceRMS:number|null;
+    RADECDistanceRMS:number|null;
+    RADistancePeak: number|null;
+    DECDistancePeak: number|null;
+    RADECDistancePeak: number|null;
+}
+
+export type PhdStatus = PhdGuideStats & {
     phd_started: boolean;
     connected: boolean;
     AppState: PhdAppState;
@@ -472,12 +481,6 @@ export type PhdStatus = {
     guideSteps: {[id:string]: PhdGuideStep};
     configuration: PhdConfiguration;
     firstStepOfRun: string;
-    RADistanceRMS:number|null;
-    DECDistanceRMS:number|null;
-    RADECDistanceRMS:number|null;
-    RADistancePeak: number|null;
-    DECDistancePeak: number|null;
-    RADECDistancePeak: number|null;
     star: PhdStar|null;
     currentEquipment: {
         camera?: PhdEquipmentStatus;
