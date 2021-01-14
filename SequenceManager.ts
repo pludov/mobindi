@@ -60,6 +60,7 @@ export default class SequenceManager
     lastStarCount: number|undefined;
     lastImageTime: number = 0;
     lastGuideStats: PhdGuideStats|undefined;
+    lastBackgroundLevel: number|undefined;
     get indiManager() { return this.context.indiManager };
     get imageProcessor() { return this.context.imageProcessor };
     get phd() { return this.context.phd };
@@ -375,7 +376,7 @@ export default class SequenceManager
                 }}
             });
             
-            // FIXME: mutualise that somwhere
+            // FIXME: mutualise that somewhere
             const starField = starFieldResponse.stars;
             console.log('StarField', JSON.stringify(starField, null, 2));
             let fwhm, starCount;
@@ -388,11 +389,29 @@ export default class SequenceManager
                 fwhm /= starField.length;
             }
 
+            ct.throwIfCancelled();
+            const histogram = await this.imageProcessor.compute(ct, {
+                    histogram: { source: {
+                        path: shootResult.path,
+                        streamId: "",
+                    },
+                    options: {
+                        maxBits: 10
+                    }
+                },
+            });
+
+            ct.throwIfCancelled();
+
+            const channelBlacks = histogram.map(ch=>this.imageProcessor.getHistgramAduLevel(ch, 0.2));
+
             this.lastFwhm = fwhm;
             this.lastStarCount = starCount;
             this.lastImageTime = Date.now();
 
             this.lastGuideStats = this.phd.computeGuideStats(guideSteps);
+            this.lastBackgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
+            console.log('Statistic updated :', this.lastGuideStats, this.lastBackgroundLevel);
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
@@ -635,6 +654,13 @@ export default class SequenceManager
             help: 'last fwhm of LIGHT image from sequence',
             type: 'gauge',
             value: alive ? this.lastFwhm : undefined,
+        });
+
+        ret.push({
+            name: 'sequence_background_level',
+            help: 'adu level (0-1) of black (20% histogram) - of last LIGHT image from sequence',
+            type: 'gauge',
+            value: alive ? this.lastBackgroundLevel: undefined,
         });
 
         ret.push({
