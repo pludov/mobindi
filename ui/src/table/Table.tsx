@@ -20,6 +20,7 @@ export type FieldDefinition = {
 type InputProps = {
     statePath: string;
     currentPath: string;
+    currentAutoSelectSerialPath: string;
     fields: {[id: string]: FieldDefinition},
     defaultHeader: Array<HeaderItem>,
     // store => [items]
@@ -33,6 +34,7 @@ type MappedProps = {
     itemList: Array<string>;
     header: Array<HeaderItem>;
     current: string;
+    currentAutoSelectSerial: number;
 }
 
 type Props = InputProps & MappedProps;
@@ -51,13 +53,26 @@ class Table extends React.PureComponent<Props> {
     private selected = React.createRef<UnmappedTableEntry>();
 
     private header = React.createRef<HTMLTableElement>();
+    private lastScrollSerial?:number = undefined;
 
-    componentDidMount() {
-        const selected = this.selected.current;
-        if (selected) {
-            selected.scrollIn();
+    scrollIfRequired() {
+        if (this.lastScrollSerial === undefined || this.lastScrollSerial < this.props.currentAutoSelectSerial) {
+            const selected = this.selected.current;
+            if (selected) {
+                selected.scrollIn();
+                this.lastScrollSerial = (this.props.currentAutoSelectSerial||0);
+            }
         }
     }
+
+    componentDidMount() {
+        this.scrollIfRequired();
+    }
+
+    componentDidUpdate() {
+        this.scrollIfRequired();
+    }
+
     onParentResize=(width:number, height:number)=> {
         this.header.current!.style.width = width + "px";
     }
@@ -120,7 +135,8 @@ class Table extends React.PureComponent<Props> {
         return {
             itemList: ownProps.getItemList(store),
             header: firstDefined(atPath(store, ownProps.statePath + ".header"), ownProps.defaultHeader),
-            current: atPath(store, ownProps.currentPath)
+            current: atPath(store, ownProps.currentPath),
+            currentAutoSelectSerial : ownProps.currentAutoSelectSerialPath ? atPath(store, ownProps.currentAutoSelectSerialPath) : 0,
         };
     }
 }

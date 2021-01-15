@@ -96,6 +96,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     getItemList={this.getItemList}
                     getItem={(store:any,uid:string)=>(atPath(store, '$.backend.camera.images.byuuid')[uid])}
                     currentPath='$.sequence.currentImage'
+                    currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
                     onItemClick={this.setCurrentImage}
                 />
             </div>
