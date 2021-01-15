@@ -22,6 +22,7 @@ export type MappedProps = {
 export type Props = MappedProps & InputProps;
 
 class TableEntry extends React.PureComponent<Props> {
+    private tr = React.createRef<HTMLTableRowElement>();
 
     constructor(props:Props) {
         super(props);
@@ -42,12 +43,18 @@ class TableEntry extends React.PureComponent<Props> {
             content.push(<td key={o.id}><ScrollableText>{details}</ScrollableText>
             </td>)
         }
-        return <tr onClick={this.onClick} className={this.props.selected?"selected" : ""}>{content}</tr>
+        return <tr onClick={this.onClick} className={this.props.selected?"selected" : ""} ref={this.tr}>{content}</tr>
     }
 
     onClick=(e:React.MouseEvent<HTMLTableRowElement>)=>{
-        console.log('WTF clicked', e);
         this.props.onItemClick(this.props.uid, e);
+    }
+
+    scrollIn=()=>{
+        const tr = this.tr.current;
+        if (tr) {
+            tr.scrollIntoView();
+        }
     }
 
     static mapStateToProps = function(store:Store.Content, ownProps:InputProps): MappedProps
@@ -57,5 +64,7 @@ class TableEntry extends React.PureComponent<Props> {
         }
     }
 }
+
+export type UnmappedTableEntry = TableEntry;
 
 export default Store.Connect(TableEntry);

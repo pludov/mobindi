@@ -1,9 +1,11 @@
 import * as React from 'react';
+import ReactResizeDetector from 'react-resize-detector';
+
 import * as Store from '../Store';
 
 import { atPath } from '../shared/JsonPath';
 import './Table.css';
-import TableEntry from './TableEntry';
+import TableEntry, { UnmappedTableEntry } from './TableEntry';
 
 export type HeaderItem = {
     id:string;
@@ -46,6 +48,19 @@ function firstDefined<T>(a: T, b: T): T
  *  (none)
  */
 class Table extends React.PureComponent<Props> {
+    private selected = React.createRef<UnmappedTableEntry>();
+
+    private header = React.createRef<HTMLTableElement>();
+
+    componentDidMount() {
+        const selected = this.selected.current;
+        if (selected) {
+            selected.scrollIn();
+        }
+    }
+    onParentResize=(width:number, height:number)=> {
+        this.header.current!.style.width = width + "px";
+    }
 
     render() {
         const content = [];
@@ -60,6 +75,7 @@ class Table extends React.PureComponent<Props> {
                 uid={o}
                 onItemClick={this.props.onItemClick}
                 selected={o===this.props.current}
+                ref={o===this.props.current ? this.selected : null}
             />);
         }
 
@@ -73,7 +89,7 @@ class Table extends React.PureComponent<Props> {
             cols.push(<col key={o.id} style={{width: field.defaultWidth}}/>);
         }
         return <div className="DataTable">
-            <table className="DataTableHeader">
+            <table className="DataTableHeader" ref={this.header}>
                 <colgroup>
                     {cols}
                 </colgroup>
@@ -81,14 +97,20 @@ class Table extends React.PureComponent<Props> {
                     <tr>{header}</tr>
                 </thead>
             </table>
-            <table className="DataTableData">
-                <colgroup>
-                    {cols}
-                </colgroup>
-                <tbody>
-                    {content}
-                </tbody>
-            </table>
+            <div className="DataTableScrollable">
+                <div>
+                    <ReactResizeDetector handleWidth onResize={this.onParentResize} />
+
+                    <table className="DataTableData">
+                        <colgroup>
+                            {cols}
+                        </colgroup>
+                        <tbody>
+                            {content}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>;
     }
 
