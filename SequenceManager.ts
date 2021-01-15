@@ -462,7 +462,19 @@ export default class SequenceManager
 
                 const settings:CameraDeviceSettings = {...param, exposure: param.exposure};
 
-                settings.prefix = sequence.title + '_' + stepTypeLabel + '_XXX';
+                settings.prefix = sanitizePath(sequence.title) + '_' + sanitizePath(stepTypeLabel);
+
+                if (param.filter) {
+                    settings.prefix += '_' + sanitizePath(param.filter);
+                }
+
+                if (param.exposure < 1 || (param.exposure % 1)) {
+                    settings.prefix += '_' + Math.floor(param.exposure * 1000) + 'ms';
+                } else {
+                    settings.prefix += '_' + Math.floor(param.exposure) + 's';
+                }
+
+                settings.prefix += '_XXX';
 
                 const currentExecutionStatus = nextStep[nextStep.length - 1];
                 // Copy because it could change concurrently in case of removal/reorder
@@ -769,4 +781,9 @@ function nullToUndefined(e:number|null|undefined):number|undefined {
     } else {
         return e;
     }
+}
+
+function sanitizePath(p : string) {
+    // Be cool with windows
+    return p.replace(/[\/\.\*\?\:\\ ]+/g, '-');
 }
