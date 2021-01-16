@@ -50,6 +50,7 @@ PORT=8081
   * Metrics endpoint for monitoring using Prometheus.
   * Improved sequence editor allowing to iterate various values of a parameter (like filters ...)
   * Histogram inspection available from image viewer
+  * Sequence usability improvment, including per image stats (fwhm, background adu level, ...)
 
 
 ### Release 1.2.0 (July 2019):

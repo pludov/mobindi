@@ -5,7 +5,8 @@ import * as Store from '../Store';
 
 import { atPath } from '../shared/JsonPath';
 import './Table.css';
-import TableEntry, { UnmappedTableEntry } from './TableEntry';
+import TableEntry from './TableEntry';
+import ObjectReselect from '../utils/ObjectReselect';
 
 export type HeaderItem = {
     id:string;
@@ -17,27 +18,29 @@ export type FieldDefinition = {
     defaultWidth: string;
 }
 
-type InputProps = {
+type InputProps<DatabaseObject> = {
     statePath: string;
     currentPath: string;
     currentAutoSelectSerialPath: string;
     fields: {[id: string]: FieldDefinition},
     defaultHeader: Array<HeaderItem>,
+
+    getDatabases: (store: Store.Content)=>DatabaseObject;
     // store => [items]
-    getItemList: (s:Store.Content)=>Array<string>,
+    getItemList: (database: DatabaseObject)=>Array<string>,
     // store, uid => item
-    getItem: (s:Store.Content, uid:string)=>any,
+    getItem: (databases:DatabaseObject, uid:string)=>any,
     onItemClick: (uid:string, e:React.MouseEvent<HTMLTableRowElement>)=>any,
 }
 
-type MappedProps = {
-    itemList: Array<string>;
+type MappedProps<DatabaseObject> = {
     header: Array<HeaderItem>;
+    databases: DatabaseObject;
     current: string;
     currentAutoSelectSerial: number;
 }
 
-type Props = InputProps & MappedProps;
+type Props<DatabaseObject> = InputProps<DatabaseObject> & MappedProps<DatabaseObject>;
 
 function firstDefined<T>(a: T, b: T): T
 {
@@ -49,8 +52,8 @@ function firstDefined<T>(a: T, b: T): T
  * state for table is :
  *  (none)
  */
-class Table extends React.PureComponent<Props> {
-    private selected = React.createRef<UnmappedTableEntry>();
+class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
+    private selected = React.createRef<TableEntry<DatabaseObject>>();
 
     private header = React.createRef<HTMLTableElement>();
     private lastScrollSerial?:number = undefined;
@@ -79,12 +82,14 @@ class Table extends React.PureComponent<Props> {
 
     render() {
         const content = [];
-        for(const o of this.props.itemList)
+
+        for(const o of this.props.getItemList(this.props.databases))
         {
             content.push(<TableEntry
                 key={o}
                 fields={this.props.fields}
                 header={this.props.header}
+                databases={this.props.databases}
                 getItem={this.props.getItem}
                 // statePath={this.props.statePath + '.items[' + JSON.stringify(o) + ']'}
                 uid={o}
@@ -129,15 +134,16 @@ class Table extends React.PureComponent<Props> {
         </div>;
     }
 
-    static mapStateToProps = function(store: Store.Content, ownProps: InputProps): MappedProps
+    static mapStateToProps<DatabaseObject>():(store: Store.Content, ownProps: InputProps<DatabaseObject> )=> MappedProps<DatabaseObject>
     {
+        const databaseSelector = ObjectReselect.createObjectSelector((store: Store.Content, ownProps:InputProps<DatabaseObject>)=>ownProps.getDatabases(store));
         // FIXME: dispatch the cleanup of state of entries
-        return {
-            itemList: ownProps.getItemList(store),
+        return (store: Store.Content, ownProps: InputProps<DatabaseObject>)=>({
+            databases: databaseSelector(store, ownProps),
             header: firstDefined(atPath(store, ownProps.statePath + ".header"), ownProps.defaultHeader),
             current: atPath(store, ownProps.currentPath),
             currentAutoSelectSerial : ownProps.currentAutoSelectSerialPath ? atPath(store, ownProps.currentAutoSelectSerialPath) : 0,
-        };
+        });
     }
 }
 
