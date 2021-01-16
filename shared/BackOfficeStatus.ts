@@ -75,6 +75,13 @@ export type SequenceStepStatus = {
     lastDitheredExecUuid?: string;
 }
 
+export type ImageStats = {
+    fwhm?: number;
+    starCount?: number;
+    guideStats?: PhdGuideStats;
+    backgroundLevel?: number;
+}
+
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
     progress: string | null;
@@ -89,7 +96,8 @@ export type Sequence = {
 
     // uuids of images
     images: string [];
-    storedImages?: ImageStatus[];
+    storedImages?: Array<ImageStatus&ImageStats>;
+    imageStats: {[uid:string]: ImageStats};
 }
 
 export type IndiMessageWithUid = IndiMessage & {

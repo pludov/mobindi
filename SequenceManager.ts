@@ -4,7 +4,7 @@ const TraceError = require('trace-error');
 import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
@@ -100,16 +100,27 @@ export default class SequenceManager
             },
             // read callback
             (content:SequenceStatus["sequences"])=> {
+                // Renumber sequences
+                this.sequenceIdGenerator.renumber(content.list, content.byuuid);
+
                 for(const sid of Object.keys(content.byuuid)) {
                     const seq = content.byuuid[sid];
                     seq.images = [];
+                    if (!seq.imageStats) {
+                        seq.imageStats = {};
+                    }
                     if (seq.storedImages) {
                         for(const image of seq.storedImages!) {
+                            const {device, path, ...stats} = {...image};
+                            const status: ImageStatus = {device, path};
+
                             // Pour l'instant c'est brutal
-                            const uuid = this.sequenceIdGenerator.next();
+                            const uuid = this.context.camera.imageIdGenerator.next();
                             this.context.camera.currentStatus.images.list.push(uuid);
-                            this.context.camera.currentStatus.images.byuuid[uuid] = image;
+                            this.context.camera.currentStatus.images.byuuid[uuid] = status;
                             seq.images.push(uuid);
+
+                            seq.imageStats[uuid] = stats;
                         }
                     }
                     delete(seq.storedImages);
@@ -124,10 +135,13 @@ export default class SequenceManager
                     seq.storedImages = [];
                     for(const uuid of seq.images) {
                         if (hasKey(this.context.camera.currentStatus.images.byuuid, uuid)) {
-                            seq.storedImages.push(this.context.camera.currentStatus.images.byuuid[uuid]);
+                            const toWrite = {...this.context.camera.currentStatus.images.byuuid[uuid],
+                                            ... Obj.getOwnProp(seq.imageStats, uuid)};
+                            seq.storedImages.push(toWrite);
                         }
                     }
                     delete seq.images;
+                    delete seq.imageStats;
                 }
                 return content;
             }
@@ -155,7 +169,8 @@ export default class SequenceManager
             stepStatus: {
             },
 
-            images: []
+            images: [],
+            imageStats: {},
         };
         this.currentStatus.sequences.list.push(key);
         return key;
@@ -366,8 +381,11 @@ export default class SequenceManager
             return rslt;
         }
 
-        const computeStats = async (shootResult: BackOfficeAPI.ShootResult, guideSteps: Array<PhdGuideStep>)=> {
+        const computeStats = async (ct: CancellationToken, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=> {
             ct.throwIfCancelled();
+
+            target.guideStats = this.phd.computeGuideStats(guideSteps);
+
             console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
             const starFieldResponse = await this.imageProcessor.compute(ct, {
                 starField: { source: {
@@ -376,6 +394,26 @@ export default class SequenceManager
                 }}
             });
             
+            ct.throwIfCancelled();
+
+            const histogram = await this.imageProcessor.compute(ct,
+                {
+                    histogram: { source: {
+                        path: shootResult.path,
+                        streamId: "",
+                    },
+                    options: {
+                        maxBits: 10
+                    }
+                },
+            });
+
+            const channelBlacks = histogram.map(ch=>this.imageProcessor.getHistgramAduLevel(ch, 0.2));
+
+            target.backgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
+
+            ct.throwIfCancelled();
+
             // FIXME: mutualise that somewhere
             const starField = starFieldResponse.stars;
             console.log('StarField', JSON.stringify(starField, null, 2));
@@ -389,29 +427,22 @@ export default class SequenceManager
                 fwhm /= starField.length;
             }
 
-            ct.throwIfCancelled();
-            const histogram = await this.imageProcessor.compute(ct, {
-                    histogram: { source: {
-                        path: shootResult.path,
-                        streamId: "",
-                    },
-                    options: {
-                        maxBits: 10
-                    }
-                },
-            });
+            target.fwhm = fwhm;
+            target.starCount = starCount;
+        }
+
+        const computeStatsWithMetrics = async (ct: CancellationToken, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=>{
+            await computeStats(ct, shootResult, target, guideSteps);
 
             ct.throwIfCancelled();
 
-            const channelBlacks = histogram.map(ch=>this.imageProcessor.getHistgramAduLevel(ch, 0.2));
-
-            this.lastFwhm = fwhm;
-            this.lastStarCount = starCount;
             this.lastImageTime = Date.now();
+            this.lastGuideStats = Obj.deepCopy(target.guideStats);
+            this.lastBackgroundLevel = target.backgroundLevel;
+            this.lastFwhm = target.fwhm;
+            this.lastStarCount = target.starCount;
 
-            this.lastGuideStats = this.phd.computeGuideStats(guideSteps);
-            this.lastBackgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
-            console.log('Statistic updated :', this.lastGuideStats, this.lastBackgroundLevel);
+            console.log('Statistic updated :', target);
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
@@ -544,7 +575,8 @@ export default class SequenceManager
                 sequenceLogic.finish(currentExecutionStatus);
 
                 if (param.type === 'FRAME_LIGHT') {
-                    computeStats(shootResult, guideSteps);
+                    sequence.imageStats[shootResult.uuid] = {};
+                    computeStatsWithMetrics(CancellationToken.CONTINUE, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
                 }
             }
         }
