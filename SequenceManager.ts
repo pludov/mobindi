@@ -381,20 +381,10 @@ export default class SequenceManager
             return rslt;
         }
 
-        const computeStats = async (ct: CancellationToken, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=> {
+        const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=> {
             ct.throwIfCancelled();
 
             target.guideStats = this.phd.computeGuideStats(guideSteps);
-
-            console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
-            const starFieldResponse = await this.imageProcessor.compute(ct, {
-                starField: { source: {
-                    path: shootResult.path,
-                    streamId: "",
-                }}
-            });
-            
-            ct.throwIfCancelled();
 
             const histogram = await this.imageProcessor.compute(ct,
                 {
@@ -412,29 +402,36 @@ export default class SequenceManager
 
             target.backgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
 
-            ct.throwIfCancelled();
+            if (indiFrameType === 'FRAME_LIGHT') {
+                ct.throwIfCancelled();
 
-            // FIXME: mutualise that somewhere
-            const starField = starFieldResponse.stars;
-            console.log('StarField', JSON.stringify(starField, null, 2));
-            let fwhm, starCount;
-            starCount = starField.length;
-            if (starField.length) {
-                fwhm = 0;
-                for(let star of starField) {
-                    fwhm += star.fwhm;
+                // FIXME: mutualise that somewhere
+                console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
+                const starFieldResponse = await this.imageProcessor.compute(ct, {
+                    starField: { source: {
+                        path: shootResult.path,
+                        streamId: "",
+                    }}
+                });
+                const starField = starFieldResponse.stars;
+                console.log('StarField', JSON.stringify(starField, null, 2));
+                let fwhm, starCount;
+                starCount = starField.length;
+                if (starField.length) {
+                    fwhm = 0;
+                    for(let star of starField) {
+                        fwhm += star.fwhm;
+                    }
+                    fwhm /= starField.length;
                 }
-                fwhm /= starField.length;
-            }
 
-            target.fwhm = fwhm;
-            target.starCount = starCount;
+                target.fwhm = fwhm;
+                target.starCount = starCount;
+            }
         }
 
-        const computeStatsWithMetrics = async (ct: CancellationToken, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=>{
-            await computeStats(ct, shootResult, target, guideSteps);
-
-            ct.throwIfCancelled();
+        const computeStatsWithMetrics = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=>{
+            await computeStats(ct, indiFrameType, shootResult, target, guideSteps);
 
             this.lastImageTime = Date.now();
             this.lastGuideStats = Obj.deepCopy(target.guideStats);
@@ -574,10 +571,8 @@ export default class SequenceManager
                 sequence.images.push(shootResult.uuid);
                 sequenceLogic.finish(currentExecutionStatus);
 
-                if (param.type === 'FRAME_LIGHT') {
-                    sequence.imageStats[shootResult.uuid] = {};
-                    computeStatsWithMetrics(CancellationToken.CONTINUE, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
-                }
+                sequence.imageStats[shootResult.uuid] = {};
+                computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
             }
         }
 
