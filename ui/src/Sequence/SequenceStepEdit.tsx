@@ -598,6 +598,9 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             return null;
         }
         const details = this.getCurrentDetails();
+        if (!details) {
+            return null;
+        }
 
         let settingsPath = 'backend.sequence.sequences.byuuid[' + JSON.stringify(this.props.sequenceUid) + '].root';
         for(const uid of JSON.parse(this.props.sequenceStepUidPath)) {
