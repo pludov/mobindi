@@ -103,10 +103,11 @@ class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
         const header = [];
         for(const o of this.props.header) {
             const field = this.props.fields[o.id];
+            const style = field.defaultWidth.endsWith('%') ? { width: field.defaultWidth } : { minWidth: field.defaultWidth };
             header.push(<th key={o.id}>
                 {field.title}
             </th>);
-            cols.push(<col key={o.id} style={{width: field.defaultWidth}}/>);
+            cols.push(<col key={o.id} style={style}/>);
         }
         return <div className="DataTable">
             <table className="DataTableHeader" ref={this.header}>

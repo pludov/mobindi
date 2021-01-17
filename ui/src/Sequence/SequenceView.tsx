@@ -33,7 +33,7 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
     {
         id: 'path',
         title:  'File',
-        defaultWidth: '15em',
+        defaultWidth: '100%',
         render: (o:BackOfficeStatus.ImageStatus)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
     },
     {
