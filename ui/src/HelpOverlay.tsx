@@ -1,6 +1,7 @@
 import * as React from 'react';
 import IconButton from './IconButton';
 import Icons from './Icons';
+import * as Help from './Help';
 import './HelpOverlay.css';
 
 
@@ -93,6 +94,25 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
         this.activateZone(undefined);
     }
 
+    static getHelpForKey = (id:string)=>{
+        const key = Help.Key.byId(id);
+        if (!key) {
+            return "Missing help key";
+        }
+        if (typeof key.renderer === "string") {
+            if (key.details) {
+                return <span>
+                    <div className="HelpTitle">{key.renderer}</div>
+                    <div className="HelpContent">{key.details}</div>
+                </span>;
+            } else {
+                return <div className="HelpContent">{key.renderer}</div>
+            }
+        } else {
+            return key.renderer();
+        }
+    }
+
     render() {
         return <>
                 <img key="button" className="HelpButton" src={Icons.help} onClick={this.openHelp}
@@ -121,7 +141,7 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
                         {this.state.zones.map((zone)=>
                             (zone.id !== this.state.selected)
                             || <div className={"HelpBubble HelpBubble_" + this.state.bubblePos}>
-                                    Blah blah help {zone.id} ++
+                                    {HelpOverlayView.getHelpForKey(zone.id)}
 
                                     <img className="closeHelpBubbleButton" src={Icons.apply} onClick={this.closeBubble}/>
                                 </div>

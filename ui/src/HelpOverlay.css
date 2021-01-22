@@ -60,6 +60,14 @@
     border: calc(0.5 * var(--pct)) solid #70c070;
     border-radius: calc(0.5 * var(--pct));
     padding: calc(0.5 * var(--pct));
+    text-align: justify;
+}
+
+.HelpTitle {
+    text-align: center;
+    text-decoration: underline;
+    font-size: 115%;
+    margin-bottom: calc(0.5*var(--pct));
 }
 
 .HelpBubble_center {

@@ -93,7 +93,7 @@ class App extends React.PureComponent<Props> {
                         <div className="App">
                             <div className="AppStatusBar">
                                 {
-                                    this.apps.map((app) => <AppIcon key={app.getAppId()} appid={app.getAppId()}></AppIcon>)
+                                    this.apps.map((app) => <AppIcon key={app.getAppId()} appid={app.getAppId()} helpKey={app.helpKey}/>)
                                 }
                             </div>
 
