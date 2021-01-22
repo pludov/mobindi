@@ -20,6 +20,7 @@ import * as Store from './Store';
 import BaseApp from './BaseApp';
 import * as ChartJSZoomBugfix from './utils/ChartJSZoomPlugin';
 import NotificationContainer from './NotificationContainer';
+import HelpOverlayView from './HelpOverlay';
 
 ChartJSZoomBugfix.init();
 
@@ -88,6 +89,7 @@ class App extends React.PureComponent<Props> {
                 return (
                     <>
                         <NotificationContainer/>
+                        <HelpOverlayView/>
                         <div className="App">
                             <div className="AppStatusBar">
                                 {
