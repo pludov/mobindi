@@ -158,6 +158,17 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
 }
 
 
+function isSameOrChild(parent: Element, child: Element|null)
+{
+    while(child !== null) {
+        if (parent === child) {
+            return true;
+        }
+        child = child.parentElement;
+    }
+    return false;
+}
+
 function getHelpZones() {
     let result: Array<HelpItem> = [];
     const elements = document.querySelectorAll("[data-help]");
@@ -178,7 +189,7 @@ function getHelpZones() {
             const cy = rect.top + rect.height / 2;
 
             const checked = document.elementFromPoint(cx, cy);
-            if (checked !== element) {
+            if (!isSameOrChild(element, checked)) {
                 continue;
             }
 
