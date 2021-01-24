@@ -61,6 +61,8 @@
     border-radius: calc(0.5 * var(--pct));
     padding: calc(0.5 * var(--pct));
     text-align: justify;
+    display: flex;
+    flex-direction: column;
 }
 
 .HelpTitle {
@@ -68,6 +70,25 @@
     text-decoration: underline;
     font-size: 115%;
     margin-bottom: calc(0.5*var(--pct));
+}
+
+.HelpContent {
+    flex-basis: 0px;
+    flex-grow: 1;
+    overflow: auto;
+    padding: calc(0.5*var(--pct));
+}
+
+.HelpControlBar {
+    text-align: right;
+}
+
+.closeHelpBubbleButton {
+    display: inline-block;
+    right: calc(2 * var(--pct));
+    bottom: calc(2 * var(--pct));
+    width: calc(5 * var(--pct));
+    height: calc(5 * var(--pct));
 }
 
 .HelpBubble_center {
@@ -83,15 +104,6 @@
 }
 
 
-.closeHelpBubbleButton {
-    position: absolute;
-    display: inline-block;
-    right: calc(2 * var(--pct));
-    bottom: calc(2 * var(--pct));
-    width: calc(5 * var(--pct));
-    height: calc(5 * var(--pct));
-
-}
 
 .closeHelpBubbleButton:hover {
     filter: brightness(130%);

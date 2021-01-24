@@ -101,10 +101,10 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
         }
         if (typeof key.renderer === "string") {
             if (key.details) {
-                return <span>
+                return <>
                     <div className="HelpTitle">{key.renderer}</div>
                     <div className="HelpContent">{key.details}</div>
-                </span>;
+                </>;
             } else {
                 return <div className="HelpContent">{key.renderer}</div>
             }
@@ -142,8 +142,9 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
                             (zone.id !== this.state.selected)
                             || <div className={"HelpBubble HelpBubble_" + this.state.bubblePos}>
                                     {HelpOverlayView.getHelpForKey(zone.id)}
-
-                                    <img className="closeHelpBubbleButton" src={Icons.apply} onClick={this.closeBubble}/>
+                                    <div className="HelpControlBar">
+                                        <img className="closeHelpBubbleButton" src={Icons.apply} onClick={this.closeBubble}/>
+                                    </div>
                                 </div>
                         )}
                     </div>
