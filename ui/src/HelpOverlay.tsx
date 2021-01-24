@@ -99,18 +99,11 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
         if (!key) {
             return "Missing help key";
         }
-        if (typeof key.renderer === "string") {
-            if (key.details) {
-                return <>
-                    <div className="HelpTitle">{key.renderer}</div>
-                    <div className="HelpContent">{key.details}</div>
-                </>;
-            } else {
-                return <div className="HelpContent">{key.renderer}</div>
-            }
-        } else {
-            return key.renderer();
-        }
+
+        return <>
+            {key.title === undefined || <div className="HelpTitle">{key.title}</div>}
+            {key.details === undefined || <div className="HelpContent">{typeof key.details === "string" ? key.details : key.details()}</div>}
+        </>;
     }
 
     render() {

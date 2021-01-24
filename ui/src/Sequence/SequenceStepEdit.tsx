@@ -7,6 +7,7 @@ import uuid from 'uuid';
 import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
+import * as Help from '../Help';
 import * as BackendRequest from '../BackendRequest';
 import TextEdit from "../TextEdit";
 import CameraFrameTypeEditor from '../CameraFrameTypeEditor';
@@ -134,6 +135,34 @@ const SortableList = SortableContainer<{
 
 
 class SequenceStepEdit extends React.PureComponent<Props, State> {
+    static readonly moreHelp = Help.key("More", ()=> (<span>
+        Use this menu to:
+        <ul>
+            <li>Add a setting (camera, filter, ...)</li>
+            <li>Control dithering</li>
+            <li>Repeat this step and all its childs (Repeat)</li>
+            <li>Add a child step (Add Child)</li>
+            <li>Remove this step and all its childs</li>
+        </ul>
+    </span>));
+
+    static readonly ditheringHelp = Help.key("Dithering", ()=>(<span>
+        Control dithering:
+        <ul>
+            <li>On: Apply dithering for every images. If step has childs, the dithering is performed at every repeat of the list of child steps</li>
+            <li>Once: Apply the dithering only on step entrance (whatever repeat and foreach are)</li>
+            <li>Off: Disable any dithering for this steps and it substeps</li>
+        </ul>
+        The last edited dithering settings (distance, ...) are memorized and reused by default.
+    </span>));
+
+    static readonly ditheringDetailsHelp = Help.key("Dithering parameters", "Set dithering parameters.");
+
+    static readonly repeatHelp = Help.key("Repeat", "Repeat any number of time. For steps with no child, that really means take that ammount of exposure. For steps with childs, the whole list of childs is repeated");
+    static readonly dropParameterHelp = Help.key("Remove the selected parameter");
+    static readonly dropParameterFromListHelp = Help.key("Remove the value from the list for that parameter");
+    static readonly splitParameterValueHelp = Help.key("Add a value", "Allow selecting multiples values for a parameter. The step will apply each value sequentially, then repeat them if Repeat is set");
+
     // Keep the ref of the last new editor (to focus it)
     private lastNewItemRef = React.createRef<HTMLDivElement>();
     private lastNewItemFocusRef = React.createRef<HTMLBaseElement>();
@@ -504,6 +533,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             <select
                         value={val === undefined ? "" : val === null ? "false" : (val.once ? "once" : "true" ) }
                         ref={focusRef}
+                        {...SequenceStepEdit.ditheringHelp.dom()}
                         onChange={
                             (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
                                         ()=>this.updateSequenceStepDithering(e.target.value === "once" ? "once" : e.target.value === 'true'), this)
@@ -513,7 +543,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     <option value="once">Once</option>
                     <option value="false">Off</option>
             </select>
-            <input type="button" value="..." disabled={!val} onClick={()=>{
+            <input type="button" value="..." disabled={!val} {...SequenceStepEdit.ditheringDetailsHelp.dom()}onClick={()=>{
                 const c = this.ditheringDetailsModal.current;
                 if (c) c.open();
             }}/>
@@ -539,6 +569,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
             return (
                 <select value={valnum || ""}
                         ref={focusRef}
+                        {...SequenceStepEdit.repeatHelp.dom()}
                         onChange={
                             (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
                                         ()=>this.updateSequenceStepParam('repeat', parseInt(e.target.value)), this)
@@ -630,6 +661,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                         <input type="button"
                                             className="SequenceStepParameterDropBton"
                                             value={"X"}
+                                            {...SequenceStepEdit.dropParameterHelp.dom()}
                                             onClick={()=>Utils.promiseToState(()=>this.dropParam(param), this)}/>
 
                                 </span>
@@ -640,6 +672,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                         <input type="button"
                                             className="SequenceStepParameterDropBton"
                                             value={"X"}
+                                            {...SequenceStepEdit.dropParameterFromListHelp.dom()}
                                             onClick={()=>Utils.promiseToState(()=>this.dropForeachValue(index), this)}/>
 
                                     </span>
@@ -651,6 +684,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                     <input type="button"
                                         className="SequenceStepParameterAddBton"
                                         value={"+"}
+                                        {...SequenceStepEdit.splitParameterValueHelp.dom()}
                                         onClick={()=>Utils.promiseToState(()=>this.addForeachValue(param as ParamDesc & {id: keyof SequenceStepParameters}), this)}/>
                                 : null
                         }
@@ -684,7 +718,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
             {displayParameters.map((param)=>renderSingle(param))}
 
-            <select ref={this.props.focusRef} value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More...">
+            <select ref={this.props.focusRef} value="" onChange={(e)=>Utils.promiseToState(()=>this.action(e), this)} placeholder="More..." {...SequenceStepEdit.moreHelp.dom()}>
                 <option value="" disabled hidden>More...</option>
                 {
                     parameters.map(

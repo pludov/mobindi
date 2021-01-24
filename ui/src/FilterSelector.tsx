@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Help from './Help';
 import * as Store from './Store';
 import { noErr } from './Utils';
 import * as BackendRequest from "./BackendRequest";
@@ -35,6 +36,7 @@ type Props = InputProps & MappedProps;
 
 
 class UnmappedFilterSelector extends React.PureComponent<Props> {
+    static filterSelectorHelp = Help.key("Filter selector", "Select filterwheel device and filter. Use options from the \"switch filterwheel\" section to change device");
     constructor(props: Props) {
         super(props);
     }
@@ -100,7 +102,7 @@ class UnmappedFilterSelector extends React.PureComponent<Props> {
             : "filter:" + this.props.currentFilter;
         return <>
             <span>
-                <select className={"FilterSelector" + (this.props.busy ? " BusyInfinite" : "")} onChange={this.update} value={currentValue} ref={this.props.focusRef}>
+                <select className={"FilterSelector" + (this.props.busy ? " BusyInfinite" : "")} onChange={this.update} value={currentValue} ref={this.props.focusRef} {...UnmappedFilterSelector.filterSelectorHelp.dom()}>
                     {this.props.currentFilterWheel === null
                         ? this.props.availableFilterWheels.length !== 0
                             ? <option value="" disabled hidden>Filterwheel...</option>

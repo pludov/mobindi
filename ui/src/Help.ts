@@ -7,13 +7,14 @@ export type KeyRenderer = string | (()=>React.ReactNode);
 
 export class Key {
     private id: string;
-    renderer: KeyRenderer;
-    details?: string;
+    title: string|undefined;
+    details?: KeyRenderer;
     private static nextId = 0;
     private static dictionary = new Map<string, Key>();
 
-    constructor(renderer:KeyRenderer) {
-        this.renderer = renderer;
+    constructor(title : string|undefined, details?:KeyRenderer) {
+        this.title = title;
+        this.details = details;
         this.id = "HelpKey" + (Key.nextId++);
         Key.dictionary.set(this.id, this);
     }
@@ -29,10 +30,16 @@ export class Key {
 
 
 export function key(renderer:KeyRenderer): Key;
-export function key(title: string, details: string): Key;
-export function key(title:KeyRenderer, details?: string): Key
+export function key(title: string, details: KeyRenderer): Key;
+export function key(title:KeyRenderer, details?: KeyRenderer): Key
 {
-    const ret = new Key(title);
-    ret.details = details;
-    return ret;
+    if (details === undefined) {
+        // We have only a content
+        return new Key(undefined, title);
+    } else {
+        if (typeof title === "string") {
+            return new Key(title, details);
+        }
+        throw new Error("title cannot be a KeyRenderer");
+    }
 }

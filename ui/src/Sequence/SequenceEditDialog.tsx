@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Sequence } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
+import * as Help from '../Help';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
@@ -36,6 +37,9 @@ type State = {
 }
 
 class SequenceEditDialog extends React.PureComponent<Props, State> {
+    private static titleHelp = Help.key("title", "Enter the title of the sequence. File for captured frames will be named according to the title");
+    private static closeBtonHelp = Help.key("Close", "Return to the sequence list. Changes are saved as they are made.");
+
     constructor(props:Props) {
         super(props);
         this.state = {
@@ -66,6 +70,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                         Title:
                         <TextEdit
                             value={this.props.details.title}
+                            helpKey={SequenceEditDialog.titleHelp}
                             onChange={(e)=>this.updateSequenceParam('title', e)} />
                 </div>
                 <div className="IndiProperty">
@@ -90,7 +95,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                         sequenceStepUidPath="[]"
                     />
 
-                <input type='button' value='Close' onClick={this.props.onClose}/>
+                <input type='button' value='Close' onClick={this.props.onClose} {...SequenceEditDialog.closeBtonHelp.dom()}/>
             </div>
         </div>;
     }

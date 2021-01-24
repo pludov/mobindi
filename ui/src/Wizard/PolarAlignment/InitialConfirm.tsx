@@ -3,6 +3,7 @@ import CancellationToken from 'cancellationtoken';
 import '../../AstrometryView.css';
 import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
+import * as Help from "../../Help";
 import * as Utils from "../../Utils";
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
@@ -24,6 +25,7 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 class InitialConfirm extends React.PureComponent<Props> {
+    static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
     accessor: BackendAccessor.BackendAccessor<PolarAlignSettings>;
     
     constructor(props:Props) {
@@ -96,6 +98,7 @@ class InitialConfirm extends React.PureComponent<Props> {
                         valuePath="$.backend.astrometry.settings.polarAlign.slewRate"
                         setValue={this.setSlewRate}
                         vecName="TELESCOPE_SLEW_RATE"
+                        helpKey={InitialConfirm.slewRateHelp}
                         />
                 </div>
             </Panel>

@@ -23,8 +23,8 @@ type Props = InputProps & MappedProps;
 
 // Display a connect/disconnect button for a device
 class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
-    static connectHelp = Help.key("Connect", "Connect the INDI driver");
-    static disconnectHelp = Help.key("Disconnect", "Disconnect the INDI driver");
+    static connectHelp = Help.key("Connect", "Connect the INDI device");
+    static disconnectHelp = Help.key("Disconnect", "Disconnect the INDI device");
 
     constructor(props:Props) {
         super(props);
