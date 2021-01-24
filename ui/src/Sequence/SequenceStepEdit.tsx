@@ -163,6 +163,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     static readonly dropParameterFromListHelp = Help.key("Remove the value from the list for that parameter");
     static readonly splitParameterValueHelp = Help.key("Add a value", "Allow selecting multiples values for a parameter. The step will apply each value sequentially, then repeat them if Repeat is set");
 
+    static readonly closeRenderingDetailsHelp = Help.key("Close", "Go back to sequence edition.");
+
     // Keep the ref of the last new editor (to focus it)
     private lastNewItemRef = React.createRef<HTMLDivElement>();
     private lastNewItemFocusRef = React.createRef<HTMLBaseElement>();
@@ -553,7 +555,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     renderDitheringDetails=(p:ParamDesc, settingsPath: string, focusRef?: React.RefObject<any>)=> {
         const val = this.props.detailsStack[this.props.detailsStack.length-1].dithering;
         return !!val
-                ?<Modal ref={this.ditheringDetailsModal}>
+                ?<Modal ref={this.ditheringDetailsModal} closeHelpKey={SequenceStepEdit.closeRenderingDetailsHelp}>
                     <DitheringSettingEdit settings={val} update={
                             ({field, value})=> Utils.promiseToState(
                                 ()=>this.updateSequenceStepDitheringParam({[field]: value}), this)
