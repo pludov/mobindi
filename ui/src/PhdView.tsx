@@ -40,10 +40,10 @@ type State = {
 
 const viewIdStateLocalStorageKey = "phdview.view";
 
-const startLoopingHelp = Help.key("Start PHD looping");
-const startGuideHelp = Help.key("Start PHD guiding");
+const startLoopingHelp = Help.key("Start PHD looping", "PHD guiding will start taking exposure. If guide camera is an INDI device, the live view is available using the bottom right selector");
+const startGuideHelp = Help.key("Start PHD guiding", "PHD will start guiding, selecting a star if none is available");
 const stopGuideHelp = Help.key("Stop PHD guide & looping");
-const chooseViewHelp = Help.key("Toggle between guiding graph and live frame view");
+const chooseViewHelp = Help.key("Toggle between PHD guiding graph and PHD live frame view (only available when PHD is using INDI driver)");
 
 // Afficher l'état de phd et permet de le controller
 class PhdView extends React.PureComponent<Props, State> {
