@@ -7,12 +7,12 @@ export type KeyRenderer = string | (()=>React.ReactNode);
 
 export class Key {
     private id: string;
-    title: string|undefined;
+    title: string;
     details?: KeyRenderer;
     private static nextId = 0;
     private static dictionary = new Map<string, Key>();
 
-    constructor(title : string|undefined, details?:KeyRenderer) {
+    constructor(title : string, details?:KeyRenderer) {
         this.title = title;
         this.details = details;
         this.id = "HelpKey" + (Key.nextId++);
@@ -20,7 +20,8 @@ export class Key {
     }
 
     public readonly dom =()=>({
-        "data-help": this.id
+        "data-help": this.id,
+        "title": this.title + (typeof this.details === "string" ? "\n" + this.details : ""),
     });
 
     public static readonly byId=(id:string)=>{
@@ -29,13 +30,10 @@ export class Key {
 }
 
 
-export function key(renderer:KeyRenderer): Key;
-export function key(title: string, details: KeyRenderer): Key;
-export function key(title:KeyRenderer, details?: KeyRenderer): Key
+export function key(title: string, details?: KeyRenderer): Key
 {
     if (details === undefined) {
-        // We have only a content
-        return new Key(undefined, title);
+        return new Key(title);
     } else {
         if (typeof title === "string") {
             return new Key(title, details);
