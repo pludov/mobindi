@@ -4,7 +4,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
 import * as Actions from '../Actions';
 import * as Store from '../Store';
-import * as BackendRequest from '../BackendRequest';
+import * as Help from '../Help';
 
 import * as SequenceStore from '../SequenceStore';
 import * as Utils from '../Utils';
