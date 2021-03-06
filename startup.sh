@@ -19,10 +19,7 @@ while pkill -U "$UID" -fx "node dist/app.js"; do
 done
 
 if [ "$LOGDIR" != "" ]; then
-	echo "Logging into $LOGDIR"
-	exec < /dev/null
-	exec > >( exec multilog 's9999999' "$LOGDIR" )
-	exec 2>&1
+	export MOBINDI_LOGDIR="$LOGDIR"
 fi
 
 

@@ -1,0 +1,25 @@
+{
+    "prod": {
+        "transports": [
+            {
+                "type": "console",
+                "level": "error"
+            },
+            {
+                "type": "rotated",
+                "level": "info",
+                "filename": "mobindi-%DATE%.log",
+                "zippedArchive": true,
+                "dirname": "${MOBINDI_LOGDIR}"
+            }
+        ]
+    },
+    "dev": {
+        "transports": [
+            {
+                "type": "console",
+                "level": "debug"
+            }
+        ]
+    }
+}

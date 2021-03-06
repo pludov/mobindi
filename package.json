@@ -36,6 +36,8 @@
     "source-map-support": "^0.5.9",
     "tmp": "0.0.33",
     "trace-error": "0.0.7",
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.0",
     "ws": "^6.1.0",
     "xmlbuilder": "^9.0.1"
   },
