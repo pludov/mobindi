@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import * as Help from './Help';
 import * as Store from "./Store";
 
 import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as ImageSetupSelectorItem} from './ImagingSetupSelector';
@@ -12,7 +13,7 @@ type State = {
 };
 
 class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
-
+    private static imaginSetupSelectorHelp = Help.key("Imaging setup", "Select your imaging configuration. This includes camera and related equipments like filterwheel, focuser, ... You can use the Edit option to choose/configure devices of this setup");
     private readonly controls : ImagingSetupSelectorProps["controls"];
     private readonly imagingSetupSelectorRef = React.createRef<PromiseSelector<ImageSetupSelectorItem>>();
 
