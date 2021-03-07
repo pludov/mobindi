@@ -39,8 +39,129 @@ import ClientRequest from "./ClientRequest";
 import FilterWheel from "./FilterWheel";
 import SequenceManager from "./SequenceManager";
 import Notification from "./Notification";
+import Log from './Log';
 
 import * as Metrics from "./Metrics";
+
+const logger = Log.logger(__filename);
+
+const serverId = uuid.v4();
+
+var appStateManager = new JsonProxy<BackofficeStatus>();
+var appState = appStateManager.getTarget();
+let apiRoot: RequestHandler.APIImplementor;
+
+
+function initWss(server: http.Server) {
+    const wss = new WebSocket.Server({
+        server: server,
+        perMessageDeflate: {
+            zlibDeflateOptions: {
+                // See zlib defaults.
+                chunkSize: 1024,
+                memLevel: 7,
+                level: 3
+            },
+            zlibInflateOptions: {
+                chunkSize: 8 * 1024
+            },
+            // // Other options settable:
+            // clientNoContextTakeover: true, // Defaults to negotiated value.
+            // serverNoContextTakeover: true, // Defaults to negotiated value.
+            serverMaxWindowBits: 10, // Defaults to negotiated value.
+            // Below options specified as default values.
+            concurrencyLimit: 4, // Limits zlib concurrency for perf.
+            threshold: 1024 // Size (in bytes) below which messages should not be compressed.
+        }
+    });
+    wss.on('error', (err)=>{
+        logger.warn('websocket server error', err);
+    });
+    //wss.use(sharedsession(session));
+
+
+    let clientId = 1;
+
+    wss.on('connection', (ws:WebSocket)=>{
+        const clientUid = "#" + (clientId++);
+        let client : Client;
+
+        ws.on('message', function incoming(messageData:WebSocket.Data) {
+            logger.debug('received websocket message', {clientUid, messageData});
+
+            let message: any;
+            try {
+                message = JSON.parse(messageData.toString());
+            } catch(e) {
+                logger.warn('Invalid websocket message', {clientUid}, e);
+                ws.terminate();
+                return;
+            }
+
+            if (client === undefined) {
+                if (message.type === "auth") {
+                    client = new Client(ws, appStateManager, serverId, clientUid, message.whiteList);
+                } else {
+                    logger.warn('Unautorized websocket message', {clientUid});
+                    ws.terminate();
+                }
+                return;
+            }
+            if (message.type === "api") {
+                var id = message.id;
+                if (id === undefined) id = null;
+
+                const globalUid = client.uid + ':' + id;
+
+                logger.info('API request', {clientUid, message, globalUid});
+
+                const request = new ClientRequest(globalUid, client);
+
+                createTask<any>(undefined, async (task)=> {
+                    try {
+                        const _app:string = message.details._app;
+                        if (_app === undefined || ! Object.prototype.hasOwnProperty.call(apiRoot, _app)) {
+                            throw new Error("Invalid _app: " + _app);
+                        }
+                        const appImpl:RequestHandler.APIAppImplementor<any> = (apiRoot as any)[_app];
+
+                        const _func = message.details._func;
+                        if (_func === undefined || !Object.prototype.hasOwnProperty.call(appImpl, _func)) {
+                            throw new Error("Invalid _func: " + _app + "." + _func);
+                        }
+
+                        const funcImpl = appImpl[_func];
+                        let ret;
+                        try {
+                            ret = await funcImpl(task.cancellation, message.details.payload);
+                        } finally {
+                            // Wait here to avoid sending inconsistent state
+                            // (let all setimmediate settle down)
+                            await Sleep(CancellationToken.CONTINUE, 0);
+                        }
+                        logger.info('API request succeded', {clientUid, globalUid, ret});
+                        request.success(ret);
+                    } catch(e) {
+                        if (e instanceof CancellationToken.CancellationError) {
+                            logger.info('API request canceled', {clientUid, globalUid});
+                            request.onCancel();
+                        } else {
+                            logger.warn('API request failed', {clientUid, globalUid}, e);
+                            request.onError(e);
+                        }
+                    }
+                });
+            }
+        });
+
+        ws.on('close', function (code, reason) {
+            logger.info('Websocket closed', {clientUid});
+            if (client !== undefined) {
+                client.dispose();
+            }
+        });
+    });
+}
 
 function init() {
 
@@ -49,8 +170,14 @@ function init() {
 
     app.use(express.static('ui/build'));
 
-    var sessionParser;
-    app.use(sessionParser = session({
+    // Log every non static http requests
+    app.use((req, res, next)=> {
+        const {method, url} = req;
+        logger.debug("Request", method, url);
+        next();
+    });
+
+    app.use(session({
         store: new FileStore({}),
         cookie: {
             maxAge: 31 * 24 * 3600000,
@@ -72,11 +199,6 @@ function init() {
         origin: true,
         credentials: true
     }));
-
-    const serverId = uuid.v4();
-
-    var appStateManager = new JsonProxy<BackofficeStatus>();
-    var appState = appStateManager.getTarget();
 
     appState.apps= {
         phd: {
@@ -120,25 +242,6 @@ function init() {
     let context:Partial<AppContext> = {
     };
 
-    let apiRoot: RequestHandler.APIImplementor;
-
-    app.use(function(req, res:Response, next) {
-        if (Object.prototype.hasOwnProperty.call(res, 'jsonResult')) {
-            const jsonResult = (res as any).jsonResult;
-            res.status(200);
-            res.contentType('application/json');
-            // res.header('Cache-Control', 'no-cache');
-            res.header("Cache-Control", "no-cache, no-store, must-revalidate");
-            res.header("Pragma", "no-cache");
-            res.header("Expires", "0");
-            console.log('API Returning: ' + jsonResult);
-            res.send(JSON.stringify(jsonResult));
-        } else {
-            next();
-        }
-    });
-
-    // FIXME: restrict that endpoint (auth ?)
     app.get('/metrics', async (req, res, next) => {
         try {
             const metrics = [
@@ -149,120 +252,15 @@ function init() {
 
             res.send(Metrics.format(metrics));
         } catch (e) {
-        //this will eventually be handled by your error handling middleware
-        next(e);
+            logger.warn("Error collecting metrics", e);
+            next(e);
         }
     });
 
     const server = http.createServer(app);
     server.on('error', (err)=>{
-        console.log('Got express error', err);
+        logger.error('Got express error', err);
         server.close();
-    });
-    const wss = new WebSocket.Server({
-        server: server,
-        perMessageDeflate: {
-            zlibDeflateOptions: {
-                // See zlib defaults.
-                chunkSize: 1024,
-                memLevel: 7,
-                level: 3
-            },
-            zlibInflateOptions: {
-                chunkSize: 8 * 1024
-            },
-            // // Other options settable:
-            // clientNoContextTakeover: true, // Defaults to negotiated value.
-            // serverNoContextTakeover: true, // Defaults to negotiated value.
-            serverMaxWindowBits: 10, // Defaults to negotiated value.
-            // Below options specified as default values.
-            concurrencyLimit: 4, // Limits zlib concurrency for perf.
-            threshold: 1024 // Size (in bytes) below which messages should not be compressed.
-        }
-    });
-    wss.on('error', (err)=>{
-        console.log('websocket error', err);
-    });
-    //wss.use(sharedsession(session));
-
-
-    let clientId = 1;
-
-    wss.on('connection', (ws:WebSocket)=>{
-        const clientUid = "#" + (clientId++);
-        let client : Client;
-
-        ws.on('message', function incoming(messageData:WebSocket.Data) {
-            console.log('received from ' + clientUid + ': %s', messageData);
-
-            let message: any;
-            try {
-                message = JSON.parse(messageData.toString());
-            } catch(e) {
-                console.log('Invalid message', e);
-                ws.terminate();
-                return;
-            }
-
-            if (client === undefined) {
-                if (message.type === "auth") {
-                    client = new Client(ws, appStateManager, serverId, clientUid, message.whiteList);
-                } else {
-                    console.log('Unautorized message from ' + clientUid);
-                    ws.terminate();
-                }
-                return;
-            }
-            if (message.type === "api") {
-                console.log('Got API request');
-                var id = message.id;
-                if (id === undefined) id = null;
-
-                const globalUid = client.uid + ':' + id;
-
-                const request = new ClientRequest(globalUid, client);
-
-                createTask<any>(undefined, async (task)=> {
-                    try {
-                        const _app:string = message.details._app;
-                        if (_app === undefined || ! Object.prototype.hasOwnProperty.call(apiRoot, _app)) {
-                            throw new Error("Invalid _app: " + _app);
-                        }
-                        const appImpl:RequestHandler.APIAppImplementor<any> = (apiRoot as any)[_app];
-
-                        const _func = message.details._func;
-                        if (_func === undefined || !Object.prototype.hasOwnProperty.call(appImpl, _func)) {
-                            throw new Error("Invalid _func: " + _app + "." + _func);
-                        }
-
-                        const funcImpl = appImpl[_func];
-                        let ret;
-                        try {
-                            ret = await funcImpl(task.cancellation, message.details.payload);
-                        } finally {
-                            // Wait here to avoid sending inconsistent state
-                            // (let all setimmediate settle down)
-                            await Sleep(CancellationToken.CONTINUE, 0);
-                        }
-
-                        request.success(ret);
-                    } catch(e) {
-                        if (e instanceof CancellationToken.CancellationError) {
-                            request.onCancel();
-                        } else {
-                            request.onError(e);
-                        }
-                    }
-                });
-            }
-        });
-
-        ws.on('close', function (code, reason) {
-            console.log('Websocket closed : ' + code);
-            if (client !== undefined) {
-                client.dispose();
-            }
-        });
     });
 
     app.use(cgi('fitsviewer/fitsviewer.cgi',  { nph: true, dupfd: true }));
@@ -303,6 +301,9 @@ function init() {
             imageProcessor: context.imageProcessor.getAPI(),
             phd: context.phd.getAPI(),
         };
+
+        initWss(server);
+
         context.notification!.notify("Mobindi started");
     });
 };
@@ -312,7 +313,7 @@ setImmediate(()=> {
     try {
         init()
     } catch(error) {
-        console.log('error', error);
+        logger.error('Initialisation error', error);
     }
 });
 
