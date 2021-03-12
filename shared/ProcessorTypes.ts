@@ -30,7 +30,7 @@ export type ProcessorStarFieldRequest = {
 }
 
 export type ProcessorStarFieldResult = {
-    stars: Array<{fwhm: number}>;
+    stars: Array<{fwhm: number, peak:number}>;
 }
 
 export type ProcessorAstrometryRequest = {

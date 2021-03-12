@@ -72,6 +72,7 @@ namespace SharedCache {
 			j["x"] = i.x;
 			j["y"] = i.y;
 			j["fwhm"] = i.fwhm;
+			j["peak"] = i.peak;
 			j["stddev"] = i.stddev;
 			j["maxFwhm"] = i.maxFwhm;
 			j["maxStddev"] = i.maxStddev;
@@ -87,6 +88,7 @@ namespace SharedCache {
 			i.x = j.at("x").get<double>();
 			i.y = j.at("y").get<double>();
 			i.fwhm = j.at("fwhm").get<double>();
+			i.peak = j.at("peak").get<double>();
 			i.stddev = j.at("stddev").get<double>();
 			i.maxFwhm = j.at("maxFwhm").get<double>();
 			i.maxStddev = j.at("maxStddev").get<double>();

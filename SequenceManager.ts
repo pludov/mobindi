@@ -6,6 +6,7 @@ import * as jsonpatch from 'json-patch';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
+import * as Algebra from './Algebra';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
 import {IdGenerator} from "./IdGenerator";
@@ -417,13 +418,8 @@ export default class SequenceManager
                 console.log('StarField', JSON.stringify(starField, null, 2));
                 let fwhm, starCount;
                 starCount = starField.length;
-                if (starField.length) {
-                    fwhm = 0;
-                    for(let star of starField) {
-                        fwhm += star.fwhm;
-                    }
-                    fwhm /= starField.length;
-                }
+                fwhm =  Algebra.starFieldFwhm(starField);
+                if (isNaN(fwhm)) fwhm = undefined;
 
                 target.fwhm = fwhm;
                 target.starCount = starCount;

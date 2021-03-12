@@ -1,6 +1,7 @@
 const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
 import { hasKey } from './Obj';
+import * as Algebra from './Algebra';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
@@ -210,7 +211,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         );
     }
 
-
     private getCurrentConfiguration(): {camera: string, focuser:string, settings: FocuserSettings} {
         const camera = this.currentStatus.selectedCamera;
         if (camera === null) {
@@ -366,22 +366,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 const starField = starFieldResponse.stars;
                 console.log('AUTOFOCUS: got starfield');
                 console.log('StarField', JSON.stringify(starField, null, 2));
-                let fwhm;
-                if (starField.length) {
-                    fwhm = 0;
-                    for(let star of starField) {
-                        fwhm += star.fwhm;
-                    }
-                    fwhm /= starField.length;
-
-                } else {
+                let fwhm:number|null = Algebra.starFieldFwhm(starField);
+                if (isNaN(fwhm!)) {
                     fwhm = null;
-                    // Testing...
-                    // if (Math.random() < 0.1) {
-                    //     fwhm = null;
-                    // } else {
-                    //     fwhm = 1.6 + Math.abs(currentStep - 3280)/1000.0 + Math.random() * 0.5;
-                    // }
                 }
 
                 if (fwhm !== null) {

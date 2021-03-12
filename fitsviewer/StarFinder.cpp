@@ -33,7 +33,7 @@ bool StarFinder::perform(StarOccurence & result) {
     for(int ch = 0; ch < channelMode.channelCount; ++ch)
     {
         blackLevelByChannel[ch] = hs->channel(ch)->getLevel(0.4);
-        blackStddevByChannel[ch] = ceil(2 * hs->channel(ch)->getStdDev(0, blackLevelByChannel[ch]));
+        blackStddevByChannel[ch] = ceil(4 * hs->channel(ch)->getStdDev(0, blackLevelByChannel[ch]));
     }
     
     delete(hs);
@@ -45,6 +45,7 @@ bool StarFinder::perform(StarOccurence & result) {
         blackLevelByChannel[i] += blackStddevByChannel[i];
     }
 
+    int maxAbsAdu = 0;
     int maxRelAdu = 0;
     int maxAduX = this->x, maxAduY = this->y;
 
@@ -55,6 +56,9 @@ bool StarFinder::perform(StarOccurence & result) {
         {
             int adu = content->getAdu(x, y);
             int channelId = this->channelMode.getChannelId(x, y);
+            if (adu > maxAbsAdu) {
+                maxAbsAdu = adu;
+            }
             if (adu > blackLevelByChannel[channelId]) {
                 maxAduByChannel[channelId] = adu;
                 adu -= blackLevelByChannel[channelId];
@@ -206,6 +210,6 @@ bool StarFinder::perform(StarOccurence & result) {
     result.minStddev = minFwhm / 2.35;
     result.minFwhmAngle = minAngle;
     result.flux = aduSum;
-
+    result.peak = maxAbsAdu / (content->bitpix == 8 ? 255.0 : 65535.0);
     return true;
 }

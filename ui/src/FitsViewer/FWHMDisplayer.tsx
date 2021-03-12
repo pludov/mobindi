@@ -1,6 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
+import * as Algebra from '../shared/Algebra';
 
 export type Props = {
     path: string|null;
@@ -51,15 +52,12 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
                 }
             );
 
-            let fwhmSum = 0;
-            for(let star of e.stars) {
-                fwhmSum += star.fwhm
-            }
-            if (e.stars.length) {
-                fwhmSum /= e.stars.length;
+            let fwhm = Algebra.starFieldFwhm(e.stars);
+            if (isNaN(fwhm)) {
+                fwhm = 0;
             }
 
-            const stat = fwhmSum.toFixed(2) + " - " + e.stars.length + " stars"
+            const stat = fwhm.toFixed(2) + " - " + e.stars.length + " stars"
 
             this.setState({
                 value: stat,
