@@ -1,5 +1,8 @@
+import Log from './Log';
 import { Task } from "./Task";
 import Client from "./Client";
+
+const logger = Log.logger(__filename);
 
 export default class ClientRequest {
     private promise: Task<any>|undefined;
@@ -24,6 +27,10 @@ export default class ClientRequest {
         };
     }
 
+    private logContext(): object {
+        return {uid: this.uid, clientUid: this.client?.uid};
+    }
+
     // Dettach request from client
     dettach() {
         this.client = undefined;
@@ -42,7 +49,7 @@ export default class ClientRequest {
         } else {
             err = err.stack || '' + err;
         }
-        console.log('Request ' + this.uid + ' failure notification: ' + err);
+        logger.warn('Request error', this.logContext(), err);
         this.promise = undefined;
         this.finalStatus = {
             type: 'requestEnd',
@@ -56,7 +63,8 @@ export default class ClientRequest {
 
     success (rslt:any) {
         if (rslt == undefined) rslt = null;
-        console.log('Request ' + this.uid + ' succeeded: ' + JSON.stringify(rslt));
+        logger.info('Request success', this.logContext());
+        logger.debug('Request result', {...this.logContext, rslt});
         this.promise = undefined;
         this.finalStatus = {
             type: 'requestEnd',
@@ -69,7 +77,7 @@ export default class ClientRequest {
     }
 
     onCancel() {
-        console.log('Request ' + this.uid + ' canceled');
+        logger.info('Request canceled', this.logContext());
         this.promise = undefined;
         this.finalStatus = {
             type: 'requestEnd',

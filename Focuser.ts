@@ -1,5 +1,6 @@
 const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { hasKey } from './Obj';
 import * as Algebra from './Algebra';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
@@ -13,6 +14,8 @@ import Camera from './Camera';
 import IndiManager from "./IndiManager";
 import ImageProcessor from "./ImageProcessor";
 import { DriverInterface } from './Indi';
+
+const logger = Log.logger(__filename);
 
 export default class Focuser implements RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI>{
     readonly appStateManager: JsonProxy<BackofficeStatus>;
@@ -243,6 +246,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         const amplitude = config.settings.range;
         const stepCount = config.settings.steps;
         const data:Array<number[]> = [];
+        logger.info("Starting focus", {config});
 
         // Find focuser & camera.
         const connection = this.indiManager.getValidConnection();
@@ -251,14 +255,17 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         // check device connected
         const focuser = connection.getDevice(focuserId);
         if (!focuser.isConnected()) {
+            logger.warn("Focuser not connected");
             throw new Error("Focuser not connected");
         }
         if (!connection.getDevice(config.camera).isConnected()) {
+            logger.warn("Camera not connected");
             throw new Error("Camera not connected");
         }
         // Move to the starting point
         const absPos = focuser.getVector('ABS_FOCUS_POSITION');
         if (!absPos.isReadyForOrder()) {
+            logger.warn("Focuser not ready");
             throw new Error("Focuser is not ready");
         }
 
@@ -268,7 +275,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 ? lastKnownPos
                 : config.settings.targetPos;
 
-        console.log('start pos is ' + start);
+        logger.info('start pos', {start});
         let firstStep = Math.round(start - amplitude);
         let lastStep = Math.round(start + amplitude);
         let stepSize = Math.ceil(2 * amplitude / stepCount);
@@ -280,6 +287,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             firstStep = 0;
         }
         if (Math.abs(lastStep - firstStep) / stepSize < 5) {
+            logger.warn("Not enough step");
             throw new Error("Not enough step - at least 5 required");
         }
 
@@ -322,15 +330,15 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             }
 
             lastKnownPos = target;
-            console.log('AUTOFOCUS: moving focuser to ' + target);
+            
             if ((intermediate !== undefined) && (intermediate !== target)) {
                 // Account for backlash
-                console.log('Focuser moving with backlash to : ', intermediate, target);
+                logger.info('Clearing backlash', {intermediate, target});
                 await this.rawMoveFocuser(ct, focuserId, intermediate);
             }
 
             // Direct move
-            console.log('Focuser moving to : ', target);
+            logger.info('Moving focuser', {target});
             await this.rawMoveFocuser(ct, focuserId, target);
         }
 
@@ -347,7 +355,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         
         while(!done(currentStep)) {
             
-            console.log('AUTOFOCUS: shoot start');
+            logger.info('shoot start');
             const shootResult = await this.camera.doShoot(ct, config.camera,
                         (settings)=>({
                             ...settings,
@@ -364,9 +372,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 });
                 
                 const starField = starFieldResponse.stars;
-                console.log('AUTOFOCUS: got starfield');
-                console.log('StarField', JSON.stringify(starField, null, 2));
+                logger.info('got starfield', {starCount: starField.length});
                 let fwhm:number|null = Algebra.starFieldFwhm(starField);
+                logger.info('fwhm result', {currentStep, fwhm});
                 if (isNaN(fwhm!)) {
                     fwhm = null;
                 }
@@ -380,7 +388,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 };
 
                 currentStep = nextStep();
-                console.log('AUTOFOCUS: next step - ' + currentStep);
+                logger.debug('next step', {currentStep});
                 stepId++;
             } finally {
                 await moveFocuserPromise;
@@ -388,12 +396,12 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         }
 
         if (data.length < 5) {
-            console.log('Could not find best position. Moving back to origin');
+            logger.warn('Could not find best position. Moving back to origin', {initialPos});
             await moveFocuser(initialPos);
             throw new Error("Not enough data for focus");
         }
         
-        console.log('regression with :' + JSON.stringify(data));
+        logger.info('regression', {data});
         const result = new PolynomialRegression(data.map(e=>e[0]), data.map(e=>e[1]), 4);
         // This is ugly. but works
         const precision = Math.min(Math.abs(lastStep - firstStep), 128);
@@ -402,7 +410,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         for(let i = 0; i <= precision; ++i) {
             const pos = firstStep + (i === 0 ? 0 : i * (lastStep - firstStep) / precision);
             const pred = result.predict(pos);
-            console.log('predict at : '  + i + '#' +pos+' => ' + JSON.stringify(pred));
+            logger.debug('predict at : '  + i + '#' +pos+' => ' + JSON.stringify(pred));
             const valueAtPos = pred;
             this.currentStatus.current.predicted[pos] = {
                 fwhm: valueAtPos
@@ -412,7 +420,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 bestPos = pos;
             }
         }
-        console.log('Found best position at ' + bestPos);
+        logger.info('Found best position', {bestPos, bestValue});
         await moveFocuser(bestPos!);
         return bestPos!;
     }
@@ -456,7 +464,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     }
 
     focus=async(ct:CancellationToken, message:{}):Promise<number>=>{
-        console.log('API focus called');
         return await createTask<number>(ct, async (task)=>{
             if (this.currentPromise !== null) {
                 throw new Error("Focus already started");

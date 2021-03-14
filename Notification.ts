@@ -2,6 +2,7 @@ import uuid from 'node-uuid';
 const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, NotificationStatus, NotificationItem} from './shared/BackOfficeStatus';
 import JsonProxy, { has } from './JsonProxy';
@@ -14,6 +15,8 @@ import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
+
+const logger = Log.logger(__filename);
 
 export default class Notification
         implements RequestHandler.APIAppProvider<BackOfficeAPI.NotificationAPI>
@@ -103,7 +106,7 @@ export default class Notification
     }
 
     public exposedNotification = async(ct: CancellationToken, message:BackOfficeAPI.ExposedNotificationRequest)=>{
-        console.log('Request for exposure of notification: ', JSON.stringify(message));
+        logger.info('Request for exposure of notification', message);
         const uid = message.uuid;
         if (has(this.currentStatus.byuuid, uid) && !has(this.expires, uid)) {
             if (this.currentStatus.byuuid[uid].type === "oneshot") {
@@ -113,7 +116,7 @@ export default class Notification
     }
 
     public closeNotification = async(ct: CancellationToken, message:BackOfficeAPI.CloseNotificationRequest)=>{
-        console.log('Request to close notification: ', JSON.stringify(message));
+        logger.info('CloseNotification for exposure of notification', message);
         const uid = message.uuid;
         if (has(this.currentStatus.byuuid, uid)) {
             const watcher = has(this.watchers, uid) ? this.watchers[uid]: undefined;
@@ -123,7 +126,7 @@ export default class Notification
                 watcher(message.result);
             }
         }
-        console.log('Remaining notifications: ' + JSON.stringify(this.currentStatus));
+        logger.debug('Remaining notifications', {remainingNotifications: this.currentStatus});
     }
 
     private message(content: string) {
@@ -137,16 +140,16 @@ export default class Notification
     }
 
     public info(content: string) {
-        console.log('INFO: ' + content);
+        logger.info('INFO', {content});
         this.message(content);
     }
 
     public error(content: string, reason?: any) {
         if (reason) {
-            console.log('ERROR: ' + content, reason);
+            logger.info('ERROR', {content}, reason);
             this.message(content + ": " + (reason.msg || reason));
         } else {
-            console.log('ERROR: ' + content);
+            logger.info('ERROR', {content});
             this.message(content);
         }
     }

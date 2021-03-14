@@ -1,5 +1,6 @@
 import child_process from 'child_process';
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { IndiServerConfiguration, IndiServerState, IndiDeviceConfiguration } from './shared/BackOfficeStatus';
 import * as SystemPromise from './SystemPromise';
 import Timeout from './Timeout';
@@ -9,6 +10,7 @@ import * as Metrics from "./Metrics";
 
 import * as Obj from './Obj.js';
 
+const logger = Log.logger(__filename);
 
 // Ensure that indiserver is running.
 // Restart as required.
@@ -92,9 +94,9 @@ export default class IndiServerStarter {
                     ...Obj.deepCopy(this.wantedConfiguration),
                     restartList: [],
                 };
-                console.log('Indiserver process found. Assuming it already has the right configuration.');
+                logger.warn('Indiserver process found. Assuming it already has the right configuration.');
             } else {
-                console.log('Indiserver process not found.');
+                logger.info('Indiserver process not found.');
             }
         };
         this.currentConfiguration.restartList = [];
@@ -104,7 +106,6 @@ export default class IndiServerStarter {
     private startIndiServer=async (ct: CancellationToken)=>{
         this.indiServerStartAttempt++;
 
-            //console.log('Starting indiserver for configuration: ' + JSON.stringify(self.currentConfiguration, null, 2));
         this.currentConfiguration.fifopath = this.wantedConfiguration.fifopath;
         this.currentConfiguration.path = this.wantedConfiguration.path;
 
@@ -128,15 +129,16 @@ export default class IndiServerStarter {
             throw new Error("mkfifo failed");
         }
 
-        console.log('Starting indiserver');
+        logger.debug('Starting indiserver');
         var child = child_process.spawn('indiserver', ['-v', '-f', fifopath], {
                 env: env,
                 detached: true,
                 stdio: 'ignore'
             });
         child.on('error', (err:any)=> {
-            console.warn("Process indiserver error : " + err);
+            logger.warn("Process indiserver error", err);
         });
+        logger.info('Started indiserver', {pid: child.pid});
     }
 
     public restartDevice=async (ct:CancellationToken, dev:string)=>
@@ -246,7 +248,7 @@ export default class IndiServerStarter {
                 }
             }
         } else {
-            console.log('Indi: fifo order: ' + todo.cmd);
+            logger.info('Indi: fifo order', {cmd: todo.cmd});
         }
         const fifopath = this.actualFifoPath();
 
@@ -278,7 +280,7 @@ export default class IndiServerStarter {
             );
             return todo!.cmd === 'ping' ? 0 : 1;
         } catch(e) {
-            console.warn('IndiServer error', e);
+            logger.error('IndiServer error', e);
             this.currentConfiguration.devices = {};
             this.indiFifoError++;
             return 'dead';
@@ -309,7 +311,7 @@ export default class IndiServerStarter {
                     }
                 } while(this.wantedConfiguration.autorun && status !== "dead");
             } catch(error) {
-                console.log('IndiServerStarter error:', error);
+                logger.error('IndiServerStarter error', error);
             } finally {
                 this.lifeCycle = null;
                 if (this.wantedConfiguration.autorun) {

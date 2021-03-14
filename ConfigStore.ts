@@ -1,9 +1,11 @@
 import fs from 'fs';
 import tmp from 'tmp';
+import Log from './Log';
 import * as Obj from './Obj';
 import JsonProxy from "./JsonProxy";
 import { BackofficeStatus } from "./shared/BackOfficeStatus";
 
+const logger = Log.logger(__filename);
 
 var configDir = 'local';
 
@@ -65,7 +67,7 @@ export default class ConfigStore<T, STORED=T> {
                 fs.writeFileSync(examplePath, JSON.stringify(exampleContent, null, 2));
             }
         } catch(e) {
-            console.warn('Unable to save ' + examplePath, e);
+            logger.error('Unable to save example', {...this.logContext(), examplePath}, e);
         }
         
         try {
@@ -73,26 +75,32 @@ export default class ConfigStore<T, STORED=T> {
                 fs.writeFileSync(this.localPath, '{}');
             }
         } catch(e) {
-            console.warn('Unable to save ' + this.localPath, e);
+            logger.error('Unable to save initial file',  {...this.logContext(), localPath:  this.localPath}, e);
         }
         
         try {
             var content = fs.readFileSync(this.localPath, 'utf8');
             var patch = JSON.parse(content);
-            console.log('Loaded config patch: ' + JSON.stringify(patch, null, 2));
+            logger.info('Loaded config patch', {...this.logContext(), patch});
             let newContent = this.applyPatch(this.defaultContent, patch);
             if (this.readCb) {
                 newContent = this.readCb(newContent);
             }
             Object.assign(this.currentContent, newContent);
-            console.log('Resulting config: ' + JSON.stringify(this.currentContent, null, 2));
+            logger.debug('Resulting config', {...this.logContext(), config: this.currentContent});
             this.lastPatch = patch;
         } catch(e) {
-            console.log('Unable to read local config : ', e);
+            logger.error('Unable to read local config', this.logContext(), e);
         }
 
         // Save on change
         this.appStateManager.addSynchronizer(path, this.saveLocal.bind(this), false);
+    }
+
+    private logContext(): object {
+        return {
+            fileName: this.fileName
+        };
     }
 
     private createPatch=()=>{
@@ -265,7 +273,7 @@ export default class ConfigStore<T, STORED=T> {
         }
 
         function onError(err:NodeJS.ErrnoException) {
-            console.error('Error saving ' + self.localPath, err);
+            logger.error('Error saving', self.logContext(), err);
             if (state.tmpCleanupCallback) {
                 try {
                     state.tmpCleanupCallback();
@@ -279,12 +287,12 @@ export default class ConfigStore<T, STORED=T> {
 
         function done() {
             if (self.saveMustRestart) {
-                console.log('save must restart for ' + self.localPath);
+                logger.debug('save must restart', self.logContext());
                 state = {};
                 return start();
             } else {
                 self.saveRunning = false;
-                console.log('Successfully saved ' + self.localPath);
+                logger.info('Successfully saved', self.logContext());
             }
         }
 

@@ -1,10 +1,8 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import IndiManager from './IndiManager';
 
-function debug(...args:any[]) {
-    console.log('IndiAutoConnect: ' + args.map((e)=>''+e).join(' '));
-}
-
+const logger = Log.logger(__filename);
 
 // Evaluate f function, but if fail, return def
 function noErr<T>(f:()=>T, def: T)
@@ -42,7 +40,7 @@ export default class IndiAutoConnect {
         //    - busy, set the memory to done
         //    - idle disconnected, connect
         // Remove the unknown devices from the memory
-        debug('Recheck');
+        logger.debug('Recheck');
         const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices, undefined) || {};
 
         const configuredDevices:{[id:string]:boolean} = {};
@@ -53,7 +51,7 @@ export default class IndiAutoConnect {
             if (!noErr(()=>dev.options.autoConnect, false)) {
                 continue;
             }
-            debug('Configured device:', devId);
+            logger.debug('Configured device', {devId});
             configuredDevices[devId] = true;
         }
 
@@ -64,11 +62,9 @@ export default class IndiAutoConnect {
 
             const deviceIds = c.getAvailableDeviceIdsWith(['CONNECTION']);
 
-            debug('valid devices = ', JSON.stringify(deviceIds));
+            logger.debug('valid devices', {deviceIds});
             for(let devId of deviceIds) {
-                debug('What about', devId);
                 if (!Object.prototype.hasOwnProperty.call(configuredDevices, devId)) {
-                    debug('Not configured');
                     continue;
                 }
                 delete(unseenDevices[devId]);
@@ -76,19 +72,16 @@ export default class IndiAutoConnect {
                 // Check the connection state of the device
                 // Take memory state from the state of the connection vector
                 const memoryState = Object.prototype.hasOwnProperty.call(this.memory, devId) ? this.memory[devId] : null;
-                debug('Memory state is ', memoryState);
                 if (memoryState === true) {
                     continue;
                 }
 
                 const vector = c.getDevice(devId).getVector('CONNECTION');
                 if (vector.getState() === 'Busy') {
-                    debug('connection is busy');
                     this.memory[devId] = true;
                     continue;
                 }
                 const val = vector.getPropertyValueIfExists('CONNECT');
-                debug('val is ', val);
                 if (val === null) {
                     // Doesn't really exists...
                     unseenDevices[devId] = true;
@@ -99,10 +92,11 @@ export default class IndiAutoConnect {
                 if (val === 'Off') {
                     (async ()=> {
                         try {
-                            debug('Starting...');
+                            logger.info('Auto connecting device', {devId});
                             await this.indiManager.connectDevice(CancellationToken.CONTINUE, {device: devId});
+                            logger.info('Done connecting device', {devId});
                         } catch(e) {
-                            debug('Failed to autostart ' + devId, e);
+                            logger.error('Failed to autostart', {devId});
                         }
                     })();
                 }
@@ -110,7 +104,7 @@ export default class IndiAutoConnect {
         }
 
         for(let devId of Object.keys(unseenDevices)) {
-            debug('Forget about ', devId);
+            logger.debug('Forget about ', {devId});
             delete this.memory[devId];
         }
     }

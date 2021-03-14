@@ -1,5 +1,6 @@
 import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
+import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
@@ -15,6 +16,9 @@ import { Pipe } from './SystemPromise';
 
 
 type ScopeState = "light"|"dark"|"flat";
+
+const logger = Log.logger(__filename);
+
 const stateByFrameType :{[id:string]:ScopeState}= {
     FRAME_BIAS:"dark",
     FRAME_DARK:"dark",
@@ -214,7 +218,7 @@ export default class Camera
                     }
                     var age = timestampToEpoch(timestamp) - timestampToEpoch(dtree.CONNECTION.$timestamp);
                     if (age <= 2) {
-                        console.log('Ignored CCD_FILE_PATH from before last connection event : ' + age);
+                        logger.warn('Ignored CCD_FILE_PATH from before last connection event', {age, vector: dtree.CCD_FILE_PATH});
                         continue;
                     }
 
@@ -222,7 +226,7 @@ export default class Camera
                     continue;
                 }
             } catch(e) {
-                console.log('Error with device ' + device, e);
+                logger.error('Error in CCD_FILE_PATH handling', {device}, e);
                 continue;
             }
             var stamp = rev + ":" + value;
@@ -233,7 +237,7 @@ export default class Camera
                 this.previousImages[device] = stamp;
             } else {
                 if (this.previousImages[device] != stamp) {
-                    console.log('changed value from ' + this.previousImages[device]);
+                    logger.debug('changed value', {device, old: this.previousImages[device], new: stamp});
                     this.previousImages[device] = stamp;
                     if (value != '') {
 
@@ -244,9 +248,9 @@ export default class Camera
                             currentShoot = undefined;
                         }
                         if (currentShoot != undefined && currentShoot.managed) {
-                            console.log('Image will be result of our action.', value)
+                            logger.debug('Image will be result of our action.', {value})
                         } else {
-                            console.log('New external image :', value);
+                            logger.info('New external image', {value});
 
                             var newUuid = this.imageIdGenerator.next();
 
@@ -260,12 +264,11 @@ export default class Camera
                 }
             }
         }
-        // console.log('Known devices are : ' + JSON.stringify(Object.keys(this.previousImages)));
-        // console.log('Devices with stamp : ' + JSON.stringify(found));
+
         for(var o of Object.keys(this.previousImages))
         {
             if (!found[o]) {
-                console.log('No more looking for shoot of ' + o);
+                logger.debug('No more looking for shoot',{device: o});
                 delete(this.previousImages[o]);
             }
         }
@@ -338,7 +341,7 @@ export default class Camera
     }
 
     setCamera=async (ct: CancellationToken, payload:{device:string})=>{
-        console.log('Request to set device: ', JSON.stringify(payload.device));
+        logger.info('setCamera', payload);
         if (this.currentStatus.availableDevices.indexOf(payload.device) == -1) {
             throw "device not available";
         }
@@ -347,7 +350,7 @@ export default class Camera
 
     setShootParam=async<K extends keyof CameraDeviceSettings> (ct: CancellationToken, payload:{camera?: string, key:K, value: CameraDeviceSettings[K]})=>{
         // FIXME: send the corresponding info ?
-        console.log('Request to set setting: ', JSON.stringify(payload));
+        logger.info('setShootParam',payload);
         var key = payload.key;
 
         const deviceId = payload.camera !== undefined ? payload.camera : this.currentStatus.selectedDevice;
@@ -356,7 +359,7 @@ export default class Camera
         }
         const allSettings = this.currentStatus.configuration.deviceSettings;
         if (!Obj.hasKey(allSettings, deviceId)) {
-            console.log("Internal error - device has no settings");
+            logger.error("Internal error - device has no settings");
             throw new Error("Device has no settings");
         }
         const deviceSettings = allSettings[deviceId];
@@ -392,9 +395,7 @@ export default class Camera
                 y:parseFloat(binningVec.getPropertyValue('VER_BIN'))
             }
             : {x: 1, y: 1};
-        console.log('Crop status is '+ JSON.stringify(crop, null, 2));
-        console.log('Frame status is '+ JSON.stringify(max, null, 2));
-        console.log('Bin status is '+ JSON.stringify(bin, null, 2));
+        logger.debug('Crop status', {crop, max, bin});
         if (crop.x || crop.y || crop.w != max.w || crop.h  != max.h) {
             return {
                 X: "0",
@@ -430,7 +431,6 @@ export default class Camera
         if (settingsProvider !== undefined) {
             settings = settingsProvider(settings);
         }
-        console.log('Shoot settings:' + JSON.stringify(settings, null, 2));
         this.currentStatus.currentShoots[device] = Object.assign({
                     status: 'init' as "init",
                     managed: true,
@@ -444,7 +444,7 @@ export default class Camera
         
             try {
                 const currentShootSettings = this.currentStatus.currentShoots[device];
-                console.log('Starting shoot: ' + JSON.stringify(currentShootSettings));
+                logger.info('Starting shoot', {device, settings: currentShootSettings});
                 var exposure = currentShootSettings.exposure;
                 if (exposure === null || exposure === undefined) {
                     exposure = 0.1;
@@ -457,6 +457,7 @@ export default class Camera
                     && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists())
                 {
                     task.cancellation.throwIfCancelled();
+                    logger.debug('Bin upgrade', {device});
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_BINNING', {
                                 HOR_BIN: '' + currentShootSettings.bin!,
                                 VER_BIN: '' + currentShootSettings.bin!
@@ -464,6 +465,8 @@ export default class Camera
                 }
                 // Reset the frame size - if prop is present only
                 if (Object.keys(this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device))).length != 0) {
+                    task.cancellation.throwIfCancelled();
+                    logger.debug('set crop', {device});
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
                 }
 
@@ -472,6 +475,7 @@ export default class Camera
                         && currentShootSettings.iso !== undefined
                         && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()) {
                     task.cancellation.throwIfCancelled();
+                    logger.debug('set iso', {device});
                     await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',
                         // FIXME : support cb for setParam
                         (vector:Vector) => {
@@ -487,7 +491,7 @@ export default class Camera
                                 }
                             }
                             if (childToSet === undefined) throw new Error("Unsupported iso value: " + v);
-
+                            logger.debug('found iso', {device, childToSet});
                             return ({[childToSet]: 'On'});
                         }
                     );
@@ -501,6 +505,7 @@ export default class Camera
                             if (vec.getPropertyValueIfExists('UPLOAD_DIR') !== currentShootSettings.path
                                 || vec.getPropertyValueIfExists('UPLOAD_PREFIX') !== currentShootSettings.prefix)
                             {
+                                logger.debug('adjusting UPLOAD_DIR/UPLOAD_PREFIX', {device});
                                 return {
                                     UPLOAD_DIR: currentShootSettings.path,
                                     UPLOAD_PREFIX: currentShootSettings.prefix
@@ -515,7 +520,7 @@ export default class Camera
                 await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
                         (vec:Vector) => {
                             if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') == 'On') {
-                                console.log('want upload_client\n');
+                                logger.debug('want upload_client', {device});
                                 return {
                                     UPLOAD_BOTH: 'On'
                                 }
@@ -524,6 +529,7 @@ export default class Camera
                             }
                         });
 
+                logger.debug('wait readiness of CCD_FILE_PATH', {device});
                 await this.indiManager.waitForVectors(task.cancellation, device, ['CCD_FILE_PATH']);
 
                 const connection = this.indiManager.connection;
@@ -536,6 +542,7 @@ export default class Camera
                 var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
 
                 task.cancellation.throwIfCancelled();
+                logger.debug('starting exposure', {device});
                 expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: '' + currentShootSettings.exposure! }]);
 
                 
@@ -546,10 +553,11 @@ export default class Camera
                         var uploadModeVector = connection.getDevice(device).getVector("UPLOAD_MODE");
                         uploadModeVector.setValues([{name: 'UPLOAD_CLIENT', value: 'On'}]);
                 });
+                let nextLog = new Date().getTime() + currentShootSettings.exposure * 1000  + 5000;
                 try {
                     // Make this uninterruptible
                     await connection.wait(CancellationToken.CONTINUE, () => {
-                        console.log('Waiting for exposure end');
+                        logger.debug('Checking for exposure end', {device});
 
                         var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
                         var state = expVector.getState();
@@ -560,12 +568,18 @@ export default class Camera
                         }
 
                         if (state === "Busy") {
+                            if (new Date().getTime() > nextLog) {
+                                logger.info('Still waiting exposure', {device, settings: currentShootSettings});
+                                nextLog = new Date().getTime() + 5000;
+                            }
                             return false;
                         }
                         if (state !== "Ok" && state !== "Idle") {
+                            logger.warn('Wrong exposure state', {device, state});
                             throw new Error("Exposure failed");
                         }
 
+                        logger.debug('Exposure done', {device});
                         return true;
                     });
                 } finally {
@@ -579,7 +593,7 @@ export default class Camera
 
                 var value = connection.getDevice(device).getVector("CCD_FILE_PATH").getPropertyValue("FILE_PATH");
 
-                console.log('Finished  image acquisistion :', value);
+                logger.debug('Finished  image acquisistion', {device, value});
 
                 if (this.currentStatus.configuration.fakeImages != null) {
                     var examples = this.currentStatus.configuration.fakeImages;
@@ -587,7 +601,7 @@ export default class Camera
                     if (this.currentStatus.configuration.fakeImagePath != null) {
                         value = this.currentStatus.configuration.fakeImagePath + value;
                     }
-                    console.log('Using fake image : ' + value);
+                    logger.warn('Using fake image', {device, value});
                 }
                 this.currentStatus.lastByDevices[device] = value;
 
@@ -605,7 +619,7 @@ export default class Camera
                 await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
                         (vec:Vector) => {
                             if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') != 'On') {
-                                console.log('set back upload_client\n');
+                                logger.debug('set back upload_client', {device});
                                 return {
                                     UPLOAD_CLIENT: 'On'
                                 }
@@ -613,9 +627,10 @@ export default class Camera
                                 return ({});
                             }
                         });
+                logger.info('Image acquisistion done', shootResult);
                 return shootResult;
             } finally {
-                console.log('Doing cleanup');
+                logger.debug('Doing cleanup', {device});
                 delete this.shootPromises[device];
                 delete this.currentStatus.currentShoots[device];
             }
@@ -658,12 +673,12 @@ export default class Camera
 
 
                 task.cancellation.throwIfCancelled();
-
+                logger.info('Starting passive streaming', {device});
                 // Set the upload mode to at least upload_client
                 await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_MODE',
                         (vec:Vector) => {
                             if (vec.getPropertyValueIfExists('UPLOAD_CLIENT') === 'Off') {
-                                console.log('want upload_client\n');
+                                logger.debug('want upload_client for stream', {device});
                                 return {
                                     UPLOAD_CLIENT: 'On'
                                 }
@@ -684,10 +699,10 @@ export default class Camera
                             try {
                                 val = JSON.parse(e);
                             } catch(e) {
-                                console.warn('json parse error in streamer', e);
+                                logger.warn('json parse error in streamer', {device}, e);
                                 return;
                             }
-                            console.log('decoded from streamer', val);
+                            logger.debug('decoded from streamer', {device, json: val});
                             const target = this.currentStatus.currentStreams[device];
                             if (val.serial) {
                                 target.serial = val.serial;
@@ -724,7 +739,7 @@ export default class Camera
                 }
 
             } finally {
-                console.log('Doing cleanup');
+                logger.debug('Streamer doing cleanup', {device});
                 delete this.streamPromises[device];
                 delete this.currentStatus.currentStreams[device];
             }

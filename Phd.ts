@@ -2,6 +2,7 @@ import util from 'util';
 import fs from 'fs';
 import net from 'net';
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import * as Obj from './Obj.js';
 import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
@@ -28,6 +29,8 @@ export type PhdRequest = {
 export type Listener = {
     test: ()=>(void);
 }
+
+const logger = Log.logger(__filename);
 
 const defaultDithering= ():DitheringSettings => ({
     amount: 1,
@@ -157,7 +160,7 @@ export default class Phd
 
     private startCapture=(device:string)=>{
         createTask<void>(undefined, async(task)=> {
-            console.log('Starting phd capture for ' + device);
+            logger.info('Starting phd capture', {device});
             this.streamCapture = task;
             this.streamCaptureCanceled = false;
             this.streamCaptureDevice = device;
@@ -166,14 +169,14 @@ export default class Phd
                 await this.context.camera.doStream(task.cancellation, device);
             } catch(e) {
                 if (!(e instanceof CancellationToken.CancellationError)) {
-                    console.log('phd capture for ' + device + ' failed', e);
+                    logger.warn('phd capture failed', {device}, e);
                     try {
                         await Sleep(task.cancellation, 2000);
                     } catch(e) {
                     }
                 }
             } finally {
-                console.log('phd capture for ' + device + ' terminated');
+                logger.info('phd capture terminated', {device});
                 this.streamCapture = undefined;
                 this.streamCaptureCanceled = undefined;
                 this.streamCaptureDevice = undefined;
@@ -194,14 +197,14 @@ export default class Phd
                 if (camEq.connected) {
                     wantCaptureDevice = name;
                 } else {
-                    console.log('PHD camera not connected');
+                    logger.debug('PHD camera not connected');
                 }
             } else {
-                console.log('PHD camera not available');
+                logger.debug('PHD camera not available');
                 wantCaptureDevice = undefined;
             }
         } else {
-            console.log('PHD has no camera');
+            logger.debug('PHD has no camera');
             wantCaptureDevice = undefined;
         }
 
@@ -210,7 +213,7 @@ export default class Phd
                 // Cancel current stream capture
                 if (!this.streamCaptureCanceled) {
                     this.streamCaptureCanceled = true;
-                    console.log('Stopping PHD capture for ' + this.streamCaptureDevice);
+                    logger.info('Stopping PHD capture', {streamCaptureDevice: this.streamCaptureDevice});
                     this.streamCapture!.cancel(new CancellationToken.CancellationError("canceled"));
                 }
                 return;
@@ -233,8 +236,10 @@ export default class Phd
                 method: "get_calibration_data",
                 params:[]
             });
-            console.log('calibration data is ', ret);
-            this.currentStatus.calibration = ret as PhdStatus["calibration"];
+            if (!Obj.deepEqual(ret, this.currentStatus.calibration)) {
+                logger.info('calibration data is ', ret);
+                this.currentStatus.calibration = ret as PhdStatus["calibration"];
+            }
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
                 this.clearCalibration();
@@ -326,7 +331,7 @@ export default class Phd
             throw new Error("Invalid PHD config file");
         }
         if (content[0] !== 'PHD Config 1') {
-            console.log('[PHD] Encountered invalid config header: ' + content[0]);
+            logger.error('Encountered invalid config header', {header: content[0]});
             throw new Error("Invalid PHD config format");
         }
 
@@ -338,7 +343,7 @@ export default class Phd
             const [key, type, val] = line.split(/\t/g);
             const keyParts = key.split(/\//g).map(s=>s.toLowerCase());
             if (keyParts.length < 2 || keyParts[0] !== '') {
-                console.log('[PHD] encountered invalid config key: ' + key);
+                logger.error('encountered invalid config key', {key});
                 throw new Error('Invalid PHD config key');
             }
             let parent = ret;
@@ -392,7 +397,7 @@ export default class Phd
             }
         }
         if (this.client !== conn) {
-            console.log("[PHD] No re-reading configuration after conn drop");
+            logger.info("No re-reading configuration after conn drop");
             return;
         }
         await this.queryServerConfiguration();
@@ -411,13 +416,13 @@ export default class Phd
                     method: "export_config_settings",
                     params: []
                 }) as {filename: string};
-                console.log('[PHD] Reading config file at ', ret.filename);
+                logger.info('Reading config file', {filename: ret.filename});
                 task.cancellation.throwIfCancelled();
                 const content = await util.promisify(fs.readFile)(ret.filename, {encoding: 'utf8'})
                 task.cancellation.throwIfCancelled();
                 if (this.queryServerConfigurationTask === task) {
                     this.currentStatus.serverConfiguration = this.parseServerConfiguration(content);
-                    console.log('[PHD] configuration updated to ' + JSON.stringify(this.currentStatus.serverConfiguration, null, 2));
+                    logger.info('Configuration updated', this.currentStatus.serverConfiguration);
                 }
             } catch(e) {
                 if (!(e instanceof CancellationToken.CancellationError)) {
@@ -448,7 +453,7 @@ export default class Phd
             const currentProfile = serverConfiguration.profile.props![currentProfileId].props!;
 
             const camName = currentProfile.camera.props!.lastmenuchoice.val!;
-            console.log('Found camName', camName);
+            logger.debug('Found camName', {camName});
 
             const up2date = currentProfile.indi && currentProfile.indi.props!.indicam_forceexposure;
 
@@ -529,7 +534,7 @@ export default class Phd
                             this.client = new net.Socket();
                             this.parallelMode = false;
                             this.client.on('data', (data)=>{
-                                console.log('Received: ' + data);
+                                logger.debug('Received: ' + data);
                                 this.clientData += data;
                                 this.flushClientData();
                             });
@@ -539,7 +544,7 @@ export default class Phd
                             })
 
                             this.client.on('close', ()=>{
-                                console.log('Phd connection closed');
+                                logger.warn('Phd connection closed');
                                 this.client = undefined;
                                 if (interval !== undefined) {
                                     clearInterval(interval);
@@ -564,7 +569,7 @@ export default class Phd
                                     try {
                                         oldPendingRequests[k].error({message: 'PHD disconnected', disconnected: true});
                                     } catch(e) {
-                                        console.warn('Error in PHD request error handler', e);
+                                        logger.error('Error in PHD request error handler', e);
                                     }
                                 }
 
@@ -594,7 +599,7 @@ export default class Phd
                         }
                 ));
             } catch(e) {
-                console.warn("Phd error", e);
+                logger.error("Phd error", e);
             }
 
             await Sleep(ct, 2000);
@@ -698,7 +703,7 @@ export default class Phd
     }
 
     pushStep(simpleEvent:PhdGuideStep) {
-        console.log('Push step: ' + simpleEvent);
+        logger.info('Push step', {step: simpleEvent});
         this.stepId++;
         if (this.stepId > 400) {
             delete this.steps[this.stepIdToUid(this.stepId - 400)];
@@ -719,12 +724,12 @@ export default class Phd
         {
             var data = this.clientData.substr(0, cutAt);
             this.clientData = this.clientData.substr(cutAt + 2);
-            console.log('[PHD] received json : ' + data);
+            logger.debug('Received json', data);
             var statusUpdated = false;
             try {
                 // Quickfix for https://github.com/OpenPHDGuiding/phd2/issues/776
                 if (data.indexOf('\n') !== -1) {
-                    console.log('Received incorrect json. Patching');
+                    logger.debug('Received incorrect json. Patching');
                     data = data.replace(/\n/g, ' ');
                 }
                 var event = JSON.parse(data);
@@ -740,6 +745,7 @@ export default class Phd
                         "LoopingExposuresStopped":  "Stopped",
                         "StarLost":                 "LostLock"
                     };
+                    logger.info('Event', {event});
                     switch (event.Event) {
                         case "Version":
                             {
@@ -755,7 +761,7 @@ export default class Phd
                             this.currentStatus.AppState = event.State;
                             this.currentStatus.star = null;
                             this.currentStatus.settling = null;
-                            console.log('Initial status:' + this.currentStatus.AppState);
+                            logger.debug('Initial status', {AppState: this.currentStatus.AppState});
                             break;
                         case "SettleBegin":
                         case "Settling":
@@ -767,7 +773,7 @@ export default class Phd
                                 if ('Error' in event) {
                                     newStatus.error = event.Error;
                                 }
-                                console.log('PHD : settledone => ', JSON.stringify(newStatus));
+                                logger.debug('settledone', {newStatus});
                                 this.currentStatus.settling = newStatus;
                                 break;
                             }
@@ -813,7 +819,7 @@ export default class Phd
                                         this.currentStatus.firstStepOfRun = this.stepIdToUid(this.stepId + 1);
                                         this.updateStepsStats();
                                     }
-                                    console.log('New status:' + this.currentStatus.AppState);
+                                    logger.debug('New status', {AppState: this.currentStatus.AppState});
                                     if (newStatus != 'Guiding' && newStatus != 'LostLock') {
                                         this.currentStatus.settling = null;
                                     }
@@ -862,12 +868,12 @@ export default class Phd
                                 doneRequest.then(event.result);
                             }
                         }catch(e) {
-                            console.error('Phd request callback error:', e.stack || e);
+                            logger.error('Phd request callback error', e);
                         }
                     }
                 }
             }catch(e) {
-                console.error('Phd error:', e.stack || e);
+                logger.error('Phd error', e);
             }
         }
     }
@@ -928,7 +934,7 @@ export default class Phd
             return await this.sendOrder(ct, order);
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
-                console.log(`[PHD] ${order.method} failed`, e);
+                logger.error(`${order.method} failed`, e);
                 this.context.notification.error('[PHD] ' + (e.message || e));
             }
             throw e;
@@ -945,7 +951,7 @@ export default class Phd
         if (this.parallelMode || this.runningRequest === 0) {
             this.sendWritePendingRequest();
         } else {
-            console.log('[PHD] Queued JSONRPC request: ' + r.toSend);
+            logger.debug('Queued JSONRPC request');
         }
     }
 
@@ -956,7 +962,7 @@ export default class Phd
         const req = this.writePendingRequest.splice(0, 1)[0];
         req.sent = true;
         this.runningRequest++;
-        console.log('[PHD] Pushing JSONRPC request: ' + req.toSend);
+        logger.debug('Pushing JSONRPC request', {toSend: req.toSend});
         this.client!.write(req.toSend + "\r\n");
         req.toSend = "";
         return true;
@@ -1050,7 +1056,7 @@ export default class Phd
                     throw new Error("Dithering failed");
                 }
                 // Not settling ?
-                console.log("PHD: not settling after dither ?");
+                logger.warn("PHD: not settling after dither ?");
                 return false;
             });
     }

@@ -5,6 +5,7 @@ import xmlbuilder from 'xmlbuilder';
 import net from 'net';
 
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import { StringDecoder } from 'string_decoder';
 import { Buffer } from 'buffer';
@@ -16,6 +17,8 @@ export type IndiListener = ()=>(void);
 export type IndiMessageListener = (m:IndiMessage)=>(void);
 
 export type IndiPredicate<OUTPUT>=()=>OUTPUT|false;
+
+const logger = Log.logger(__filename);
 
 const socketEncoding = "utf-8";
 
@@ -148,7 +151,7 @@ export class Vector {
     // affectation is an array of {name:key, value:value}
     // Vector is switched to busy immediately
     setValues(affectations:{name:string, value:string}[]) {
-        console.log('Received affectations: ' + JSON.stringify(affectations));
+        logger.info('Pushing indi values', {affectations});
         var vecDef = this.getExistingVectorInTree();
         if (vecDef.$type === "Number" || vecDef.$type === "Text") {
             affectations = [...affectations];
@@ -280,7 +283,7 @@ export class IndiConnection {
         if (port === undefined) {
             port = 7624;
         }
-        console.log('Opening indi connection to ' + host + ':' + port);
+        logger.info('Opening indi connection', {host, port});
         const messageQueue = new IndiMessageQueue(500, (msg:any)=>{
             if (messageQueue === this.messageQueue) this.onMessage(msg);
         });
@@ -292,7 +295,7 @@ export class IndiConnection {
         this.messageQueue = messageQueue;
         
         socket.on('connect', function() {
-            console.log('socket connected');
+            logger.info('socket connected');
             self.connected = true;
             socket.write('<getProperties version="1.7"/>');
             self.flushQueue();
@@ -306,15 +309,15 @@ export class IndiConnection {
             }
         });
         socket.on('error', function(err) {
-            console.log('socket error: ' + err);
+            logger.warn('socket error', err);
         });
         socket.on('close', function() {
             ++globalRevisionId;
-            console.log('socket closed');
+            logger.info('socket closed');
             try {
                 self.socket!.destroy();
             } catch(e) {
-                console.log('closing error', e);
+                logger.warn('closing error', e);
             }
             self.connected = false;
             self.queue = [];
@@ -339,7 +342,7 @@ export class IndiConnection {
         while(this.queue.length > 0) {
             var toSend = this.queue[0];
             this.queue.splice(0, 1);
-            console.log('Sending: ' + toSend);
+            logger.debug('Sending', {toSend});
             this.socket!.write(Buffer.from(toSend, socketEncoding));
         }
     }
@@ -410,7 +413,7 @@ export class IndiConnection {
             try {
                 this.messageListeners[i](m);
             } catch(e) {
-                console.error("Messagelistener", e);
+                logger.error("error in message listener", e);
             }
         }
     }
@@ -511,7 +514,7 @@ export class IndiConnection {
         var self = this;
 
         parser.onerror = function(e) {
-            console.log('xml error: ' + e);
+            logger.error('xml error', e);
             self.onProtocolError(e);
         };
         
@@ -583,13 +586,13 @@ export class IndiConnection {
 
         if (message.$$=="delProperty") {
             if (!has(this.deviceTree, message.$device)) {
-                console.log('Message about unknown device: ' + JSON.stringify(message));
+                logger.warn('Message about unknown device', {message});
                 return;
             }
             var dev = this.deviceTree[message.$device];
             if (has(message, '$name')) {
                 if (!has(dev, message.$name)) {
-                    console.log('Message about unknown vector: ' + JSON.stringify(message));
+                    logger.warn('Message about unknown vector', {message});
                     return;
                 }
                 delete dev[message.$name];
@@ -604,12 +607,12 @@ export class IndiConnection {
             var childsProp = 'def' + kind;
 
             if (!has(this.deviceTree, message.$device)) {
-                console.warn('Received set for unknown device: ' + JSON.stringify(message, null, 2));
+                logger.warn('Received set for unknown device', {message});
                 return;
             }
             var dev = this.deviceTree[message.$device];
             if (!has(dev, message.$name)) {
-                console.warn('Received set for unknown property: ' + JSON.stringify(message, null, 2));
+                logger.warn('Received set for unknown property', {message});
                 return;
             }
 
@@ -626,14 +629,14 @@ export class IndiConnection {
 
             var updates = message['one' + kind];
             if (updates == undefined) {
-                console.warn('Wrong one' + kind + ' in: ' + JSON.stringify(message, null, 2));
+                logger.warn('Mismatched vector kind', {kind, message});
                 return;
             }
             
             for(var i = 0; i < updates.length; ++i) {
                 var update = updates[i];
                 if (!has(prop.childs, update.$name)) {
-                    console.warn('Unknown one' + kind + ' in: ' + JSON.stringify(message, null, 2));
+                    logger.warn('Unknown name in update', {name: update.$name, message});
                     continue;
                 }
                 var current = prop.childs[update.$name];

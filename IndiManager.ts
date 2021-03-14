@@ -2,6 +2,7 @@
  * Created by ludovic on 21/07/17.
  */
 import fs from 'fs';
+import Log from './Log';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import {IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
@@ -18,6 +19,8 @@ import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
 import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
+
+const logger = Log.logger(__filename);
 
 function has(obj:any, key:string) {
     return Object.prototype.hasOwnProperty.call(obj, key);
@@ -297,7 +300,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                     }
                 }
 
-                console.log('got a device: ' + deviceId)
+                logger.debug('synchronizer got a device', {deviceId});
                 availableDevices.push(deviceId);
             }
             cb(availableDevices);
@@ -364,12 +367,12 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
 
             content.filter(file => (file.match(/\.xml$/) && !file.match(/_sk\.xml$/))).forEach((file)=> {
                 file = path + '/' + file;
-                console.log('Found driver: ' + file);
+                logger.info('Found driver', {file});
 
                 try {
                     function onMessage(e:any) {
                         if (e.$$ != 'driversList') {
-                            console.warn('Ignored xml driver content: ' + JSON.stringify(e, null, 2));
+                            logger.warn('Ignored xml driver content', {file, content: e});
                             return;
                         }
                         try {
@@ -380,16 +383,16 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                                     driverToGroup[driver] = group.$group;
                                 }
                             }
-                        } catch(e) {
-                            console.error('Failed to parse xml drivers', e.stack || e);
+                        } catch(err) {
+                            logger.error('Failed to parse xml drivers', {file, content: e}, err);
                         }
                     }
                     var content = fs.readFileSync(file);
                     var parser = Xml2JSONParser(DriverXmlSchema, 1, onMessage);
                     parser.write(content.toString('utf-8'))
                     parser.close();
-                } catch(e) {
-                    console.log('Unable to parse ' + file, e.stack || e);
+                } catch(err) {
+                    logger.error('Unable to read driver', {file}, err);
                 }
             });
         });
@@ -426,7 +429,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 try {
                     o(this.connection);
                 } catch(e) {
-                    console.error("Error during indi cb", e);
+                    logger.error("Error during indi cb", e);
                 }
             }
         }
@@ -447,7 +450,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             indiConnection.connect(addr.host, addr.port);
             indiConnection.addListener(listener);
             indiConnection.addMessageListener((msg)=>{
-                console.log('Received message : ', JSON.stringify(msg));
+                logger.debug('Received message', {msg});
                 this.addMessage(msg);
                 this.cleanupMessages();
             });
@@ -456,8 +459,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 () => indiConnection.isDead(),
                 true);
 
-                
-            console.log('Indi connection disconnected');
+            logger.warn('Indi connection disconnected');
             indiConnection.removeListener(listener);
             if (this.connection === indiConnection) {
                 this.connection = undefined;
@@ -502,7 +504,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         const connection = this.getValidConnection();
         const dev = connection.getDevice(devId);
 
-        console.log('Sync with vectors:' + JSON.stringify(vectorIds));
+        logger.debug('Sync with vectors', {vectorIds});
 
         await Timeout(ct, async (ct: CancellationToken) => {
                 await connection.wait(ct, ()=> {
@@ -568,14 +570,14 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             if (v === null || v === undefined) {
                 continue;
             }
-            console.log('Setting value: ' + v);
+            logger.debug('Setting value', {value: v});
             if (force || (vec.getPropertyValueIfExists(key) !== v)) {
                 todo.push({name: key, value: v});
             }
         }
 
         if (!todo.length) {
-            console.log('Skipping value already set for ' + vectorId + " : " + JSON.stringify(value));
+            logger.debug('Skipping value already set', {vectorId, value});
         } else {
             vec.setValues(todo);
             let cancelatorCancel = ()=>{};
@@ -666,7 +668,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             throw new Error("Device is busy");
         }
 
-        console.log('activating: ' + devId + "." + vectorId + "." + propId);
+        logger.debug('activating property', {devId, vectorId, propId});
         let selfStopped: boolean = false;
         vec.setValues([{name: propId, value:'On'}]);
         try {

@@ -1,7 +1,10 @@
 import * as WebSocket from 'ws';
+import Log from './Log';
 import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList } from './JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import ClientRequest from './ClientRequest';
+
+const logger = Log.logger(__filename);
 
 const clients: {[id:string]:Client} = {};
 
@@ -28,7 +31,8 @@ export default class Client {
         this.uid = clientUid;
         clients[this.uid] = this;
 
-        this.log('Client ' + this.uid + ' connected with whitelist :' + JSON.stringify(whiteList));
+        logger.info('Client connected', {...this.logContext(), whiteList});
+
         this.whiteList = whiteList;
         this.socket = socket;
         this.disposed = false;
@@ -41,6 +45,10 @@ export default class Client {
         this.sendingTimer = undefined;
         this.notify({type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data});
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
+    }
+
+    private logContext(): object {
+        return {uid: this.uid}
     }
 
     public attachRequest(c: ClientRequest) {
@@ -71,19 +79,15 @@ export default class Client {
         }
     }
 
-    private log=(message:string)=>{
-        console.log('Notification channeld ' + this.uid+ ': ' + message);
-    }
-
     public dispose=()=>{
         if (!this.disposed) {
             this.disposed = true;
-            console.log('Closed notification channel ' + this.uid);
+            logger.info('Closed notification channel', {uid: this.uid});
             if (this.socket != undefined) {
                 try {
                     this.socket.close();
                 } catch(e) {
-                    this.log('Failed to close: ' + e);
+                    logger.error('Failed to close', {uid: this.uid}, e);
                 }
             }
             this.jsonProxy.removeListener(this.jsonListenerId);
@@ -103,7 +107,7 @@ export default class Client {
     }
 
     private ping=()=>{
-        console.log('pinging client ' + this.uid);
+        logger.info('pinging client', {uid: this.uid});
         this.write({});
     }
 
@@ -124,14 +128,14 @@ export default class Client {
             }
             this.socket.send(JSON.stringify(event), (error)=> {
                 if (error !== undefined) {
-                    this.log('Failed to send: ' + error);
+                    logger.warn('Failed to send', this.logContext(), error);
                     this.dispose();
                 }
                 this.writes--;
                 this.restartPing();
             });
         } catch(e) {
-            this.log('Failed to send: ' + e);
+            logger.warn('Failed to send', this.logContext(), e);
             this.dispose();
             return;
         }
@@ -143,7 +147,7 @@ export default class Client {
         this.sendDiff();
 
         if (!this.disposed) {
-            console.log('Message to ' + this.uid + ':' + JSON.stringify(data));
+            logger.debug('Reply message', {...this.logContext(), data});
             this.write(data);
         }
     }

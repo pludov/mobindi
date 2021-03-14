@@ -1,4 +1,5 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import ConfigStore from './ConfigStore';
@@ -12,6 +13,8 @@ import {Task, createTask} from "./Task";
 import Wizard from "./Wizard";
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
 import Sleep from "./Sleep";
+
+const logger = Log.logger(__filename);
 
 const defaultSettings = ():AstrometrySettings=> ({
     initialFieldMin: 0.2,
@@ -171,7 +174,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
 
     compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
         return await createTask<AstrometryResult>(ct, async (task) => {
-            console.log('Astrometry: compute for ' + message.image);
+            logger.info('Astrometry started', {image: message.image});
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
             }
@@ -254,11 +257,11 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                         astrometry.searchRadius = radius !== null ? radius : 180;
 
                     } catch(e) {
-                        console.log('Astrometry problem with mount - doing wide scan', e);
+                        logger.warn('Astrometry problem with mount - doing wide scan', e);
                     }
                 }
 
-                console.log('Starting astrometry with ' + JSON.stringify(astrometry));
+                logger.info('Starting astrometry', {astrometry});
                 result = await this.imageProcessor.compute(task.cancellation, {astrometry});
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
@@ -303,7 +306,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.lastOperationError = error;
             };
 
-            console.log('Astrometry: goto');
+            logger.info('Astrometry: goto', message);
             this.currentProcess = task;
             try {
                 this.currentStatus.scopeStatus = 'moving';
@@ -332,7 +335,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                         true,
                         // Aborter...
                         (connection:IndiConnection, devId:string)=>{
-                            console.log('Cancel requested');
+                            logger.info('Cancel requested');
                             const dev = connection.getDevice(devId);
                             const vec = dev.getVector("TELESCOPE_ABORT_MOTION")
                             vec.setValues([{name:"ABORT", value:"On"}]);
@@ -369,7 +372,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 throw new Error("No scope selected for astrometry");
             }
 
-            console.log('Astrometry: sync');
+            logger.info('Astrometry: sync');
 
             const finish = (status: AstrometryStatus['scopeStatus'], error:string|null)=> {
                 this.currentProcess = null;
@@ -396,6 +399,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.context.indiManager.checkDeviceConnected(targetScope);
 
                 // true,true=> check no motion is in progress
+                logger.info('Setting ON_COORD_SET', {targetScope});
                 await this.context.indiManager.setParam(
                         task.cancellation,
                         targetScope,
@@ -403,6 +407,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                         {'SYNC': 'On'},
                         true,
                         true);
+                logger.info('Setting EQUATORIAL_EOD_COORD', {targetScope, ranow, decnow});
                 await this.context.indiManager.setParam(
                         task.cancellation,
                         targetScope,
@@ -464,7 +469,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         try {
             this.runningWizard!.discard();
         } catch(e) {
-            console.warn("unable to discard", e);
+            logger.warn("unable to discard", e);
         }
         this.runningWizard = null;
         this.currentStatus.runningWizard = null;

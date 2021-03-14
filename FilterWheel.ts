@@ -1,4 +1,5 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { BackofficeStatus, FilterWheelStatus} from './shared/BackOfficeStatus';
 import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
@@ -8,6 +9,8 @@ import {Task, createTask} from "./Task.js";
 import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
+
+const logger = Log.logger(__filename);
 
 export default class FilterWheel
         implements RequestHandler.APIAppProvider<BackOfficeAPI.FilterWheelAPI>
@@ -259,7 +262,6 @@ export default class FilterWheel
         }
 
         const checkFilterWheel=(force?: boolean)=>{
-
             if (!hasKey(this.currentStatus.dynStateByDevices, filterWheelDeviceId)) {
                 throw new Error("Device not available");
             }
@@ -283,18 +285,20 @@ export default class FilterWheel
             if ((!(payload.force || force))
                 && this.currentStatus.dynStateByDevices[filterWheelDeviceId].currentFilterPos === filterPos)
             {
-                console.log('FilterWheel already at pos', filterWheelDeviceId, filterPos);
+                logger.debug('FilterWheel already at pos', {filterWheelDeviceId, filterPos});
                 return undefined;
             }
             return filterPos;
         }
 
+        logger.info('FilterWheel move', {filterWheelDeviceId, payload});
         let filterPos:number|undefined;
         if ((filterPos = checkFilterWheel()) === undefined) {
             return false;
         }
         let confirmed: boolean;
         if (this.needConfirmation(filterWheelDeviceId)) {
+            logger.info('Asking confirmation for filter change', {filterWheelDeviceId});
             const manualDriver = this.isManualFilterIndiDriver(filterWheelDeviceId);
 
             const filterTitle = this.currentStatus.dynStateByDevices[filterWheelDeviceId].filterIds[filterPos];
@@ -314,12 +318,13 @@ export default class FilterWheel
                         }
                     ]);
             if (!ready) {
+                logger.info('User canceled filter change', {filterWheelDeviceId});
                 throw new CancellationToken.CancellationError("User canceled");
             }
 
             // For manual filter wheel, issue a sync
             if (manualDriver) {
-                console.log('Syncing manual filter wheel');
+                logger.debug('Syncing manual filter wheel', {filterWheelDeviceId});
                 await this.indiManager.setParam(ct,
                     filterWheelDeviceId,
                     "SYNC_FILTER",
@@ -339,7 +344,7 @@ export default class FilterWheel
         try {
             // record target pos in dynState
             this.currentStatus.dynStateByDevices[filterWheelDeviceId].targetFilterPos = filterPos;
-            console.log('Moving FilterWheel at pos', filterWheelDeviceId, filterPos);
+            logger.info('Moving FilterWheel', {filterWheelDeviceId, filterPos});
             await this.indiManager.setParam(ct,
                 filterWheelDeviceId,
                 'FILTER_SLOT',
@@ -348,7 +353,7 @@ export default class FilterWheel
                 false
                 // FIXME: cancelator
             );
-
+            logger.info('Done moving filterWheel', {filterWheelDeviceId, filterPos});
         } finally {
             this.currentStatus.dynStateByDevices[filterWheelDeviceId].targetFilterPos = null;
         }
