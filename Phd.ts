@@ -523,12 +523,14 @@ export default class Phd
 
 
     private lifeCycle=async (ct: CancellationToken)=>{
+        let connRefusedNotified: boolean = false;
         while(true) {
             try {
                 await createTask(ct, (task)=>new Promise(
                     (resolve, reject)=>
                         {
                             let interval : NodeJS.Timeout|undefined;
+                            let silentError: boolean|undefined = undefined;
 
                             this.clientData = "";
                             this.client = new net.Socket();
@@ -540,18 +542,31 @@ export default class Phd
                             });
 
                             this.client.on('error', (e)=> {
-                                this.context.notification.error('PHD connection error', e);
+                                if ((connRefusedNotified) && silentError === undefined && (e as any).code === 'ECONNREFUSED') {
+                                    silentError = true;
+                                    logger.warn('PHD connection refused');
+                                } else {
+                                    connRefusedNotified = ((e as any).code === 'ECONNREFUSED');
+                                    logger.error('PHD connection error', e);
+                                }
+                                if (!silentError) {
+                                    this.context.notification.error('PHD connection error', e);
+                                }
                             })
 
                             this.client.on('close', ()=>{
-                                logger.warn('Phd connection closed');
+                                if (!silentError) {
+                                    logger.warn('Phd connection closed');
+                                }
                                 this.client = undefined;
                                 if (interval !== undefined) {
                                     clearInterval(interval);
                                     interval = undefined;
                                 }
 
-                                this.context.notification.info('PHD connection closed');
+                                if (!silentError) {
+                                    this.context.notification.info('PHD connection closed');
+                                }
                                 // FIXME: flushing these messages can lead to change (including reconnection ?)
                                 this.flushClientData();
 
@@ -587,7 +602,9 @@ export default class Phd
 
                             this.client.connect(4400, '127.0.0.1', ()=>{
                                 this.context.notification.info('PHD connection established');
-
+                                silentError = false;
+                                connRefusedNotified = false;
+                                
                                 interval = setInterval(this.pollData, 10000);
                                 this.queryServerConfiguration();
                                 this.pollData();
