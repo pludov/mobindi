@@ -1,8 +1,11 @@
 import child_process from 'child_process';
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { ProcessConfiguration } from './shared/BackOfficeStatus';
 import * as SystemPromise from './SystemPromise';
 import Sleep from './Sleep';
+
+const logger = Log.logger(__filename);
 
 // Ensure that a process is running.
 // Restart as required.
@@ -23,7 +26,7 @@ export default class ProcessStarter {
     }
 
     private startExe() {
-        console.log('Starting ' + this.exe);
+        logger.info('Starting', {exe: this.exe});
         var env = process.env;
         env = Object.assign({}, env);
         env = Object.assign(env, this.configuration.env);
@@ -38,7 +41,7 @@ export default class ProcessStarter {
             stdio: "ignore",
         });
         child.on('error', (err)=> {
-            console.warn("Process " + this.exe + " error : " + err);
+            logger.warn('Error', {exe: this.exe}, err);
         });
     }
 

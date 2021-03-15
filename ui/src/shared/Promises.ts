@@ -3,7 +3,11 @@
  */
 import assert from 'assert';
 
+import Log from './Log';
+
 /* tslint:disable:max-classes-per-file */
+
+const logger = Log.logger(__filename);
 
 const noop = ()=>{};
 
@@ -162,7 +166,7 @@ export class Cancelable<Input, Output> {
             try {
                 doCancel();
             } catch(e) {
-                console.warn("Cancel failed - ignoring", e);
+                logger.error("Cancel failed - ignoring", e);
             }
             return this;
         }
@@ -177,9 +181,9 @@ type TimeoutHandler<Input, Output>=(i:Input)=>(Output);
  *
  * Exemple:
  *        var infinite = new Promises.Cancelable(function(next) {}, function(next){ next.cancel(); });
- *        infinite.onCancel(function() {console.log('infinite got canceled'); }
+ *        infinite.onCancel(function() {logger.debug('infinite got canceled'); }
  *        var finite = new Promises.Timeout(2000.0, infinite);
- *        finite.onError(console.warn); // => will print timedout
+ *        finite.onError(logger.warn); // => will print timedout
  *        finite.start();
  */
 export class Timeout<Input, Output> extends Cancelable<Input, Output> {
@@ -237,7 +241,7 @@ export class Timeout<Input, Output> extends Cancelable<Input, Output> {
             timeout = undefined;
 
             timeout = setTimeout(() => {
-                console.log('Timeout occured');
+                logger.debug('Timeout occured');
                 timedout = true;
                 promise.cancel();
             }, delay);
@@ -333,7 +337,7 @@ export class Concurrent<Input> extends Cancelable<Input, any[]> {
                         try {
                             childs[i].cancel();
                         } catch(error) {
-                            console.warn('Ignoring cancel error for ' + i, error);
+                            logger.error('Ignoring child cancel error', {child: i}, error);
                         }
                     }
                 }
@@ -586,7 +590,7 @@ export class ExecutePromise<Input extends Cancelable<undefined, Output>, Output>
                 child = undefined;
                 c!.cancel();
             });
-            console.log('Received child: arg');
+
             if (!arg) {
                 next.done(undefined as any);
                 return;

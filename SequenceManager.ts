@@ -3,6 +3,7 @@ const TraceError = require('trace-error');
 
 import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
+import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
@@ -17,8 +18,7 @@ import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 import { SequenceLogic, Progress } from './SequenceLogic';
 
-
-
+const logger = Log.logger(__filename);
 
 // export type SequenceStepDefinition = {
 //     uuid: string;
@@ -201,8 +201,6 @@ export default class SequenceManager
     }
 
     newSequenceStep=async (ct: CancellationToken, message:BackOfficeAPI.NewSequenceStepRequest)=>{
-        console.log('Request to add step(s): ', JSON.stringify(message));
-
         const parentStep = this.findStepFromRequest(message);
 
         if (!parentStep.childs) {
@@ -230,8 +228,6 @@ export default class SequenceManager
     }
 
     moveSequenceSteps=async (ct: CancellationToken, message:BackOfficeAPI.MoveSequenceStepsRequest)=>{
-        console.log('Request to move steps: ', JSON.stringify(message));
-
         const parentStep = this.findStepFromRequest(message);
         if (!parentStep.childs) {
             throw new Error("Sequence has no childs");
@@ -261,14 +257,13 @@ export default class SequenceManager
         {
             var seq = this.currentStatus.sequences.byuuid[k];
             if (seq.status == "running") {
-                console.log('Sequence ' + k + ' was interrupted by process shutdown');
+                logger.warn('Sequence interrupted by process death', {uuid: k, seq});
                 seq.status ="paused";
             }
         }
     }
 
     public deleteSequenceStep = async(ct: CancellationToken, message:BackOfficeAPI.DeleteSequenceStepRequest)=>{
-        console.log('Request to drop step: ', JSON.stringify(message));
         const parentStep = this.findStepFromRequest(message);
 
         // FIXME: not for running step ?
@@ -289,7 +284,6 @@ export default class SequenceManager
     }
 
     public updateSequence = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceRequest)=>{
-        console.log('Request to set setting: ', JSON.stringify(message));
         const seq = this.findSequenceFromRequest(message.sequenceUid);
 
         const param = message.param;
@@ -305,8 +299,6 @@ export default class SequenceManager
     }
 
     public updateSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepRequest)=>{
-        console.log('Request to set setting: ', JSON.stringify(message));
-
         const parentStep = this.findStepFromRequest(message);
 
         const param = message.param;
@@ -320,8 +312,6 @@ export default class SequenceManager
     }
 
     public updateSequenceStepDithering = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepDitheringRequest)=>{
-        console.log('Request to set dithering settings: ', JSON.stringify(message));
-
         const parentStep = this.findStepFromRequest(message);
         const wanted = message.dithering;
 
@@ -407,7 +397,7 @@ export default class SequenceManager
                 ct.throwIfCancelled();
 
                 // FIXME: mutualise that somewhere
-                console.log('Asking FWHM for ', JSON.stringify(shootResult, null, 2));
+                logger.debug('Asking FWHM', {shootResult});
                 const starFieldResponse = await this.imageProcessor.compute(ct, {
                     starField: { source: {
                         path: shootResult.path,
@@ -415,7 +405,7 @@ export default class SequenceManager
                     }}
                 });
                 const starField = starFieldResponse.stars;
-                console.log('StarField', JSON.stringify(starField, null, 2));
+                logger.debug('Got starField', {shootResult, starField});
                 let fwhm, starCount;
                 starCount = starField.length;
                 fwhm =  Algebra.starFieldFwhm(starField);
@@ -423,6 +413,7 @@ export default class SequenceManager
 
                 target.fwhm = fwhm;
                 target.starCount = starCount;
+                logger.info('Got FWHM', {shootResult, fwhm, starCount});
             }
         }
 
@@ -435,7 +426,7 @@ export default class SequenceManager
             this.lastFwhm = target.fwhm;
             this.lastStarCount = target.starCount;
 
-            console.log('Statistic updated :', target);
+            logger.debug('Statistic updated', target);
         }
 
         const sequenceLogic = async (ct: CancellationToken) => {
@@ -451,7 +442,7 @@ export default class SequenceManager
                 const nextStep = sequenceLogic.getNextStep();
 
                 if (nextStep === undefined) {
-                    console.log('Sequence terminated: ' + uuid);
+                    logger.info('Sequence terminated', {sequence, uuid});
                     return;
                 }
 
@@ -508,7 +499,7 @@ export default class SequenceManager
                     && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
 
                     // FIXME: no dithering for first shoot of sequence
-                    console.log('Dithering required : ', Object.keys(this.context), JSON.stringify(param.dithering));
+                    logger.info('Dithering required', {sequence, uuid, dithering: param.dithering});
                     sequence.progress = "Dither " + shootTitle;
                     await this.context.phd.dither(ct, param.dithering);
                     // Mark the dithering as done
@@ -539,7 +530,7 @@ export default class SequenceManager
                 }
 
                 if (param.filter) {
-                    console.log('Setting filter to ' + param.filter);
+                    logger.info('Setting filter', {sequence, uuid, filter: param.filter});
                     sequence.progress = "Filter " + shootTitle;
                     await this.context.filterWheel.changeFilter(ct, {
                         cameraDeviceId: sequence.camera,
@@ -554,6 +545,7 @@ export default class SequenceManager
                 const guideSteps:Array<PhdGuideStep> = [];
                 const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
 
+                logger.info('Starting exposure', {sequence, uuid, settings});
                 let shootResult;
                 try {
                     shootResult = await this.context.camera.doShoot(ct, sequence.camera, ()=>(settings));
@@ -573,10 +565,12 @@ export default class SequenceManager
         }
 
         const finishWithStatus = (s:'done'|'error'|'paused', e?:any)=>{
-            console.log('finishing with final status: ' + s);
             if (e) {
-                console.log('Error ' , e);
+                logger.error('Finish sequence', {uuid, status:s}, e);
+            } else {
+                logger.info('Finish sequence', {uuid, status:s});
             }
+
             var seq = this.currentStatus.sequences.byuuid[uuid];
             seq.status = s;
             if (e) {
@@ -644,7 +638,6 @@ export default class SequenceManager
     }
 
     resetSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
-        console.log('Request to reset sequence', JSON.stringify(message));
         const key = message.sequenceUid;
         if (this.currentSequenceUuid === key) {
             throw new Error("Sequence " + key + " is running");
@@ -668,7 +661,6 @@ export default class SequenceManager
     }
 
     dropSequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
-        console.log('Request to drop sequence', JSON.stringify(message));
         const key = message.sequenceUid;
         if (this.currentSequenceUuid === key) {
             throw new Error("Sequence " + key + " is running");

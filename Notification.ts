@@ -106,7 +106,6 @@ export default class Notification
     }
 
     public exposedNotification = async(ct: CancellationToken, message:BackOfficeAPI.ExposedNotificationRequest)=>{
-        logger.info('Request for exposure of notification', message);
         const uid = message.uuid;
         if (has(this.currentStatus.byuuid, uid) && !has(this.expires, uid)) {
             if (this.currentStatus.byuuid[uid].type === "oneshot") {
@@ -116,7 +115,6 @@ export default class Notification
     }
 
     public closeNotification = async(ct: CancellationToken, message:BackOfficeAPI.CloseNotificationRequest)=>{
-        logger.info('CloseNotification for exposure of notification', message);
         const uid = message.uuid;
         if (has(this.currentStatus.byuuid, uid)) {
             const watcher = has(this.watchers, uid) ? this.watchers[uid]: undefined;

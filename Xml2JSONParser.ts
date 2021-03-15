@@ -77,7 +77,7 @@ export function xml2JsonParser(schema:Schema, level:number, onMessage:(node:any)
         currentLevel--;
         if (currentLevel ==  level - 1) {
             // End of current message
-            // console.log('finished message parsing: ' + JSON.stringify(currentNodes[0]));
+            // logger.debug('finished message parsing: ' + JSON.stringify(currentNodes[0]));
             onMessage(currentNodes[0]);
         }
         if (currentLevel >= level - 1) {

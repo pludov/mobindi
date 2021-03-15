@@ -1,4 +1,5 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import * as Obj from './Obj';
 import JsonProxy from './JsonProxy';
 import { BackofficeStatus, ToolConfig, ToolExecuterStatus } from './shared/BackOfficeStatus';
@@ -7,6 +8,8 @@ import { AppContext } from './ModuleBase';
 import * as SystemPromise from './SystemPromise';
 import * as RequestHandler from "./RequestHandler";
 import ConfigStore from './ConfigStore';
+
+const logger = Log.logger(__filename);
 
 // Allow to start a script from the UI. 
 // The script can produce output in the form of messages
@@ -79,13 +82,13 @@ export default class ToolExecuter implements RequestHandler.APIAppProvider<BackO
     // Given a tool object, returns a promise for its execution
     private runTool=async (tool: InstanciatedTool)=>{
         try {
-            console.log('Will start ' + tool.id + ' as: ' + JSON.stringify(tool.params.cmd));
+            logger.info('Will start tool', {id: tool.id, cmd: tool.params.cmd});
             const ret = await SystemPromise.Exec(CancellationToken.CONTINUE, {
                 command: tool.params.cmd
             });
-            console.log('Task ' + tool.id + ' terminated with code : ', ret);
+            logger.info('Tool terminated', {id: tool.id, cmd: tool.params.cmd, ret});
         } catch(e) {
-            console.log('Task ' + tool.id + ' on error : ', e)
+            logger.warn('Tool error', {id: tool.id, cmd: tool.params.cmd}, e);
         }
     }
 

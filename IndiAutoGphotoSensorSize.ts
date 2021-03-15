@@ -1,10 +1,8 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import IndiManager from './IndiManager';
 
-function debug(...args:any[]) {
-    console.log('IndiAutoConnect: ' + args.map((e)=>''+e).join(' '));
-}
-
+const logger = Log.logger(__filename);
 
 // Evaluate f function, but if fail, return def
 function noErr<T>(f:()=>T, def: T)
@@ -54,7 +52,7 @@ export default class IndiAutoGphotoSensorSize {
         //    - busy, set the memory to done
         //    - idle disconnected, connect
         // Remove the unknown devices from the memory
-        debug('Recheck');
+        logger.debug('Recheck');
         const configDevices = noErr(()=>this.indiManager.currentStatus.configuration.indiServer.devices, undefined) || {};
 
         const configuredDevices:{[id:string]:boolean} = {};
@@ -65,7 +63,7 @@ export default class IndiAutoGphotoSensorSize {
             if (!noErr(()=>dev.options.autoGphotoSensorSize, undefined)) {
                 continue;
             }
-            debug('Configured device:', devId);
+            logger.debug('Configured device', {devId});
             configuredDevices[devId] = true;
         }
 
@@ -76,28 +74,23 @@ export default class IndiAutoGphotoSensorSize {
 
             const deviceIds = c.getAvailableDeviceIdsWith([targetVector]);
 
-            debug('valid devices = ', JSON.stringify(deviceIds));
+            logger.debug('valid devices', {deviceIds});
             for(let devId of deviceIds) {
-                debug('What about', devId);
                 if (!Object.prototype.hasOwnProperty.call(configuredDevices, devId)) {
-                    debug('Not configured');
                     continue;
                 }
 
                 // Check the connection state
                 const connVector = c.getDevice(devId).getVector('CONNECTION');
                 if (!connVector.exists()) {
-                    debug('CONNECTION does not exists');
                     continue;
                 }
 
                 if (connVector.getState() === 'Busy') {
-                    debug('CONNECTION is busy');
                     continue;
                 }
 
                 if (connVector.getPropertyValueIfExists('CONNECT') !== 'On') {
-                    debug('CONNECTION NOT On');
                     continue;
                 }
 
@@ -106,7 +99,6 @@ export default class IndiAutoGphotoSensorSize {
 
                 const vector = c.getDevice(devId).getVector(targetVector);
                 if (vector.getState() === 'Busy') {
-                    debug(targetVector, 'is busy');
                     continue;
                 }
                 
@@ -114,17 +106,16 @@ export default class IndiAutoGphotoSensorSize {
                     const strValue = vector.getPropertyValueIfExists(k);
                     return strValue === null ? null : parseFloat(strValue);
                 });
-                debug('Current values:', JSON.stringify(values));
+                logger.debug('Current values', {devId, values});
 
                 if (values.filter(e=>(e!==0 && e !== null)).length === 0) {
-                    debug('Values are fine');
                     continue;
                 }
                 
                 // Check the connection state of the device
                 // Take memory state from the state of the connection vector
                 const memoryState = Object.prototype.hasOwnProperty.call(this.memory, devId) ? this.memory[devId] : null;
-                debug('Memory state is ', memoryState);
+                logger.debug('Memory state ', {devId, memoryState});
                 if (memoryState === true) {
                     continue;
                 }
@@ -133,17 +124,17 @@ export default class IndiAutoGphotoSensorSize {
                 
                 (async ()=> {
                     try {
-                        debug('Starting...');
+                        logger.info('Starting', {devId, defaultValues});
                         await this.indiManager.setParam(CancellationToken.CONTINUE, devId, targetVector, defaultValues, true);
                     } catch(e) {
-                        debug('Ignoring set size error', e);
+                        logger.warn('Ignoring set size error', {devId, defaultValues}, e);
                     }
                 })();
             }
         }
 
         for(let devId of Object.keys(unseenDevices)) {
-            debug('Forget about ', devId);
+            logger.debug('Forget', {devId});
             delete this.memory[devId];
         }
     }

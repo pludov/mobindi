@@ -341,7 +341,6 @@ export default class Camera
     }
 
     setCamera=async (ct: CancellationToken, payload:{device:string})=>{
-        logger.info('setCamera', payload);
         if (this.currentStatus.availableDevices.indexOf(payload.device) == -1) {
             throw "device not available";
         }
@@ -350,7 +349,6 @@ export default class Camera
 
     setShootParam=async<K extends keyof CameraDeviceSettings> (ct: CancellationToken, payload:{camera?: string, key:K, value: CameraDeviceSettings[K]})=>{
         // FIXME: send the corresponding info ?
-        logger.info('setShootParam',payload);
         var key = payload.key;
 
         const deviceId = payload.camera !== undefined ? payload.camera : this.currentStatus.selectedDevice;

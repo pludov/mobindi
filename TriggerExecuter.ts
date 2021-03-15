@@ -1,9 +1,12 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import * as Obj from './Obj';
 import ConfigStore from './ConfigStore';
 import { BackofficeStatus, TriggerConfig, TriggerExecuterStatus, ToolConfig } from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
 import { AppContext } from './ModuleBase';
+
+const logger = Log.logger(__filename);
 
 // Connect to a JSONProxy and react to state change
 
@@ -107,7 +110,6 @@ class IndiNewProperty
             if (changeRequired) {
                 (async ()=> {
                     try {
-                        console.log('Using cancellation token: ', CancellationToken.CONTINUE);
                         await this.context.indiManager.setParam(
                             CancellationToken.CONTINUE,
                             this.params.device,
@@ -115,7 +117,7 @@ class IndiNewProperty
                             toSet
                         );
                     } catch(e) {
-                        console.log('Trigger ' + this.key + ' failed', e);
+                        logger.error('Trigger failed' , {key: this.key}, e);
                     }
                 })();
             }
@@ -126,7 +128,7 @@ class IndiNewProperty
     {
         var newValue = this.getCurrentValue(newState);
         if (!Obj.deepEqual(this.last, newValue)) {
-            console.log('Activating trigger:' + this.key);
+            logger.debug('Activating trigger' , {key: this.key});
             
             var previousValue = this.last;
             this.last = newValue;
@@ -188,20 +190,20 @@ export default class TriggerExecuter
     }
 
     private createTrigger=(key:string, params: TriggerConfig)=>{
-        console.log('Instanciating trigger: ' + key);
+        logger.debug('Instanciating trigger' , {key, params});
         var result = new IndiNewProperty(key, params, this.context);
 
         try {
             result.check(this.jsonProxy.getTarget());
         } catch(e) {
-            console.error('Error in trigger ' +key, e);
+            logger.debug('Error in trigger' , {key, params}, e);
         }
         return result;
     }
 
     private syncTriggers=()=>
     {
-        console.log('Syncing triggers');
+        logger.debug('Syncing triggers');
         for(const ikey of Object.keys(this.config))
         {
             const wantedParams = this.config[ikey];
@@ -230,7 +232,7 @@ export default class TriggerExecuter
             try {
                 this.instanciatedTriggers[key].check(state);
             } catch(e) {
-                console.error('Error in trigger ' +key, e);
+                logger.error('Error in trigger', {key}, e);
             }
         }
     }

@@ -1,6 +1,9 @@
+import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import { AstrometryWizard } from './shared/BackOfficeStatus';
 import Astrometry from "./Astrometry";
-import CancellationToken from 'cancellationtoken';
+
+const logger = Log.logger(__filename);
 
 export default abstract class Wizard {
     readonly astrometry: Astrometry;
@@ -30,7 +33,7 @@ export default abstract class Wizard {
             try {
                 t();
             } catch(e) {
-                console.warn("Discard failed", e);
+                logger.error("Discard failed", e);
             }
         }
     }
@@ -43,7 +46,7 @@ export default abstract class Wizard {
             try {
                 t();
             } catch(e) {
-                console.warn("Next failed", e);
+                logger.error("Next failed", e);
             }
         }
     }

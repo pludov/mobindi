@@ -658,25 +658,25 @@ export class IndiConnection {
 
 //     var indiDevice = connection.getDevice("CCD Simulator");
 
-//     console.log('Waiting connection');
+//     logger.debug('Waiting connection');
 //     // connection.queueMessage('<newSwitchVector device="CCD Simulator" name="CONNECTION"><oneSwitch name="CONNECT" >On</oneSwitch></newSwitchVector>');
 
 //     var shoot = new Promises.Chain(
 //         connection.wait(function() {
 //             var status = connection.getDevice("CCD Simulator").getVector('CONNECTION').getPropertyValueIfExists('CONNECT');
-//             console.log('Status is : ' + status);
+//             logger.debug('Status is : ' + status);
 //             if (status != 'On') return false;
 
 //             return connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").getPropertyValueIfExists("CCD_EXPOSURE_VALUE") !== null;
 //         }),
 
 //         new Promises.Immediate(() => {
-//             console.log('Connection established');
+//             logger.debug('Connection established');
 //             connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE").setValues([{name: "CCD_EXPOSURE_VALUE", value: "10"}]);
 //         }),
 
 //         connection.wait(function() {
-//             console.log('Waiting for exposure end');
+//             logger.debug('Waiting for exposure end');
 //             var vector = connection.getDevice("CCD Simulator").getVector("CCD_EXPOSURE");
 //             if (vector.getState() == "Busy") {
 //                 return false;
@@ -688,9 +688,9 @@ export class IndiConnection {
 //         })
 //     );
 
-//     shoot.then(function() { console.log('SHOOT: done'); });
-//     shoot.onError(function(e) { console.log('SHOOT: error ' + e)});
-//     shoot.onCancel(function() { console.log('SHOOT: canceled')});
+//     shoot.then(function() { logger.debug('SHOOT: done'); });
+//     shoot.onError(function(e) { logger.debug('SHOOT: error ' + e)});
+//     shoot.onCancel(function() { logger.debug('SHOOT: canceled')});
 //     shoot.start({});
 
 //     /*    var status = getConnectionValue("CCD Simulator", 'CONNECTION');
@@ -701,25 +701,25 @@ export class IndiConnection {
 //         connection.wait(function() {
 //             return connection.properties['CONNECTION'].$$ == 'On';
 //         }).then(function() {
-//             console.log('connected !\n');
+//             logger.debug('connected !\n');
 //         });*/
 
 
-//     var infinite = connection.wait(function() {console.log('checking dummy cond'); return false});
-//     infinite.onCancel(function() { console.log('canceled !') });
+//     var infinite = connection.wait(function() {logger.debug('checking dummy cond'); return false});
+//     infinite.onCancel(function() { logger.debug('canceled !') });
 
 //     infinite = new Promises.Timeout(5000.0, infinite);
-//     infinite.onError(console.warn);
+//     infinite.onError(logger.warn);
 //     infinite.start({});
 
 
 
 
 
-//     /*  console.log('testing');
+//     /*  logger.debug('testing');
 //       parser.write('<dummystartup>');
 
-//       console.log('test ok');
+//       logger.debug('test ok');
 
 //       var xml = "<start><a>plop</a><b>glop</b>\n";
 

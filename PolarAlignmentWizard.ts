@@ -1,4 +1,5 @@
 import CancellationToken from 'cancellationtoken';
+import Log from './Log';
 import Wizard from "./Wizard";
 
 import sleep from "./Sleep";
@@ -12,6 +13,8 @@ import ScopeTrackCounter from './ScopeTrackCounter';
 import Astrometry from './Astrometry';
 import { SynchronizerTriggerCallback } from './JsonProxy';
 const Quaternion = require("quaternion");
+
+const logger = Log.logger(__filename);
 
 export type MountShift = {
             tooHigh: number;
@@ -94,7 +97,7 @@ export default class PolarAlignmentWizard extends Wizard {
         // Inserts a sleep to ensure data is up to date ?
         const vec = this.astrometry.indiManager.getValidConnection().getDevice(this.getScope()).getVector("EQUATORIAL_EOD_COORD");
         const ra = parseFloat(vec.getPropertyValue("RA"));
-        console.log('current ra', ra);
+        logger.debug('current ra', {ra});
         return ra;
     }
 
@@ -105,7 +108,7 @@ export default class PolarAlignmentWizard extends Wizard {
         const ra = parseFloat(vec.getPropertyValue("RA"));
         const dec = parseFloat(vec.getPropertyValue("DEC"));
         
-        console.log('current scope pos', ra, dec);
+        logger.debug('current scope pos (jnow)', {ra, dec});
         return {ra, dec};
     }
 
@@ -158,20 +161,20 @@ export default class PolarAlignmentWizard extends Wizard {
         const vec = this.astrometry.indiManager.getValidConnection().getDevice(this.getScope()).getVector("GEOGRAPHIC_COORD");
         const lat = parseFloat(vec.getPropertyValue("LAT"));
         const long = parseFloat(vec.getPropertyValue("LONG"));
-        console.log('current geo coords', lat, long);
+        logger.debug('current geo coords', {lat, long});
         return {lat, long};
     }
 
     async prepareScope(ct: CancellationToken, settings:PolarAlignSettings) {
-        console.log('Setting TELESCOPE_TRACK_MODE.TRACK_SIDEREAL');
+        logger.info('Setting TELESCOPE_TRACK_MODE.TRACK_SIDEREAL');
         await this.astrometry.indiManager.setParam(ct, this.getScope(), 'TELESCOPE_TRACK_MODE', {'TRACK_SIDEREAL': 'On'});
         
         // Start tracking. This one stays busy ... No way to distinguish from a failed pending order !
-        console.log('Setting TELESCOPE_TRACK_STATE');
+        logger.info('Setting TELESCOPE_TRACK_STATE');
         await this.astrometry.indiManager.activate(ct, this.getScope(), 'TELESCOPE_TRACK_STATE', 'TRACK_ON');
 
         // Set speed for slew
-        console.log('Setting TELESCOPE_SLEW_RATE');
+        logger.info('Setting TELESCOPE_SLEW_RATE');
         await this.astrometry.indiManager.setParam(ct, this.getScope(), 'TELESCOPE_SLEW_RATE', {
             [settings.slewRate]: 'On'
         });
@@ -185,7 +188,6 @@ export default class PolarAlignmentWizard extends Wizard {
         if (result < -12) {
             result += 24;
         }
-        console.log('ra distance is ', result);
         return result;
     }
 
@@ -202,17 +204,17 @@ export default class PolarAlignmentWizard extends Wizard {
         let bestDistance = initialDistance;
 
         const direction = bestDistance > 0 ? 'MOTION_EAST' : 'MOTION_WEST';
-        console.log('Starting motion to targetRa to ' + targetRa);
+        logger.info('Starting ra slew', {targetRa, direction});
         const motion = createTask<void>(ct, async (task)=> {
             await this.astrometry.indiManager.pulseParam(task.cancellation, this.getScope(), 'TELESCOPE_MOTION_WE', direction);
         });
         const pilot = createTask<void>(ct, async (task)=> {
-            console.log('Pilot task started');
+            logger.debug('Pilot task started');
             while(true) {
                 await Sleep(task.cancellation, 100);
                 const newRa = this.readRa();
                 const newDistance = PolarAlignmentWizard.raDistance(newRa, targetRa);
-                console.log('Pilot task: ', newDistance);
+                logger.debug('Distance updated', {newRa, newDistance});
                 if (Math.abs(newDistance) < this.epsilon) {
                     break;
                 }
@@ -226,7 +228,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
                 bestDistance = newDistance;
             }
-            console.log('Pilot task finished');
+            logger.info('Pilot task finished');
         });
         // FIXME: if parent token was interrupted...
         let error = undefined;
@@ -234,23 +236,25 @@ export default class PolarAlignmentWizard extends Wizard {
             motion.catch((e)=>pilot.cancel());
             pilot.catch((e)=>motion.cancel());
             await pilot;
-            console.log('Done with pilot task');
+            logger.info('Done with pilot task');
         } catch(e) {
-            console.log('Catched pilot task catched', e);
+            logger.debug('Catched pilot task catched', e);
             if (!(e instanceof CancellationToken.CancellationError)) {
-                console.warn("Pulse pilot failed", e);
+                logger.error("Pulse pilot failed", e);
                 error = e;
+            } else {
+                logger.debug("Pilot task interrupted");
             }
         } finally {
             try {
-                console.log('Stoping motion task');
+                logger.info('Stoping motion task');
                 motion.cancel();
                 await motion
-                console.log('Motion task done (?)');
+                logger.warn('Motion task done (?)');
             } catch(e) {
-                console.log('Motion task catched', e);
+                logger.debug('Motion task catched', e);
                 if (!(e instanceof CancellationToken.CancellationError)) {
-                    console.warn("Motion failed", e);
+                    logger.error("Motion failed", e);
                     error = e;
                 }
             }
@@ -278,7 +282,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
     ) => {
         const zenithRa = SkyProjection.getLocalSideralTime(epoch * 1000, geoCoords.long);
-        console.log('zenith ra is ', zenithRa);
+        logger.debug('zenith ra', {zenithRa});
 
         // Minimum RA step in °
         const step = 1;
@@ -294,7 +298,7 @@ export default class PolarAlignmentWizard extends Wizard {
         if (rangeDeg === 0) {
             throw new Error("Current pos is too low above the horizon. Move scope or raise min altitude");
         }
-        console.log('rangeDeg is ', rangeDeg);
+        logger.debug('rangeDeg', {rangeDeg});
         const raRange = rangeDeg / 15;
 
         const startRelRa = SkyProjection.raDiff(
@@ -399,7 +403,7 @@ export default class PolarAlignmentWizard extends Wizard {
                             })
             );
             photoTime = (photoTime + Date.now()) / 2;
-            console.log('done photo', photo);
+            logger.info('done photo', {frametype, frameid, photo, photoTime});
             return { photo, photoTime };
         } finally {
             this.wizardStatus.polarAlignment!.shootRunning = false;
@@ -418,7 +422,7 @@ export default class PolarAlignmentWizard extends Wizard {
         // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
         const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
         const correctedALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
-        console.log('Alt-az move is ' + SkyProjection.getDegreeDistance3D(trackedRefALTAZ3Dvec, correctedALTAZ3Dvec) + "°");
+        logger.info('Alt-az move is ' + SkyProjection.getDegreeDistance3D(trackedRefALTAZ3Dvec, correctedALTAZ3Dvec) + "°");
 
         // Check that axis are not too close to the pole
         const trackedRefAltAz = SkyProjection.convertALTAZ3DToAltAz(trackedRefALTAZ3Dvec);
@@ -440,7 +444,7 @@ export default class PolarAlignmentWizard extends Wizard {
         
         // // const newAxeALTAZ3D = polarMove.rotateVector(previousAxeALTAZ3D);
 
-        // console.log({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
+        // logger.debug({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
         // return SkyProjection.convertALTAZ3DToAltAz(newAxeALTAZ3D);
     }
 
@@ -535,7 +539,7 @@ export default class PolarAlignmentWizard extends Wizard {
                             } finally {
                                 wizardReport.scopeMoving = false;
                             }
-                            console.log('Done slew to ' + targetRa + ' got ' + this.readScopePos().ra);
+                            logger.info('Done slew', {targetRa, effectiveRa: this.readScopePos().ra});
 
                             const { photo, photoTime } = await this.shoot(token, ++shootId, "sampling");
                             wizardReport.shootDone++;
@@ -545,7 +549,7 @@ export default class PolarAlignmentWizard extends Wizard {
                                 wizardReport.astrometryRunning = true;
                                 const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
                                 // FIXME: convert to JNOW & put in queue
-                                console.log('done astrom', astrometry);
+                                logger.info('Done astrometry', {astrometry, photoTime, geoCoords});
                                 if (astrometry.found) {
                                     wizardReport.astrometrySuccess++;
                                     const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
@@ -565,7 +569,7 @@ export default class PolarAlignmentWizard extends Wizard {
                                 if (e instanceof CancellationToken.CancellationError) {
                                     throw e;
                                 }
-                                console.log('Ignoring astrometry problem', e);
+                                logger.warn('Ignoring astrometry problem', e);
                                 wizardReport.astrometryFailed++;
                             } finally {
                                 wizardReport.astrometryRunning = false;
@@ -577,7 +581,7 @@ export default class PolarAlignmentWizard extends Wizard {
                         }
 
                         // We are done. Compute the regression
-                        console.log('Compute the regression for', JSON.stringify(wizardReport.data));
+                        logger.debug('Compute the regression', {data: wizardReport.data});
                         
                         const path = Object.keys(wizardReport.data).map(k=>wizardReport.data[k]);
                         const mountAxis = PolarAlignmentWizard.findMountAxis(path);
@@ -585,7 +589,7 @@ export default class PolarAlignmentWizard extends Wizard {
                         const altAzMountAxis = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
                         wizardReport.axis = PolarAlignmentWizard.computeAxis(altAzMountAxis, geoCoords);
 
-                        console.log('result is ', JSON.stringify(wizardReport.axis));
+                        logger.info('regression result', wizardReport.axis);
                         break;
                     } finally {
                         this.setInterruptor(null);
@@ -645,7 +649,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     }
 
                     // FIXME: better progress report
-                    const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "adjustment" : "reference");
+                    const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "reference" : "adjustment");
                     let photoTrackSinceRef:number;
                     if (takeRefFrame) {
                         tempScopeTrackCounter = new ScopeTrackCounter(this.astrometry.indiManager, this.getScope());
@@ -654,12 +658,13 @@ export default class PolarAlignmentWizard extends Wizard {
                     } else {
                         photoTrackSinceRef = scopeTrackCounter!.getElapsed();
                     }
+                    logger.info("Done photo", {takeRefFrame, photo, photoTime});
 
                     const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
-                    console.log('done astrom', astrometry);
                     if (astrometry.found) {
                         const geoCoords = this.readGeoCoords();
                         const { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
+                        logger.info('Done astrometry', {astrometry, photoTime, geoCoords, takeRefFrame});
 
                         if (takeRefFrame) {
                             refALTAZ3D = quatALTAZ3D;
@@ -681,7 +686,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     }
                 } catch(e) {
                     if (!(e instanceof CancellationToken.CancellationError)) {
-                        console.warn("failure", e);
+                        logger.error("failure", e);
                         wizardReport.adjustError = e.message || ''+e;
                         await this.waitNext("Resume");
                     } else {

@@ -113,23 +113,27 @@ function initWss(server: http.Server) {
 
                 const globalUid = client.uid + ':' + id;
 
-                logger.info('API request', {clientUid, message, globalUid});
+                logger.debug('API request', {clientUid, message, globalUid});
 
                 const request = new ClientRequest(globalUid, client);
 
                 createTask<any>(undefined, async (task)=> {
+                    let _app, _func:string;
+                    _app = "N/A";
+                    _func = "N/A";
                     try {
-                        const _app:string = message.details._app;
+                        _app = message.details._app;
                         if (_app === undefined || ! Object.prototype.hasOwnProperty.call(apiRoot, _app)) {
                             throw new Error("Invalid _app: " + _app);
                         }
                         const appImpl:RequestHandler.APIAppImplementor<any> = (apiRoot as any)[_app];
 
-                        const _func = message.details._func;
+                        _func = message.details._func;
                         if (_func === undefined || !Object.prototype.hasOwnProperty.call(appImpl, _func)) {
                             throw new Error("Invalid _func: " + _app + "." + _func);
                         }
 
+                        logger.info('API request', {clientUid, globalUid, _app, _func});
                         const funcImpl = appImpl[_func];
                         let ret;
                         try {
@@ -139,14 +143,15 @@ function initWss(server: http.Server) {
                             // (let all setimmediate settle down)
                             await Sleep(CancellationToken.CONTINUE, 0);
                         }
-                        logger.info('API request succeded', {clientUid, globalUid, ret});
+                        logger.debug('API result', {clientUid, globalUid, _app, _func, ret});
+                        logger.info('API request succeded', {clientUid, globalUid, _app, _func});
                         request.success(ret);
                     } catch(e) {
                         if (e instanceof CancellationToken.CancellationError) {
-                            logger.info('API request canceled', {clientUid, globalUid});
+                            logger.info('API request canceled', {clientUid, globalUid, _app, _func});
                             request.onCancel();
                         } else {
-                            logger.warn('API request failed', {clientUid, globalUid}, e);
+                            logger.warn('API request failed', {clientUid, globalUid, _app, _func}, e);
                             request.onError(e);
                         }
                     }

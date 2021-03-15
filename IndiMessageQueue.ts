@@ -1,4 +1,6 @@
+import Log from './Log';
 
+const logger = Log.logger(__filename);
 
 type PendingMessage = {
     // null means process asap
@@ -51,7 +53,7 @@ export class IndiMessageQueue {
             try {
                 this.messageProcessor(head.message);
             } catch(e) {
-                console.warn('indi message processing failed', e);
+                logger.error('indi message processing failed', e);
             }
             break;
         }
@@ -186,7 +188,7 @@ export class IndiMessageQueue {
             if (existingMessagePos !== undefined) {
                 this.messageQueue[existingMessagePos].message = message;
                 if (this.messageQueue[existingMessagePos].fantom) {
-                    console.log(`Throttling INDI messages for ${message.$device}.${message.$name}`);
+                    logger.info('Throttling INDI messages', {op: message.$$, device: message.$device, name: message.$name});
                     this.messageQueue[existingMessagePos].fantom = false;
                 }
             } else {

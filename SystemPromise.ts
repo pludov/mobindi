@@ -3,6 +3,9 @@ import Stream from 'stream';
 import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
 import { StringDecoder } from 'string_decoder';
+import Log from './Log';
+
+const logger = Log.logger(__filename);
 
 // Ugggglyyy fix for end of stream
 MemoryStreams.ReadableStream.prototype._read = function(n:any) {
@@ -90,7 +93,7 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
         writableStream = writableMemoryStream = new MemoryStreams.WritableStream();
         writableStream._write = (chunk, encoding, next) => {
             if (encoding as any !== 'buffer') {
-                console.log('Received not a buffer');
+                logger.error('Received not a buffer', {encoding});
                 writableStream.emit('error', new Error('unsupported encoding'));
             } else {
                 buffers.push(chunk);

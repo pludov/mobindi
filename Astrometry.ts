@@ -174,7 +174,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
 
     compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
         return await createTask<AstrometryResult>(ct, async (task) => {
-            logger.info('Astrometry started', {image: message.image});
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
             }

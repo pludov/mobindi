@@ -434,7 +434,7 @@ export default class SkyProjection {
         // const rotatedCenter = center.mul(angleFrom, angle);
 
         // const originBack = rotatedCenter.inverse().rotateVector(xpt3d);
-        // console.log("originBack is ", originBack[0] - x3d, originBack[1] - y3d, originBack[2] - z3d);
+        // logger.debug("originBack is ", originBack[0] - x3d, originBack[1] - y3d, originBack[2] - z3d);
 
         return rotatedCenter;
     }
