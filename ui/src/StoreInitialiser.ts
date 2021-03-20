@@ -1,3 +1,4 @@
+import Log from './shared/Log';
 import { update } from './shared/Obj'
 import * as Store from './Store';
 import * as Actions from './Actions';
@@ -14,6 +15,8 @@ import * as NotificationStore from './NotificationStore';
 import * as SequenceStore from './SequenceStore';
 import * as GeolocStore from './GeolocStore';
 import * as GenericUiStore from './GenericUiStore';
+
+const logger = Log.logger(__filename);
 
 export function start() {
     const initialState:Store.Content =  {
@@ -77,11 +80,11 @@ export function start() {
                 try {
                     state = actionsByApp[action.app][action.method].apply(null, nvArgs);
                 } catch(e) {
-                    console.error('Error in ' + action.app + '.' + action.method, e);
+                    logger.error('Error in apply reducer', {app: action.app, method: action.method, type}, e);
                 }
             } else {
                 if (!Object.prototype.hasOwnProperty.call(Actions.registry, type)) {
-                    console.log('invalid action: ', action);
+                    logger.error('invalid action in reducer', {app: action.app, method: action.method, type});
                 } else {
                     const newState = Actions.registry[type](state, action);
                     state = newState;
@@ -137,7 +140,7 @@ export function start() {
     const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
         (window.location.protocol + '//' + window.location.hostname  + ':' + window.location.port + '/');
     //:*/ (stripLastPart(window.location) + 'api/');
-    console.log('api root is at: ' + apiRoot);
+    logger.info('API root found', {apiRoot});
 
     notifier.connect(apiRoot);
 

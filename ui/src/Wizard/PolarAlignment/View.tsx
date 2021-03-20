@@ -1,5 +1,6 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
+import Log from '../../shared/Log';
 import '../../AstrometryView.css';
 import AstrometrySettingsView from '../../AstrometrySettingsView';
 import * as Store from '../../Store';
@@ -11,6 +12,8 @@ import InitialConfirm from "./InitialConfirm";
 import Progress from "./Progress";
 import Adjust from "./Adjust";
 import "./PolarAlignment.css";
+
+const logger = Log.logger(__filename);
 
 type InputProps = {};
 type MappedProps = {
@@ -35,7 +38,7 @@ class View extends React.PureComponent<Props> {
             case "adjusting":
                 return <Adjust/>;
             default:
-                console.log('unknown status', this.props.status);
+                logger.warn('unknown status', {status: this.props.status});
                 return null;
         }
     }

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { connect } from 'react-redux';
 
+import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 import CameraSettingsView from './CameraSettingsView';
@@ -16,6 +17,8 @@ import DeviceSettingsBton from './DeviceSettingsBton';
 import './CameraView.css'
 import LiveFilterSelector from './LiveFilterSelector';
 import { StreamSize } from '@bo/BackOfficeStatus';
+
+const logger = Log.logger(__filename);
 
 type InputProps = {
 }
@@ -39,14 +42,14 @@ class CameraView extends React.PureComponent<Props> {
         if (this.props.path === null) {
             throw new Error("Astrometry require a fits file");
         }
-        console.log('Start astrometry ?' + this.props.path);
+        logger.debug('Start astrometry', {path: this.props.path});
         await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
                 image: this.props.path,
             }
         );
-        console.log('done astrometry ?');
+        logger.debug('done astrometry ?');
     };
 
     setCamera = async(id: string)=>{
@@ -139,7 +142,7 @@ class CameraView extends React.PureComponent<Props> {
                 };
             }
         } catch(e) {
-            console.log('Ignored camera pb', e);
+            logger.warn('Ignored camera pb', e);
             return {
                 path: null,
                 streamId: null,

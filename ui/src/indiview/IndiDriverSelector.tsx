@@ -33,7 +33,6 @@ class IndiDriverSelector extends React.Component<Props> {
     }
 
     render() {
-        console.log('Rendering: ' , this.props.options);
         const deviceSelectorOptions = this.props.options.map((item) => <option key={item} value={item}>{item}</option>);
         return (<select value={this.props.current}
             onChange={this.updateDriver}

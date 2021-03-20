@@ -37,7 +37,7 @@ export function register<TYPE extends {[id: string] : Handler<any>}>(actions: TY
 // }
 //
 // register<MesDispatchers>({
-//     plante: (state, payload)=>{console.log(payload.id); return state},
+//     plante: (state, payload)=>{ return state},
 // })
 //
 // // In action:

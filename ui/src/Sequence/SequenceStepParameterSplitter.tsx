@@ -2,6 +2,7 @@ import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
 import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
+import Log from '../shared/Log';
 import { SequenceStep } from '@bo/BackOfficeStatus';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
@@ -14,6 +15,8 @@ import "./SequenceStepEdit.css";
 import { ForcedParams } from './SequenceStepEdit';
 import { ParamDesc } from './SequenceStepParameter';
 import Modal from '../Modal';
+
+const logger = Log.logger(__filename);
 
 type InputProps = {
     sequenceUid: string;
@@ -55,7 +58,7 @@ class SequenceStepParameterSplitter extends React.PureComponent<Props, State> {
                 removeParameterFromParent: toRemove,
                 count: this.state.valueCount
             });
-        console.log('created sequence stepos:', uids);
+        logger.info('created sequence stepos', {uids});
         const ret: ForcedParams = {};
         for(const uid of uids) {
             ret[uid] = {param: this.props.parameter.id, uid: uid};
@@ -94,7 +97,7 @@ class SequenceStepParameterSplitter extends React.PureComponent<Props, State> {
                 }
                 return detailsStack;
             } catch(e) {
-                console.log('mapStateToProp failed', e);
+                logger.error('mapStateToProp failed', e);
                 return [];
             }
         }

@@ -1,12 +1,15 @@
 import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
 
+import Log from './shared/Log';
 import * as Help from './Help';
 import { atPath } from "./shared/JsonPath";
 import * as Store from "./Store";
 import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
 import { ShootResult } from '@bo/BackOfficeAPI';
+
+const logger = Log.logger(__filename);
 
 type InputProps = {
     activePath: string;
@@ -71,13 +74,13 @@ class ShootBton extends React.PureComponent<Props> {
         // ack from server should arrive only when state has been updated, ...
         // This looks like a progress channel is required
         const rslt = await BackendRequest.RootInvoker("camera")("shoot")(CancellationToken.CONTINUE, {});
-        console.log('got rslt:' + JSON.stringify(rslt));
+        logger.info('shoot rslt', {rslt});
         this.props.onSuccess(rslt);
     }
 
     stream = async()=>{
         const rslt = await BackendRequest.RootInvoker("camera")("stream")(CancellationToken.CONTINUE, {});
-        console.log('got rslt:' + JSON.stringify(rslt));
+        logger.info('stream rslt', {rslt});
     }
 
     abort = async ()=>{

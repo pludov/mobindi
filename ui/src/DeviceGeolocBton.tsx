@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Log from './shared/Log';
 import * as Store from "./Store";
 import * as Help from "./Help";
 import * as BackendRequest from "./BackendRequest";
@@ -8,6 +9,7 @@ import * as GeolocStore from "./GeolocStore";
 import * as Utils from './Utils';
 import BackendAccessor from './utils/BackendAccessor';
 
+const logger = Log.logger(__filename);
 
 type InputProps = {
     // name of the device (indi id)
@@ -86,11 +88,11 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
         try {
             position = await GeolocStore.getGeoloc();
         } catch(e) {
-            console.warn("Failed to get position", e);
+            logger.error("Failed to get position", e);
             return;
         }
         
-        console.log('got position ', position);
+        logger.info('got position ', {position});
         // Push value to scope
         await BackendRequest.RootInvoker("indi")("updateVector")(CancellationToken.CONTINUE, {
             dev: device,

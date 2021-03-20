@@ -36,7 +36,7 @@ class BackendChildAccessor {
             
             jsonDiff =  {update: {[path[i]]: jsonDiff}};
         }
-        console.log('Root apply:', jsonDiff);
+
         return this.root.apply(jsonDiff);
     }
 

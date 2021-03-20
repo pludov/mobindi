@@ -64,7 +64,6 @@ export default class ExpirableList extends React.PureComponent<Props, State> {
         if (this.props.reverse) {
             items = items.reverse();
         }
-        console.log('rendering ', items);
         return <>
             {items.map((uuid)=><React.Fragment key={uuid}>{this.props.render(uuid, todo[uuid])}</React.Fragment>)}
         </>;

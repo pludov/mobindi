@@ -166,7 +166,6 @@ class IndiPropertyView extends PureComponent<Props> {
                         floatValue += v;
                         divider *= 60;
                     }
-                    console.log("Parsed: " + floatValue);
                     return "" + floatValue;
                 } else {
                     return "" + parseFloat(value);
@@ -189,10 +188,10 @@ class IndiPropertyView extends PureComponent<Props> {
         var formats = [ "%1.0m", "%1.3m", "%1.5m", "%1.6m", "%1.8m", "%1.9m"];
         for(var i  = 0; i < test.length; ++i) {
             var v = test[i];
-            console.log("with " + v);
+            logger.debug("with " + v);
             for(var j = 0; j < formats.length; ++j) {
                 var format = formats[j];
-                console.log('  ' + format + '   =>  ' + this.renderValueWithFormat(v, format));
+                logger.debug('  ' + format + '   =>  ' + this.renderValueWithFormat(v, format));
             }
         }
 */

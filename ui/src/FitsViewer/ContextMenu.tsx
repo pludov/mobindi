@@ -1,6 +1,9 @@
 import React, { Component, PureComponent, CSSProperties, RefObject} from 'react';
+import Log from '../shared/Log';
 import * as Help from '../Help';
 import { ContextMenuEntry, LevelId } from './FitsViewer';
+
+const logger = Log.logger(__filename);
 
 export type Props = {
     displaySetting:(s:LevelId|"fwhm"|"histogram"|null)=>void;
@@ -49,7 +52,7 @@ export default class ContextMenu extends PureComponent<Props> {
                 // Update the css: move up
                 item.style.top = (parseFloat(item.style.top!) - (this.props.y + sze.cy - sze.py)) + "px";
             }
-            console.log('rendered sze: ', sze);
+            logger.debug('rendered sze', {sze});
         }
     }
 

@@ -1,9 +1,11 @@
 import * as React from 'react';
+import Log from './shared/Log';
 import IconButton from './IconButton';
 import Icons from './Icons';
 import * as Help from './Help';
 import './HelpOverlay.css';
 
+const logger = Log.logger(__filename);
 
 
 type HelpItem = {
@@ -56,7 +58,6 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
 
     handleKey = (evt:KeyboardEvent)=> {
         if (this.state.open) {
-            console.log(evt);
             if (evt.key === "Escape" || evt.key === "Esc") {
                 evt.preventDefault();
                 this.closeHelp();
@@ -203,7 +204,7 @@ function getHelpZones() {
             });
         }
     }
-    console.log('Help is ', result);
+    logger.debug('Help zones', {result});
     return result;
 }
 

@@ -1,7 +1,10 @@
 import * as React from 'react';
+import Log from '../shared/Log';
 import * as Help from '../Help';
 import * as Store from '../Store';
 import TextEdit from '../TextEdit';
+
+const logger = Log.logger(__filename);
 
 export type InputProps<TYPE> = {
     accessor: Store.Accessor<TYPE>;
@@ -36,8 +39,8 @@ export default class BaseText<TYPE> extends React.PureComponent<Props<TYPE>> {
         let t : TYPE;
         try {
             t = this.props.fromString(e);
-        } catch(e) {
-            console.log(e.message);
+        } catch(err) {
+            logger.warn("error parsing value", {value: e}, err);
             return;
         }
         return this.props.accessor.send(t);

@@ -1,7 +1,10 @@
 // Detecter l'état de visibilité de la page
-import { BackendStatus, BackendStatusValue } from './BackendStore';
 import CancellationToken from "cancellationtoken";
+import Log from './shared/Log';
+import { BackendStatus, BackendStatusValue } from './BackendStore';
 import { WhiteList } from './shared/JsonProxy';
+
+const logger = Log.logger(__filename);
 
 class Request {
     readonly notifier: Notifier;
@@ -207,7 +210,7 @@ export default class Notifier {
             try {
                 request.reject(error);
             } catch(e) {
-                console.error('onCancel error', e.stack || e);
+                logger.error('onCancel error', e);
             }
         }
     }
@@ -217,7 +220,7 @@ export default class Notifier {
         try {
             this.socket!.send(JSON.stringify(obj));
         } catch(e) {
-            console.log('Websocket: write failed: ' + e);
+            logger.warn('Websocket: write failed', e);
             this._close();
             this.dispatchBackendStatus();
         }
@@ -248,12 +251,12 @@ export default class Notifier {
         if (wantedConn) {
             if (!this.socket) {
                 // FIXME: delay ?
-                console.log('Websocket: restart needed');
+                logger.debug('Websocket: restart needed');
                 this._open();
             }
         } else {
             if (this.socket) {
-                console.log('Websocket: close required');
+                logger.debug('Websocket: close required');
                 this._close();
                 this.dispatchBackendStatus();
             }
@@ -263,13 +266,13 @@ export default class Notifier {
     protected handleNotifications(n: {batch: any[]}|{data: any}) {};
 
     private _open() {
-        console.log('Websocket: connecting to ' + this.url);
+        logger.info('Websocket: connecting', {url: this.url});
         this.resetHandshakeStatus(false);
         try {
             this.socket = new WebSocket(this.url!);
             this.dispatchBackendStatus();
         } catch(e) {
-            console.log('Websocket: failed to open: ' + e);
+            logger.warn('Websocket: failed to open', e);
             this.socket = undefined;
             this.dispatchBackendStatus('' + e);
         }
@@ -282,7 +285,7 @@ export default class Notifier {
 
             const discardEvent = (event:string)=>{
                 if (this.socket !== orgSocket) {
-                    console.log(`Discarding ${event} on old socket`);
+                    logger.warn('Discarding event from old socket', {event});
                     return true;
                 }
                 return false;
@@ -300,7 +303,7 @@ export default class Notifier {
                     const toSend = notifications;
                     notifications = [];
 
-                    // console.log('batching notifications: ', toSend.length);
+                    // logger.debug('batching notifications: ', toSend.length);
                     this.handleNotifications({batch: toSend});
                 }
             }
@@ -318,7 +321,7 @@ export default class Notifier {
             this.socket.onopen = (data)=>{
                 if (discardEvent("onopen")) return;
 
-                console.log('Websocket: connected');
+                logger.info('Websocket: connected');
                 this.write({
                     type: "auth",
                     whiteList: this.whiteList,
@@ -329,7 +332,7 @@ export default class Notifier {
 
                 const data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
-                    console.log('Websocket: welcomed', data);
+                    logger.info('Websocket: welcomed', {data});
                     this.resetHandshakeStatus(true, data.clientId);
                     this.serverId = data.serverId;
 
@@ -344,7 +347,7 @@ export default class Notifier {
                         const request = this.activeRequests[uid];
                         delete(this.activeRequests[uid]);
                         this.toCancelRequests = this.toCancelRequests.filter((item)=>(item.uid !== uid));
-                        console.log('Request status is ' + data.status);
+                        logger.info('Request status', {uid, status: data.status});
                         try {
                             switch(data.status) {
                                 case 'done':
@@ -358,10 +361,10 @@ export default class Notifier {
                                     break;
                             }
                         } catch(e) {
-                            console.log('Request end failed', e);
+                            logger.error('Request end failed', {uid, status: data.status}, e);
                         }
                     } else {
-                        console.log('Request not found: ' + uid);
+                        logger.info('Request status', {uid});
                     }
                 }
 
@@ -372,7 +375,7 @@ export default class Notifier {
             this.socket.onclose = (data)=>{
                 if (discardEvent("onclose")) return;
 
-                console.log('Websocket: closed');
+                logger.info('Websocket: closed');
                 flushNotifications();
                 this.socket = undefined;
                 this.resetHandshakeStatus(false);
@@ -385,7 +388,7 @@ export default class Notifier {
             this.socket.onerror = (error)=>{
                 if (discardEvent("onerror")) return;
 
-                console.log('Websocket: error: ' + JSON.stringify(error), error);
+                logger.error('Websocket: error', {url: this.url, error});
                 flushNotifications();
                 this._close();
                 this.dispatchBackendStatus('Connection aborted');
@@ -399,11 +402,11 @@ export default class Notifier {
     private _close() {
         if (this.socket == undefined) return;
 
-        console.log('Websocket: disconnecting');
+        logger.info('Websocket: disconnecting');
         try {
             this.socket.close();
         } catch(e) {
-            console.log('Websocket Failed to close: ' + e);
+            logger.error('Websocket Failed to close', e);
         }
         this.resetHandshakeStatus(false);
         this.socket = undefined;

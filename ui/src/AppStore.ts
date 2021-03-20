@@ -1,8 +1,11 @@
+import Log from './shared/Log';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import * as Store from "./Store";
 import * as Actions from "./Actions";
 import * as JsonProxy from './shared/JsonProxy';
 import { BackendStatus } from './BackendStore';
+
+const logger = Log.logger(__filename);
 
 export type Content = {
     currentApp: string|null;
@@ -22,7 +25,7 @@ export function onExport(t:Content) {
 
 const SwitchToApp: Actions.Handler<{ value: string }>
     = (state, action) => {
-        console.log('SwitchToApp', action);
+        logger.debug('SwitchToApp', {action});
         var appid = action.value;
         if (state.currentApp == appid) return state;
         return {

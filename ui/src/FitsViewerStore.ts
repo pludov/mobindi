@@ -19,8 +19,6 @@ export function onExport(t:Content) {
 }
 
 const setViewerState=(state: Store.Content, payload: {context: string, viewSettings: any})=> {
-
-    console.log('WTF: save context ' , payload.context, ' parameters to ', payload.viewSettings);
     return update(state, {
         $mergedeep: {
             viewSettings: {

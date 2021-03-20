@@ -1,8 +1,11 @@
 import * as Redux from 'redux';
+import Log from './shared/Log';
 import * as Actions from './Actions';
 import * as BackendStore from './BackendStore';
 import * as Store from './Store';
 import Notifier from "./Notifier";
+
+const logger = Log.logger(__filename);
 
 export default class ReduxNotifier extends Notifier {
     private readonly hidden: string;
@@ -23,7 +26,7 @@ export default class ReduxNotifier extends Notifier {
             this.hidden = "webkitHidden";
             this.visibilityChange = "webkitvisibilitychange";
         }
-        console.log('hidden property: ' + this.hidden);
+        logger.debug('hidden property found', {hidden: this.hidden, visibilityChange: this.visibilityChange});
         document.addEventListener(this.visibilityChange, this.handleVisibilityChange.bind(this), false);
     }
 
@@ -50,22 +53,22 @@ export default class ReduxNotifier extends Notifier {
 
     handleVisibilityChange() {
         if (document[this.hidden]) {
-            console.log('Websocket: Became hidden');
+            logger.info('Websocket: Became hidden');
             this.cancelHidingTimeout();
             this.hidingTimeout = window.setTimeout(()=>{
-                console.log('Websocket: Hiding timeout expired');
+                logger.info('Websocket: Hiding timeout expired');
                 this.hidingTimeout = undefined;
                 this.updateState();
             }, 60000);
         } else {
-            console.log('Websocket: Became visible');
+            logger.info('Websocket: Became visible');
             this.cancelHidingTimeout();
             this.updateState();
         }
     }
 
     public attachToStore(store: Redux.Store<Store.Content>) {
-        console.log('Websocket: attached to store');
+        logger.info('Websocket: attached to store');
         this.store = store;
         this.dispatchBackendStatus();
     }

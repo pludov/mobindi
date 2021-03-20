@@ -1,6 +1,7 @@
 import React, { Component, PureComponent} from 'react';
-import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
+import Log from '../shared/Log';
+import * as BackendRequest from "../BackendRequest";
 
 import Konva from 'konva';
 import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
@@ -10,6 +11,8 @@ import { ProcessorHistogramResult, ProcessorHistogramChannel } from '@bo/Process
 import ReactResizeDetector from 'react-resize-detector';
 
 import "./Histogram.css"
+
+const logger = Log.logger(__filename);
 
 type Props = {
     path: FitsViewerProps["path"];
@@ -139,7 +142,7 @@ export default class Histogram extends React.PureComponent<Props, State> {
                 loading: false
             });
         } catch(e) {
-            console.warn('Unable to load histogram', e);
+            logger.error('Unable to load histogram', {path: this.props.path, streamId: this.props.streamId}, e);
             this.setState({
                 value: null,
                 loading: false
@@ -151,7 +154,7 @@ export default class Histogram extends React.PureComponent<Props, State> {
 
     _cancelLoadData() {
         // Not implemented
-        console.log('FIXME: canceling FWHMDisplayer is not implemented');
+        logger.warn('FIXME: canceling FWHMDisplayer is not implemented');
     }
 
     componentWillUnmount() {

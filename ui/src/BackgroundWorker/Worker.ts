@@ -17,10 +17,13 @@
 //    client can ack notification
 //
 
+import Log from '../shared/Log';
 import Notifier from "../Notifier";
 import { BackendStatusValue, BackendStatus } from '@src/BackendStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import JsonProxy, { has } from '@src/shared/JsonProxy';
+
+const logger = Log.logger(__filename);
 
 interface SharedWorkerGlobalScope extends Worker {
     onconnect: (event: MessageEvent) => void;
@@ -44,7 +47,7 @@ let visibleClientCount:number = 0;
 
 class WorkerNotifier extends Notifier {
     protected onStatusChanged(backendStatus: BackendStatusValue, backendError?: string) {
-        console.log('worker got new status',  backendStatus);
+        logger.debug('worker got new status',  {backendStatus, backendError});
         boCnx = backendStatus;
         boCnxError = backendError;
         if (backendStatus != BackendStatus.Connected || backendError != null) {
@@ -54,7 +57,7 @@ class WorkerNotifier extends Notifier {
     }
 
     protected handleNotifications(n: {batch: any[]}|{data: any}) {
-        console.log('worker notified');
+        logger.debug('worker notified');
         boCnx = BackendStatus.Connected;
         boCnxError = undefined;
 
@@ -139,7 +142,7 @@ let disconnectTimer: NodeJS.Timer|undefined;
 let disconnectedNotification: Notification|undefined;
 
 function emitNotifications() {
-    console.log('notificationAllowed', notificationAllowed);
+    logger.debug('notificationAllowed', {notificationAllowed});
     const now = new Date().getTime();
     if (!notificationAllowed) {
         if (boStatus !== undefined) {
@@ -189,11 +192,11 @@ type ClientStatus = {
 
 try {
     setInterval(()=> {
-        console.log('Worker alive');
+        logger.debug('worker alive');
     }, 60000);
 
     self.onconnect = function(e) {
-        console.log('worker got connection', e);
+        logger.info('worker got connection', e);
         try {
             var port = e.ports[0];
             let expireTimeout: NodeJS.Timeout|undefined = undefined;
@@ -210,7 +213,7 @@ try {
             const transStatus=(prev: ClientStatus, cur: ClientStatus)=>{
                 if ((prev.alive && prev.visible) != (cur.alive && cur.visible)) {
                     visibleClientCount += (cur.alive && cur.visible) ? 1 : -1;
-                    console.log('Visible client count is ', visibleClientCount);
+                    logger.debug('Visible client count ', {visibleClientCount});
                 }
                 // clear interval
                 if (expireTimeout !== undefined) {
@@ -237,7 +240,7 @@ try {
 
             port.onmessage = function(evt:any) {
                 try {
-                    console.log('worker got evt', evt);
+                    logger.debug('worker got evt', {evt});
                     if (has(evt.data, "notificationAllowed")) {
                         notificationAllowed = evt.data.notificationAllowed;
                         emitNotifications();
@@ -257,7 +260,7 @@ try {
                         alive: true
                     });
                 } catch(e) {
-                    console.log('error from worker onmessage', e);
+                    logger.error('error from worker onmessage', e);
                 }
             }
             
@@ -267,7 +270,7 @@ try {
 
             
         } catch(e) {
-            console.log('error from worker onconnect', e);
+            logger.error('error from worker onconnect', e);
         }
     }
     const location = (self as any).location;
@@ -275,7 +278,7 @@ try {
     notifier.connect(location.protocol + '//' + location.hostname  + ':' + location.port + '/');
 
 } catch(e) {
-    console.log('error from worker', e);
+    logger.error('error from worker', e);
 }
 
 

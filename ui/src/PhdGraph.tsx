@@ -8,12 +8,14 @@ import * as ReactChartJS from "react-chartjs-2";
 import * as ChartJSZoomPlugin from "./utils/ChartJSZoomPlugin";
 import moment from 'moment';
 
+import Log from './shared/Log';
 import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
 import './PhdView.css';
 import { PhdStatus } from '@bo/BackOfficeStatus';
 import CancellationToken from 'cancellationtoken';
 
+const logger = Log.logger(__filename);
 
 type InputProps = {}
 type MappedProps = {
@@ -58,7 +60,6 @@ class PhdGraph extends React.PureComponent<Props, State> {
     }
 
     handlePan = ({chart}:any)=> {
-        console.log('handlePan');
         this.handleZoom({chart});
     }
 
@@ -104,8 +105,8 @@ class PhdGraph extends React.PureComponent<Props, State> {
             const {minMoment, maxMoment} = this.getTimeRange();;
 
 
-            console.log('current min, max',  minMoment, maxMoment, maxMoment! - minMoment!);
-            console.log('zoomed  min, max',  newMin, newMax, newMax - newMin);
+            logger.debug('current min, max',  {minMoment, maxMoment, delta: maxMoment! - minMoment!});
+            logger.debug('zoomed  min, max',  {newMin, newMax, delta: newMax - newMin});
             if (newMax === newMin) {
                 this.setState({
                     track: undefined,

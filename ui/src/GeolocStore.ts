@@ -1,5 +1,8 @@
+import Log from './shared/Log';
 import * as Actions from "./Actions";
 import * as Store from "./Store";
+
+const logger = Log.logger(__filename);
 
 export type GeolocStoreContent = {
     acquired: boolean;
@@ -19,9 +22,10 @@ let geoloc: Position|undefined = undefined;
 function getGeolocWorker() {
     if (!geolocWorker) {
         geolocWorker = new Promise((resolve, reject) => {
+            logger.info("Acquiring geo position");
             navigator.geolocation.getCurrentPosition(
                 (position)=>{
-                    console.log('got geoloc', position);
+                    logger.info('got geoloc', {position});
                     geoloc = position;
                     Actions.dispatch<GeolocActions>()("updateGeoloc", {
                         latitude: position.coords.latitude,
@@ -32,6 +36,7 @@ function getGeolocWorker() {
                     resolve(position)
                 },
                 (e)=> {
+                    logger.info('geoloc error', e);
                     geolocWorker = undefined;
                     reject(e)
                 },

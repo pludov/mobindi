@@ -1,5 +1,6 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
+import Log from './shared/Log';
 import './AstrometryView.css';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import AstrometryWizardBaseView from './Wizard/BaseView';
@@ -8,6 +9,8 @@ import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
+
+const logger = Log.logger(__filename);
 
 type InputProps = {}
 
@@ -94,7 +97,7 @@ class AstrometryView extends React.PureComponent<Props, State> {
             case "polarAlignment":
                 return <PolarAlignementView/>;
             default:
-                console.log('unknown wizard', id);
+                logger.warn('unknown wizard', {id});
                 return null;
         }
     }

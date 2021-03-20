@@ -1,7 +1,10 @@
 import React, { Component, PureComponent, ReactNode} from 'react';
+import Log from './shared/Log';
 import FloatWindow from './FloatWindow';
 import ReactResizeDetector from 'react-resize-detector';
 import { has } from './Utils';
+
+const logger = Log.logger(__filename);
 
 type Props = {
 
@@ -67,7 +70,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
 
     // Adjust div pos according to size constraints
     relayout() {
-        console.log('relayout', this.childSizes);
+        logger.debug('relayout', {childSizes: this.childSizes});
         // For every child that has a size, make sure it fits within parent area
         for(const id of Object.keys(this.childRefs)) {
             this.prefOp(id, ()=>{});
@@ -83,7 +86,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
     }
 
     onParentResize=(width:number, height:number)=> {
-        console.log('onResize');
+        logger.debug('onResize');
         this.parentSize = {width, height};
         this.relayout();
     }

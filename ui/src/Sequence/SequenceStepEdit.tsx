@@ -5,6 +5,7 @@ import uuid from 'uuid';
 
 
 import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem } from '@bo/BackOfficeStatus';
+import Log from '../shared/Log';
 import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as Help from '../Help';
@@ -26,6 +27,8 @@ import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
 import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
 import DitheringSettingEdit from './DitheringSettingEdit';
 import Modal from '@src/Modal';
+
+const logger = Log.logger(__filename);
 
 export type ForcedParams = {[id: string]: {param: string, uid:string}};
 
@@ -422,9 +425,10 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         if (childList === undefined) {
             return;
         }
-        console.log('currentORder is ', childList, oldIndex, newIndex);
+
         const newOrder = arrayMove([...childList], oldIndex, newIndex);
-        console.log('newOrder is ', newOrder);
+        logger.debug('moveSteps', {childList, oldIndex, newIndex, newOrder});
+
         // Update the state, then start a backoffice request
         this.setState({
                 overridenChildList: newOrder,

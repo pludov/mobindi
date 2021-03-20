@@ -1,7 +1,10 @@
 import React, { Component, PureComponent} from 'react';
+import Log from '../shared/Log';
 import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
 import * as Algebra from '../shared/Algebra';
+
+const logger = Log.logger(__filename);
 
 export type Props = {
     path: string|null;
@@ -73,7 +76,7 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
 
     _cancelLoadData() {
         // Not implemented
-        console.log('FIXME: canceling FWHMDisplayer is not implemented');
+        logger.warn('FIXME: canceling FWHMDisplayer is not implemented');
     }
 
     componentWillUnmount() {

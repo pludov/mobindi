@@ -1,5 +1,8 @@
 import * as React from 'react';
+import Log from './shared/Log';
 import * as Help from './Help';
+
+const logger = Log.logger(__filename);
 
 type Control = {
     id: string;
@@ -55,7 +58,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         let disabled: boolean = true;
         if (this.state.forcedValue !== null) {
             active = this.state.forcedValue;
-            console.log('Using forced value ' + active);
+            logger.debug('Using forced value', {active});
         }
 
         if (active == null || this.props.nullAlwaysPossible) {
@@ -108,7 +111,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             if (this.props.controls) {
                 for(const v of this.props.controls) {
                     if (v.id == id) {
-                        console.log('select entry', id);
+                        logger.debug('select entry', {id});
                         this.selectEntry(null, v.run);
                     }
                 }
@@ -121,9 +124,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
     asyncUpdatePromise(from:Promise<any>|undefined, to:Promise<any>|undefined, forcedValue: string|null)
     {
         this.setState((prevState)=>{
-            console.log('WTF Doing transition from ' + from + ' to ' + to);
             if (prevState.runningPromise === from) {
-                console.log('WTF Really Doing transition from ' + from + ' to ' + to);
                 return {
                     ...prevState,
                     runningPromise: to,

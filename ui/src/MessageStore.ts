@@ -1,9 +1,12 @@
+import Log from './shared/Log';
 import * as Store from "./Store";
 import * as Utils from "./Utils";
 import * as Actions from "./Actions";
 import * as NotificationStore from './NotificationStore';
 import Worker from 'shared-worker-loader!./BackgroundWorker/Worker';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
+
+const logger = Log.logger(__filename);
 
 export type MessageStore = {
     lastMessageDisplayed: string|undefined;
@@ -191,7 +194,7 @@ try {
     worker = new Worker("background");
     worker.port.start();
     worker.port.postMessage({ a: 1 });
-    worker.port.onmessage = function (event) {console.log('worker event', event);};
+    worker.port.onmessage = function (event) {logger.debug('worker event', {event});};
 
     worker.port.postMessage({notificationAllowed: !!getMessageAuthValue()});
 
@@ -211,7 +214,7 @@ try {
         hidden = "webkitHidden";
         visibilityChange = "webkitvisibilitychange";
     } else {
-        console.log('no visiblity');
+        logger.warn('no access to visiblity status');
         hidden = "";
         visibilityChange = "";
     }
@@ -219,7 +222,7 @@ try {
     if (visibilityChange && hidden) {
         let timer:NodeJS.Timer;
         const ping = ()=> {
-            console.log('worker ping');
+            logger.debug('worker ping');
             const visible = !document[hidden];
 
             worker.port.postMessage({visible});
@@ -235,7 +238,7 @@ try {
     }
 
 } catch(e) {
-    console.warn("could not setup notification", e);
+    logger.error("could not setup notification", e);
 }
 
 function getMessageAuthValue():undefined|boolean
@@ -247,7 +250,7 @@ function getMessageAuthValue():undefined|boolean
         }
         return perm === "granted";
     } catch(e) {
-        console.warn("Notification problem", e);
+        logger.error("Notification problem", e);
         return undefined;
     }
 }
@@ -258,7 +261,7 @@ function dispatchAuthUpdate() {
     try {
         worker.port.postMessage({notificationAllowed: !!value});
     } catch(e) {
-        console.warn("worker problem", e);
+        logger.error("worker problem", e);
     }
 }
 

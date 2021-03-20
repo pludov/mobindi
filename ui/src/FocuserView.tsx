@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
 import { Line } from 'react-chartjs-2';
 
+import Log from './shared/Log';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Help from './Help';
 import * as Store from './Store';
@@ -21,10 +22,12 @@ import './FocuserView.css';
 import Panel from './Panel';
 import LiveFilterSelector from './LiveFilterSelector';
 
+const logger = Log.logger(__filename);
+
 class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.FocuserSettings> {
     // public apply = async (jsonDiff:any):Promise<void>=>{
     apply = async (jsonDiff:any)=>{
-        console.log('Sending changes: ' , jsonDiff);
+        logger.debug('Sending changes' , {jsonDiff});
         await BackendRequest.RootInvoker("focuser")("updateCurrentSettings")(
             CancellationToken.CONTINUE,
             {diff: jsonDiff}
@@ -93,7 +96,7 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
             let previousX:number|undefined = undefined;
             const steps = Object.keys(points);
             steps.sort((a, b) => parseFloat(a) - parseFloat(b));
-            console.log('Steps ar :', steps);
+            logger.debug('Steps ar :', {steps});
             for(let step of steps)
             {
                 const point = points[step];

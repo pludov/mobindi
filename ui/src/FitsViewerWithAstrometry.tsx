@@ -1,6 +1,7 @@
 import React, { Component, PureComponent} from 'react';
 import { createSelector } from 'reselect'
 
+import Log from './shared/Log';
 import { Connect } from './utils/Connect';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as BackendRequest from "./BackendRequest";
@@ -14,6 +15,7 @@ import * as Help from "./Help";
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';
 
+const logger = Log.logger(__filename);
 
 type InputProps = {
     path: string|null;
@@ -71,7 +73,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     private readonly move = async (pos:any) => {
         const state = Store.getStore().getState();
         const astrometryResult = state.backend.astrometry!.result;
-        console.log('move at ', pos);
+        logger.debug('move', {pos});
         if (pos.imageX === undefined || pos.imageY === undefined) {
             throw new Error("Wrong image position");
         }
@@ -349,9 +351,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     liveProps.scopeDeltaRa = deltaRa;
                     liveProps.scopeDeltaDec = deltaDec;
                 } catch(e) {
-                    console.log('ignoring : ', e);
+                    logger.error('ignoring error', e);
                 }
-                console.log('liveProps', liveProps);
+                logger.debug('liveProps', {liveProps});
             }
             return {
                 ...liveProps,

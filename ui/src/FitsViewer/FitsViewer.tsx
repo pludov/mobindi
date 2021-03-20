@@ -1,6 +1,7 @@
 
 import React, { Component, PureComponent, ReactElement} from 'react';
 import $ from 'jquery';
+import Log from '../shared/Log';
 import * as Obj from '../shared/Obj';
 import * as Help from '../Help';
 import './FitsViewer.css'
@@ -15,6 +16,9 @@ import Histogram from './Histogram';
 import FloatContainer from '../FloatContainer';
 import FloatWindow from '../FloatWindow';
 import FloatWindowMover from '../FloatWindowMover';
+
+const logger = Log.logger(__filename);
+
 
 export type LevelId = "low"|"medium"|"high";
 
@@ -448,11 +452,11 @@ class JQImageDisplay {
                 url: 'fitsviewer/fitsviewer.cgi?size=true&' + this.encodePathUrl(path),
                 dataType: 'json',
                 error: (e)=>{
-                    console.log('size query had error', e);
+                    logger.error('size query had error', {path}, e);
                     this.gotDetails(path, null);
                 },
                 success: (d)=> {
-                    console.log('Size is ', d);
+                    logger.debug('size query done', {path, d});
                     this.gotDetails(path, d);
                 },
                 timeout: 30000
@@ -465,7 +469,7 @@ class JQImageDisplay {
     {
         // FIXME: ajax request can be reordered (right path with the wrong request, is it important ?)
         if (path !== this.loadingDetailsPath) {
-            console.log('Ignore late size result');
+            logger.debug('Ignore late size result');
             return;
         }
         this.currentDetailsPath = this.loadingDetailsPath;
@@ -516,13 +520,11 @@ class JQImageDisplay {
 
         const newImage = new Image();
         newImage.addEventListener("load", () => {
-                console.log('image loaded', newImage.src);
-                console.warn('image loaded ok');
+                logger.debug('image loaded ok', {src: newImage.src});
                 this.loaded(src, newImage, true)
         });
         newImage.addEventListener("error", (e) => {
-                console.log('image error', newImage.src);
-                console.warn('image loading failed', e);
+                logger.error('image loading failed ok', {src: newImage.src}, e);
                 this.loaded(src, newImage, false) ;
         });
         newImage.src = src;
@@ -530,7 +532,7 @@ class JQImageDisplay {
         $(newImage).css('pointer-events', 'none');
         $(newImage).css('box-sizing', 'border-box');
         $(newImage).css('border', '0px');
-        console.log('Loading image: ', (newImage as any).debugid, src);
+        logger.info('Loading image: ', {src, debugid: (newImage as any).debugid});
         if (this.loadingImg !== null) {
             if (this.loadingImg.parentElement) {
                 this.loadingImg.parentElement.removeChild(this.loadingImg);
@@ -565,7 +567,7 @@ class JQImageDisplay {
 
     private loaded(newSrc:string, newImage:HTMLImageElement, result: boolean) {
         if (newImage !== this.loadingImg) {
-            console.log('ignoring loaded for old image: ', newImage, this.loadingImg);
+            logger.debug('ignoring loaded for old image: ', {src: newSrc});
             return;
         }
 
@@ -627,7 +629,7 @@ class JQImageDisplay {
 
     readonly getImagePosFromParent=(x:number, y:number):{imageX:number, imageY:number}|null=>
     {
-        console.log('Translate : ' ,x ,y, this.currentImagePos, this.currentImageSize);
+        logger.debug('Translate', {x ,y, currentImagePos: this.currentImagePos, currentImageSize: this.currentImageSize});
         if ((this.currentImageSize.width <= 0) || (this.currentImageSize.height <= 0)) {
             return null;
         }
@@ -820,7 +822,7 @@ export class MarkerToken {
         this.uid = uid;
         this.imgx = NaN;
         this.imgy = NaN;
-        console.log('new marker', uid);
+        logger.debug('new marker', {uid});
     }
 
     private doSetPosition=()=>{
@@ -1002,7 +1004,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     declareChild=()=>{
-        console.log('declareChild called');
+        logger.debug('declareChild called');
         return undefined;
     }
 
