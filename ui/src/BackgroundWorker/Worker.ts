@@ -240,7 +240,7 @@ try {
 
             port.onmessage = function(evt:any) {
                 try {
-                    logger.debug('worker got evt', {evt});
+                    logger.debug('worker got evt', {data: evt.data});
                     if (has(evt.data, "notificationAllowed")) {
                         notificationAllowed = evt.data.notificationAllowed;
                         emitNotifications();
