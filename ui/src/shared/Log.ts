@@ -30,14 +30,29 @@ function consoleLogWrap(where: string|undefined, info:(message?: any, ...optiona
     }
 }
 
+let uiDebugStatus: boolean = false;
+
+function switchDebug(value?: boolean) {
+    uiDebugStatus == value !== undefined ? !!value: !uiDebugStatus;
+}
+
+function uiConditional(info:(message?: any, ...optionalParams: any[])=> void) {
+    return (message?: any, ...optionalParams: any[])=> {
+        if (!uiDebugStatus) {
+            return;
+        }
+        return info(message, optionalParams);
+    }
+}
+
 function initClientSide(opts: {source?: string|undefined}):RootLogger {
     const source = opts.source;
-
+    (global as any).debug = switchDebug;
     return {
         error: consoleLogWrap(source, console.error),
         warn: consoleLogWrap(source, console.warn),
         info: consoleLogWrap(source, console.info),
-        debug: consoleLogWrap(source, console.debug),
+        debug: uiConditional(consoleLogWrap(source, console.debug)),
         child: initClientSide,
     }
 }
