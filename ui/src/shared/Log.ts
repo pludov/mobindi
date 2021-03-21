@@ -182,14 +182,15 @@ function initServerSide() {
     return rootLogger;
 }
 
-function init() : RootLogger {
-    function isUi() {
-        return (typeof (global as any).window !== 'undefined');
-    }
+function isUi() {
+    return (typeof (global as any).window !== 'undefined');
+}
 
-    function isWorker() {
-        return typeof (fs) === 'undefined' || typeof (fs.existsSync) === 'undefined';
-    }
+function isWorker() {
+    return typeof (fs) === 'undefined' || typeof (fs.existsSync) === 'undefined';
+}
+
+function init() : RootLogger {
 
     if (!isUi() && !isWorker()) {
         return initServerSide();
@@ -198,8 +199,11 @@ function init() : RootLogger {
 }
 
 function childLogger(source:string, opts?: object): AbstractLogger {
-    const strip = __filename.replace(/[^/]*$/, '');
-
+    let strip = __filename.replace(/[^/]*$/, '');
+    if (isUi() || isWorker()) {
+        // Hacky patch for ui relative directories
+        strip = strip.replace(/[^/]+\/$/, '');
+    }
     // Remove common part
     let cut = 0;
     while(cut < source.length && cut < strip.length && source[cut] == strip[cut]) {
