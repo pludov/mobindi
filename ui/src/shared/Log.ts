@@ -183,7 +183,15 @@ function initServerSide() {
 }
 
 function init() : RootLogger {
-    if (typeof (global as any).window === 'undefined') {
+    function isUi() {
+        return (typeof (global as any).window !== 'undefined');
+    }
+
+    function isWorker() {
+        return typeof (fs) === 'undefined' || typeof (fs.existsSync) === 'undefined';
+    }
+
+    if (!isUi() && !isWorker()) {
         return initServerSide();
     }
     return initClientSide({source: undefined});
