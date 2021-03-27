@@ -4,6 +4,7 @@ import 'mocha';
 import { expect } from 'chai';
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
 import SkyProjection from "./SkyAlgorithms/SkyProjection";
+import fs from 'fs';
 
 //@ts-ignore
 const Quaternion = require("quaternion");
@@ -258,5 +259,20 @@ describe("Polar Alignment", ()=> {
         const tooLowTarget = [ 354.1853182560304, 76.7613936362115 ];
 
         expect(dist(tooLowTarget, tooLow)).to.be.closeTo(0, delta);
+    });
+
+    it("Includes atmospheric refraction", ()=> {
+        const rawData = JSON.parse(fs.readFileSync("PolarAlignmentWizard.test.json", "utf-8")).session1;
+
+        const data = rawData.samples.map((e:any)=>PolarAlignmentWizard.dataFromSamplingResult(e.astrometry, e.photoTime, e.geoCoords));
+
+        const mountAxis = PolarAlignmentWizard.findMountAxis(data);
+
+        const geoCoords = rawData.samples[0].geoCoords;
+
+        const altAzMountAxis = SkyProjection.lstRelRaDecToAltAz(mountAxis, geoCoords);
+        const axis = PolarAlignmentWizard.computeAxis(altAzMountAxis, geoCoords);
+
+        expect(3600 * dist([0.2097, 0.1916], [axis.tooEast, axis.tooHigh])).to.be.closeTo(0, 10);
     });
 });

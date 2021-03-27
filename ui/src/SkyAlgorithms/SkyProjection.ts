@@ -1307,4 +1307,30 @@ export default class SkyProjection {
         const proj = SkyProjection.getEQ3DToALTAZ3DQuaternion(0, {lat: geoCoords.lat, long: 0});
         return proj.rotateVector([0,0,1])
     }
+
+    // Cancel atmospheric refraction (where would that location point to without atmospheric refraction)
+    public static altAzCancelRefraction(observed: {alt: number, az:number}, meteo?: { pressure: number, temperature: number}): {alt: number, az:number} {
+        const pressure = meteo? meteo.pressure : 1013.0;
+        const temperature = meteo ? meteo.temperature : 10.0;
+
+        const press_temp_corr = pressure/1010.0 * 283.0 / (273.0+temperature) / 60.0;
+
+        let d = observed.alt;
+        // d can be < 0 due to refraction.
+
+        // refraction from Saemundsson, S&T1986 p70 / in Meeus, Astr.Alg.
+        const r=press_temp_corr * ( 1.02 / Math.tan((d+10.3/(d+5.11))*(Math.PI/180)) + 0.0019279);
+
+        d += r;
+        if (d > 90) d = 90;
+
+        return {...observed, alt: d}
+    }
+
+    // Cancel atmospheric refraction (where would that location point to without atmospheric refraction)
+    public static lstRelRaDecCancelRefraction(lstRelRaDec: {relRaDeg: number, dec: number}, geoCoords: {lat:number, long:number}, meteo?: { pressure: number, temperature: number}) {
+        const rawAltAz = SkyProjection.lstRelRaDecToAltAz(lstRelRaDec, geoCoords);
+        const correctedAltAz = SkyProjection.altAzCancelRefraction(rawAltAz, meteo);
+        return SkyProjection.altAzToLstRelRaDec(correctedAltAz, geoCoords);
+    }
 }

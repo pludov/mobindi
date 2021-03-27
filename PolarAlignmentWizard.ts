@@ -449,6 +449,16 @@ export default class PolarAlignmentWizard extends Wizard {
     }
 
 
+    static dataFromSamplingResult(astrometry: SucceededAstrometryResult, photoTime: number, geoCoords: {lat: number, long:number}) {
+        const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
+        const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
+        const rawResult = {
+            relRaDeg: Map180(raDecDegNow[0] - zenithRa),
+            dec: raDecDegNow[1],
+        };
+        return SkyProjection.lstRelRaDecCancelRefraction(rawResult, geoCoords);
+    }
+
     start = async ()=> {
         this.wizardStatus.title = "Polar alignment";
 
@@ -552,16 +562,9 @@ export default class PolarAlignmentWizard extends Wizard {
                                 logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType});
                                 if (astrometry.found) {
                                     wizardReport.astrometrySuccess++;
-                                    const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
-
                                     const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
 
-                                    const zenithRa = SkyProjection.getLocalSideralTime(photoTime!, geoCoords.long);
-
-                                    wizardReport.data[stortableStepId] = {
-                                        relRaDeg: Map180(raDecDegNow[0] - zenithRa),
-                                        dec: raDecDegNow[1],
-                                    };
+                                    wizardReport.data[stortableStepId] = PolarAlignmentWizard.dataFromSamplingResult(astrometry, photoTime!, geoCoords);
                                 } else {
                                     wizardReport.astrometryFailed++;
                                 }

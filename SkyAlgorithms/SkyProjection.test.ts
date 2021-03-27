@@ -597,5 +597,21 @@ describe("Astronomic computations", ()=> {
         }
     });
 
+    it("Has coherent atmospheric refraction model", ()=> {
+        const az = 0;
+        let maxDelta = 0.5;
+        let minDelta = 0.4;
+        for(let alt =0; alt <= 90; alt++) {
+            const corrected = SkyProjection.altAzCancelRefraction({alt, az})
+            expect(corrected.az).to.equal(az);
+            expect(corrected.alt).to.be.gte(alt-0.000001);
+            const delta = corrected.alt - alt;
+
+            expect(delta).to.be.gte(minDelta-0.000001);
+            expect(delta).to.be.lte(maxDelta);
+            maxDelta = delta;
+            minDelta /= 2;
+        }
+    });
 });
 
