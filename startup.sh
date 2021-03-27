@@ -22,6 +22,9 @@ if [ "$LOGDIR" != "" ]; then
 	export MOBINDI_LOGDIR="$LOGDIR"
 fi
 
+if [ -z "$NODE_ENV" ]; then
+	export NODE_ENV=prod
+fi
 
 # Startup nginx
 ./nginx/nginx.sh

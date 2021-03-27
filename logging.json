@@ -2,10 +2,6 @@
     "prod": {
         "transports": [
             {
-                "type": "console",
-                "level": "error"
-            },
-            {
                 "type": "rotated",
                 "level": "info",
                 "filename": "mobindi-%DATE%.log",
