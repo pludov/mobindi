@@ -540,8 +540,8 @@ export default class PolarAlignmentWizard extends Wizard {
                                 wizardReport.scopeMoving = false;
                             }
                             logger.info('Done slew', {targetRa, effectiveRa: this.readScopePos().ra});
-
-                            const { photo, photoTime } = await this.shoot(token, ++shootId, "sampling");
+                            const frameType = "sampling";
+                            const { photo, photoTime } = await this.shoot(token, ++shootId, frameType);
                             wizardReport.shootDone++;
 
                             // FIXME: put in a resumable task queue
@@ -549,7 +549,7 @@ export default class PolarAlignmentWizard extends Wizard {
                                 wizardReport.astrometryRunning = true;
                                 const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
                                 // FIXME: convert to JNOW & put in queue
-                                logger.info('Done astrometry', {astrometry, photoTime, geoCoords});
+                                logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType});
                                 if (astrometry.found) {
                                     wizardReport.astrometrySuccess++;
                                     const { raDecDegNow } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
@@ -648,8 +648,9 @@ export default class PolarAlignmentWizard extends Wizard {
                         badAxisAtRefAltAz = badAxisLastAltAz;
                     }
 
+                    const frameType = takeRefFrame ? "reference" : "adjustment";
                     // FIXME: better progress report
-                    const {photo, photoTime } = await this.shoot(token, ++shootId, takeRefFrame ? "reference" : "adjustment");
+                    const {photo, photoTime } = await this.shoot(token, ++shootId, frameType);
                     let photoTrackSinceRef:number;
                     if (takeRefFrame) {
                         tempScopeTrackCounter = new ScopeTrackCounter(this.astrometry.indiManager, this.getScope());
@@ -664,7 +665,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     if (astrometry.found) {
                         const geoCoords = this.readGeoCoords();
                         const { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);
-                        logger.info('Done astrometry', {astrometry, photoTime, geoCoords, takeRefFrame});
+                        logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType, takeRefFrame});
 
                         if (takeRefFrame) {
                             refALTAZ3D = quatALTAZ3D;
