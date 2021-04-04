@@ -7,6 +7,7 @@ INSTALL_DIR="$(dirname "$BASH_SOURCE")"
 cd "$INSTALL_DIR"
 
 LOGDIR=""
+export NODE_ENV=""
 
 if [ -f ./mobindi.conf ]; then
     . ./mobindi.conf
