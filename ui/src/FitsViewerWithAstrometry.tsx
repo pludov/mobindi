@@ -60,6 +60,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     private static astrometryMenuHelp = Help.key("Astrometry", "Locate the coordinate of the center of the image using stars matching (astrometry.net), then sync the scope position. The search is done near the scope current position. The setting used are accessible in the Astrometry tab");
     private static astrometryWideMenuHelp = Help.key("Astrometry (wide)", "Locate the coordinate of the center of the image using stars matching (astrometry.net), then sync the scope position. The search is done through the whole visible sky area (using geo coords and current time). The setting used are accessible in the Astrometry tab");
     private static gotoMenuHelp = Help.key("Goto here", "Center the scope to the highlighted position");
+    private static gotoCenterMenuHelp = Help.key("Goto center", "Center the scope to the center of the image");
 
     constructor(props:Props) {
         super(props);
@@ -68,6 +69,38 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly cancel = async () => {
         return await BackendRequest.RootInvoker("astrometry")("cancel")(CancellationToken.CONTINUE, {});
+    }
+
+    private readonly center = async() => {
+        const state = Store.getStore().getState();
+        const astrometryResult = state.backend.astrometry!.result;
+        logger.debug('center');
+
+        if (astrometryResult === null) {
+            throw new Error("No astrometry result");
+        }
+
+        const currentImageSize = this.fitsViewer.current?.fitsViewer.current?.ImageDisplay?.currentImageSize;
+        if (!currentImageSize || currentImageSize.width < 1 || currentImageSize.height < 1) {
+            throw new Error("Invalid image");
+        }
+
+        const skyProjection = SkyProjection.fromAstrometry(astrometryResult as SucceededAstrometryResult);
+        // take the center of the image
+        const center = [currentImageSize.width / 2, currentImageSize.height / 2];
+        // Project to J2000
+        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+        // compute JNOW center for last image.
+        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+        return await BackendRequest.RootInvoker("astrometry")("goto")(
+            CancellationToken.CONTINUE,
+            {
+                ra: ranow,
+                dec: decnow,
+            }
+        );
+
     }
 
     private readonly move = async (pos:any) => {
@@ -170,6 +203,13 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         helpKey: FitsViewerWithAstrometry.gotoMenuHelp,
                         cb: this.move,
                         positional: true,
+                    });
+                    ret.push({
+                        title: 'Goto center',
+                        key: 'center',
+                        helpKey: FitsViewerWithAstrometry.gotoCenterMenuHelp,
+                        cb: this.center,
+                        positional: false,
                     });
                 }
                 return ret;
