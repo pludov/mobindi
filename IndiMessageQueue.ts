@@ -188,7 +188,7 @@ export class IndiMessageQueue {
             if (existingMessagePos !== undefined) {
                 this.messageQueue[existingMessagePos].message = message;
                 if (this.messageQueue[existingMessagePos].fantom) {
-                    logger.info('Throttling INDI messages', {op: message.$$, device: message.$device, name: message.$name});
+                    logger.debug('Throttling INDI messages', {op: message.$$, device: message.$device, name: message.$name});
                     this.messageQueue[existingMessagePos].fantom = false;
                 }
             } else {
