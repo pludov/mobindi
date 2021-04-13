@@ -166,6 +166,7 @@ export default class SequenceManager
             errorMessage: null,
 
             root: {
+                type: 'FRAME_LIGHT'
             },
             stepStatus: {
             },

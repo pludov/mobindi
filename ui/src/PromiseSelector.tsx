@@ -76,7 +76,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
                 }
             }
             if (!present) {
-                options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{active}</option>);
+                options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{typeof active !== "string" ? active : this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
                 disabled = false;
             }
         }

@@ -19,6 +19,7 @@ export type InputProps = {
     vecName: string;
     helpKey: Help.Key;
     focusRef?: React.RefObject<HTMLSelectElement>
+    defaultTitleProvider?: (id:string)=>string|undefined;
 }
 
 type MappedProps = PromiseSelector.Props<string> & {
@@ -29,6 +30,12 @@ type Props = InputProps & MappedProps;
 
 function IndiTitle(x: string, props: Props) {
     let ret = Utils.getOwnProp(props.indiDeviceDesc?.childs, x)?.$label;
+    if (ret !== undefined) {
+        return ret;
+    }
+    if (props.defaultTitleProvider) {
+        ret = props.defaultTitleProvider(x);
+    }
     if (ret === undefined) {
         return x;
     }

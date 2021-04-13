@@ -13,7 +13,7 @@ import CameraSelector from "./CameraSelector";
 import * as SequenceStepParameter from "./SequenceStepParameter";
 import SequenceStepEdit from "./SequenceStepEdit";
 import CancellationToken from 'cancellationtoken';
-
+import SequenceWarning from './SequenceWarning';
 
 type InputProps = {
     currentPath: string;
@@ -73,6 +73,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                             helpKey={SequenceEditDialog.titleHelp}
                             onChange={(e)=>this.updateSequenceParam('title', e)} />
                 </div>
+                <SequenceWarning uid={this.props.uid}/>
                 <div className="IndiProperty">
                         Camera:
                         <CameraSelector

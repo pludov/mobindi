@@ -26,3 +26,8 @@
     text-align: center;
     font-weight: bold;
 }
+
+.SequenceWarning {
+    font-weight: bold;
+    color: orange;
+}
