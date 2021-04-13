@@ -12,6 +12,14 @@ import * as Obj from './Obj.js';
 
 const logger = Log.logger(__filename);
 
+type IndiTodoItem = {
+    cmd: string;
+    notBefore: number|undefined;
+    start: ()=>void;
+    done: ()=>number;
+
+}
+
 // Ensure that indiserver is running.
 // Restart as required.
 export default class IndiServerStarter {
@@ -32,6 +40,7 @@ export default class IndiServerStarter {
             devices: {},
             autorun: true,
             restartList: [],
+            startDelay: {},
         };
 
         this.wantedConfiguration = wantedConfiguration;
@@ -93,6 +102,7 @@ export default class IndiServerStarter {
                 this.currentConfiguration = {
                     ...Obj.deepCopy(this.wantedConfiguration),
                     restartList: [],
+                    startDelay: {},
                 };
                 logger.warn('Indiserver process found. Assuming it already has the right configuration.');
             } else {
@@ -158,7 +168,7 @@ export default class IndiServerStarter {
     }
 
     // Return a todo obj, or undefined
-    private calcToStartStop=()=>
+    private calcToStartStop:()=>Array<IndiTodoItem>=()=>
     {
         function quote(arg: string)
         {
@@ -194,6 +204,8 @@ export default class IndiServerStarter {
             }
         }
 
+        const ret:Array<IndiTodoItem> = [];
+
         // Stop what is not required anymore
         for(const running of Object.keys(this.currentConfiguration.devices)) {
             const restartId = this.currentConfiguration.restartList.indexOf(running);
@@ -201,18 +213,27 @@ export default class IndiServerStarter {
                 ||(!compatible(this.currentConfiguration.devices[running], this.wantedConfiguration.devices[running]))
                 ||(restartId !== - 1))
             {
-                if (restartId !== -1) {
-                    this.currentConfiguration.restartList.splice(restartId, 1);
-                }
-                this.indiDriverStopAttempt[running] ++;
-                return {
+                ret.push({
+                    notBefore: undefined,
+                    start: ()=>{
+                        if (restartId !== -1) {
+                            this.currentConfiguration.restartList.splice(restartId, 1);
+                        }
+                        this.indiDriverStopAttempt[running] ++;
+                    },
                     cmd: cmdFor(false, running, this.currentConfiguration.devices[running]),
                     done: ()=>{
                         delete this.currentConfiguration.devices[running];
+                        // Don't restart too fast. Indi server sometime gets confused
+                        this.currentConfiguration.startDelay[running] = Date.now() + 1000;
                         return 1;
                     }
-                }
+                });
             }
+        }
+
+        if (ret.length) {
+            return ret;
         }
 
         // Start new requirements
@@ -220,28 +241,77 @@ export default class IndiServerStarter {
             if (!Object.prototype.hasOwnProperty.call(this.currentConfiguration.devices, wanted)) {
                 var details = Obj.deepCopy(this.wantedConfiguration.devices[wanted]);
 
-                this.indiDriverStartAttempt[wanted] ++;
-                return {
+                ret.push({
+                    notBefore: Obj.getOwnProp(this.currentConfiguration.startDelay, wanted),
+                    start: ()=>{
+                        this.indiDriverStartAttempt[wanted] ++;
+                    },
                     cmd: cmdFor(true, wanted, details),
                     done: ()=>{
                         this.currentConfiguration.devices[wanted] = details;
                         return 1;
                     }
-                }
+                });
             }
         }
 
-        return undefined;
+        return ret;
+    }
+
+    private nextToStartStop:()=>IndiTodoItem|undefined=()=>{
+        function notBeforeSorter(a:IndiTodoItem, b:IndiTodoItem) {
+            if (a.notBefore === undefined) {
+                if (b.notBefore === undefined) {
+                    return 0;
+                }
+                return -1;
+            }
+            if (b.notBefore === undefined) {
+                return 1;
+            }
+            if (a.notBefore < b.notBefore) {
+                return -1;
+            }
+            if (a.notBefore > b.notBefore) {
+                return 1;
+            }
+            return 0;
+        }
+        const candidates = this.calcToStartStop().sort(notBeforeSorter);
+        if (!candidates.length) {
+            return undefined;
+        }
+        return candidates[0];
     }
 
     // Build a promise that update or ping indiserver
     // The promise generate 0 (was pinged), 1 (was updated), dead: indiserver unreachable
     private async pushOneDriverChange(ct: CancellationToken)
     {
-        let todo = this.calcToStartStop();
+        let todo = this.nextToStartStop();
+        let delay: number = 0;
+        if (todo !== undefined) {
+            if (todo.notBefore !== undefined) {
+                delay = todo.notBefore - Date.now();
+                if (delay < 0) {
+                    delay = 0;
+                }
+                if (delay >= 2000) {
+                    todo = undefined;
+                }
+            }
+        }
+
+        if (delay > 0) {
+            await Sleep(ct, delay);
+            return;
+        }
+
         if (todo === undefined) {
             // Just ping, then
             todo = {
+                notBefore: undefined,
+                start: ()=>{},
                 cmd: 'ping',
                 done: function() {
                     return 0;
@@ -262,6 +332,7 @@ export default class IndiServerStarter {
                 throw new Error("no fifopath set");
             }
             await Timeout(ct, async(ct:CancellationToken)=> {
+                    todo!.start();
                     if (await SystemPromise.Exec(ct, {
                                     command: ["/bin/bash", "-c" , "echo -E " + shellEscape(todo!.cmd)  + ' > ' + shellEscape(fifopath)]
                             }) !== 0)

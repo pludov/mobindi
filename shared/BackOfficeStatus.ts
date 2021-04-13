@@ -126,6 +126,7 @@ export type IndiServerConfiguration = {
 
 export type IndiServerState = IndiServerConfiguration & {
     restartList: string[];
+    startDelay: {[id:string] : number};
 };
 
 export type IndiProperty = {
