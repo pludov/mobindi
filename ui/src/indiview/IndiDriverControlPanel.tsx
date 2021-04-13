@@ -21,39 +21,43 @@ type InputProps = {
 type MappedProps = {
     current: string;
     configured: boolean;
+    indiDeviceExists: boolean;
 }
 
 type Props = InputProps & MappedProps;
 
 class IndiDriverControlPanel extends React.PureComponent<Props> {
     static restartBtonHelp = Help.key("Restart driver", "Kill & restart the selected INDI driver (use with caution)");
-    private readonly modal = React.createRef<Modal>();
 
     constructor(props:Props) {
         super(props);
     }
 
-    private config = ()=> {
-        this.modal.current!.open();
-    }
-    
     private restart = async ()=> {
         await BackendRequest.RootInvoker("indi")("restartDriver")(CancellationToken.CONTINUE, {driver: this.props.current});
     }
 
     render() {
-        if (this.props.configured) {
-            return <span>
-                <DeviceConnectBton deviceId={this.props.current}/>
-                <DeviceSettingsBton deviceId={this.props.current}/>
-                <input type='button'
-                            onClick={this.restart}
-                            {...IndiDriverControlPanel.restartBtonHelp.dom()}
-                            className='IndiRestartButton'
-                            value={'\u21bb'}/>
-            </span>
-        }
-        return null;
+        return <span>
+            {this.props.indiDeviceExists
+                ? <DeviceConnectBton deviceId={this.props.current}/>
+                : null
+            }
+
+            {this.props.indiDeviceExists
+                ? <DeviceSettingsBton deviceId={this.props.current}/>
+                : null
+            }
+
+            {this.props.configured
+                ? <input type='button'
+                        onClick={this.restart}
+                        {...IndiDriverControlPanel.restartBtonHelp.dom()}
+                        className='IndiRestartButton'
+                        value={'\u21bb'}/>
+                : null
+            }
+        </span>;
     }
 
     static mapStateToProps(store:Store.Content, props: InputProps):MappedProps {
@@ -61,12 +65,14 @@ class IndiDriverControlPanel extends React.PureComponent<Props> {
 
         const currentDevice = store.indiManager.selectedDevice || "";
 
-        const configuredDevices = backend?.configuration.indiServer.devices;
+        const configuredDevices = backend?.configuration?.indiServer?.devices;
         const configured = Utils.has(configuredDevices, currentDevice);
 
+        const indiDeviceExists = Utils.has(backend?.deviceTree, currentDevice);
         return {
             current: currentDevice,
-            configured: configured
+            configured: configured,
+            indiDeviceExists
         };
     }
 }
