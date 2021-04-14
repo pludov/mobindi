@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 import CancellationToken from 'cancellationtoken';
 
+import * as Help from './Help';
 import * as Store from './Store';
 import * as BackendRequest from "./BackendRequest";
 import PromiseSelector, { Props as PromiseSelectorProps } from './PromiseSelector';
@@ -26,6 +27,8 @@ function getId(e:Item) {
 
 export type InputProps = CustomProps & Omit<PromiseSelectorProps<Item>, "getId"|"getTitle"|"active"|"placeholder"|"availablesGenerator">;
 
+const imagingSetupSelectorHelp = Help.key("Select imaging setup", "Select the imaging setup to use. Use the Edit entry to inspect/modify");
+
 const ImagingSetupSelector = connect(()=> {
     const listSelector = createSelector(
         (store: Store.Content, ownProps: CustomProps)=>store.backend?.imagingSetup?.configuration?.byuuid,
@@ -44,6 +47,7 @@ const ImagingSetupSelector = connect(()=> {
             active: active,
             getId,
             getTitle,
+            helpKey: imagingSetupSelectorHelp,
             availables: listSelector(store, ownProps)
         })
     }
