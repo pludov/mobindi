@@ -82,7 +82,7 @@ class CameraView extends React.PureComponent<Props> {
                     <EditableImagingSetupSelector setValue={ImagingSetupSelector.setCurrentImagingSetup} getValue={ImagingSetupSelector.getCurrentImagingSetupUid}/>
                 </div>
                 {this.props.cameraDevice !== null ?
-                    <CameraViewDevicePanel title="Camera" deviceId={this.props.cameraDevice}>
+                    <CameraViewDevicePanel title="Cam" deviceId={this.props.cameraDevice}>
                         <CameraSettingsView
                             current={this.props.cameraDevice}
                             activePath={"unused - remove me"}
@@ -97,7 +97,7 @@ class CameraView extends React.PureComponent<Props> {
                     null
                 }
                 {this.props.filterWheelDevice !== null ?
-                    <CameraViewDevicePanel title="Filter Wheel" deviceId={this.props.filterWheelDevice}>
+                    <CameraViewDevicePanel title="F.W" deviceId={this.props.filterWheelDevice}>
                         <FilterSelector
                                 isBusy={FilterWheelStore.isFilterWheelBusy}
                                 getFilter={FilterWheelStore.currentTargetFilterId}

@@ -39,11 +39,16 @@ class CameraViewDevicePanel extends React.PureComponent<Props> {
     }
 
     render() {
+        let className, title;
+        if (this.props.deviceId !== null) {
+            className = this.props.valid ? "CameraViewValidDevice" : "CameraViewInvalidDevice";
+            title = this.props.title;
+        } else {
+            className = "CameraViewUnsetDevice";
+            title = "No " + this.props.title;
+        }
         return <div>
-            {this.props.deviceId !== null
-                ? this.props.deviceId + (this.props.valid ? "" : " - missing")
-                : "No " + this.props.title
-            }
+            <span className={className}>{title}</span>
             {this.props.valid ? this.props.children : null}
         </div>
     }

@@ -5,6 +5,17 @@
     flex-grow: 1;
     flex-shrink: 1;
 }
+
+.CameraViewValidDevice {
+    /* empty */
+}
+.CameraViewInvalidDevice {
+    color: orange;
+}
+.CameraViewUnsetDevice {
+    text-decoration: line-through;
+}
+
 .FitsViewer {
     flex-grow: 1;
     flex-shrink: 1;
