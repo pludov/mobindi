@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Accessor from './utils/Accessor';
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Text from './primitives/Text';
@@ -27,24 +28,24 @@ export default class FocuserSettingsView extends React.PureComponent<Props> {
     render() {
         // Range size
         return <div>
-            <Int accessor={this.props.accessor.child('steps')} min={3} helpKey={FocuserSettingsView.stepsHelp}>
+            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.steps))} min={3} helpKey={FocuserSettingsView.stepsHelp}>
                 Steps#
             </Int>
-            <Int accessor={this.props.accessor.child("range")} min={10} helpKey={FocuserSettingsView.rangeHelp}>
+            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.range))} min={10} helpKey={FocuserSettingsView.rangeHelp}>
                 Range
             </Int>
-            <Int accessor={this.props.accessor.child("backlash")} min={0} helpKey={FocuserSettingsView.backlashHelp}>
+            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.backlash))} min={0} helpKey={FocuserSettingsView.backlashHelp}>
                 Backlash
             </Int>
 
-            <Bool accessor={this.props.accessor.child("lowestFirst")} helpKey={FocuserSettingsView.lowestFirstHelp}>
+            <Bool accessor={this.props.accessor.child(Accessor.For((e)=>e.lowestFirst))} helpKey={FocuserSettingsView.lowestFirstHelp}>
                 Lowest first
             </Bool>
-            <Bool accessor={this.props.accessor.child("targetCurrentPos")} helpKey={FocuserSettingsView.targetCurrentPosHelp}>
+            <Bool accessor={this.props.accessor.child(Accessor.For((e)=>e.targetCurrentPos))} helpKey={FocuserSettingsView.targetCurrentPosHelp}>
                 Start from current pos
             </Bool>
-            <Conditional accessor={this.props.accessor.child("targetCurrentPos")}>
-                <Int accessor={this.props.accessor.child("targetPos")} min={0} helpKey={FocuserSettingsView.targetPosHelp}>
+            <Conditional accessor={this.props.accessor.child(Accessor.For((e)=>e.targetCurrentPos))}>
+                <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.targetPos))} min={0} helpKey={FocuserSettingsView.targetPosHelp}>
                     Target Pos
                 </Int>
             </Conditional>

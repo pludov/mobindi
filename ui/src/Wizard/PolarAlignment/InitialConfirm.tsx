@@ -5,6 +5,7 @@ import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
 import * as Help from "../../Help";
 import * as Utils from "../../Utils";
+import * as Accessor from '../../utils/Accessor';
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
 import Float from '../../primitives/Float';
@@ -15,11 +16,11 @@ import IndiSelectorEditor from '../../IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
-import EditableImagingSetupSelector from '@src/EditableImagingSetupSelector';
-import ImagingSetupSelector from '@src/ImagingSetupSelector';
-import CameraViewDevicePanel from '@src/CameraViewDevicePanel';
-import DeviceSettingsBton from '@src/DeviceSettingsBton';
-import FilterSelector from '@src/FilterSelector';
+import EditableImagingSetupSelector from '../../EditableImagingSetupSelector';
+import ImagingSetupSelector from '../../ImagingSetupSelector';
+import CameraViewDevicePanel from '../../CameraViewDevicePanel';
+import DeviceSettingsBton from '../../DeviceSettingsBton';
+import FilterSelector from '../../FilterSelector';
 
 type InputProps = {};
 type MappedProps = {
@@ -38,7 +39,7 @@ class InitialConfirm extends React.PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor("$.astrometry.settings").child("polarAlign");
+        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings)).child(Accessor.For((e)=>e.polarAlign));
     }
 
     setCamera = async(id: string)=>{
@@ -58,7 +59,7 @@ class InitialConfirm extends React.PureComponent<Props> {
     }
 
     setSlewRate = async (s:string)=> {
-        this.accessor.child("slewRate").send(s);
+        this.accessor.child(Accessor.For((e)=>e.slewRate)).send(s);
     }
 
     render() {
@@ -112,15 +113,15 @@ class InitialConfirm extends React.PureComponent<Props> {
                 <span>Scope moves</span>
                 <div>
                     Max angle from meridian (°):
-                    <Float accessor={this.accessor.child('angle')} min={0} max={120} helpKey={InitialConfirm.angleHelp}/>
+                    <Float accessor={this.accessor.child(Accessor.For((e)=>e.angle))} min={0} max={120} helpKey={InitialConfirm.angleHelp}/>
                 </div>
                 <div>
                     Min alt. above horizon (°):
-                    <Float accessor={this.accessor.child('minAltitude')} min={0} max={90} helpKey={InitialConfirm.minAltitudeHelp}/>
+                    <Float accessor={this.accessor.child(Accessor.For((e)=>e.minAltitude))} min={0} max={90} helpKey={InitialConfirm.minAltitudeHelp}/>
                 </div>
                 <div>
                     Number of samples:
-                    <Int accessor={this.accessor.child('sampleCount')} min={3} max={99} helpKey={InitialConfirm.sampleCountHelp}/>
+                    <Int accessor={this.accessor.child(Accessor.For((e)=>e.sampleCount))} min={3} max={99} helpKey={InitialConfirm.sampleCountHelp}/>
                 </div>
                 <div>
                     Slew rate:

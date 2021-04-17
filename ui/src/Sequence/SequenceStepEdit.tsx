@@ -26,7 +26,7 @@ import CameraBinEditor from '../CameraBinEditor';
 import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
 import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
 import DitheringSettingEdit from './DitheringSettingEdit';
-import Modal from '@src/Modal';
+import Modal from '../Modal';
 
 const logger = Log.logger(__filename);
 

@@ -13,6 +13,7 @@ import CameraSelector from "../../CameraSelector";
 import CameraSettingsView from '../../CameraSettingsView';
 import IndiSelectorEditor from '../../IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
+import * as Accessor from '../../utils/Accessor';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
@@ -68,11 +69,11 @@ class Adjust extends React.PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor("$.astrometry.settings").child("polarAlign");
+        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings)).child(Accessor.For((e)=>e.polarAlign));
     }
 
     setNextFrame = (e:React.ChangeEvent<HTMLSelectElement>)=> {
-        this.accessor.child("dyn_nextFrameIsReferenceFrame").send(e.target.value === "refframe");
+        this.accessor.child(Accessor.For((e)=>e.dyn_nextFrameIsReferenceFrame)).send(e.target.value === "refframe");
     }
 
     setCamera = async(id: string)=>{

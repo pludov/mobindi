@@ -11,6 +11,7 @@ import PromiseSelector from './PromiseSelector';
 import BackendAccessor from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
+import * as Accessor from './utils/Accessor';
 import * as BackendRequest from "./BackendRequest";
 import AstrometryBackendAccessor from "./AstrometryBackendAccessor";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
@@ -37,7 +38,7 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor("$.astrometry.settings");
+        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings));
     }
 
     private setScope = async(deviceId:string)=> {
@@ -66,27 +67,27 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                 <div>
                     <div>
                         Initial field range (°):
-                        <Float accessor={this.accessor.child('initialFieldMin')} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                        <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialFieldMin))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
                         to
-                        <Float accessor={this.accessor.child('initialFieldMax')} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                        <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialFieldMax))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
                     </div>
 
                     <div>
                         Max field variation (%):
-                        <Int accessor={this.accessor.child('narrowedFieldPercent')} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
+                        <Int accessor={this.accessor.child(Accessor.For((e)=>e.narrowedFieldPercent))} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
                     </div>
                     <div>
                         <div>
-                            Use mount position: <Bool accessor={this.accessor.child('useMountPosition')} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
+                            Use mount position: <Bool accessor={this.accessor.child(Accessor.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
                         </div>
-                        <Conditional accessor={this.accessor.child("useMountPosition")} condition={(e:boolean)=>(!e)}>
+                        <Conditional accessor={this.accessor.child(Accessor.For((e)=>e.useMountPosition))} condition={(e:boolean)=>(!e)}>
                         <div>
                             Initial search radius (°):
-                            <Float accessor={this.accessor.child('initialSearchRadius')} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
+                            <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
                         </div>
                         <div>
                             Synced search radius (°):
-                            <Float accessor={this.accessor.child('narrowedSearchRadius')} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
+                            <Float accessor={this.accessor.child(Accessor.For((e)=>e.narrowedSearchRadius))} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
                         </div>
                         </Conditional>
                     </div>
