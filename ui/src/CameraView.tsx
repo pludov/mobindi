@@ -1,26 +1,19 @@
 import * as React from 'react';
-import { connect } from 'react-redux';
 
 import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
-import * as FilterWheelStore from "./FilterWheelStore";
 import * as Store from "./Store";
-import CameraSettingsView from './CameraSettingsView';
-import DeviceConnectBton from './DeviceConnectBton';
 import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 import ShootButton from "./ShootButton";
 import CancellationToken from 'cancellationtoken';
-import { noErr } from './Utils';
 import { ShootResult } from '@bo/BackOfficeAPI';
-import CameraSelector from "./CameraSelector";
-import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
 import { StreamSize } from '@bo/BackOfficeStatus';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import ImagingSetupSelector from './ImagingSetupSelector';
-import CameraViewDevicePanel from './CameraViewDevicePanel';
-import FilterSelector from './FilterSelector';
+import CameraSettingsPanel from './CameraSettingsPanel';
+import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 
 const logger = Log.logger(__filename);
 
@@ -29,12 +22,11 @@ type InputProps = {
 
 type MappedProps = {
     path: string|null;
+    imagingSetup: string|null;
     streamId: string|null;
     streamSerial: string|null;
     streamSize: StreamSize|null;
     cameraDevice: string|null;
-    filterWheelDevice: string|null;
-    focuserDevice: string|null;
 }
 
 type Props = InputProps & MappedProps;
@@ -63,53 +55,14 @@ class CameraView extends React.PureComponent<Props> {
         await BackendRequest.RootInvoker("camera")("setCamera")(CancellationToken.CONTINUE, {device: id});
     }
 
-    settingSetter = (propName:string):((v:any)=>Promise<void>)=>{
-        return async (v:any)=> {
-            await BackendRequest.RootInvoker("camera")("setShootParam")(
-                CancellationToken.CONTINUE,
-                {
-                    key: propName as any,
-                    value: v
-                }
-            );
-        }
-    }
-
     render() {
         return(<div className="CameraView">
             <div className="CameraViewSettings">
                 <div>
                     <EditableImagingSetupSelector setValue={ImagingSetupSelector.setCurrentImagingSetup} getValue={ImagingSetupSelector.getCurrentImagingSetupUid}/>
                 </div>
-                {this.props.cameraDevice !== null ?
-                    <CameraViewDevicePanel title="Cam" deviceId={this.props.cameraDevice}>
-                        <CameraSettingsView
-                            current={this.props.cameraDevice}
-                            activePath={"unused - remove me"}
-                            settingsPath={"$.backend.camera.configuration.deviceSettings"}
-                            setValue={this.settingSetter}
-                        />
-
-                        <DeviceConnectBton deviceId={this.props.cameraDevice}/>
-                        <DeviceSettingsBton deviceId={this.props.cameraDevice}/>
-                    </CameraViewDevicePanel>
-                    :
-                    null
-                }
-                {this.props.filterWheelDevice !== null ?
-                    <CameraViewDevicePanel title="F.W" deviceId={this.props.filterWheelDevice}>
-                        <FilterSelector
-                                isBusy={FilterWheelStore.isFilterWheelBusy}
-                                getFilter={FilterWheelStore.currentTargetFilterId}
-                                setFilter={FilterWheelStore.changeFilter}
-                                filterWheelDevice={this.props.filterWheelDevice}/>
-
-                        <DeviceConnectBton deviceId={this.props.filterWheelDevice}/>
-                        <DeviceSettingsBton deviceId={this.props.filterWheelDevice}/>
-                    </CameraViewDevicePanel>
-                    :
-                    null
-                }
+                <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
             </div>
             <div className="CameraViewDisplay">
                 <FitsViewerWithAstrometry
@@ -131,46 +84,42 @@ class CameraView extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
-        const imagingSetup = ImagingSetupSelector.getCurrentImagingSetup(store);
+        const imagingSetup = ImagingSetupSelector.getCurrentImagingSetupUid(store);
+        const imagingSetupInstance = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
 
-        const cameraDevice = imagingSetup !== null ? imagingSetup.cameraDevice : null;
-        const filterWheelDevice = imagingSetup !== null ? imagingSetup.filterWheelDevice : null;
-        const focuserDevice = imagingSetup !== null ? imagingSetup.focuserDevice : null;
+        const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
 
         if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.currentStreams, cameraDevice)) {
             const stream= store.backend.camera!.currentStreams[cameraDevice];
             if (stream.streamId) {
                 return {
+                    imagingSetup,
                     path: null,
                     streamId: stream.streamId,
                     streamSerial: stream.serial === null ? null : "" + stream.serial,
                     streamSize: stream.streamSize,
                     cameraDevice,
-                    filterWheelDevice,
-                    focuserDevice,
                 };
             }
         }
 
         if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.lastByDevices, cameraDevice)) {
             return {
+                imagingSetup,
                 path: store.backend.camera!.lastByDevices[cameraDevice],
                 streamId: null,
                 streamSerial: null,
                 streamSize: null,
                 cameraDevice,
-                filterWheelDevice,
-                focuserDevice,
             };
         }
         return {
+            imagingSetup,
             path: null,
             streamId: null,
             streamSerial: null,
             streamSize: null,
             cameraDevice,
-            filterWheelDevice,
-            focuserDevice,
         };
     }
 }

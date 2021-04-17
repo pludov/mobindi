@@ -12,6 +12,7 @@ import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentS
 import { Task, createTask } from './Task';
 import Camera from './Camera';
 import IndiManager from "./IndiManager";
+import {ImagingSetupInstance} from "./ImagingSetupManager";
 import ImageProcessor from "./ImageProcessor";
 import { DriverInterface } from './Indi';
 
@@ -24,21 +25,21 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     camera: Camera;
     indiManager: IndiManager;
     imageProcessor: ImageProcessor;
+    context: AppContext;
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext)
     {
+        this.context = context;
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().focuser = {
-            selectedCamera: null,
+            currentImagingSetup: null,
             availableFocusers: [],
             config: {
-                preferedCamera: null,
-                settings: {},
+                preferedImagingSetup: null,
             },
             current: {
                 status: 'idle',
                 error: null,
-                camera: null,
-                focuser: null,
+                imagingSetup: null,
                 // position => details
                 firstStep: 0,
                 lastStep: 10000,
@@ -66,11 +67,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         };
         this.currentStatus = this.appStateManager.getTarget().focuser;
         new ConfigStore<AutoFocusConfiguration>(appStateManager, 'focuser', ['focuser', 'config'], {
-                preferedCamera: null,
-                settings: {}
+                preferedImagingSetup: null,
             }, {
-                preferedCamera: null,
-                settings: {}
+                preferedImagingSetup: null,
             });
         this.currentPromise = null;
         this.resetCurrent('idle');
@@ -84,85 +83,19 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             this.currentStatus.availableFocusers = devs;
         }, undefined, DriverInterface.FOCUSER);
 
-        // Ensure each focuser has its own configuration
-        this.appStateManager.addSynchronizer(
-            [ 'focuser', 'availableFocusers' ],
-            ()=> {
-                const settingRoot = this.currentStatus.config.settings;
-                for(const o of this.currentStatus.availableFocusers) {
-                    if (!hasKey(settingRoot, o)) {
-                        settingRoot[o] = {
-                            range: 1000,
-                            steps: 5,
-                            backlash: 200,
-                            lowestFirst: false,
-                            targetCurrentPos: true,
-                            targetPos: 10000
-                        }
-                    }
-                }
-            },
-            true,
-        );
-
-        // synchronize current camera
-        context.indiManager.createPreferredDeviceSelector<CameraStatus>({
-            availablePreferedCurrentPath: [
-                [
-                    [ 'camera' , 'availableDevices'],
-                    [ 'focuser' , 'config', 'preferedDevice'],
-                    [ 'focuser' , 'selectedCamera'],
-                ]
-            ],
+        context.imagingSetupManager.createPreferredImagingSelector({
+            currentPath: [ 'focuser', 'currentImagingSetup' ],
+            preferedPath: [ 'focuser', 'preferedImagingSetup' ],
             read: ()=> ({
-                available: this.camera.currentStatus.availableDevices,
-                prefered: this.currentStatus.config.preferedCamera,
-                current: this.currentStatus.selectedCamera,
+                prefered: this.currentStatus.config.preferedImagingSetup,
+                current: this.currentStatus.currentImagingSetup,
             }),
             set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
                 if (s.prefered !== undefined) {
-                    this.currentStatus.config.preferedCamera = s.prefered;
+                    this.currentStatus.config.preferedImagingSetup = s.prefered;
                 }
                 if (s.current !== undefined) {
-                    this.currentStatus.selectedCamera = s.current;
-                }
-            }
-        });
-
-
-        // Ensure each camera has its own focuser
-        this.indiManager.createMultiPreferredDeviceSelector({
-            availablePreferedCurrentPath:
-                [
-                    [
-                        ['focuser', 'availableFocusers'],
-                        ['camera', 'configuration', 'deviceSettings', null, 'preferedFocuserDevice'],
-                        ['camera', 'dynStateByDevices', null, 'focuserDevice']
-                    ]
-                 ]
-            ,
-            list:()=>Object.keys(this.camera.currentStatus.dynStateByDevices),
-            read:(camId:string)=>{
-                const camStatus = this.camera.currentStatus;
-                if (!hasKey(camStatus.dynStateByDevices, camId)) {
-                    return null;
-                }
-                if (!hasKey(camStatus.configuration.deviceSettings, camId)) {
-                    return null;
-                }
-                return {
-                    available: this.currentStatus.availableFocusers,
-                    current: camStatus.dynStateByDevices[camId].focuserDevice || null,
-                    prefered: camStatus.configuration.deviceSettings[camId].preferedFocuserDevice || null,
-                }
-            },
-            set:(camId: string, values) => {
-                const camStatus = this.camera.currentStatus;
-                if (values.current !== undefined) {
-                    camStatus.dynStateByDevices[camId].focuserDevice = values.current;
-                }
-                if (values.prefered !== undefined) {
-                    camStatus.configuration.deviceSettings[camId].preferedFocuserDevice = values.prefered;
+                    this.currentStatus.currentImagingSetup = s.current;
                 }
             }
         });
@@ -173,8 +106,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             abort: this.abort,
             focus: this.focus,
             updateCurrentSettings: this.updateCurrentSettings,
-            setCurrentCamera: this.setCurrentCamera,
-            setCurrentFocuser: this.setCurrentFocuser,
+            setCurrentImagingSetup: this.setCurrentImagingSetup,
         }
     }
 
@@ -182,8 +114,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     {
         this.currentStatus.current = {
             status: status,
-            camera: null,
-            focuser: null,
+            imagingSetup: null,
             error: null,
             firstStep: null,
             lastStep: null,
@@ -214,34 +145,36 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         );
     }
 
-    private getCurrentConfiguration(): {camera: string, focuser:string, settings: FocuserSettings} {
-        const camera = this.currentStatus.selectedCamera;
+    private getCurrentConfiguration(): {imagingSetupInstance: ImagingSetupInstance, camera: string, focuser: string, settings: FocuserSettings} {
+        const imagingSetupInstance = this.context.imagingSetupManager.getImagingSetupInstance(this.currentStatus.currentImagingSetup);
+
+        if (!imagingSetupInstance.exists()) {
+            throw new Error("No imaging setup selected");
+        }
+
+        const camera = imagingSetupInstance.config().cameraDevice;
         if (camera === null) {
             throw new Error("No camera selected");
         }
-        
         if (!hasKey(this.camera.currentStatus.dynStateByDevices, camera)) {
             throw new Error("Invalid camera");
         }
-        const focuser = this.camera.currentStatus.dynStateByDevices[camera].focuserDevice;
+
+        const focuser = imagingSetupInstance.config().focuserDevice;
         if (focuser === undefined || focuser === null) {
             throw new Error("No focuser selected");
         }
-        if (!hasKey(this.currentStatus.config.settings, focuser)) {
-            throw new Error("Invalid focuser");
-        }
 
-        const settings = this.currentStatus.config.settings[focuser];
+        const settings = imagingSetupInstance.config().focuserSettings;
         return {
-            camera, focuser, settings
+            imagingSetupInstance: imagingSetupInstance, camera, focuser, settings
         }
     }
 
     // Adjust the focus
     private async doFocus(ct: CancellationToken):Promise<number> {
         const config = this.getCurrentConfiguration();
-        this.currentStatus.current.camera = config.camera;
-        this.currentStatus.current.focuser = config.focuser;
+        this.currentStatus.current.imagingSetup = config.imagingSetupInstance.uid;
 
         const amplitude = config.settings.range;
         const stepCount = config.settings.steps;
@@ -425,33 +358,11 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         return bestPos!;
     }
 
-    setCurrentCamera=async(ct:CancellationToken, message: {cameraDevice: string})=> {
-        if (this.camera.currentStatus.availableDevices.indexOf(message.cameraDevice) === -1) {
-            throw new Error("invalid camera");
+    setCurrentImagingSetup=async(ct:CancellationToken, message: {imagingSetup: string})=> {
+        if (!this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
+            throw new Error("invalid imaging setup");
         }
-        this.currentStatus.selectedCamera = message.cameraDevice;
-    }
-
-    setCurrentFocuser=async(ct:CancellationToken, message: {focuserDevice: string, cameraDevice?:string})=> {
-        if (message.cameraDevice === undefined) {
-            if (this.currentStatus.selectedCamera === null) {
-                throw new Error("No camera selected");
-            }
-            message.cameraDevice = this.currentStatus.selectedCamera;
-        }
-        
-        if (this.camera.currentStatus.availableDevices.indexOf(message.cameraDevice) === -1) {
-            throw new Error("invalid camera");
-        }
-        
-        if (!hasKey(this.camera.currentStatus.dynStateByDevices, message.cameraDevice)) {
-            throw new Error("Camera conf not ready");
-        }
-
-        if (this.currentStatus.availableFocusers.indexOf(message.focuserDevice) === -1) {
-            throw new Error("Invalid focuser");
-        }
-        this.camera.currentStatus.dynStateByDevices[message.cameraDevice].focuserDevice = message.focuserDevice;
+        this.currentStatus.currentImagingSetup = message.imagingSetup;
     }
 
     updateCurrentSettings=async(ct:CancellationToken, message:FocuserUpdateCurrentSettingsRequest)=>
@@ -460,7 +371,8 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
 
         const newSettings = JsonProxy.applyDiff(config.settings, message.diff);
         // FIXME: do the checking !
-        this.currentStatus.config.settings[config.focuser] = newSettings;
+        // TODO : ça ne marche pas !
+        config.imagingSetupInstance.config().focuserSettings = newSettings;
     }
 
     focus=async(ct:CancellationToken, message:{}):Promise<number>=>{

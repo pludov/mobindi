@@ -8,6 +8,7 @@ export type ImagingSetup = {
     filterWheelDevice: null|string;
 
     availableFilters: string[];
+    focuserSettings: FocuserSettings;
 }
 
 export type CameraDeviceSettings = {
@@ -21,7 +22,6 @@ export type CameraDeviceSettings = {
 }
 
 export type CameraDeviceDynState = {
-    focuserDevice?: null|string;
     spyRecommanded?: boolean;
 };
 
@@ -290,16 +290,12 @@ export type FocuserSettings = {
 }
 
 export type AutoFocusConfiguration = {
-    preferedCamera: string|null;
-
-    // By focuser settings
-    settings: {[id: string]:FocuserSettings};
+    preferedImagingSetup: string|null
 };
 
 export type AutoFocusStatus = {
     status: "idle"|"running"|"done"|"error"|"interrupted";
-    camera: null|string;
-    focuser: null|string;
+    imagingSetup: string|null;
     error: null|string;
     firstStep: null|number;
     lastStep: null|number;
@@ -313,7 +309,7 @@ export type FocuserUpdateCurrentSettingsRequest = {
 }
 
 export type FocuserStatus = {
-    selectedCamera: string|null;
+    currentImagingSetup: string|null;
     availableFocusers: string[];
     config: AutoFocusConfiguration;
     current: AutoFocusStatus;

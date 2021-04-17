@@ -20,6 +20,10 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FocuserView.css';
 import Panel from './Panel';
+import EditableImagingSetupSelector from './EditableImagingSetupSelector';
+import CameraSettingsPanel from './CameraSettingsPanel';
+import ImagingSetupSelector from './ImagingSetupSelector';
+import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 
 const logger = Log.logger(__filename);
 
@@ -247,6 +251,7 @@ const FocuserGraph = Store.Connect<UnmappedFocuserGraph, FocuserGraphInputProps,
 
 type InputProps = {}
 type MappedProps = {
+    imagingSetup: string|null;
     camera: string|null;
     focuser: string|null;
     status: BackOfficeStatus.AutoFocusStatus["status"];
@@ -254,28 +259,9 @@ type MappedProps = {
 }
 type Props = InputProps & MappedProps;
 
-const CameraSelector = connect((store:Store.Content)=> ({
-    active: store.backend && store.backend.focuser ? store.backend.focuser.selectedCamera : undefined,
-    availables: store.backend && store.backend.camera ? store.backend.camera.availableDevices : []
-}))(PromiseSelector);
-
-const FocuserSelector = connect((store:Store.Content)=> {
-    const camera = store.backend && store.backend.focuser ? store.backend.focuser.selectedCamera : undefined;
-
-    return {
-        active: camera === null || camera === undefined ? null:
-                store.backend && store.backend.camera && Utils.has(store.backend.camera.dynStateByDevices, camera)
-                     ? store.backend.camera.dynStateByDevices[camera].focuserDevice : null,
-        availables: store.backend && store.backend.focuser ? store.backend.focuser.availableFocusers : []
-    };
-})(PromiseSelector);
-
-
 class UnmappedFocuserView extends React.PureComponent<Props> {
     static focusBtonHelp = Help.key("Start auto-focus", "Start a sequence of focus image, scanning a range of focuser positions, then use the best one found (best FHWM)");
     static stopBtonHelp = Help.key("Stop auto-focus", "Abort the current running auto-focus");
-    static cameraSelectorHelp = Help.key("Camera", "Select the camera device to use for focusing");
-    static focuserSelectorHelp = Help.key("Focuser", "Select the focuser device to use for focusing");
 
     constructor(props: Props) {
         super(props);
@@ -297,43 +283,20 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         );
     }
 
-    setCamera = async(id:string)=> {
-        return await BackendRequest.RootInvoker("focuser")("setCurrentCamera")(
+    setCurrentImagingSetup = async(id:string)=> {
+        return await BackendRequest.RootInvoker("focuser")("setCurrentImagingSetup")(
             CancellationToken.CONTINUE,
             {
-                cameraDevice: id
+                imagingSetup: id
             }
         );
     };
 
-    setFocuser = async(id:string)=> {
-        if (this.props.camera === null) {
-            throw new Error("no camera selected");
-        }
-        return await BackendRequest.RootInvoker("focuser")("setCurrentFocuser")(
-            CancellationToken.CONTINUE,
-            {
-                cameraDevice: this.props.camera,
-                focuserDevice: id,
-            }
-        );
+    static getCurrentImagingSetupUid = (store:Store.Content)=>{
+        const ret = store.backend?.focuser?.currentImagingSetup;
+        return (ret === undefined) ? null : ret;
     };
 
-    cameraSettingSetter = (propName:string):((v:any)=>Promise<void>)=>{
-        return async (v:any)=> {
-            if (this.props.camera === null) {
-                throw new Error("No camera selected");
-            }
-            await BackendRequest.RootInvoker("camera")("setShootParam")(
-                CancellationToken.CONTINUE,
-                {
-                    camera: this.props.camera,
-                    key: propName as any,
-                    value: v
-                }
-            );
-        }
-    }
 
     render() {
         return (
@@ -353,32 +316,11 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         <span>Settings</span>
                     
                         <div>
-                            Camera: <CameraSelector setValue={this.setCamera} helpKey={UnmappedFocuserView.cameraSelectorHelp}/>
-                            <DeviceConnectBton.forActivePath
-                                    activePath="$.backend.focuser.selectedCamera"/>
+                            <EditableImagingSetupSelector setValue={this.setCurrentImagingSetup} getValue={UnmappedFocuserView.getCurrentImagingSetupUid}/>
                         </div>
-                        <CameraSettingsView.byPath
-                            settingsPath={"$.backend.camera.configuration.deviceSettings"}
-                            activePath="$.backend.focuser.selectedCamera"
-                            setValue={this.cameraSettingSetter}
-                        />
+                        <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                        <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
 
-                        {this.props.camera !== null
-                            ?
-                            <>
-                                <div>
-                                    {/* TODO : broken until ImagingSetup */}
-                                    {/* <LiveFilterSelector.forActivePath activePath="$.backend.focuser.selectedCamera"/> */}
-                                </div>
-                                <div>
-                                    Focuser: <FocuserSelector setValue={this.setFocuser} helpKey={UnmappedFocuserView.focuserSelectorHelp}/>
-                                    <DeviceConnectBton.forActivePath
-                                        activePath={"$.backend.camera.dynStateByDevices[" + JSON.stringify(this.props.camera) + "].focuserDevice"}/>
-                                </div>
-                            </>
-                            :
-                            null
-                        }
                         {this.props.focuser !== null
                             ? <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.config.settings[" + JSON.stringify(this.props.focuser) + "]")}/>
                             : null
@@ -401,23 +343,21 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
             </div>);
     }
 
-    static getFocuserForCamera(store: Store.Content, camera: string|null)
-    {
-        const focuser = Utils.getOwnProp(store.backend.camera?.dynStateByDevices, camera)?.focuserDevice;
-        return focuser !== undefined ? focuser : null;
-    }
-
     static mapStateToProps(store: Store.Content) {
-        let camera = store.backend.focuser?.selectedCamera;
+        let imagingSetup = UnmappedFocuserView.getCurrentImagingSetupUid(store);
+
+        const imagingSetupConfig = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+        let camera = imagingSetupConfig?.cameraDevice;
         if (camera === undefined) camera = null;
 
-        let focuser = UnmappedFocuserView.getFocuserForCamera(store, camera);
+        let focuser = imagingSetupConfig?.focuserDevice;
 
         if (focuser === undefined) {
             focuser = null;
         }
 
         return {
+            imagingSetup,
             camera,
             focuser,
             status: store.backend.focuser?.current.status || "error",
