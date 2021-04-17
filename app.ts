@@ -276,6 +276,8 @@ function init() {
     server.listen({port: appState.uiConfig.directPort}, ()=> {
         context.notification = new Notification(app, appStateManager, context as AppContext, serverId);
 
+        context.imagingSetupManager = new ImagingSetupManager(app, appStateManager, context as AppContext);
+
         context.imageProcessor = new ImageProcessor(appStateManager, context as AppContext);
 
         context.phd = new Phd(app, appStateManager, context as AppContext);
@@ -296,7 +298,6 @@ function init() {
 
         context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
-        context.imagingSetupManager = new ImagingSetupManager(app, appStateManager, context as AppContext);
 
         apiRoot = {
             notification: context.notification.getAPI(),

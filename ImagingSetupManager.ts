@@ -9,7 +9,7 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 
 
-class ImagingSetupInstance {
+export class ImagingSetupInstance {
 
     private readonly manager: ImagingSetupManager;
     public readonly uid: string|null;
@@ -20,7 +20,7 @@ class ImagingSetupInstance {
     }
 
 
-    readonly config = ()=> {
+    readonly config :()=>ImagingSetup = ()=> {
         if (this.uid === null) {
             throw new Error("No imaging setup selected");
         }
@@ -91,6 +91,55 @@ export default class ImagingSetupManager
             true);
          
         // TODO: Add synchronizer for available filters per filterwheel (so report filterwheel when set)
+    }
+
+    // currentPath: a json synchronizer path that match current properties.
+    createPreferredImagingSelector(params: {
+            currentPath: string[],
+            preferedPath: string[],
+            read: ()=>{prefered: string|null, current: string|null},
+            set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>void
+        })
+    {
+        const update = ()=> {
+            const status = params.read();
+            const available = this.currentStatus.availableImagingSetups;
+
+            let newCurrent: string|null|undefined;
+            let newPrefered: string|null|undefined;
+
+            if (status.current !== null) {
+                if (available.indexOf(status.current) === -1) {
+                    newCurrent = null;
+                    status.current = null;
+                } else {
+                    if (status.prefered !== status.current) {
+                        newPrefered = status.current;
+                    }
+                }
+            }
+            if (status.current === null) {
+                if (status.prefered !== null && available.indexOf(status.prefered) !== -1) {
+                    newCurrent = status.prefered;
+                    status.current = newCurrent;
+                }
+            }
+            if (newCurrent !== undefined || newPrefered !== undefined) {
+                params.set({current: newCurrent, prefered: newPrefered});
+            }
+        };
+
+        this.appStateManager.addSynchronizer(
+            [
+                [
+                    [ 'imagingSetup', 'availableImagingSetups' ],
+                    params.currentPath,
+                    params.preferedPath,
+                ]
+            ],
+            update,
+            true
+        );
     }
 
     private readonly updateAvailableImagingSetups=()=>
@@ -211,6 +260,14 @@ export default class ImagingSetupManager
             availableFilters: [],
             filterWheelDevice: null,
             focuserDevice: null,
+            focuserSettings: {
+                range: 1000,
+                steps: 5,
+                backlash: 200,
+                lowestFirst: false,
+                targetCurrentPos: true,
+                targetPos: 10000
+            }
         }
     }
 
