@@ -14,8 +14,7 @@ import * as SequenceStepParameter from "./SequenceStepParameter";
 import SequenceStepEdit from "./SequenceStepEdit";
 import CancellationToken from 'cancellationtoken';
 import SequenceWarning from './SequenceWarning';
-import ImagingSetupSelector from '@src/ImagingSetupSelector';
-import EditableImagingSetupSelector from '@src/EditableImagingSetupSelector';
+import EditableImagingSetupSelector from '../EditableImagingSetupSelector';
 
 
 type InputProps = {

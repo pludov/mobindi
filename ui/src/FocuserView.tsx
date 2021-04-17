@@ -13,6 +13,7 @@ import * as IndiManagerStore from './IndiManagerStore';
 import './CameraView.css'
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
+import * as Accessor from './utils/Accessor';
 import BackendAccessor from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 import ScrollableText from './ScrollableText';
@@ -322,7 +323,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
 
                         {this.props.focuser !== null
-                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor("$.focuser.config.settings[" + JSON.stringify(this.props.focuser) + "]")}/>
+                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor(Accessor.For((e)=>e.imagingSetup!.configuration.byuuid[this.props.imagingSetup!].focuserSettings))}/>
                             : null
                         }
                     </Panel>

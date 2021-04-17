@@ -368,10 +368,8 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     updateCurrentSettings=async(ct:CancellationToken, message:FocuserUpdateCurrentSettingsRequest)=>
     {
         const config = this.getCurrentConfiguration();
-
         const newSettings = JsonProxy.applyDiff(config.settings, message.diff);
         // FIXME: do the checking !
-        // TODO : ça ne marche pas !
         config.imagingSetupInstance.config().focuserSettings = newSettings;
     }
 
