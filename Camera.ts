@@ -49,7 +49,7 @@ export default class Camera
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().camera = {
             status: "idle",
-            selectedDevice: null,
+            currentImagingSetup: null,
             availableDevices: [],
 
             currentStreams: {},
@@ -76,8 +76,7 @@ export default class Camera
 
             dynStateByDevices: {},
             configuration: {
-                preferedDevice: null,
-                deviceSettings: {},
+                preferedImagingSetup: null,
             }
         };
 
@@ -112,41 +111,26 @@ export default class Camera
             this.currentStatus.availableDevices = devs;
         }, undefined, DriverInterface.CCD);
 
-        context.indiManager.createPreferredDeviceSelector<CameraStatus>({
-                availablePreferedCurrentPath: [
-                    [
-                        [ 'camera' , 'availableDevices'],
-                        [ 'camera' , 'configuration', 'preferedDevice'],
-                        [ 'camera' , 'selectedDevice'],
-                    ]
-                ],
-                read: ()=> ({
-                    available: this.currentStatus.availableDevices,
-                    prefered: this.currentStatus.configuration.preferedDevice,
-                    current: this.currentStatus.selectedDevice,
-                }),
-                set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
-                    if (s.prefered !== undefined) {
-                        this.currentStatus.configuration.preferedDevice = s.prefered;
-                    }
-                    if (s.current !== undefined) {
-                        this.currentStatus.selectedDevice = s.current;
-                    }
+        context.imagingSetupManager.createPreferredImagingSelector({
+            currentPath: [ 'camera', 'currentImagingSetup' ],
+            preferedPath: [ 'camera', 'configuration', 'preferedImagingSetup' ],
+            read: ()=> ({
+                prefered: this.currentStatus.configuration.preferedImagingSetup,
+                current: this.currentStatus.currentImagingSetup,
+            }),
+            set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
+                if (s.prefered !== undefined) {
+                    this.currentStatus.configuration.preferedImagingSetup = s.prefered;
                 }
+                if (s.current !== undefined) {
+                    this.currentStatus.currentImagingSetup = s.current;
+                }
+            }
         });
         // Update configuration/dyn states
         this.appStateManager.addSynchronizer(
             [ 'camera', 'availableDevices' ],
             ()=> {
-                const settingRoot = this.currentStatus.configuration.deviceSettings;
-                for(const o of this.currentStatus.availableDevices) {
-                    if (!Obj.hasKey(settingRoot, o)) {
-                        settingRoot[o] = {
-                            exposure: 1.0,
-                        }
-                    }
-                }
-
                 const dynStateRoot = this.currentStatus.dynStateByDevices;
                 for(const o of this.currentStatus.availableDevices) {
                     if (!Obj.hasKey(dynStateRoot, o)) {
@@ -340,28 +324,11 @@ export default class Camera
         }
     }
 
-    setCamera=async (ct: CancellationToken, payload:{device:string})=>{
-        if (this.currentStatus.availableDevices.indexOf(payload.device) == -1) {
-            throw "device not available";
+    setCurrentImagingSetup=async (ct: CancellationToken, message:{imagingSetup:null|string})=>{
+        if (message.imagingSetup !== null && !this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
+            throw new Error("invalid imaging setup");
         }
-        this.currentStatus.selectedDevice = payload.device;
-    }
-
-    setShootParam=async<K extends keyof CameraDeviceSettings> (ct: CancellationToken, payload:{camera?: string, key:K, value: CameraDeviceSettings[K]})=>{
-        // FIXME: send the corresponding info ?
-        var key = payload.key;
-
-        const deviceId = payload.camera !== undefined ? payload.camera : this.currentStatus.selectedDevice;
-        if (deviceId === null || this.currentStatus.availableDevices.indexOf(deviceId) === -1) {
-            throw new Error("no device selected");
-        }
-        const allSettings = this.currentStatus.configuration.deviceSettings;
-        if (!Obj.hasKey(allSettings, deviceId)) {
-            logger.error("Internal error - device has no settings");
-            throw new Error("Device has no settings");
-        }
-        const deviceSettings = allSettings[deviceId];
-        deviceSettings[key] = payload.value;
+        this.currentStatus.currentImagingSetup = message.imagingSetup;
     }
 
     getCropAdjustment(device:any)
@@ -406,12 +373,31 @@ export default class Camera
         return {};
     }
 
+    private resolveImagingSetup(imagingSetup: string|null) {
+        const imagingSetupInstance = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetup);
+        if (!imagingSetupInstance.exists()) {
+            throw new Error("Invalid imaging setup");
+        }
+
+        const device = imagingSetupInstance.config().cameraDevice;
+        if (device === null) {
+            throw new Error("No camera configured");
+        }
+        if (this.currentStatus.availableDevices.indexOf(device) === -1) {
+            throw new Error("Camera not found");
+        }
+
+        return {imagingSetupInstance, device};
+    }
+
     // Return a promise to shoot at the given camera (where)
-    async doShoot(cancellation: CancellationToken, device:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings):Promise<BackOfficeAPI.ShootResult>
+    async doShoot(cancellation: CancellationToken, imagingSetup:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings):Promise<BackOfficeAPI.ShootResult>
     {
         // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
         var ccdFilePathInitRevId:any;
         let shootResult:BackOfficeAPI.ShootResult;
+
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(imagingSetup);
 
         if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)) {
             throw new Error("Shoot already started for " + device);
@@ -421,11 +407,7 @@ export default class Camera
             throw new Error("Stream is already started for " + device);
         }
 
-        if (!Obj.hasKey(this.currentStatus.configuration.deviceSettings, device)) {
-            throw new Error("Device has no settings");
-        }
-
-        var settings = Object.assign({}, this.currentStatus.configuration.deviceSettings[device]);
+        let settings = Object.assign({}, imagingSetupInstance.config().cameraSettings);
         if (settingsProvider !== undefined) {
             settings = settingsProvider(settings);
         }
@@ -652,10 +634,6 @@ export default class Camera
             throw new Error("Stream is already started for " + device);
         }
 
-        if (!Obj.hasKey(this.currentStatus.configuration.deviceSettings, device)) {
-            throw new Error("Device has no settings");
-        }
-
         return await createTask<void>(cancellation, async (task)=>{
             this.streamPromises[device] = task;
             delete this.currentStatus.currentShoots[device];
@@ -744,32 +722,40 @@ export default class Camera
         });
     }
 
+    // FIXME: currentImagingSetup should pass in
     stream = async (ct: CancellationToken, message: {})=>{
-        if (this.currentStatus.selectedDevice === null) {
-            throw new Error("No camera selected");
+        if (this.currentStatus.currentImagingSetup === null) {
+            throw new Error("No imaging setup selected");
         }
-        return await this.doStream(ct, this.currentStatus.selectedDevice);
+
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(this.currentStatus.currentImagingSetup);
+
+        return await this.doStream(ct, device);
     }
 
+    // FIXME: currentImagingSetup should pass in
     shoot = async (ct: CancellationToken, message:{})=>{
-        if (this.currentStatus.selectedDevice === null) {
-            throw new Error("No camera selected");
+        if (this.currentStatus.currentImagingSetup === null) {
+            throw new Error("No imaging setup selected");
         }
-        return await this.doShoot(ct, this.currentStatus.selectedDevice);
+        return await this.doShoot(ct, this.currentStatus.currentImagingSetup);
     }
 
+    // FIXME: currentImagingSetup should pass in
     abort = async (ct: CancellationToken, message:{})=>{
-        let currentDevice = this.currentStatus.selectedDevice;
-        if (currentDevice === null) throw new Error("No camera selected");
+        if (this.currentStatus.currentImagingSetup === null) {
+            throw new Error("No imaging setup selected");
+        }
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(this.currentStatus.currentImagingSetup);
 
         let sthCanceled = false;
-        if (Object.prototype.hasOwnProperty.call(this.streamPromises, currentDevice)) {
-            this.streamPromises[currentDevice].cancel();
+        if (Object.prototype.hasOwnProperty.call(this.streamPromises, device)) {
+            this.streamPromises[device].cancel();
             sthCanceled = true;
         }
 
-        if (Object.prototype.hasOwnProperty.call(this.shootPromises, currentDevice)) {
-            this.shootPromises[currentDevice].cancel();
+        if (Object.prototype.hasOwnProperty.call(this.shootPromises, device)) {
+            this.shootPromises[device].cancel();
             sthCanceled = true;
         }
 
@@ -783,8 +769,7 @@ export default class Camera
             shoot: this.shoot,
             stream: this.stream,
             abort: this.abort,
-            setCamera: this.setCamera,
-            setShootParam: this.setShootParam,
+            setCurrentImagingSetup: this.setCurrentImagingSetup,
         }
     }
 }

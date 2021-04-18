@@ -89,7 +89,6 @@ class PropertyResolver {
     }
 
     get = (target:any, property:any)=>{
-        console.log('get called with ', property);
         if (property instanceof Symbol) {
             throw new Error("Not supported");
         }
@@ -98,13 +97,13 @@ class PropertyResolver {
     }
 }
 
-export interface Accessor<Root,Target> {
+export interface AccessPath<Root,Target> {
     readonly path: Array<string>;
     access(t:Root):Target|undefined;
 
-    prop<Prop extends keyof Target & (string)>(prop:Prop):Accessor<Root, Target[Prop]>;
-    join<NewTarget>(e: Accessor<Target, NewTarget>):Accessor<Root, NewTarget>;
-    child<NewTarget>(access:(r: Target)=>NewTarget):Accessor<Root, NewTarget>;
+    prop<Prop extends keyof Target & (string)>(prop:Prop):AccessPath<Root, Target[Prop]>;
+    join<NewTarget>(e: AccessPath<Target, NewTarget>):AccessPath<Root, NewTarget>;
+    child<NewTarget>(access:(r: Target)=>NewTarget):AccessPath<Root, NewTarget>;
 }
 
 class AccessorImpl<Root, Target> {
@@ -131,15 +130,15 @@ class AccessorImpl<Root, Target> {
         return v;
     }
 
-    join<NewTarget>(e: Accessor<Target, NewTarget>):Accessor<Root, NewTarget> {
+    join<NewTarget>(e: AccessPath<Target, NewTarget>):AccessPath<Root, NewTarget> {
         return new AccessorImpl<Root, NewTarget>([...this.path, ...e.path]);
     }
 
-    prop<Prop extends keyof Target & (string)>(prop:Prop):Accessor<Root, Target[Prop]> {
+    prop<Prop extends keyof Target & (string)>(prop:Prop):AccessPath<Root, Target[Prop]> {
         return new AccessorImpl<Root, Target[Prop]>([...this.path, prop]);
     }
 
-    child<NewTarget>(access:(r: Target)=>NewTarget):Accessor<Root, NewTarget> {
+    child<NewTarget>(access:(r: Target)=>NewTarget):AccessPath<Root, NewTarget> {
         const root = new PropertyResolver(null, "<root>");
         const target = access(root.getProxy() as any as Target);
 
@@ -153,7 +152,7 @@ class AccessorImpl<Root, Target> {
  * access is used only for gathering paths. It is not used for direct access.
  * It is allowed to assume every property is set, missing access will be catched
  */
-export function For<Root,Target>(access: (r:Root)=>Target): Accessor<Root,Target> {
+export function For<Root,Target>(access: (r:Root)=>Target): AccessPath<Root,Target> {
     const root = new PropertyResolver(null, "<root>");
     const target = access(root.getProxy() as any as Root);
 

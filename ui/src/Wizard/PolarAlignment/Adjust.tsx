@@ -1,22 +1,13 @@
 import React from 'react';
-import CancellationToken from 'cancellationtoken';
 import '../../AstrometryView.css';
-import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
-import * as Utils from "../../Utils";
-import Panel from "../../Panel";
-import Int from '../../primitives/Int';
-import Float from '../../primitives/Float';
-
-import DeviceConnectBton from '../../DeviceConnectBton';
-import CameraSelector from "../../CameraSelector";
-import CameraSettingsView from '../../CameraSettingsView';
-import IndiSelectorEditor from '../../IndiSelectorEditor';
+import * as CameraStore from "../../CameraStore";
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
-import * as Accessor from '../../utils/Accessor';
+import * as AccessPath from '../../utils/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
+import ImageControl from './ImageControl';
 
 type InputProps = {};
 type MappedProps = {
@@ -65,31 +56,15 @@ function deltaTitle(dlt:number) {
 
 
 class Adjust extends React.PureComponent<Props> {
-    accessor: BackendAccessor.BackendAccessor<PolarAlignSettings>;
+    accessor: BackendAccessor.RecursiveBackendAccessor<PolarAlignSettings>;
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings)).child(Accessor.For((e)=>e.polarAlign));
+        this.accessor = new AstrometryBackendAccessor().child(AccessPath.For((e)=>e.polarAlign));
     }
 
     setNextFrame = (e:React.ChangeEvent<HTMLSelectElement>)=> {
-        this.accessor.child(Accessor.For((e)=>e.dyn_nextFrameIsReferenceFrame)).send(e.target.value === "refframe");
-    }
-
-    setCamera = async(id: string)=>{
-        await BackendRequest.RootInvoker("camera")("setCamera")(CancellationToken.CONTINUE, {device: id});
-    }
-
-    settingSetter = (propName:string):((v:any)=>Promise<void>)=>{
-        return async (v:any)=> {
-            await BackendRequest.RootInvoker("camera")("setShootParam")(
-                CancellationToken.CONTINUE,
-                {
-                    key: propName as any,
-                    value: v
-                }
-            );
-        }
+        this.accessor.child(AccessPath.For((e)=>e.dyn_nextFrameIsReferenceFrame)).send(e.target.value === "refframe");
     }
 
     render() {
@@ -168,19 +143,7 @@ class Adjust extends React.PureComponent<Props> {
 
 
             <span style={{visibility: !!this.props.adjusting ? "hidden" : "unset"}}>
-                <Panel guid="astrom:polaralign:camera">
-                    <span>Camera settings</span>
-                    <div>
-                        <CameraSelector setValue={this.setCamera}/>
-                        <DeviceConnectBton.forActivePath
-                                activePath="$.backend.camera.selectedDevice"/>
-                    </div>
-                    <CameraSettingsView.byPath
-                        settingsPath="$.backend.camera.currentSettings.configuration.deviceSettings"
-                        activePath="$.backend.camera.selectedDevice"
-                        setValue={this.settingSetter}
-                        />
-                </Panel>
+                <ImageControl imagingSetupIdAccessor={CameraStore.currentImagingSetupAccessor()}/>
             </span>
         </>
     }

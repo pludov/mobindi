@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { defaultMemoize } from 'reselect';
 
 import { Sequence, ImagingSetup } from '@bo/BackOfficeStatus';
 
@@ -8,8 +9,6 @@ import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import TextEdit from "../TextEdit";
-import DeviceConnectBton from '../DeviceConnectBton';
-import CameraSelector from "./CameraSelector";
 import * as SequenceStepParameter from "./SequenceStepParameter";
 import SequenceStepEdit from "./SequenceStepEdit";
 import CancellationToken from 'cancellationtoken';
@@ -63,6 +62,16 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
             });
     }
 
+    private readonly getCurrentImagingSetupAccessor = defaultMemoize((uid:string):Store.Accessor<string|null>=> {
+        return {
+            fromStore: (store)=> {
+                    const v = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid)?.imagingSetup
+                    return v !== undefined ? v : null;
+                },
+            send: (e)=>this.updateSequenceParam('imagingSetup', e),
+        }
+    });
+
     render() {
         if (!this.props.displayable || this.props.details === undefined || this.props.uid === undefined) {
             return null;
@@ -81,11 +90,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                         Imaging setup:
                         <EditableImagingSetupSelector
-                            getValue={(store)=> {
-                                    const v = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid)?.imagingSetup
-                                    return v !== undefined ? v : null;
-                            }}
-                            setValue={(e)=>this.updateSequenceParam('imagingSetup', e)}
+                            accessor={this.getCurrentImagingSetupAccessor(this.props.uid)}
                         />
                 </div>
 

@@ -95,6 +95,7 @@ export type ImagingSetupManagerAPI = {
     setCurrentImagingSetup: (payload: {imagingSetupUuid: string|null}) => void;
     setDevice: (payload: {imagingSetupUuid: string, device: "cameraDevice"|"focuserDevice"|"filterWheelDevice", value: string|null})=>void;
     setName:(payload: {imagingSetupUuid: string, name: string})=>void;
+    updateCurrentSettings: (payload: {imagingSetupUuid: string, diff: any})=>void;
 }
 
 export type FilterWheelAPI = {
@@ -106,8 +107,7 @@ export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     stream: (stream: {})=>void;
     abort: (payload: {})=>void;
-    setCamera: (payload: {device: string})=>void;
-    setShootParam: <K extends keyof CameraDeviceSettings>(payload: {camera?: string, key: K, value: CameraDeviceSettings[K]})=>void;
+    setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
 }
 
 export type SequenceAPI = {
@@ -156,7 +156,7 @@ export type AstrometryAPI = AstrometryWizards & {
 }
 
 export type FocuserAPI = {
-    setCurrentImagingSetup:(payload: {imagingSetup: string})=>void;
+    setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     updateCurrentSettings: (payload: {diff: any})=>void;
     focus: (payload: {})=>number;
     abort: (payload: {})=>void;

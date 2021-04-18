@@ -1,29 +1,22 @@
 import React from 'react';
-import CancellationToken from 'cancellationtoken';
 import '../../AstrometryView.css';
-import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
+import * as CameraStore from "../../CameraStore";
 import * as Help from "../../Help";
-import * as Utils from "../../Utils";
-import * as Accessor from '../../utils/Accessor';
+import * as AccessPath from '../../utils/AccessPath';
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
 import Float from '../../primitives/Float';
-import * as FilterWheelStore from "../../FilterWheelStore";
-import DeviceConnectBton from '../../DeviceConnectBton';
-import CameraSettingsView from '../../CameraSettingsView';
 import IndiSelectorEditor from '../../IndiSelectorEditor';
 import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
-import * as BackendAccessor from "../../utils/BackendAccessor";
+import { RecursiveBackendAccessor } from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
-import EditableImagingSetupSelector from '../../EditableImagingSetupSelector';
 import ImagingSetupSelector from '../../ImagingSetupSelector';
-import CameraViewDevicePanel from '../../CameraViewDevicePanel';
-import DeviceSettingsBton from '../../DeviceSettingsBton';
-import FilterSelector from '../../FilterSelector';
+import ImageControl from './ImageControl';
 
 type InputProps = {};
 type MappedProps = {
+    imagingSetup: string|null;
     currentScope: string;
     cameraDevice: string|null;
     filterWheelDevice: string|null;
@@ -35,31 +28,15 @@ class InitialConfirm extends React.PureComponent<Props> {
     static angleHelp = Help.key("Max angle", "Maximum RA angle from meridian (°). The mount will move in the same side of pier from the meridian up to this angle (mount limit)");
     static minAltitudeHelp = Help.key("Minimum altitude", "Ensure exposure below are not taken at altitude below that angle (°).");
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
-    accessor: BackendAccessor.BackendAccessor<PolarAlignSettings>;
+    accessor: RecursiveBackendAccessor<PolarAlignSettings>;
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings)).child(Accessor.For((e)=>e.polarAlign));
-    }
-
-    setCamera = async(id: string)=>{
-        await BackendRequest.RootInvoker("camera")("setCamera")(CancellationToken.CONTINUE, {device: id});
-    }
-
-    settingSetter = (propName:string):((v:any)=>Promise<void>)=>{
-        return async (v:any)=> {
-            await BackendRequest.RootInvoker("camera")("setShootParam")(
-                CancellationToken.CONTINUE,
-                {
-                    key: propName as any,
-                    value: v
-                }
-            );
-        }
+        this.accessor = new AstrometryBackendAccessor().child(AccessPath.For((e)=>e.polarAlign));
     }
 
     setSlewRate = async (s:string)=> {
-        this.accessor.child(Accessor.For((e)=>e.slewRate)).send(s);
+        this.accessor.child(AccessPath.For((e)=>e.slewRate)).send(s);
     }
 
     render() {
@@ -68,65 +45,28 @@ class InitialConfirm extends React.PureComponent<Props> {
             This wizard will move the scope in RA and measure misalignment of the polar axis.<br/>
             Please point the scope to the place of the sky where you’ll take image, then click next to proceed.
             </div>
-            
-            <Panel guid="astrom:polaralign:camera">
-                <span>Camera settings</span>
 
-
-                <div>
-                    <EditableImagingSetupSelector setValue={ImagingSetupSelector.setCurrentImagingSetup} getValue={ImagingSetupSelector.getCurrentImagingSetupUid}/>
-
-                </div>
-                {this.props.cameraDevice !== null ?
-                    <CameraViewDevicePanel title="Cam" deviceId={this.props.cameraDevice}>
-                        <CameraSettingsView
-                            current={this.props.cameraDevice}
-                            activePath={"unused - remove me"}
-                            settingsPath={"$.backend.camera.configuration.deviceSettings"}
-                            setValue={this.settingSetter}
-                        />
-
-                        <DeviceConnectBton deviceId={this.props.cameraDevice}/>
-                        <DeviceSettingsBton deviceId={this.props.cameraDevice}/>
-                    </CameraViewDevicePanel>
-                    :
-                    null
-                }
-                {this.props.filterWheelDevice !== null ?
-                    <CameraViewDevicePanel title="F.W" deviceId={this.props.filterWheelDevice}>
-                        <FilterSelector
-                                isBusy={FilterWheelStore.isFilterWheelBusy}
-                                getFilter={FilterWheelStore.currentTargetFilterId}
-                                setFilter={FilterWheelStore.changeFilter}
-                                filterWheelDevice={this.props.filterWheelDevice}/>
-
-                        <DeviceConnectBton deviceId={this.props.filterWheelDevice}/>
-                        <DeviceSettingsBton deviceId={this.props.filterWheelDevice}/>
-                    </CameraViewDevicePanel>
-                    :
-                    null
-                }
-
-            </Panel>
+            <ImageControl imagingSetupIdAccessor={CameraStore.currentImagingSetupAccessor()}/>
 
             <Panel guid="astrom:polaralign:movements">
                 <span>Scope moves</span>
                 <div>
                     Max angle from meridian (°):
-                    <Float accessor={this.accessor.child(Accessor.For((e)=>e.angle))} min={0} max={120} helpKey={InitialConfirm.angleHelp}/>
+                    <Float accessor={this.accessor.child(AccessPath.For((e)=>e.angle))} min={0} max={120} helpKey={InitialConfirm.angleHelp}/>
                 </div>
                 <div>
                     Min alt. above horizon (°):
-                    <Float accessor={this.accessor.child(Accessor.For((e)=>e.minAltitude))} min={0} max={90} helpKey={InitialConfirm.minAltitudeHelp}/>
+                    <Float accessor={this.accessor.child(AccessPath.For((e)=>e.minAltitude))} min={0} max={90} helpKey={InitialConfirm.minAltitudeHelp}/>
                 </div>
                 <div>
                     Number of samples:
-                    <Int accessor={this.accessor.child(Accessor.For((e)=>e.sampleCount))} min={3} max={99} helpKey={InitialConfirm.sampleCountHelp}/>
+                    <Int accessor={this.accessor.child(AccessPath.For((e)=>e.sampleCount))} min={3} max={99} helpKey={InitialConfirm.sampleCountHelp}/>
                 </div>
                 <div>
                     Slew rate:
                     <IndiSelectorEditor
                         device={this.props.currentScope}
+                        // FIXME: use accessor here
                         valuePath="$.backend.astrometry.settings.polarAlign.slewRate"
                         setValue={this.setSlewRate}
                         vecName="TELESCOPE_SLEW_RATE"
@@ -138,12 +78,13 @@ class InitialConfirm extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
-        const imagingSetup = ImagingSetupSelector.getCurrentImagingSetup(store);
-
-        const cameraDevice = imagingSetup !== null ? imagingSetup.cameraDevice : null;
-        const filterWheelDevice = imagingSetup !== null ? imagingSetup.filterWheelDevice : null;
+        const imagingSetup = ImagingSetupSelector.getCurrentImagingSetupUid(store);
+        const imagingSetupInstance = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+        const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
+        const filterWheelDevice = imagingSetupInstance !== null ? imagingSetupInstance.filterWheelDevice : null;
 
         return {
+            imagingSetup,
             currentScope: store.backend.astrometry?.selectedScope || "",
             cameraDevice,
             filterWheelDevice,

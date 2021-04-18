@@ -7,14 +7,10 @@ import Log from './shared/Log';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Help from './Help';
 import * as Store from './Store';
-import * as Utils from './Utils';
-import PromiseSelector from './PromiseSelector';
 import * as IndiManagerStore from './IndiManagerStore';
 import './CameraView.css'
-import CameraSettingsView from './CameraSettingsView';
-import DeviceConnectBton from './DeviceConnectBton';
-import * as Accessor from './utils/Accessor';
-import BackendAccessor from './utils/BackendAccessor';
+import * as AccessPath from './utils/AccessPath';
+import { RecursiveBackendAccessor, BackendAccessorImpl, BackendAccessor } from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 import ScrollableText from './ScrollableText';
 import * as BackendRequest from "./BackendRequest";
@@ -25,10 +21,12 @@ import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import ImagingSetupSelector from './ImagingSetupSelector';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
+import { defaultMemoize } from 'reselect';
+import CameraDeviceSettingsBackendAccessor from './CameraDeviceSettingBackendAccessor';
 
 const logger = Log.logger(__filename);
 
-class FocuserBackendAccessor extends BackendAccessor<BackOfficeStatus.FocuserSettings> {
+class FocuserBackendAccessor extends BackendAccessorImpl<BackOfficeStatus.FocuserSettings> {
     // public apply = async (jsonDiff:any):Promise<void>=>{
     apply = async (jsonDiff:any)=>{
         logger.debug('Sending changes' , {jsonDiff});
@@ -250,7 +248,9 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
 const FocuserGraph = Store.Connect<UnmappedFocuserGraph, FocuserGraphInputProps, {}, FocuserGraphMappedProps>(UnmappedFocuserGraph);
 
 
-type InputProps = {}
+type InputProps = {
+    imagingSetupIdAccessor: Store.Accessor<string|null>;
+}
 type MappedProps = {
     imagingSetup: string|null;
     camera: string|null;
@@ -293,12 +293,6 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         );
     };
 
-    static getCurrentImagingSetupUid = (store:Store.Content)=>{
-        const ret = store.backend?.focuser?.currentImagingSetup;
-        return (ret === undefined) ? null : ret;
-    };
-
-
     render() {
         return (
             <div className="Page">
@@ -317,13 +311,13 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         <span>Settings</span>
                     
                         <div>
-                            <EditableImagingSetupSelector setValue={this.setCurrentImagingSetup} getValue={UnmappedFocuserView.getCurrentImagingSetupUid}/>
+                            <EditableImagingSetupSelector accessor={this.props.imagingSetupIdAccessor}/>
                         </div>
                         <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
                         <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
 
                         {this.props.focuser !== null
-                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor(Accessor.For((e)=>e.imagingSetup!.configuration.byuuid[this.props.imagingSetup!].focuserSettings))}/>
+                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor(AccessPath.For((e)=>e.imagingSetup!.configuration.byuuid[this.props.imagingSetup!].focuserSettings))}/>
                             : null
                         }
                     </Panel>
@@ -344,25 +338,28 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
             </div>);
     }
 
-    static mapStateToProps(store: Store.Content) {
-        let imagingSetup = UnmappedFocuserView.getCurrentImagingSetupUid(store);
+    static mapStateToProps=()=> {
 
-        const imagingSetupConfig = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
-        let camera = imagingSetupConfig?.cameraDevice;
-        if (camera === undefined) camera = null;
+        return (store: Store.Content, ownProps: Props) => {
+            let imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
 
-        let focuser = imagingSetupConfig?.focuserDevice;
+            const imagingSetupConfig = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+            let camera = imagingSetupConfig?.cameraDevice;
+            if (camera === undefined) camera = null;
 
-        if (focuser === undefined) {
-            focuser = null;
-        }
+            let focuser = imagingSetupConfig?.focuserDevice;
 
-        return {
-            imagingSetup,
-            camera,
-            focuser,
-            status: store.backend.focuser?.current.status || "error",
-            error: store.backend.focuser?.current.error || null
+            if (focuser === undefined) {
+                focuser = null;
+            }
+
+            return {
+                imagingSetup,
+                camera,
+                focuser,
+                status: store.backend.focuser?.current.status || "error",
+                error: store.backend.focuser?.current.error || null
+            }
         }
     }
 }

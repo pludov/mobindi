@@ -10,15 +10,25 @@ type Control = {
     run: ()=>Promise<any>;
 }
 
-export type Props<TYPE> = {
+type NumberStored = {
+    setValue?: undefined;
+    active?: undefined;
+    activeNumber: number|null;
+    setNumber:(d:number)=>Promise<any>;
+}
+
+type StringStored = {
     active: string|null;
+    setValue:(d:string)=>Promise<any>;
+}
+
+export type Props<TYPE> = (NumberStored | StringStored) & {
     nullAlwaysPossible?: boolean;
     placeholder: string;
     availablesGenerator: (props: Props<TYPE>)=>Array<TYPE>;
     getId: (o: TYPE, props: Props<TYPE>)=>string;
     getTitle: (o: TYPE, props: Props<TYPE>)=>string;
     controls?: Array<Control>;
-    setValue:(d:string)=>Promise<any>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
 };
@@ -48,8 +58,32 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
         };
     }
+
+    getActiveString() {
+        const numberStored = (this.props as NumberStored);
+        console.log('getActiveString', numberStored);
+        if (numberStored.activeNumber !== undefined) {
+            if (numberStored.activeNumber === null) {
+                return null;
+            }
+            return "" + numberStored.activeNumber;
+        }
+        return (this.props as StringStored).active;
+    }
+
+    setValueString() {
+        const numberStored = (this.props as NumberStored);
+        if (numberStored.setNumber !== undefined) {
+            const setNumber = numberStored.setNumber;
+            return async (d:string)=> {
+                return await setNumber(parseFloat(d));
+            }
+        }
+        return (this.props as StringStored).setValue;
+    }
+
     render() {
-        var active = this.props.active;
+        var active = this.getActiveString();
         if (active == undefined) active = null;
 
         var availables = this.props.availablesGenerator(this.props);
@@ -122,7 +156,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
                 }
             }
         } else {
-            this.selectEntry(JSON.parse(value), this.props.setValue);
+            this.selectEntry(JSON.parse(value), this.setValueString());
         }
     }
 

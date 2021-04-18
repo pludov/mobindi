@@ -399,6 +399,7 @@ export default class PolarAlignmentWizard extends Wizard {
             }
             const photo = await this.astrometry.camera.doShoot(
                             token,
+                            // FIXME: imagingSetup here
                             cameraId,
                             (s)=> ({
                                 ...s,

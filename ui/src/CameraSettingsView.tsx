@@ -6,13 +6,13 @@ import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
 import CameraExpEditor from './CameraExpEditor';
 import './CameraView.css'
+import { BackendAccessor, RecursiveBackendAccessor } from './utils/BackendAccessor';
+import { CameraDeviceSettings } from '@bo/BackOfficeStatus';
+import ImagingSetupSelector from './ImagingSetupSelector';
 
 type InputProps = {
-    // path to currentSettings - TODO : drop
-    activePath: string;
-    // path to the property that hold the camera id
-    settingsPath: string;
-    setValue: (propName:string)=>((value: any)=>Promise<void>);
+    imagingSetup: string | null;
+    backendAccessor: RecursiveBackendAccessor<CameraDeviceSettings>
 }
 type MappedProps = {
     current: string;
@@ -25,18 +25,25 @@ class CameraSettingsView extends React.PureComponent<Props> {
         super(props);
     }
 
+    setValue<K extends keyof CameraDeviceSettings>(prop:K) {
+        return async (value:CameraDeviceSettings[K])=> {
+            this.props.backendAccessor.prop(prop).send(value);
+        };
+    }
+
     render() {
         if (this.props.current === null) {
             return null;
         }
-        const deviceId = "[" + JSON.stringify(this.props.current)+"]"
+        const devicePath = '$.backend' + this.props.backendAccessor.getPath().map(e=>"["+JSON.stringify(e)+"]").join('');
+
         return <>
             <StatePropCond device={this.props.current} property="CCD_BINNING">
                     <span className='cameraSetting'>
                         <CameraBinEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + deviceId + '.bin'}
-                            setValue={this.props.setValue('bin')}/>
+                            valuePath={devicePath + '.bin'}
+                            setValue={this.setValue('bin')}/>
                     </span>
             </StatePropCond>
 
@@ -44,8 +51,8 @@ class CameraSettingsView extends React.PureComponent<Props> {
                     <span className='cameraSetting'>
                         <CameraIsoEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + deviceId + '.iso'}
-                            setValue={this.props.setValue('iso')} />
+                            valuePath={devicePath + '.iso'}
+                            setValue={this.setValue('iso')} />
                     </span>
             </StatePropCond>
 
@@ -53,19 +60,18 @@ class CameraSettingsView extends React.PureComponent<Props> {
                     <span className='cameraSetting'>Exp:
                         <CameraExpEditor
                             device={this.props.current}
-                            valuePath={this.props.settingsPath + deviceId + '.exposure'}
-                            setValue={this.props.setValue('exposure')}/>
+                            valuePath={devicePath + '.exposure'}
+                            setValue={this.setValue('exposure')}/>
                     </span>
             </StatePropCond>
         </>;
     }
 
-    // TODO : drop
     static mapStateToProps = function(store: Store.Content, ownProps: InputProps) {
         return ({
-            current: atPath(store, ownProps.activePath)
+            current: ImagingSetupSelector.getImagingSetup(store, ownProps.imagingSetup)?.cameraDevice
         });
     }
 }
 
-export default Object.assign(CameraSettingsView, {byPath: Store.Connect(CameraSettingsView)});
+export default Store.Connect(CameraSettingsView);

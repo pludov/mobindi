@@ -9,7 +9,7 @@ import * as BackendRequest from "./BackendRequest";
 import PromiseSelector, { Props as PromiseSelectorProps } from './PromiseSelector';
 
 type CustomProps = {
-    getValue: (store:Store.Content, props: CustomProps)=>string|null
+    accessor: Store.Accessor<string|null>;
 }
 
 export type Item = {
@@ -42,9 +42,10 @@ const ImagingSetupSelector = connect(()=> {
         });
 
     return (store:Store.Content, ownProps:CustomProps) => {
-        const active = ownProps.getValue(store, ownProps);
+        const active = ownProps.accessor.fromStore(store);
         return ({
             active: active,
+            setValue: ownProps.accessor.send,
             getId,
             getTitle,
             helpKey: imagingSetupSelectorHelp,
@@ -67,7 +68,7 @@ const getCurrentImagingSetupUid = (store:Store.Content)=>{
     return (ret === undefined) ? null : ret;
 };
 
-
+// FIXME--: move to ImagingSetupStore / or drop
 const getCurrentImagingSetup = (store:Store.Content)=>{
     return getImagingSetup(store, getCurrentImagingSetupUid(store));
 }
