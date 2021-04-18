@@ -1,20 +1,23 @@
 import JsonProxy from '../shared/JsonProxy';
 import * as Store from "../Store"
-import {Accessor} from "./Accessor"
+import {AccessPath, For} from "./AccessPath"
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 
-export interface BackendAccessor<TYPE> {
-    child<NewTarget>(path:Accessor<TYPE, NewTarget>): BackendAccessor<NewTarget>;
-    send: (value:any)=>Promise<void>;
-    fromStore: (s:Store.Content)=>TYPE;
+export interface BackendAccessor<TYPE> extends Store.Accessor<TYPE>{
+    getPath:()=>string[];
+}
+
+export interface RecursiveBackendAccessor<TYPE> extends BackendAccessor<TYPE> {
+    child<NewTarget>(path:AccessPath<TYPE, NewTarget>): RecursiveBackendAccessor<NewTarget>;
+    prop<Prop extends keyof TYPE & string>(prop:Prop): RecursiveBackendAccessor<TYPE[Prop]>;
 };
 
 class BackendChildAccessor<Root, Target> {
     readonly root: BackendAccessorImpl<Root>;
-    readonly relpath: Accessor<Root, Target>; // startwith .
+    readonly relpath: AccessPath<Root, Target>; // startwith .
 
-    constructor(root: BackendAccessorImpl<Root>, path: Accessor<Root, Target>)
+    constructor(root: BackendAccessorImpl<Root>, path: AccessPath<Root, Target>)
     {
         this.root = root;
         this.relpath = path;
@@ -32,8 +35,16 @@ class BackendChildAccessor<Root, Target> {
         return this.apply(JsonProxy.asDiff(value));
     }
 
-    child<NewTarget>(path:Accessor<Target, NewTarget>) {
+    child<NewTarget>(path:AccessPath<Target, NewTarget>): RecursiveBackendAccessor<NewTarget> {
         return new BackendChildAccessor(this.root, this.relpath.join(path));
+    }
+    
+    prop<Prop extends keyof Target & string>(s: Prop) : RecursiveBackendAccessor<Target[Prop]> {
+        return new BackendChildAccessor(this.root, this.relpath.prop(s));
+    }
+
+    getPath = ()=> {
+        return [...this.root.getPath(), ...this.relpath.path];
     }
 
     fromStore(store:Store.Content, defaultValue?:any)
@@ -52,10 +63,10 @@ class BackendChildAccessor<Root, Target> {
     }
 }
 
-class BackendAccessorImpl<TYPE> implements BackendAccessor<TYPE> {
-    path: Accessor<Partial<BackofficeStatus>, TYPE>
+export class BackendAccessorImpl<TYPE> implements RecursiveBackendAccessor<TYPE> {
+    path: AccessPath<Partial<BackofficeStatus>, TYPE>
 
-    constructor(path: Accessor<Partial<BackofficeStatus>, TYPE>)
+    constructor(path: AccessPath<Partial<BackofficeStatus>, TYPE>)
     {
         this.path = path;
     }
@@ -67,12 +78,20 @@ class BackendAccessorImpl<TYPE> implements BackendAccessor<TYPE> {
         throw new Error("not implemented");
     }
 
-    child<SUBTYPE>(path:Accessor<TYPE, SUBTYPE>): BackendAccessor<SUBTYPE> {
+    child<SUBTYPE>(path:AccessPath<TYPE, SUBTYPE>): RecursiveBackendAccessor<SUBTYPE> {
         return new BackendChildAccessor(this, path);
+    }
+
+    prop<Prop extends keyof TYPE & string>(s: Prop) : RecursiveBackendAccessor<TYPE[Prop]> {
+        return new BackendChildAccessor(this, For((e:TYPE)=>e)).prop(s);
     }
 
     readonly send= (value:any)=>{
         return this.apply(JsonProxy.asDiff(value));
+    }
+
+    getPath = ()=>{
+        return this.path.path;
     }
 
     // Map the path to the given target
@@ -88,5 +107,3 @@ class BackendAccessorImpl<TYPE> implements BackendAccessor<TYPE> {
         return defaultValue;
     }
 }
-
-export default BackendAccessorImpl;

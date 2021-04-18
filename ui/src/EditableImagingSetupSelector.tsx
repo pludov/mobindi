@@ -6,6 +6,7 @@ import * as Store from "./Store";
 import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as ImageSetupSelectorItem} from './ImagingSetupSelector';
 import PromiseSelector, {Props as PromiseSelectorProps} from './PromiseSelector';
 import ImagingSetupEditor from './ImagingSetupEditor';
+import { BackendAccessor } from './utils/BackendAccessor';
 
 type Props = ImagingSetupSelectorProps;
 type State = {
@@ -31,7 +32,7 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
 
     startEdit = async ()=> {
 
-        const current = this.props.getValue(Store.getStore().getState(), this.props);
+        const current = this.props.accessor.fromStore(Store.getStore().getState());
         if (current !== null) {
             this.setState({editingUuid: current});
         }
@@ -46,6 +47,11 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
 
     setCurrentEditing = async (uid: string)=> {
         this.setState({editingUuid: uid});
+    }
+
+    currentImagingSetupAccessor: Store.Accessor<string|null> = {
+        fromStore: this.getCurrentEditing,
+        send: this.setCurrentEditing,
     }
 
     closeEdit = ()=>{
@@ -66,7 +72,7 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
                     ?
                         <div className="Modal">
                             <div className="ModalContent">
-                                <p>Imaging setup: <ImagingSetupSelector getValue={()=>editingUuid} setValue={this.setCurrentEditing}/></p>
+                                <p>Imaging setup: <ImagingSetupSelector accessor={this.currentImagingSetupAccessor}/></p>
 
                                 <ImagingSetupEditor
                                     imageSetupUid={editingUuid}

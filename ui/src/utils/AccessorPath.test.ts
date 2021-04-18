@@ -1,6 +1,6 @@
 import { expect, assert } from 'chai';
 
-import * as Accessor from './Accessor';
+import * as AccessPath from './AccessPath';
 
 type Child = {
     c1: number;
@@ -14,25 +14,25 @@ type Root = {
     d: Child|null;
 }
 
-describe("Accessor from Proxy", () => {
+describe("AccessPath from Proxy", () => {
 
     it('get path for simplest case', () => {
-        const accessor = Accessor.For((r:Root)=>r.a);
+        const accessor = AccessPath.For((r:Root)=>r.a);
         assert.deepEqual((accessor as any).path, ["a"], "path");
     });
 
     it('get multiple step path', () => {
-        const accessor = Accessor.For((r:Root)=>r.d!.c1);
+        const accessor = AccessPath.For((r:Root)=>r.d!.c1);
         assert.deepEqual((accessor as any).path, ["d", "c1"], "path");
     });
 
     it('get array access path', () => {
-        const accessor = Accessor.For((r:Root)=>r.c[5].c1);
+        const accessor = AccessPath.For((r:Root)=>r.c[5].c1);
         assert.deepEqual((accessor as any).path, ["c", "5", "c1"], "path");
     });
 
     it('returns data', () => {
-        const accessor = Accessor.For((r:Root)=>r.a);
+        const accessor = AccessPath.For((r:Root)=>r.a);
 
         let data: Root = {a: {c1: 5}, b: "toto", c:[], d: null};
 
@@ -41,7 +41,7 @@ describe("Accessor from Proxy", () => {
     });
 
     it('stop on missing prop', () => {
-        const accessor = Accessor.For((r:Root)=>r.c[2].c1);
+        const accessor = AccessPath.For((r:Root)=>r.c[2].c1);
 
         let data: Root = {a: {c1: 5}, b: "toto", c:[], d: null};
 
@@ -50,7 +50,7 @@ describe("Accessor from Proxy", () => {
     });
 
     it("does not return object properties", () => {
-        const accessor = Accessor.For((r:any)=>r.__proto__);
+        const accessor = AccessPath.For((r:any)=>r.__proto__);
 
         let data: Root = {a: {c1: 5}, b: "toto", c:[], d: null};
 

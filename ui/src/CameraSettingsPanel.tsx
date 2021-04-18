@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createSelector, defaultMemoize } from 'reselect'
 
 import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
@@ -11,6 +12,7 @@ import DeviceSettingsBton from './DeviceSettingsBton';
 import './CameraView.css'
 import ImagingSetupSelector from './ImagingSetupSelector';
 import CameraViewDevicePanel from './CameraViewDevicePanel';
+import CameraDeviceSettingsBackendAccessor from './CameraDeviceSettingBackendAccessor';
 
 const logger = Log.logger(__filename);
 
@@ -30,26 +32,15 @@ class CameraSettingsPanel extends React.PureComponent<Props> {
         super(props);
     }
 
-    private settingSetter = (propName:string):((v:any)=>Promise<void>)=>{
-        return async (v:any)=> {
-            await BackendRequest.RootInvoker("camera")("setShootParam")(
-                CancellationToken.CONTINUE,
-                {
-                    key: propName as any,
-                    value: v
-                }
-            );
-        }
-    }
+    cameraSettingsAccessor = defaultMemoize((uid:string|null)=>new CameraDeviceSettingsBackendAccessor(uid));
+
 
     render() {
         return (this.props.device !== null ?
             <CameraViewDevicePanel title="Cam" deviceId={this.props.device}>
                 <CameraSettingsView
-                    current={this.props.device}
-                    activePath={"unused - remove me"}
-                    settingsPath={"$.backend.camera.configuration.deviceSettings"}
-                    setValue={this.settingSetter}
+                    imagingSetup={this.props.imagingSetup}
+                    backendAccessor={this.cameraSettingsAccessor(this.props.imagingSetup)}
                 />
 
                 <DeviceConnectBton deviceId={this.props.device}/>

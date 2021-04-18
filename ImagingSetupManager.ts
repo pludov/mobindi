@@ -66,11 +66,26 @@ export default class ImagingSetupManager
         this.currentStatus = this.appStateManager.getTarget().imagingSetup;
         this.context = context;
 
-        new ConfigStore(appStateManager, 'imagingSetup', ['imagingSetup', 'configuration'], {
+        new ConfigStore<ImagingSetupStatus["configuration"]>(appStateManager, 'imagingSetup', ['imagingSetup', 'configuration'], {
+            currentImagingSetup: null,
             byuuid: {}
-
         }, {
+            currentImagingSetup: null,
             byuuid: {}
+        }, (c)=>{
+            for(const uuid of Object.keys(c.byuuid)) {
+                const imagingSetup = c.byuuid[uuid];
+                // Ensure compatibility
+                if (!imagingSetup.cameraSettings) {
+                    imagingSetup.cameraSettings = this.defaultCameraSettings();
+                }
+
+                if (!imagingSetup.focuserSettings) {
+                    imagingSetup.focuserSettings = this.defaultFocuserSettings();
+                }
+
+            }
+            return c;
         });
 
         // Update configuration/dyn states
@@ -225,6 +240,14 @@ export default class ImagingSetupManager
         imagingSetup.name = payload.name;
     }
 
+    updateCurrentSettings= async (ct: CancellationToken, payload: {imagingSetupUuid: string, diff: any}) => {
+        const imagingSetup = this.getByUuid(payload.imagingSetupUuid);
+
+        const newImagingSetup = JsonProxy.applyDiff(imagingSetup, payload.diff);
+        // FIXME: do the checking !
+        this.currentStatus.configuration.byuuid[payload.imagingSetupUuid] = newImagingSetup;
+    }
+
     getImageSetups() {
         const ret = [];
         const byuuid = this.currentStatus.configuration.byuuid;
@@ -253,6 +276,23 @@ export default class ImagingSetupManager
         return name + suffix;
     }
 
+    defaultFocuserSettings() {
+        return {
+            range: 1000,
+            steps: 5,
+            backlash: 200,
+            lowestFirst: false,
+            targetCurrentPos: true,
+            targetPos: 10000
+        }
+    }
+
+    defaultCameraSettings() {
+        return {
+            exposure: 1.0
+        }
+    }
+
     buildDefaultImageSetup(cameraDevice: string):ImagingSetup {
         return {
             name: this.dedupName(cameraDevice),
@@ -260,14 +300,8 @@ export default class ImagingSetupManager
             availableFilters: [],
             filterWheelDevice: null,
             focuserDevice: null,
-            focuserSettings: {
-                range: 1000,
-                steps: 5,
-                backlash: 200,
-                lowestFirst: false,
-                targetCurrentPos: true,
-                targetPos: 10000
-            }
+            focuserSettings: this.defaultFocuserSettings(),
+            cameraSettings: this.defaultCameraSettings(),
         }
     }
 
@@ -301,6 +335,7 @@ export default class ImagingSetupManager
             setCurrentImagingSetup: this.setCurrentImagingSetup,
             setDevice: this.setDevice,
             setName: this.setName,
+            updateCurrentSettings: this.updateCurrentSettings,
         }
     }
 

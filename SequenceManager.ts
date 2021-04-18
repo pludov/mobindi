@@ -588,7 +588,7 @@ export default class SequenceManager
                 logger.info('Starting exposure', {sequence, uuid, settings});
                 let shootResult;
                 try {
-                    shootResult = await this.context.camera.doShoot(ct, cameraDevice(), ()=>(settings));
+                    shootResult = await this.context.camera.doShoot(ct, sequence.imagingSetup, ()=>(settings));
                 } finally {
                     unregisterPhd();
                 }

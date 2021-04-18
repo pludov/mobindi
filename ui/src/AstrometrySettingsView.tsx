@@ -8,10 +8,10 @@ import Int from './primitives/Int';
 import Float from './primitives/Float';
 import Conditional from './primitives/Conditional';
 import PromiseSelector from './PromiseSelector';
-import BackendAccessor from './utils/BackendAccessor';
+import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
-import * as Accessor from './utils/Accessor';
+import * as AccessPath from './utils/AccessPath';
 import * as BackendRequest from "./BackendRequest";
 import AstrometryBackendAccessor from "./AstrometryBackendAccessor";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
@@ -34,11 +34,11 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
     static narrowedFieldPercentHelp = Help.key("Max field variation", "Tolerance in % from the previous field estimation. This is used on \"narrow\" astrometry search (after successfull one, if no important moves occured in between");
     static useMountPositionHelp = Help.key("Use mount position", "Use the mount coordinates to fasten astrometry search. The first astrometry will use \"wide\" settings, then use narrower settings, unless the mount is moved substantially");
 
-    accessor: BackendAccessor<AstrometrySettings>;
+    accessor: RecursiveBackendAccessor<AstrometrySettings>;
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor(Accessor.For((e)=>e.astrometry!.settings));
+        this.accessor = new AstrometryBackendAccessor();
     }
 
     private setScope = async(deviceId:string)=> {
@@ -67,27 +67,27 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                 <div>
                     <div>
                         Initial field range (°):
-                        <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialFieldMin))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                        <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMin))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
                         to
-                        <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialFieldMax))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                        <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMax))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
                     </div>
 
                     <div>
                         Max field variation (%):
-                        <Int accessor={this.accessor.child(Accessor.For((e)=>e.narrowedFieldPercent))} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
+                        <Int accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedFieldPercent))} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
                     </div>
                     <div>
                         <div>
-                            Use mount position: <Bool accessor={this.accessor.child(Accessor.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
+                            Use mount position: <Bool accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
                         </div>
-                        <Conditional accessor={this.accessor.child(Accessor.For((e)=>e.useMountPosition))} condition={(e:boolean)=>(!e)}>
+                        <Conditional accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} condition={(e:boolean)=>(!e)}>
                         <div>
                             Initial search radius (°):
-                            <Float accessor={this.accessor.child(Accessor.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
+                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
                         </div>
                         <div>
                             Synced search radius (°):
-                            <Float accessor={this.accessor.child(Accessor.For((e)=>e.narrowedSearchRadius))} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
+                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedSearchRadius))} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
                         </div>
                         </Conditional>
                     </div>

@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as Help from './Help';
 import BaseApp from './BaseApp';
 import CameraView from './CameraView';
+import * as CameraStore from './CameraStore';
 
 class CameraApp extends BaseApp {
     static help = Help.key("Camera", "Live control of cameras (settings, exposure)");
@@ -12,7 +13,7 @@ class CameraApp extends BaseApp {
 
     getUi() {
         return (<div className="Page" key={this.appId}>
-                    <CameraView />
+                    <CameraView imagingSetupIdAccessor={CameraStore.currentImagingSetupAccessor()}/>
                 </div>);
     }
 }

@@ -1,16 +1,16 @@
 import * as React from 'react';
-import * as Accessor from './utils/Accessor';
+import * as AccessPath from './utils/AccessPath';
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Text from './primitives/Text';
 import Conditional from './primitives/Conditional';
 import './CameraView.css'
 import * as Help from './Help';
-import BackendAccessor from './utils/BackendAccessor';
+import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import { FocuserSettings } from '@bo/BackOfficeStatus';
 
 type Props = {
-    accessor: BackendAccessor<FocuserSettings>;
+    accessor: RecursiveBackendAccessor<FocuserSettings>;
 }
 
 export default class FocuserSettingsView extends React.PureComponent<Props> {
@@ -28,24 +28,24 @@ export default class FocuserSettingsView extends React.PureComponent<Props> {
     render() {
         // Range size
         return <div>
-            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.steps))} min={3} helpKey={FocuserSettingsView.stepsHelp}>
+            <Int accessor={this.props.accessor.child(AccessPath.For((e)=>e.steps))} min={3} helpKey={FocuserSettingsView.stepsHelp}>
                 Steps#
             </Int>
-            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.range))} min={10} helpKey={FocuserSettingsView.rangeHelp}>
+            <Int accessor={this.props.accessor.child(AccessPath.For((e)=>e.range))} min={10} helpKey={FocuserSettingsView.rangeHelp}>
                 Range
             </Int>
-            <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.backlash))} min={0} helpKey={FocuserSettingsView.backlashHelp}>
+            <Int accessor={this.props.accessor.child(AccessPath.For((e)=>e.backlash))} min={0} helpKey={FocuserSettingsView.backlashHelp}>
                 Backlash
             </Int>
 
-            <Bool accessor={this.props.accessor.child(Accessor.For((e)=>e.lowestFirst))} helpKey={FocuserSettingsView.lowestFirstHelp}>
+            <Bool accessor={this.props.accessor.child(AccessPath.For((e)=>e.lowestFirst))} helpKey={FocuserSettingsView.lowestFirstHelp}>
                 Lowest first
             </Bool>
-            <Bool accessor={this.props.accessor.child(Accessor.For((e)=>e.targetCurrentPos))} helpKey={FocuserSettingsView.targetCurrentPosHelp}>
+            <Bool accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetCurrentPos))} helpKey={FocuserSettingsView.targetCurrentPosHelp}>
                 Start from current pos
             </Bool>
-            <Conditional accessor={this.props.accessor.child(Accessor.For((e)=>e.targetCurrentPos))}>
-                <Int accessor={this.props.accessor.child(Accessor.For((e)=>e.targetPos))} min={0} helpKey={FocuserSettingsView.targetPosHelp}>
+            <Conditional accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetCurrentPos))}>
+                <Int accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetPos))} min={0} helpKey={FocuserSettingsView.targetPosHelp}>
                     Target Pos
                 </Int>
             </Conditional>

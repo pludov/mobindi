@@ -4,9 +4,7 @@ import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
 import * as FilterWheelStore from "./FilterWheelStore";
 import * as Store from "./Store";
-import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
-import CancellationToken from 'cancellationtoken';
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'

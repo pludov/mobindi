@@ -85,7 +85,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
 
         context.imagingSetupManager.createPreferredImagingSelector({
             currentPath: [ 'focuser', 'currentImagingSetup' ],
-            preferedPath: [ 'focuser', 'preferedImagingSetup' ],
+            preferedPath: [ 'focuser', 'config', 'preferedImagingSetup' ],
             read: ()=> ({
                 prefered: this.currentStatus.config.preferedImagingSetup,
                 current: this.currentStatus.currentImagingSetup,
@@ -174,7 +174,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     // Adjust the focus
     private async doFocus(ct: CancellationToken):Promise<number> {
         const config = this.getCurrentConfiguration();
-        this.currentStatus.current.imagingSetup = config.imagingSetupInstance.uid;
+        const imagingSetup:string = config.imagingSetupInstance.uid!;
+
+        this.currentStatus.current.imagingSetup = imagingSetup;
 
         const amplitude = config.settings.range;
         const stepCount = config.settings.steps;
@@ -289,7 +291,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         while(!done(currentStep)) {
             
             logger.info('shoot start');
-            const shootResult = await this.camera.doShoot(ct, config.camera,
+            const shootResult = await this.camera.doShoot(ct, imagingSetup,
                         (settings)=>({
                             ...settings,
                             prefix: 'focus_ISO8601_step_' + Math.floor(currentStep)
@@ -358,8 +360,9 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         return bestPos!;
     }
 
-    setCurrentImagingSetup=async(ct:CancellationToken, message: {imagingSetup: string})=> {
-        if (!this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
+    // FIXME: drop - prefere ImagingSetup.updateCurrentSettings
+    setCurrentImagingSetup=async(ct:CancellationToken, message: {imagingSetup: string|null})=> {
+        if (message.imagingSetup !== null && !this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
             throw new Error("invalid imaging setup");
         }
         this.currentStatus.currentImagingSetup = message.imagingSetup;

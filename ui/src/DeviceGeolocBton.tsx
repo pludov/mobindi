@@ -7,7 +7,6 @@ import { atPath } from './shared/JsonPath';
 import CancellationToken from 'cancellationtoken';
 import * as GeolocStore from "./GeolocStore";
 import * as Utils from './Utils';
-import BackendAccessor from './utils/BackendAccessor';
 
 const logger = Log.logger(__filename);
 

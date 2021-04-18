@@ -8,6 +8,7 @@ export type ImagingSetup = {
     filterWheelDevice: null|string;
 
     availableFilters: string[];
+    cameraSettings: CameraDeviceSettings;
     focuserSettings: FocuserSettings;
 }
 
@@ -18,7 +19,6 @@ export type CameraDeviceSettings = {
     exposure: number;
     iso?: null|string;
     path?: string;
-    preferedFocuserDevice?: null|string;
 }
 
 export type CameraDeviceDynState = {
@@ -201,8 +201,7 @@ export type CameraConfiguration = {
     defaultImagePrefix?: string;
     fakeImages?: string[];
     fakeImagePath?: string;
-    preferedDevice: string | null;
-    deviceSettings : {[id: string] : CameraDeviceSettings};
+    preferedImagingSetup: string | null;
 };
 
 export type StreamSize = {
@@ -237,8 +236,7 @@ export type CameraShoot = {
 
 export type CameraStatus = {
     status: string;
-    // TODO : remove
-    selectedDevice: string | null;
+    currentImagingSetup: string|null;
     availableDevices: string [];
     currentStreams: {[deviceId: string]: CameraStream};
     currentShoots: {[deviceId:string]:CameraShoot};

@@ -1,24 +1,10 @@
 import * as React from 'react';
-import { connect } from 'react-redux';
 
-import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 
 import * as IndiUtils from './IndiUtils';
-import CameraSettingsView from './CameraSettingsView';
-import DeviceConnectBton from './DeviceConnectBton';
-import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
-import ShootButton from "./ShootButton";
-import CancellationToken from 'cancellationtoken';
-import { noErr } from './Utils';
-import { ShootResult } from '@bo/BackOfficeAPI';
-import CameraSelector from "./CameraSelector";
-import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
-import { StreamSize } from '@bo/BackOfficeStatus';
-import EditableImagingSetupSelector from './EditableImagingSetupSelector';
-import ImagingSetupSelector from './ImagingSetupSelector';
 
 type InputProps = {
     title: string;
