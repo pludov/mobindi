@@ -84,10 +84,7 @@ export function isFilterWheelBusy(state: Store.Content, filterWheelId: string)
 }
 
 export function hasFilterWheel(state: Store.Content): boolean {
-    const fw = state.backend.filterWheel;
-    if (!fw) {
-        return false;
-    }
-    return !!fw.availableDevices.length;
+    const fw = state.backend?.indiManager?.availableFilterWheels;
+    return !!fw && !!fw.length;
 }
 

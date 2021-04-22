@@ -45,9 +45,9 @@ function getAvailableDevices(rawAvailable:(store: Store.Content)=>string[]|undef
     }
 }
 
-const CameraSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.camera?.availableDevices))(PromiseSelector);
-const FilterWheelSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.filterWheel?.availableDevices))(PromiseSelector);
-const FocuserSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.focuser?.availableFocusers))(PromiseSelector);
+const CameraSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.indiManager?.availableCameras))(PromiseSelector);
+const FilterWheelSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.indiManager?.availableFilterWheels))(PromiseSelector);
+const FocuserSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.indiManager?.availableFocusers))(PromiseSelector);
 
 type InputProps = {
     imageSetupUid: string;

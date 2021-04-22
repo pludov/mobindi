@@ -3,6 +3,7 @@ import CancellationToken from 'cancellationtoken';
 import React, { Component, PureComponent} from 'react';
 
 import * as Help from "./Help";
+import * as Store from './Store';
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Float from './primitives/Float';
@@ -16,9 +17,9 @@ import * as BackendRequest from "./BackendRequest";
 import * as AstrometryStore from "./AstrometryStore";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
 
-const ScopeSelector = connect((store:any)=> ({
-    active: (store.backend && store.backend.astrometry) ? store.backend.astrometry.selectedScope : undefined,
-    availables: (store.backend && store.backend.astrometry) ? store.backend.astrometry.availableScopes : []
+const ScopeSelector = connect((store:Store.Content)=> ({
+    active: store.backend?.astrometry?.selectedScope,
+    availables: store.backend?.indiManager?.availableScopes || []
 }))(PromiseSelector);
 
 

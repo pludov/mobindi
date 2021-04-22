@@ -90,7 +90,7 @@ export default class ImagingSetupManager
 
         // Update configuration/dyn states
         this.appStateManager.addSynchronizer(
-            [ 'camera', 'availableDevices' ],
+            [ 'indiManager', 'availableCameras' ],
             this.initDefaultImageSetups,
             true);
         
@@ -313,7 +313,7 @@ export default class ImagingSetupManager
             }
         }
 
-        const devices = this.appStateManager.getTarget().camera.availableDevices;
+        const devices = this.indiManager.currentStatus.availableCameras;
         for(const camera of devices) {
             if (!Obj.hasKey(knownCameras, camera)) {
                 const imageSetup = this.buildDefaultImageSetup(camera);

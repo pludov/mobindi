@@ -4,7 +4,7 @@ import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './JsonProxy';
-import { DriverInterface, Vector } from './Indi';
+import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
 import {IdGenerator} from "./IdGenerator";
@@ -50,7 +50,6 @@ export default class Camera
         this.appStateManager.getTarget().camera = {
             status: "idle",
             currentImagingSetup: null,
-            availableDevices: [],
 
             currentStreams: {},
 
@@ -106,11 +105,6 @@ export default class Camera
             defaultImagePrefix: 'IMAGE_XXX'
         });
 
-        // Update available camera
-        context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
-            this.currentStatus.availableDevices = devs;
-        }, undefined, DriverInterface.CCD);
-
         context.imagingSetupManager.createPreferredImagingSelector({
             currentPath: [ 'camera', 'currentImagingSetup' ],
             preferedPath: [ 'camera', 'configuration', 'preferedImagingSetup' ],
@@ -129,10 +123,10 @@ export default class Camera
         });
         // Update configuration/dyn states
         this.appStateManager.addSynchronizer(
-            [ 'camera', 'availableDevices' ],
+            [ 'indiManager', 'availableCameras' ],
             ()=> {
                 const dynStateRoot = this.currentStatus.dynStateByDevices;
-                for(const o of this.currentStatus.availableDevices) {
+                for(const o of this.indiManager.currentStatus.availableCameras) {
                     if (!Obj.hasKey(dynStateRoot, o)) {
                         dynStateRoot[o] = {}
                     }
@@ -152,7 +146,7 @@ export default class Camera
                         ]
                     ],
                     [
-                        'camera', 'availableDevices'
+                        'indiManager', 'availableCameras'
                     ]
                 ]
             ], this.updateRunningShoots.bind(this), true);
@@ -161,7 +155,7 @@ export default class Camera
             [
                 [
                     [   'indiManager', 'deviceTree', null, 'CCD_FILE_PATH', '$rev' ],
-                    [   'camera', 'availableDevices']
+                    [   'indiManager', 'availableCameras']
                 ]
             ], this.updateDoneImages.bind(this), true
         );
@@ -180,7 +174,7 @@ export default class Camera
         var indiManager = this.appStateManager.getTarget().indiManager;
         // Ensure that the CCD_FILE_PATH property is set for all devices
         var found:{[deviceId:string]:string} = {};
-        for(var device of this.currentStatus.availableDevices)
+        for(var device of indiManager.availableCameras)
         {
             
             var rev, value;
@@ -383,7 +377,7 @@ export default class Camera
         if (device === null) {
             throw new Error("No camera configured");
         }
-        if (this.currentStatus.availableDevices.indexOf(device) === -1) {
+        if (this.indiManager.currentStatus.availableCameras.indexOf(device) === -1) {
             throw new Error("Camera not found");
         }
 

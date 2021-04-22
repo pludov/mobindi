@@ -18,7 +18,7 @@ const CameraSelector = connect((store:Store.Content, ownProps:InputProps)=> {
     return ({
         active: active,
         helpKey: cameraSelectorHelp,
-        availables: store.backend.camera?.availableDevices || emptyArray
+        availables: store.backend.indiManager?.availableCameras || emptyArray
     })
 })(PromiseSelector);
 

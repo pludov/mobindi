@@ -9,7 +9,6 @@ import './CameraView.css'
 type InputProps = {
     title: string;
     deviceId: string|null;
-    // TODO : add a device kind or a property path (like camera.availableDevices, ...)
 }
 
 type MappedProps = {
