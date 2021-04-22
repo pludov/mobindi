@@ -144,6 +144,7 @@ export type AstrometryWizards = {
 }
 
 export type AstrometryAPI = AstrometryWizards & {
+    setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     updateCurrentSettings: (payload: {diff: any})=>void;
     compute: (payload: AstrometryComputeRequest)=>ProcessorTypes.AstrometryResult;
     cancel: (payload: {})=>void;

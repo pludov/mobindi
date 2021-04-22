@@ -1,8 +1,7 @@
 import React from 'react';
 import '../../AstrometryView.css';
 import * as Store from "../../Store";
-import * as CameraStore from "../../CameraStore";
-import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
+import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../utils/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
@@ -60,7 +59,7 @@ class Adjust extends React.PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor().child(AccessPath.For((e)=>e.polarAlign));
+        this.accessor = AstrometryStore.astrometrySettingsAccessor().child(AccessPath.For((e)=>e.polarAlign));
     }
 
     setNextFrame = (e:React.ChangeEvent<HTMLSelectElement>)=> {
@@ -143,7 +142,7 @@ class Adjust extends React.PureComponent<Props> {
 
 
             <span style={{visibility: !!this.props.adjusting ? "hidden" : "unset"}}>
-                <ImageControl imagingSetupIdAccessor={CameraStore.currentImagingSetupAccessor()}/>
+                <ImageControl imagingSetupIdAccessor={AstrometryStore.currentImagingSetupAccessor()}/>
             </span>
         </>
     }

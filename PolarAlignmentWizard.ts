@@ -393,14 +393,13 @@ export default class PolarAlignmentWizard extends Wizard {
         let photoTime = Date.now();
         this.wizardStatus.polarAlignment!.shootRunning = true;
         try {
-            const cameraId = this.astrometry.cameraId();
-            if (cameraId === null) {
-                throw new Error("No camera in current setup");
+            const imagingSetupId = this.astrometry.currentStatus.currentImagingSetup;
+            if (imagingSetupId === null) {
+                throw new Error("No imaging setup selected");
             }
             const photo = await this.astrometry.camera.doShoot(
                             token,
-                            // FIXME: imagingSetup here
-                            cameraId,
+                            imagingSetupId,
                             (s)=> ({
                                 ...s,
                                 type: 'LIGHT',
@@ -515,9 +514,9 @@ export default class PolarAlignmentWizard extends Wizard {
                     try {
                         while(true) {
                             const geoCoords = this.readGeoCoords();
-                            const cameraId = this.astrometry.cameraId();
-                            if (!cameraId) {
-                                throw new Error("No camera selected");
+                            const imagingSetupId = this.astrometry.currentStatus.currentImagingSetup;
+                            if (!imagingSetupId) {
+                                throw new Error("No imaging setup selected");
                             }
                             
                             if (status === undefined) {

@@ -30,6 +30,7 @@ const defaultSettings = ():AstrometrySettings=> ({
         minAltitude: 10,
     },
     preferedScope: null,
+    preferedImagingSetup: null,
 });
 
 // Astrometry requires: a camera, a mount
@@ -41,14 +42,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     get imageProcessor() { return this.context.imageProcessor };
     get indiManager() { return this.context.indiManager };
     get camera() { return this.context.camera };
-
-    cameraId() {
-        let id = this.context.imagingSetupManager.getCurrent()?.cameraDevice;
-        if (id === undefined) {
-            id = null;
-        }
-        return id;
-     };
 
     runningWizard: null|Wizard = null;
 
@@ -71,6 +64,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             narrowedField: null,
             useNarrowedSearchRadius: false,
             runningWizard: null,
+            currentImagingSetup: null,
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
@@ -122,6 +116,23 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
             }
         });
+
+        context.imagingSetupManager.createPreferredImagingSelector({
+            currentPath: [ 'astrometry', 'currentImagingSetup' ],
+            preferedPath: [ 'astrometry', 'settings', 'preferedImagingSetup' ],
+            read: ()=> ({
+                prefered: this.currentStatus.settings.preferedImagingSetup,
+                current: this.currentStatus.currentImagingSetup,
+            }),
+            set: (s:{prefered?: string|null|undefined, current?: string|null|undefined})=>{
+                if (s.prefered !== undefined) {
+                    this.currentStatus.settings.preferedImagingSetup = s.prefered;
+                }
+                if (s.current !== undefined) {
+                    this.currentStatus.currentImagingSetup = s.current;
+                }
+            }
+        });
     }
 
     private readonly syncScopeStatus=()=>
@@ -150,6 +161,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryAPI> {
         return {
             updateCurrentSettings: this.updateCurrentSettings,
+            setCurrentImagingSetup: this.setCurrentImagingSetup,
             compute: this.wizardProtectedApi(this.compute),
             cancel: this.wizardProtectedApi(this.cancel),
             setScope: this.setScope,
@@ -160,6 +172,13 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             wizardInterrupt: this.wizardInterrupt,
             wizardQuit: this.wizardQuit,
         }
+    }
+
+    setCurrentImagingSetup=async (ct: CancellationToken, message:{imagingSetup:null|string})=>{
+        if (message.imagingSetup !== null && !this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
+            throw new Error("invalid imaging setup");
+        }
+        this.currentStatus.currentImagingSetup = message.imagingSetup;
     }
 
     updateCurrentSettings = async (ct: CancellationToken, payload: {diff: any}) => {

@@ -31,7 +31,7 @@ class ImageControl extends React.PureComponent<Props> {
 
     render() {
         return (<Panel guid="astrom:polaralign:camera">
-            <span>Camera settings</span>
+            <span>Imaging settings</span>
 
 
             <div>

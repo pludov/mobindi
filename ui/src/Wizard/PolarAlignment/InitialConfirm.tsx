@@ -8,7 +8,7 @@ import Panel from "../../Panel";
 import Int from '../../primitives/Int';
 import Float from '../../primitives/Float';
 import IndiSelectorEditor from '../../IndiSelectorEditor';
-import AstrometryBackendAccessor from "../../AstrometryBackendAccessor";
+import * as AstrometryStore from "../../AstrometryStore";
 import { RecursiveBackendAccessor } from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
 import ImagingSetupSelector from '../../ImagingSetupSelector';
@@ -32,7 +32,7 @@ class InitialConfirm extends React.PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor().child(AccessPath.For((e)=>e.polarAlign));
+        this.accessor = AstrometryStore.astrometrySettingsAccessor().child(AccessPath.For((e)=>e.polarAlign));
     }
 
     setSlewRate = async (s:string)=> {
@@ -46,7 +46,7 @@ class InitialConfirm extends React.PureComponent<Props> {
             Please point the scope to the place of the sky where you’ll take image, then click next to proceed.
             </div>
 
-            <ImageControl imagingSetupIdAccessor={CameraStore.currentImagingSetupAccessor()}/>
+            <ImageControl imagingSetupIdAccessor={AstrometryStore.currentImagingSetupAccessor()}/>
 
             <Panel guid="astrom:polaralign:movements">
                 <span>Scope moves</span>
