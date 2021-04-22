@@ -13,7 +13,7 @@ import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
 import * as AccessPath from './utils/AccessPath';
 import * as BackendRequest from "./BackendRequest";
-import AstrometryBackendAccessor from "./AstrometryBackendAccessor";
+import * as AstrometryStore from "./AstrometryStore";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
 
 const ScopeSelector = connect((store:any)=> ({
@@ -38,7 +38,7 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
     
     constructor(props:Props) {
         super(props);
-        this.accessor = new AstrometryBackendAccessor();
+        this.accessor = AstrometryStore.astrometrySettingsAccessor();
     }
 
     private setScope = async(deviceId:string)=> {

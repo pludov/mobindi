@@ -344,6 +344,7 @@ export type AstrometrySettings = {
 
     polarAlign: PolarAlignSettings;
     preferedScope: string|null;
+    preferedImagingSetup: string|null;
 }
 
 export type PolarAlignSettings = {
@@ -431,6 +432,7 @@ export type AstrometryStatus = {
     useNarrowedSearchRadius: boolean;
 
     runningWizard: null|AstrometryWizard;
+    currentImagingSetup: string|null;
 }
 
 export type ProcessConfiguration = {
