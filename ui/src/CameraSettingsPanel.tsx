@@ -1,18 +1,16 @@
 import * as React from 'react';
-import { createSelector, defaultMemoize } from 'reselect'
+import { defaultMemoize } from 'reselect'
 
 import Log from './shared/Log';
-import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
+import * as CameraStore from "./CameraStore";
 import CameraSettingsView from './CameraSettingsView';
 import DeviceConnectBton from './DeviceConnectBton';
-import CancellationToken from 'cancellationtoken';
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
 import ImagingSetupSelector from './ImagingSetupSelector';
 import CameraViewDevicePanel from './CameraViewDevicePanel';
-import CameraDeviceSettingsBackendAccessor from './CameraDeviceSettingBackendAccessor';
 
 const logger = Log.logger(__filename);
 
@@ -32,8 +30,7 @@ class CameraSettingsPanel extends React.PureComponent<Props> {
         super(props);
     }
 
-    cameraSettingsAccessor = defaultMemoize((uid:string|null)=>new CameraDeviceSettingsBackendAccessor(uid));
-
+    private readonly cameraSettingsAccessor = defaultMemoize(CameraStore.cameraDeviceSettingsAccessor);
 
     render() {
         return (this.props.device !== null ?

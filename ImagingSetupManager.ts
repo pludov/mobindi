@@ -57,7 +57,6 @@ export default class ImagingSetupManager
         this.appStateManager.getTarget().imagingSetup = {
             availableImagingSetups: [],
             configuration: {
-                currentImagingSetup: null,
                 byuuid: {}
             }
         };
@@ -67,10 +66,8 @@ export default class ImagingSetupManager
         this.context = context;
 
         new ConfigStore<ImagingSetupStatus["configuration"]>(appStateManager, 'imagingSetup', ['imagingSetup', 'configuration'], {
-            currentImagingSetup: null,
             byuuid: {}
         }, {
-            currentImagingSetup: null,
             byuuid: {}
         }, (c)=>{
             for(const uuid of Object.keys(c.byuuid)) {
@@ -98,13 +95,7 @@ export default class ImagingSetupManager
             ['imagingSetup', 'configuration', 'byuuid'],
             this.updateAvailableImagingSetups,
             true);
-        
-        // FIXME: move that away. Multiple app could have their own imaging setup i guess
-        this.appStateManager.addSynchronizer(
-            ['imagingSetup', 'availableImagingSetups'],
-            this.updateCurrentImagingSetup,
-            true);
-         
+
         // TODO: Add synchronizer for available filters per filterwheel (so report filterwheel when set)
     }
 
@@ -162,15 +153,6 @@ export default class ImagingSetupManager
         this.currentStatus.availableImagingSetups = Object.keys(this.currentStatus.configuration.byuuid).sort();
     }
 
-    private readonly updateCurrentImagingSetup=()=>{
-        if (this.currentStatus.configuration.currentImagingSetup === null) {
-            return;
-        }
-        if (!Obj.hasKey(this.currentStatus.configuration.byuuid, this.currentStatus.configuration.currentImagingSetup)) {
-            this.currentStatus.configuration.currentImagingSetup = null;
-        }
-    }
-
     updateFilters(imagingSetupUuid: string, reset?:boolean)
     {
         const setup = this.getByUuid(imagingSetupUuid);
@@ -206,13 +188,6 @@ export default class ImagingSetupManager
             throw new Error("Invalid imaging setup uuid");
         }
         return byuuid[uuid];
-    }
-
-    setCurrentImagingSetup = async(ct: CancellationToken, payload: {imagingSetupUuid: string|null}) => {
-        if (payload.imagingSetupUuid !== null) {
-            this.getByUuid(payload.imagingSetupUuid);
-        }
-        this.currentStatus.configuration.currentImagingSetup = payload.imagingSetupUuid;
     }
 
     setDevice = async (ct:CancellationToken, payload: {imagingSetupUuid: string, device: "cameraDevice"|"focuserDevice"|"filterWheelDevice", value: string|null})=> {
@@ -322,17 +297,8 @@ export default class ImagingSetupManager
         }
     }
 
-    getCurrent() {
-        const currentId = this.currentStatus.configuration.currentImagingSetup;
-        if (currentId === null) {
-            return undefined;
-        }
-        return this.getByUuid(currentId);
-    }
-
     getAPI=()=>{
         return {
-            setCurrentImagingSetup: this.setCurrentImagingSetup,
             setDevice: this.setDevice,
             setName: this.setName,
             updateCurrentSettings: this.updateCurrentSettings,

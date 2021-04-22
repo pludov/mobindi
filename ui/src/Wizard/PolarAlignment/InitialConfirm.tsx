@@ -1,7 +1,6 @@
 import React from 'react';
 import '../../AstrometryView.css';
 import * as Store from "../../Store";
-import * as CameraStore from "../../CameraStore";
 import * as Help from "../../Help";
 import * as AccessPath from '../../utils/AccessPath';
 import Panel from "../../Panel";
@@ -11,15 +10,11 @@ import IndiSelectorEditor from '../../IndiSelectorEditor';
 import * as AstrometryStore from "../../AstrometryStore";
 import { RecursiveBackendAccessor } from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
-import ImagingSetupSelector from '../../ImagingSetupSelector';
 import ImageControl from './ImageControl';
 
 type InputProps = {};
 type MappedProps = {
-    imagingSetup: string|null;
     currentScope: string;
-    cameraDevice: string|null;
-    filterWheelDevice: string|null;
 }
 type Props = InputProps & MappedProps;
 
@@ -78,16 +73,8 @@ class InitialConfirm extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
-        const imagingSetup = ImagingSetupSelector.getCurrentImagingSetupUid(store);
-        const imagingSetupInstance = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
-        const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
-        const filterWheelDevice = imagingSetupInstance !== null ? imagingSetupInstance.filterWheelDevice : null;
-
         return {
-            imagingSetup,
             currentScope: store.backend.astrometry?.selectedScope || "",
-            cameraDevice,
-            filterWheelDevice,
         }
     }
 }

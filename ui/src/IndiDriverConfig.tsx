@@ -127,8 +127,6 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         </div>
     }
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
-
-        // FIXME: extends connectableFocuserList with already set configuration
         const result = {
             driver: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.driver || "",
             cameraList: store.backend.indiManager?.availableCameras,

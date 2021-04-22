@@ -1,23 +1,19 @@
 import * as React from 'react';
-import { createSelector, defaultMemoize } from 'reselect'
 
 import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
-import * as CameraStore from "./CameraStore";
 import FitsViewerWithAstrometry from './FitsViewerWithAstrometry';
 import ShootButton from "./ShootButton";
 import CancellationToken from 'cancellationtoken';
 import { ShootResult } from '@bo/BackOfficeAPI';
 
 import './CameraView.css'
-import { CameraDeviceSettings, StreamSize } from '@bo/BackOfficeStatus';
+import { StreamSize } from '@bo/BackOfficeStatus';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import ImagingSetupSelector from './ImagingSetupSelector';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
-import { BackendAccessor } from './utils/BackendAccessor';
-import CameraDeviceSettingsBackendAccessor from './CameraDeviceSettingBackendAccessor';
 
 const logger = Log.logger(__filename);
 

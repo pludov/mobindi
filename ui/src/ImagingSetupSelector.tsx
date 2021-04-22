@@ -54,25 +54,6 @@ const ImagingSetupSelector = connect(()=> {
     }
 }, null, null, {forwardRef: true} as any)(PromiseSelector);
 
-const setCurrentImagingSetup = async(d:string|null)=>{
-    await BackendRequest.RootInvoker("imagingSetupManager")("setCurrentImagingSetup")(
-        CancellationToken.CONTINUE,
-        {
-            imagingSetupUuid: d
-        }
-    );
-};
-
-const getCurrentImagingSetupUid = (store:Store.Content)=>{
-    const ret = store.backend?.imagingSetup?.configuration.currentImagingSetup;
-    return (ret === undefined) ? null : ret;
-};
-
-// FIXME--: move to ImagingSetupStore / or drop
-const getCurrentImagingSetup = (store:Store.Content)=>{
-    return getImagingSetup(store, getCurrentImagingSetupUid(store));
-}
-
 const getImagingSetup = (store:Store.Content, imagingSetup: string|null)=> {
     if (imagingSetup === null) {
         return null;
@@ -89,4 +70,4 @@ const getImagingSetup = (store:Store.Content, imagingSetup: string|null)=> {
     return byuuid[imagingSetup];
 }
 
-export default Object.assign(ImagingSetupSelector, {setCurrentImagingSetup, getImagingSetup, getCurrentImagingSetup, getCurrentImagingSetupUid});
+export default Object.assign(ImagingSetupSelector, {getImagingSetup});

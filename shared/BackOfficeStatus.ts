@@ -514,7 +514,6 @@ export type PhdStatus = PhdGuideStats & {
 export type ImagingSetupStatus = {
     availableImagingSetups: string[];
     configuration: {
-        currentImagingSetup: string|null;
         byuuid: {[uuid:string]:ImagingSetup}
     }
 };
