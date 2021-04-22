@@ -1,16 +1,15 @@
 import * as React from 'react';
-import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
 import { Line } from 'react-chartjs-2';
+import { defaultMemoize } from 'reselect';
 
 import Log from './shared/Log';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as Help from './Help';
 import * as Store from './Store';
+import * as FocuserStore from './FocuserStore';
 import * as IndiManagerStore from './IndiManagerStore';
 import './CameraView.css'
-import * as AccessPath from './utils/AccessPath';
-import { RecursiveBackendAccessor, BackendAccessorImpl, BackendAccessor } from './utils/BackendAccessor';
 import FocuserSettingsView from './FocuserSettingsView';
 import ScrollableText from './ScrollableText';
 import * as BackendRequest from "./BackendRequest";
@@ -21,21 +20,8 @@ import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import ImagingSetupSelector from './ImagingSetupSelector';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
-import { defaultMemoize } from 'reselect';
-import CameraDeviceSettingsBackendAccessor from './CameraDeviceSettingBackendAccessor';
 
 const logger = Log.logger(__filename);
-
-class FocuserBackendAccessor extends BackendAccessorImpl<BackOfficeStatus.FocuserSettings> {
-    // public apply = async (jsonDiff:any):Promise<void>=>{
-    apply = async (jsonDiff:any)=>{
-        logger.debug('Sending changes' , {jsonDiff});
-        await BackendRequest.RootInvoker("focuser")("updateCurrentSettings")(
-            CancellationToken.CONTINUE,
-            {diff: jsonDiff}
-        );
-    }
-}
 
 type FocuserGraphInputProps = {
     focuser: string | null;
@@ -293,6 +279,8 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         );
     };
 
+    private focuserSettingsAccessor = defaultMemoize(FocuserStore.focuserSettingsAccessor);
+
     render() {
         return (
             <div className="Page">
@@ -317,7 +305,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
 
                         {this.props.focuser !== null
-                            ? <FocuserSettingsView accessor={new FocuserBackendAccessor(AccessPath.For((e)=>e.imagingSetup!.configuration.byuuid[this.props.imagingSetup!].focuserSettings))}/>
+                            ? <FocuserSettingsView accessor={this.focuserSettingsAccessor(this.props.imagingSetup!)}/>
                             : null
                         }
                     </Panel>

@@ -716,7 +716,6 @@ export default class Camera
         });
     }
 
-    // FIXME: currentImagingSetup should pass in
     stream = async (ct: CancellationToken, message: {})=>{
         if (this.currentStatus.currentImagingSetup === null) {
             throw new Error("No imaging setup selected");
@@ -727,7 +726,6 @@ export default class Camera
         return await this.doStream(ct, device);
     }
 
-    // FIXME: currentImagingSetup should pass in
     shoot = async (ct: CancellationToken, message:{})=>{
         if (this.currentStatus.currentImagingSetup === null) {
             throw new Error("No imaging setup selected");
@@ -735,7 +733,6 @@ export default class Camera
         return await this.doShoot(ct, this.currentStatus.currentImagingSetup);
     }
 
-    // FIXME: currentImagingSetup should pass in
     abort = async (ct: CancellationToken, message:{})=>{
         if (this.currentStatus.currentImagingSetup === null) {
             throw new Error("No imaging setup selected");

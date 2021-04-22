@@ -97,7 +97,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         return {
             abort: this.abort,
             focus: this.focus,
-            updateCurrentSettings: this.updateCurrentSettings,
             setCurrentImagingSetup: this.setCurrentImagingSetup,
         }
     }
@@ -352,20 +351,11 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         return bestPos!;
     }
 
-    // FIXME: drop - prefere ImagingSetup.updateCurrentSettings
     setCurrentImagingSetup=async(ct:CancellationToken, message: {imagingSetup: string|null})=> {
         if (message.imagingSetup !== null && !this.context.imagingSetupManager.getImagingSetupInstance(message.imagingSetup).exists()) {
             throw new Error("invalid imaging setup");
         }
         this.currentStatus.currentImagingSetup = message.imagingSetup;
-    }
-
-    updateCurrentSettings=async(ct:CancellationToken, message:FocuserUpdateCurrentSettingsRequest)=>
-    {
-        const config = this.getCurrentConfiguration();
-        const newSettings = JsonProxy.applyDiff(config.settings, message.diff);
-        // FIXME: do the checking !
-        config.imagingSetupInstance.config().focuserSettings = newSettings;
     }
 
     focus=async(ct:CancellationToken, message:{}):Promise<number>=>{
