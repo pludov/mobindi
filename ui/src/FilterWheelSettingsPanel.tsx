@@ -1,14 +1,13 @@
 import * as React from 'react';
 
 import Log from './shared/Log';
-import * as BackendRequest from "./BackendRequest";
 import * as FilterWheelStore from "./FilterWheelStore";
 import * as Store from "./Store";
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import './CameraView.css'
-import ImagingSetupSelector from './ImagingSetupSelector';
+import * as ImagingSetupStore from './ImagingSetupStore';
 import CameraViewDevicePanel from './CameraViewDevicePanel';
 import FilterSelector from './FilterSelector';
 
@@ -48,7 +47,7 @@ class FilterWheelSettingsPanel extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
-        const imagingSetup = ImagingSetupSelector.getImagingSetup(store, ownProps.imagingSetup);
+        const imagingSetup = ImagingSetupStore.getImagingSetup(store, ownProps.imagingSetup);
 
         const device = imagingSetup !== null ? imagingSetup.filterWheelDevice : null;
 

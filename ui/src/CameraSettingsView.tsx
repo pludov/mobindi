@@ -6,9 +6,9 @@ import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
 import CameraExpEditor from './CameraExpEditor';
 import './CameraView.css'
-import { BackendAccessor, RecursiveBackendAccessor } from './utils/BackendAccessor';
+import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import { CameraDeviceSettings } from '@bo/BackOfficeStatus';
-import ImagingSetupSelector from './ImagingSetupSelector';
+import * as ImagingSetupStore from './ImagingSetupStore';
 
 type InputProps = {
     imagingSetup: string | null;
@@ -69,7 +69,7 @@ class CameraSettingsView extends React.PureComponent<Props> {
 
     static mapStateToProps = function(store: Store.Content, ownProps: InputProps) {
         return ({
-            current: ImagingSetupSelector.getImagingSetup(store, ownProps.imagingSetup)?.cameraDevice
+            current: ImagingSetupStore.getImagingSetup(store, ownProps.imagingSetup)?.cameraDevice
         });
     }
 }

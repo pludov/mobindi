@@ -18,7 +18,7 @@ import './FocuserView.css';
 import Panel from './Panel';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import CameraSettingsPanel from './CameraSettingsPanel';
-import ImagingSetupSelector from './ImagingSetupSelector';
+import * as ImagingSetupStore from './ImagingSetupStore';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 
 const logger = Log.logger(__filename);
@@ -331,7 +331,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
         return (store: Store.Content, ownProps: Props) => {
             let imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
 
-            const imagingSetupConfig = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+            const imagingSetupConfig = ImagingSetupStore.getImagingSetup(store, imagingSetup);
             let camera = imagingSetupConfig?.cameraDevice;
             if (camera === undefined) camera = null;
 

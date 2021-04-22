@@ -7,7 +7,7 @@ import * as FilterWheelStore from "../../FilterWheelStore";
 import DeviceConnectBton from '../../DeviceConnectBton';
 import CameraSettingsView from '../../CameraSettingsView';
 import EditableImagingSetupSelector from '../../EditableImagingSetupSelector';
-import ImagingSetupSelector from '../../ImagingSetupSelector';
+import * as ImagingSetupStore from '../../ImagingSetupStore';
 import CameraViewDevicePanel from '../../CameraViewDevicePanel';
 import DeviceSettingsBton from '../../DeviceSettingsBton';
 import FilterSelector from '../../FilterSelector';
@@ -70,7 +70,7 @@ class ImageControl extends React.PureComponent<Props> {
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
         const imagingSetup = props.imagingSetupIdAccessor.fromStore(store);
-        const imagingSetupInstance = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+        const imagingSetupInstance = ImagingSetupStore.getImagingSetup(store, imagingSetup);
         const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
         const filterWheelDevice = imagingSetupInstance !== null ? imagingSetupInstance.filterWheelDevice : null;
 
