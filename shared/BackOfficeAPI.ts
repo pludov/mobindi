@@ -92,7 +92,6 @@ export type DeleteSequenceStepRequest = {
 }
 
 export type ImagingSetupManagerAPI = {
-    setCurrentImagingSetup: (payload: {imagingSetupUuid: string|null}) => void;
     setDevice: (payload: {imagingSetupUuid: string, device: "cameraDevice"|"focuserDevice"|"filterWheelDevice", value: string|null})=>void;
     setName:(payload: {imagingSetupUuid: string, name: string})=>void;
     updateCurrentSettings: (payload: {imagingSetupUuid: string, diff: any})=>void;

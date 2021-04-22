@@ -1,6 +1,7 @@
 import React from 'react';
 import '../../AstrometryView.css';
 import * as Store from "../../Store";
+import * as CameraStore from "../../CameraStore";
 import Panel from "../../Panel";
 import * as FilterWheelStore from "../../FilterWheelStore";
 import DeviceConnectBton from '../../DeviceConnectBton';
@@ -11,7 +12,6 @@ import CameraViewDevicePanel from '../../CameraViewDevicePanel';
 import DeviceSettingsBton from '../../DeviceSettingsBton';
 import FilterSelector from '../../FilterSelector';
 import { defaultMemoize } from 'reselect';
-import CameraDeviceSettingsBackendAccessor from '@src/CameraDeviceSettingBackendAccessor';
 
 type InputProps = {
     imagingSetupIdAccessor: Store.Accessor<string|null>;
@@ -25,9 +25,7 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 class ImageControl extends React.PureComponent<Props> {
-    cameraSettingsAccessor = defaultMemoize((uid:string|null)=>new CameraDeviceSettingsBackendAccessor(uid));
-
-
+    private readonly cameraSettingsAccessor = defaultMemoize(CameraStore.cameraDeviceSettingsAccessor);
 
     render() {
         return (<Panel guid="astrom:polaralign:camera">
