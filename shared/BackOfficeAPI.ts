@@ -158,7 +158,6 @@ export type AstrometryAPI = AstrometryWizards & {
 
 export type FocuserAPI = {
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
-    updateCurrentSettings: (payload: {diff: any})=>void;
     focus: (payload: {})=>number;
     abort: (payload: {})=>void;
 }
