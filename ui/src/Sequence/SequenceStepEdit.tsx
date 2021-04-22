@@ -24,7 +24,7 @@ import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
 import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
-import { parameters, ParamDesc, CameraCapacity } from "./SequenceStepParameter";
+import { parameters, ParamDesc, ImagingSetupCapacity } from "./SequenceStepParameter";
 import DitheringSettingEdit from './DitheringSettingEdit';
 import Modal from '../Modal';
 
@@ -38,7 +38,7 @@ type InputProps = {
     allowRemove: boolean;
     imagingSetupId: string;
     imagingSetup: ImagingSetup;
-    cameraCapacity: CameraCapacity;
+    imagingSetupCapacity: ImagingSetupCapacity;
 
     // Force a new parameter
     forcedParam?: keyof SequenceStep;
@@ -52,7 +52,7 @@ type InputProps = {
 
 type MappedProps = {
     detailsStack: SequenceStep[];
-    cameraCapacity: CameraCapacity;
+    imagingSetupCapacity: ImagingSetupCapacity;
 }
 
 type Props = InputProps & MappedProps;
@@ -78,7 +78,7 @@ type State = {
 const SortableItem = SortableElement<{
                         imagingSetupId: string;
                         imagingSetup: ImagingSetup;
-                        cameraCapacity: CameraCapacity,
+                        imagingSetupCapacity: ImagingSetupCapacity,
                         sequenceUid: string,
                         parentPath: string,
                         sequenceStepUid:string,
@@ -86,12 +86,12 @@ const SortableItem = SortableElement<{
                         forcedParamUid?: string,
                         itemRef?: React.RefObject<any>,
                         itemFocusRef?: React.RefObject<any>,
-        }>(({imagingSetupId, imagingSetup, cameraCapacity, sequenceUid, sequenceStepUid, parentPath, forcedParam, forcedParamUid, itemRef, itemFocusRef})=> {
+        }>(({imagingSetupId, imagingSetup, imagingSetupCapacity, sequenceUid, sequenceStepUid, parentPath, forcedParam, forcedParamUid, itemRef, itemFocusRef})=> {
     return (<li className="SequenceStepMovableBlock">
                 <MappedSequenceStepEdit
                         imagingSetup={imagingSetup}
                         imagingSetupId={imagingSetupId}
-                        cameraCapacity={cameraCapacity}
+                        imagingSetupCapacity={imagingSetupCapacity}
                         sequenceUid={sequenceUid}
                         sequenceStepUidPath={JSON.stringify(JSON.parse(parentPath).concat([sequenceStepUid]))}
                         forcedParam={forcedParam}
@@ -106,14 +106,14 @@ const SortableList = SortableContainer<{
                         items: string[],
                         imagingSetupId: string;
                         imagingSetup: ImagingSetup;
-                        cameraCapacity: CameraCapacity,
+                        imagingSetupCapacity: ImagingSetupCapacity,
                         sequenceUid:string,
                         parentPath: string,
                         forcedParams: ForcedParams,
                         lastNewItem?: string,
                         lastNewItemRef?: React.RefObject<any>,
                         lastNewItemFocusRef?: React.RefObject<any>,
-        }>(({items, imagingSetupId, imagingSetup, cameraCapacity, sequenceUid, parentPath, forcedParams, lastNewItem, lastNewItemRef, lastNewItemFocusRef}) => {
+        }>(({items, imagingSetupId, imagingSetup, imagingSetupCapacity, sequenceUid, parentPath, forcedParams, lastNewItem, lastNewItemRef, lastNewItemFocusRef}) => {
     return (
       <ul className="SequenceStepContainer">
         {items.map((sequenceStepUid: string, index:number) => {
@@ -127,7 +127,7 @@ const SortableList = SortableContainer<{
                     index={index}
                     imagingSetup={imagingSetup}
                     imagingSetupId={imagingSetupId}
-                    cameraCapacity={cameraCapacity}
+                    imagingSetupCapacity={imagingSetupCapacity}
                     sequenceUid={sequenceUid}
                     parentPath={parentPath}
                     sequenceStepUid={sequenceStepUid}
@@ -630,7 +630,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     private isItemAvailable(item:ParamDesc) {
         if (item.available) {
-            return item.available(this.props.cameraCapacity, this.props.detailsStack)
+            return item.available(this.props.imagingSetupCapacity, this.props.detailsStack)
         }
         return true;
     }
@@ -758,7 +758,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     items={this.state.overridenChildList||details.childs.list}
                     imagingSetup={this.props.imagingSetup}
                     imagingSetupId={this.props.imagingSetupId}
-                    cameraCapacity={this.props.cameraCapacity}
+                    imagingSetupCapacity={this.props.imagingSetupCapacity}
                     parentPath={this.props.sequenceStepUidPath}
                     onSortEnd={this.moveSteps}
                     pressDelay={200}

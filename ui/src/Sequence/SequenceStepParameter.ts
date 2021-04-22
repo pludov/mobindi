@@ -1,11 +1,12 @@
 import {SequenceStepEdit} from "./SequenceStepEdit";
 import * as Store from '../Store';
 import * as IndiManagerStore from "../IndiManagerStore";
+import * as ImagingSetupStore from "../ImagingSetupStore";
 import * as FilterWheelStore from "../FilterWheelStore";
 import { deepEqual } from '../shared/Obj';
 import { SequenceStep } from '@bo/BackOfficeStatus';
 
-export type CameraCapacity = {
+export type ImagingSetupCapacity = {
     iso?: boolean;
     bin?: boolean;
     filter?: boolean;
@@ -18,9 +19,8 @@ export type ParamDesc = {
     hidden?: boolean;
     render?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<HTMLBaseElement>)=>JSX.Element|null);
     renderMore?:(s:SequenceStepEdit)=>((p: ParamDesc, settingsPath: string)=>JSX.Element|null);
-    // TODO : move CameraCapacity within imagingSetup
-    available?: (cap:CameraCapacity, detailsStack: SequenceStep[])=>boolean;
-    capacity?: (camera: string, s:Store.Content)=>Partial<CameraCapacity>;
+    available?: (cap:ImagingSetupCapacity, detailsStack: SequenceStep[])=>boolean;
+    capacity?: (imagingSetup: string, s:Store.Content)=>Partial<ImagingSetupCapacity>;
 }
 
 export type GroupDesc = {
@@ -29,13 +29,19 @@ export type GroupDesc = {
     childs: ParamDesc[];
 };
 
-function cameraIndiVectorCapacity(vec: string, k: keyof CameraCapacity) {
-    return (camera:string, s:Store.Content):Partial<CameraCapacity> => {
-        const vector = IndiManagerStore.getVector(s, camera, vec);
+function cameraIndiVectorCapacity(vec: string, k: keyof ImagingSetupCapacity) {
+    return (imagingSetupId:string, s:Store.Content):Partial<ImagingSetupCapacity> => {
+        const imagingSetup = ImagingSetupStore.getImagingSetup(s, imagingSetupId);
+
+        const vector = imagingSetup?.cameraDevice ? IndiManagerStore.getVector(s, imagingSetup?.cameraDevice, vec) : null;
         return {
             [k]: vector !== null
         }
     }
+}
+
+function hasFilter(imagingSetupId: string, store: Store.Content) {
+    return { filter: !!ImagingSetupStore.getImagingSetup(store, imagingSetupId)?.filterWheelDevice };
 }
 
 export const parameters:GroupDesc[] = [
@@ -77,7 +83,7 @@ export const parameters:GroupDesc[] = [
                 title: "Filter",
                 splittable: true,
                 render: (s)=>s.renderFilter,
-                capacity: (cam, store)=>({filter: FilterWheelStore.hasFilterWheel(store)}),
+                capacity: hasFilter,
                 available: (cap)=>!!cap.filter,
             },
         ]
@@ -130,14 +136,14 @@ export const parameters:GroupDesc[] = [
     }
 ];
 
-export function cameraCapacityReselect() {
-    let previous: CameraCapacity = {};
-    return (s:Store.Content, camera:string)=> {
-        const ret: CameraCapacity = {};
+export function imagingSetupCapacityReselect() {
+    let previous: ImagingSetupCapacity = {};
+    return (s:Store.Content, imagingSetupId:string)=> {
+        const ret: ImagingSetupCapacity = {};
         for(const g of parameters) {
             for(const p of g.childs) {
                 if (p.capacity) {
-                    Object.assign(ret, p.capacity(camera, s));
+                    Object.assign(ret, p.capacity(imagingSetupId, s));
                 }
             }
         }

@@ -27,7 +27,7 @@ type MappedProps = {
     details?: Sequence;
     imagingSetupId?: string|null;
     imagingSetup?: ImagingSetup;
-    cameraCapacity: SequenceStepParameter.CameraCapacity;
+    imagingSetupCapacity: SequenceStepParameter.ImagingSetupCapacity;
 }
 
 type Props = InputProps & MappedProps;
@@ -100,7 +100,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                                 allowRemove={false}
                                 imagingSetup={this.props.imagingSetup}
                                 imagingSetupId={this.props.imagingSetupId}
-                                cameraCapacity={this.props.cameraCapacity}
+                                imagingSetupCapacity={this.props.imagingSetupCapacity}
                                 sequenceUid={this.props.uid}
                                 sequenceStepUidPath="[]"
                             />
@@ -114,20 +114,20 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     }
 
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{
-        const cameraCapacitySelector = SequenceStepParameter.cameraCapacityReselect();
+        const imagingSetupCapacitySelector = SequenceStepParameter.imagingSetupCapacityReselect();
         return (store: Store.Content, ownProps: InputProps)=> {
             const selected = atPath(store, ownProps.currentPath);
             if (!selected) {
                 return {
                     displayable: false,
-                    cameraCapacity: {},
+                    imagingSetupCapacity: {},
                 };
             }
             const details = Utils.getOwnProp(store.backend.sequence?.sequences.byuuid, selected);
             if (details === undefined) {
                 return {
                     displayable: false,
-                    cameraCapacity: {},
+                    imagingSetupCapacity: {},
                 };
             }
             const imagingSetupId = details.imagingSetup;
@@ -138,7 +138,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                     details,
                     uid: selected,
                     imagingSetupId,
-                    cameraCapacity: {},
+                    imagingSetupCapacity: {},
                 };
             }
 
@@ -148,7 +148,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 details: details,
                 imagingSetup,
                 imagingSetupId,
-                cameraCapacity: imagingSetup.cameraDevice !== null ? cameraCapacitySelector(store, imagingSetup.cameraDevice) : {},
+                imagingSetupCapacity: imagingSetupId !== null ? imagingSetupCapacitySelector(store, imagingSetupId) : {},
             };
         }
     }

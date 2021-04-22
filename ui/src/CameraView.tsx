@@ -11,7 +11,7 @@ import { ShootResult } from '@bo/BackOfficeAPI';
 import './CameraView.css'
 import { StreamSize } from '@bo/BackOfficeStatus';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
-import ImagingSetupSelector from './ImagingSetupSelector';
+import * as ImagingSetupStore from './ImagingSetupStore';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 
@@ -84,7 +84,7 @@ class CameraView extends React.PureComponent<Props> {
         return (store:Store.Content, ownProps: InputProps):MappedProps=>{
             const imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
             console.log('Camera view: ', store, ownProps.imagingSetupIdAccessor);
-            const imagingSetupInstance = ImagingSetupSelector.getImagingSetup(store, imagingSetup);
+            const imagingSetupInstance = ImagingSetupStore.getImagingSetup(store, imagingSetup);
 
             const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
 
