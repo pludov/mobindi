@@ -3,11 +3,7 @@ import * as Store from './Store';
 import * as Utils from './Utils';
 
 import * as BackendRequest from "./BackendRequest";
-import PromiseSelector from './PromiseSelector';
-import DeviceConnectBton from './DeviceConnectBton';
 import CancellationToken from 'cancellationtoken';
-import { noErr } from './Utils';
-import { ShootResult } from '@bo/BackOfficeAPI';
 import * as BackofficeStatus from '@bo/BackOfficeStatus';
 import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
 
@@ -135,9 +131,9 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         // FIXME: extends connectableFocuserList with already set configuration
         const result = {
             driver: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.driver || "",
-            cameraList: store.backend.camera?.availableDevices,
-            filterWheelList: store.backend.filterWheel?.availableDevices,
-            connectableFocuserList: [...(store.backend?.focuser?.availableFocusers || [])],
+            cameraList: store.backend.indiManager?.availableCameras,
+            filterWheelList: store.backend.indiManager?.availableFilterWheels,
+            connectableFocuserList: store.backend?.indiManager?.availableFocusers || [],
             details: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.options,
         };
         return result;

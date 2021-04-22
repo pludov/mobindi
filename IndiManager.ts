@@ -4,7 +4,7 @@
 import fs from 'fs';
 import Log from './Log';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
-import {IndiConnection, Vector, Device} from './Indi';
+import { DriverInterface, IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { IndiManagerStatus, IndiManagerSetPropertyRequest, BackofficeStatus } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
@@ -65,6 +65,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             },
             // Maps indi drivers to group
             driverToGroup: {},
+            availableScopes: [],
+            availableFocusers: [],
+            availableCameras: [],
+            availableFilterWheels: [],
             configuration: {
                 driverPath: "none",
                 indiServer: {
@@ -106,6 +110,25 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
 
         // List configuration settings
         this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {self.readDrivers();}, true);
+
+        // Update available camera
+        this.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableCameras = devs;
+        }, undefined, DriverInterface.CCD);
+
+        this.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableScopes = devs;
+        }, undefined, DriverInterface.TELESCOPE);
+
+        // FIXME: we could also check for absolute prop
+        this.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableFocusers = devs;
+        }, undefined, DriverInterface.FOCUSER);
+
+        // Update available filterwheels
+        this.createDeviceListSynchronizer((devs:string[])=> {
+            this.currentStatus.availableFilterWheels = devs;
+        }, undefined, DriverInterface.FILTER);
 
         this.lifecycle(CancellationToken.CONTINUE);
 

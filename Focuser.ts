@@ -14,7 +14,6 @@ import Camera from './Camera';
 import IndiManager from "./IndiManager";
 import {ImagingSetupInstance} from "./ImagingSetupManager";
 import ImageProcessor from "./ImageProcessor";
-import { DriverInterface } from './Indi';
 
 const logger = Log.logger(__filename);
 
@@ -32,7 +31,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().focuser = {
             currentImagingSetup: null,
-            availableFocusers: [],
             config: {
                 preferedImagingSetup: null,
             },
@@ -76,12 +74,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         this.camera = context.camera;
         this.indiManager = context.indiManager;
         this.imageProcessor = context.imageProcessor;
-
-        // Check that current focuser is valid for all camera
-        // FIXME: we could also check for absolute prop
-        this.indiManager.createDeviceListSynchronizer((devs:string[])=> {
-            this.currentStatus.availableFocusers = devs;
-        }, undefined, DriverInterface.FOCUSER);
 
         context.imagingSetupManager.createPreferredImagingSelector({
             currentPath: [ 'focuser', 'currentImagingSetup' ],

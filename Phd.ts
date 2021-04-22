@@ -148,7 +148,7 @@ export default class Phd
         this.appStateManager.addSynchronizer(
             [
                 [
-                    [   'camera', 'availableDevices'],
+                    [   'indiManager', 'availableCameras'],
                     [   'phd', 'currentEquipment', 'camera' ],
                     [   'phd', 'streamingCamera' ],
                 ]
@@ -190,7 +190,7 @@ export default class Phd
         if (this.currentStatus.currentEquipment.camera) {
             const camEq = this.currentStatus.currentEquipment.camera;
             const name = (camEq.name || "").replace(/^INDI Camera \[(.*)\]$/, "$1");
-            if (this.context.camera.currentStatus.availableDevices.indexOf(name) !== -1) {
+            if (this.context.indiManager.currentStatus.availableCameras.indexOf(name) !== -1) {
                 if (Obj.hasKey(this.context.camera.currentStatus.dynStateByDevices, name)) {
                     this.context.camera.currentStatus.dynStateByDevices[name].spyRecommanded = true;
                 }
@@ -597,7 +597,7 @@ export default class Phd
 
                                 this.signalListeners();
 
-                                resolve();
+                                resolve(undefined);
                             });
 
                             this.client.connect(4400, '127.0.0.1', ()=>{

@@ -177,7 +177,11 @@ export type IndiManagerStatus = {
         driverPath: string;
     };
     driverToGroup: {[driver: string]: string};
-    deviceTree: {[deviceId:string]:IndiDevice}
+    deviceTree: {[deviceId:string]:IndiDevice};
+    availableCameras: string[];
+    availableScopes: string [];
+    availableFocusers: string[];
+    availableFilterWheels: string[];
     messages: {
         byUid: {[uuid:string]:IndiMessageWithUid}
     };
@@ -237,7 +241,6 @@ export type CameraShoot = {
 export type CameraStatus = {
     status: string;
     currentImagingSetup: string|null;
-    availableDevices: string [];
     currentStreams: {[deviceId: string]: CameraStream};
     currentShoots: {[deviceId:string]:CameraShoot};
     lastByDevices: {[deviceId:string]:string};
@@ -308,7 +311,6 @@ export type FocuserUpdateCurrentSettingsRequest = {
 
 export type FocuserStatus = {
     currentImagingSetup: string|null;
-    availableFocusers: string[];
     config: AutoFocusConfiguration;
     current: AutoFocusStatus;
 }
@@ -324,7 +326,6 @@ export type FilterSetting = {
 }
 
 export type FilterWheelStatus = {
-    availableDevices: string[];
     dynStateByDevices: {[deviceId: string] : FilterWheelDynState};
 }
 
@@ -420,7 +421,6 @@ export type AstrometryStatus = {
     lastOperationError: string|null;
     image: string | null;
     result: AstrometryResult|null;
-    availableScopes: string [];
     selectedScope: string | null;
     settings: AstrometrySettings;
     // set during GOTOs

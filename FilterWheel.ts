@@ -3,9 +3,8 @@ import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { BackofficeStatus, FilterWheelStatus} from './shared/BackOfficeStatus';
 import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
-import { hasKey, deepCopy } from './Obj';
-import { DriverInterface, Vector } from './Indi';
-import {Task, createTask} from "./Task.js";
+import { hasKey } from './Obj';
+import { Task } from "./Task.js";
 import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
@@ -24,7 +23,6 @@ export default class FilterWheel
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().filterWheel = {
-            availableDevices: [],
             dynStateByDevices: {},
         };
 
@@ -33,17 +31,12 @@ export default class FilterWheel
         this.currentStatus = this.appStateManager.getTarget().filterWheel;
         this.context = context;
 
-        // Update available filterwheels
-        context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
-            this.currentStatus.availableDevices = devs;
-        }, undefined, DriverInterface.FILTER);
-
         // Update dynState for each filterwheels
         this.appStateManager.addSynchronizer(
-            [ 'filterWheel', 'availableDevices' ],
+            [ 'indiManager', 'availableFilterWheels' ],
             ()=> {
                 const dynStateRoot = this.currentStatus.dynStateByDevices;
-                for(const o of this.currentStatus.availableDevices) {
+                for(const o of this.indiManager.currentStatus.availableFilterWheels) {
                     if (!Obj.hasKey(dynStateRoot, o)) {
                         dynStateRoot[o] = {
                             targetFilterPos: null,
@@ -59,7 +52,7 @@ export default class FilterWheel
         this.appStateManager.addSynchronizer(
             [
                 [
-                    [ 'filterWheel', 'availableDevices' ],
+                    [ 'indiManager', 'availableFilterWheels' ],
                     [ 'filterWheel', 'dynStateByDevices', null ],
                     [ 'indiManager', 'deviceTree', null, 'FILTER_NAME' ],
                     [ 'indiManager', 'deviceTree', null, 'FILTER_SLOT', 'childs', 'FILTER_SLOT_VALUE', [['$min'],['$max']] ],

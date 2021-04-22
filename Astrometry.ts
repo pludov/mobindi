@@ -7,12 +7,11 @@ import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './JsonProxy';
-import { DriverInterface, IndiConnection } from './Indi';
+import { IndiConnection } from './Indi';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import {Task, createTask} from "./Task";
 import Wizard from "./Wizard";
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
-import Sleep from "./Sleep";
 
 const logger = Log.logger(__filename);
 
@@ -57,7 +56,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             scopeDetails: "not initialised",
             image: null,
             result: null,
-            availableScopes: [],
             selectedScope: null,
             target: null,
             settings: defaultSettings(),
@@ -80,10 +78,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             }
         );
 
-        context.indiManager.createDeviceListSynchronizer((devs:string[])=> {
-            this.currentStatus.availableScopes = devs;
-        }, undefined, DriverInterface.TELESCOPE);
-
         // listener to adjust scopeStatus (only when ok/ko)
         this.appStateManager.addSynchronizer([
             [
@@ -97,13 +91,13 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         context.indiManager.createPreferredDeviceSelector<AstrometryStatus>({
             availablePreferedCurrentPath: [
                 [
-                    [ 'astrometry' , 'availableScopes'],
+                    [ 'indiManager' , 'availableScopes'],
                     [ 'astrometry' , 'settings', 'preferedScope'],
                     [ 'astrometry' , 'selectedScope'],
                 ]
             ],
             read: ()=> ({
-                available: this.currentStatus.availableScopes,
+                available: this.indiManager.currentStatus.availableScopes,
                 prefered: this.currentStatus.settings.preferedScope,
                 current: this.currentStatus.selectedScope,
             }),
@@ -308,7 +302,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
     }
 
     setScope = async (ct: CancellationToken, message: {deviceId: string})=>{
-        if (this.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
+        if (this.indiManager.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
             throw new Error("device not available");
         }
         this.currentStatus.selectedScope = message.deviceId;
