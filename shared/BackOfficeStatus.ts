@@ -123,9 +123,6 @@ export type IndiDeviceConfiguration = {
         disableAskCoverScope?: boolean;
         autoConnect?: boolean;
         confirmFilterChange?: boolean;
-
-        // For focuser device
-        filterDeltaByFocuser?: {[focuserId: string]: FilterWheelDeltas}
     };
 };
 
@@ -288,6 +285,8 @@ export type FocuserSettings = {
     lowestFirst : boolean;
     targetCurrentPos: boolean;
     targetPos: number;
+
+    focuserFilterAdjustment: FilterWheelDeltas;
 }
 
 export type AutoFocusConfiguration = {
