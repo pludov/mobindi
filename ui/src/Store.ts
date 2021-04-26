@@ -105,4 +105,8 @@ export type Accessor<TYPE>={
     send: (t:TYPE)=>Promise<void>;
 }
 
+export const emptyArray = [];
+
+export const emptyObject = {};
+
 export { fork }
