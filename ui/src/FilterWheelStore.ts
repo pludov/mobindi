@@ -65,7 +65,7 @@ export function availableFilterIds(state: Store.Content, filterWheelId: string)
 {
     const dynState = getDynStateByDevice(state, filterWheelId);
     if (dynState === null) {
-        return null;
+        return Store.emptyArray;
     }
     return dynState.filterIds;
 }
