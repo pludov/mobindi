@@ -4,14 +4,16 @@ import * as Utils from "./Utils";
 
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
+import * as ImagingSetupStore from "./ImagingSetupStore";
 import CancellationToken from 'cancellationtoken';
 
 import TextEdit from './TextEdit';
 import PromiseSelector, { Props as PromiseSelectorProps }  from './PromiseSelector';
 
 import { connect } from 'react-redux';
-import { createSelector } from 'reselect'
+import { createSelector, defaultMemoize } from 'reselect'
 import { ImagingSetup } from '@bo/BackOfficeStatus';
+import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
 
 type IndiDeviceListItem = {
     id: string;
@@ -98,7 +100,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
     setCamera = this.setDevice("cameraDevice");
     setFilterWheel = this.setDevice("filterWheelDevice");
     setFocuser = this.setDevice("focuserDevice");
-
+    imagingSetupAccessorFactory = defaultMemoize(ImagingSetupStore.imagingSetupAccessor);
     render() {
         return (
             <>
@@ -131,6 +133,15 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                                 nullAlwaysPossible={true}
                                 />
                 </div>
+                {this.props.focuserDevice && this.props.filterWheelDevice
+                    ?
+                    <div >
+                        <div>Focuser adjustment for filters:</div>
+                        <IndiFilterWheelFocusAdjusterConfig accessor={this.imagingSetupAccessorFactory(this.props.imageSetupUid)}/>
+                    </div>
+                    : null
+                }
+
             </>
         );
     }

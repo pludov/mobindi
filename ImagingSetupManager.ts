@@ -3,7 +3,7 @@ import {BackofficeStatus, ImagingSetup, ImagingSetupStatus} from './shared/BackO
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {IdGenerator} from "./IdGenerator";
 import ConfigStore from './ConfigStore';
-import JsonProxy from './JsonProxy';
+import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
 import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
@@ -146,6 +146,25 @@ export default class ImagingSetupManager
             update,
             true
         );
+        this.appStateManager.addSynchronizer(
+            [
+                'filterWheel', 'dynStateByDevices', null, 'filterIds'
+            ],
+            this.updateFilterWheelAvailableFilters,
+            true,
+            true
+        );
+    }
+
+    private updateFilterWheelAvailableFilters = (where: TriggeredWildcard)=>{
+        const imagingSetupByUuid = this.currentStatus.configuration.byuuid;
+        for(const filterWheelId of Object.keys(where)) {
+            for(const imagingSetupUid of Object.keys(imagingSetupByUuid)) {
+                if (imagingSetupByUuid[imagingSetupUid].filterWheelDevice === filterWheelId) {
+                    this.updateFilters(imagingSetupUid, false);
+                }
+            }
+        }
     }
 
     private readonly updateAvailableImagingSetups=()=>
@@ -258,7 +277,8 @@ export default class ImagingSetupManager
             backlash: 200,
             lowestFirst: false,
             targetCurrentPos: true,
-            targetPos: 10000
+            targetPos: 10000,
+            focuserFilterAdjustment: {},
         }
     }
 

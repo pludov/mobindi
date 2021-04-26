@@ -2,23 +2,16 @@ import * as React from 'react';
 import * as Store from './Store';
 import * as Utils from './Utils';
 
-import * as BackendRequest from "./BackendRequest";
-import PromiseSelector from './PromiseSelector';
-import DeviceConnectBton from './DeviceConnectBton';
-import CancellationToken from 'cancellationtoken';
-import { noErr } from './Utils';
-import { ShootResult } from '@bo/BackOfficeAPI';
+import * as AccessPath from "./utils/AccessPath";
+import * as BackendAccessor from "./utils/BackendAccessor";
 import * as BackofficeStatus from '@bo/BackOfficeStatus';
 import TextEdit from './TextEdit';
 import { has } from './shared/JsonProxy';
-import { Json } from '@bo/Json';
 
 
 type InputProps = {
-    focuserId:string;
-    filterWheelId: string;
+    accessor: BackendAccessor.RecursiveBackendAccessor<BackofficeStatus.ImagingSetup>;
 }
-
 
 type MappedProps = {
     filterIds: string[];
@@ -29,8 +22,6 @@ type Props = InputProps & MappedProps;
 
 type State = {
 }
-
-const emptyArray:[] = [];
 
 class IndiFilterWheelFocusAdjusterConfig extends React.PureComponent<Props, State> {
     constructor(props:Props) {
@@ -62,58 +53,44 @@ class IndiFilterWheelFocusAdjusterConfig extends React.PureComponent<Props, Stat
     private setFilterValue(filterId: string, valueStr:string) {
         return Utils.promiseToState(
             (async ()=> {
+                const adjAccessor = this.props.accessor.child(AccessPath.For((e)=>e.focuserSettings.focuserFilterAdjustment));
+
                 let value: number|null = parseInt(valueStr, 10);
                 if (isNaN(value)) {
                     value = null;
                 }
-        
-                const store = Store.getStore().getState();
-                const indiDeviceConfiguration = IndiFilterWheelFocusAdjusterConfig.getConfiguration(store, this.props.filterWheelId);
 
-                const filterDeltaByFocuser : Json = {
-                    ...indiDeviceConfiguration?.options?.filterDeltaByFocuser,
-                    [this.props.focuserId]: {
-                        ...indiDeviceConfiguration?.options?.filterDeltaByFocuser?.[this.props.focuserId],
-                        [filterId]: value
-                    }
-                };
+                const store = Store.getStore().getState();
+
+                const state = {...adjAccessor.fromStore(store)};
                 if (value === null) {
-                    delete filterDeltaByFocuser![this.props.focuserId]![filterId];
+                    delete state[filterId];
+                } else {
+                    state[filterId] = value;
                 }
-                await BackendRequest.RootInvoker("indi")("updateDriverParam")(
-                    CancellationToken.CONTINUE,
-                    {
-                        driver: this.props.filterWheelId,
-                        key: 'filterDeltaByFocuser',
-                        value: filterDeltaByFocuser
-                    });
+
+
+                await adjAccessor.send(state);
             }),
             this
         );
     }
 
-    private static getConfiguration(store: Store.Content, filterWheelId: string): BackofficeStatus.IndiDeviceConfiguration|undefined {
-        const indiDevices = store.backend.indiManager?.configuration.indiServer.devices;
-        return has(indiDevices, filterWheelId) ? indiDevices![filterWheelId] : undefined;
-    }
-
 
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
-        
-        const indiDeviceConfiguration = IndiFilterWheelFocusAdjusterConfig.getConfiguration(store, ownProps.filterWheelId);
+        const imagingSetup = ownProps.accessor.fromStore(store);
 
-        const configForFocusers = indiDeviceConfiguration?.options?.filterDeltaByFocuser;
-        const currentDeltas:BackofficeStatus.FilterWheelDeltas|undefined = has(configForFocusers, ownProps.focuserId) ? configForFocusers![ownProps.focuserId] : undefined;
+        if (imagingSetup === null) {
+            return {
+                filterIds: Store.emptyArray,
+                currentDeltas: Store.emptyObject,
+            };
+        }
 
-        // List the filter of the filtewheel
-        const dynStateByDevices = store.backend.filterWheel?.dynStateByDevices || {};
-        const filterIds = has(dynStateByDevices, ownProps.filterWheelId) ?
-                     dynStateByDevices[ownProps.filterWheelId].filterIds : emptyArray;
-        const result = {
-            filterIds,
-            currentDeltas
+        return {
+            filterIds: imagingSetup.availableFilters,
+            currentDeltas: imagingSetup.focuserSettings.focuserFilterAdjustment
         };
-        return result;
     }
 }
 
