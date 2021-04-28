@@ -138,6 +138,12 @@ export type IndiServerState = IndiServerConfiguration & {
     startDelay: {[id:string] : number};
 };
 
+export type IndiPropertyIdentifier = {
+    device: string;
+    vector: string;
+    property: string;
+}
+
 export type IndiProperty = {
     $_: string;
     $name: string;
@@ -287,6 +293,7 @@ export type FocuserSettings = {
     targetPos: number;
 
     focuserFilterAdjustment: FilterWheelDeltas;
+    temperatureProperty: null|IndiPropertyIdentifier;
 }
 
 export type AutoFocusConfiguration = {

@@ -6,7 +6,7 @@ const arraySelectorCreator = createSelectorCreator(
     isArrayEqual
   );
 
-function createArraySelector<State,Optional,Result>(selector: (state:State, arg?:Optional)=>Result[]):(state:State,arg?:Optional)=>Result[]
+function createArraySelector<State,Optional,Result>(selector: (state:State, arg?:Optional, arg2?:Optional)=>Result[]):(state:State,arg?:Optional, arg2?:Optional)=>Result[]
 {
     return arraySelectorCreator(
         [selector],

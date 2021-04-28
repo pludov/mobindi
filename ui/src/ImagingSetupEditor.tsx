@@ -2,7 +2,9 @@ import * as React from 'react';
 
 import * as Utils from "./Utils";
 
+import * as Help from "./Help";
 import * as BackendRequest from "./BackendRequest";
+import * as AccessPath from './utils/AccessPath';
 import * as Store from "./Store";
 import * as ImagingSetupStore from "./ImagingSetupStore";
 import CancellationToken from 'cancellationtoken';
@@ -14,6 +16,11 @@ import { connect } from 'react-redux';
 import { createSelector, defaultMemoize } from 'reselect'
 import { ImagingSetup } from '@bo/BackOfficeStatus';
 import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
+import IndiPropertySelector from './indiview/IndiPropertyIdentifierSelector';
+import IndiPropertyIdentifierSelector from './indiview/IndiPropertyIdentifierSelector';
+
+const temperaturePropertySelectorHelp = Help.key("Select temperature source", "Select a INDI property that will be used for temperature compensation at the focuser");
+
 
 type IndiDeviceListItem = {
     id: string;
@@ -52,7 +59,7 @@ const FilterWheelSelector = connect(getAvailableDevices((store: Store.Content)=>
 const FocuserSelector = connect(getAvailableDevices((store: Store.Content)=>store.backend?.indiManager?.availableFocusers))(PromiseSelector);
 
 type InputProps = {
-    imageSetupUid: string;
+    imagingSetupUid: string;
 }
 
 type MappedProps = {
@@ -78,7 +85,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
         await BackendRequest.RootInvoker("imagingSetupManager")("setName")(
             CancellationToken.CONTINUE,
             {
-                imagingSetupUuid: this.props.imageSetupUid,
+                imagingSetupUuid: this.props.imagingSetupUid,
                 name
             }
         );
@@ -89,7 +96,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
             await BackendRequest.RootInvoker("imagingSetupManager")("setDevice")(
                 CancellationToken.CONTINUE,
                 {
-                    imagingSetupUuid: this.props.imageSetupUid,
+                    imagingSetupUuid: this.props.imagingSetupUid,
                     device,
                     value
                 }
@@ -101,6 +108,8 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
     setFilterWheel = this.setDevice("filterWheelDevice");
     setFocuser = this.setDevice("focuserDevice");
     imagingSetupAccessorFactory = defaultMemoize(ImagingSetupStore.imagingSetupAccessor);
+    focuserTemperatureReferenceProperty = defaultMemoize((uid:string)=>ImagingSetupStore.imagingSetupAccessor(uid).child(AccessPath.For((e)=>e.focuserSettings.temperatureProperty)));
+
     render() {
         return (
             <>
@@ -137,7 +146,11 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                     ?
                     <div >
                         <div>Focuser adjustment for filters:</div>
-                        <IndiFilterWheelFocusAdjusterConfig accessor={this.imagingSetupAccessorFactory(this.props.imageSetupUid)}/>
+                        <IndiFilterWheelFocusAdjusterConfig accessor={this.imagingSetupAccessorFactory(this.props.imagingSetupUid)}/>
+                        <div>Focuser temperature adjustment source:</div>
+                        <IndiPropertyIdentifierSelector
+                                helpKey={temperaturePropertySelectorHelp}
+                                accessor={this.focuserTemperatureReferenceProperty(this.props.imagingSetupUid)}/>
                     </div>
                     : null
                 }
@@ -148,8 +161,8 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
         const byuuid= store.backend?.imagingSetup?.configuration?.byuuid;
-        if (Utils.has(byuuid, ownProps.imageSetupUid)) {
-            const {cameraDevice, filterWheelDevice, focuserDevice, ...details} = byuuid![ownProps.imageSetupUid];
+        if (Utils.has(byuuid, ownProps.imagingSetupUid)) {
+            const {cameraDevice, filterWheelDevice, focuserDevice, ...details} = byuuid![ownProps.imagingSetupUid];
 
             return {
                 visible: true,

@@ -8,6 +8,10 @@ function swallowEqual(obj1 : any, obj2: any) {
         return false;
     }
 
+    if ((typeof obj1 !== "object") || (typeof obj2 !== "object")) {
+        return false;
+    }
+
     for(const k1 of Object.keys(obj1)) {
         if (!Object.prototype.hasOwnProperty.call(obj2, k1)) {
             return false;
@@ -32,7 +36,7 @@ const objectSelectorCreator = createSelectorCreator(
 );
 
 // Perform swallow equality on result
-function createObjectSelector<State,Optional,Result>(selector: (state:State, arg?:Optional)=>Result):(state:State,arg?:Optional)=>Result
+function createObjectSelector<State,Optional,Result>(selector: (state:State, arg?:Optional, arg2?:Optional)=>Result):(state:State,arg?:Optional, arg2?:Optional)=>Result
 {
     return objectSelectorCreator(
         [selector],

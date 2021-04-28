@@ -279,6 +279,7 @@ export default class ImagingSetupManager
             targetCurrentPos: true,
             targetPos: 10000,
             focuserFilterAdjustment: {},
+            temperatureProperty: null,
         }
     }
 

@@ -75,7 +75,7 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
                                 <p>Imaging setup: <ImagingSetupSelector accessor={this.currentImagingSetupAccessor}/></p>
 
                                 <ImagingSetupEditor
-                                    imageSetupUid={editingUuid}
+                                    imagingSetupUid={editingUuid}
                                     />
 
                                 <input type='button' value='Close' onClick={this.closeEdit}/>
