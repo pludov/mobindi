@@ -4,7 +4,7 @@ import * as Utils from "./Utils";
 
 import * as Help from "./Help";
 import * as BackendRequest from "./BackendRequest";
-import * as AccessPath from './utils/AccessPath';
+import * as AccessPath from './shared/AccessPath';
 import * as Store from "./Store";
 import * as ImagingSetupStore from "./ImagingSetupStore";
 import CancellationToken from 'cancellationtoken';

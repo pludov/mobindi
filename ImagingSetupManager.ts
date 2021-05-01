@@ -289,9 +289,10 @@ export default class ImagingSetupManager
 
     defaultDynState=()=>{
         return {
-            // FIXME: remove this when focuser status tracking is complete
-            curFocus: {position: 0, temp : null, filter: null,},
+            curFocus: null,
             refFocus: null,
+            temperatureWarning: null,
+            focuserWarning: null,
         }
     }
 

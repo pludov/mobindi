@@ -2,18 +2,20 @@ const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
 import { hasKey } from './Obj';
+import * as AccessPath from './AccessPath';
 import * as Algebra from './Algebra';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import ConfigStore from './ConfigStore';
 import JsonProxy from './JsonProxy';
-import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentSettingsRequest, CameraStatus, FocuserSettings, AutoFocusConfiguration } from './shared/BackOfficeStatus';
+import { BackofficeStatus, AutoFocusStatus, FocuserStatus, FocuserUpdateCurrentSettingsRequest, CameraStatus, FocuserSettings, AutoFocusConfiguration, IndiPropertyIdentifier } from './shared/BackOfficeStatus';
 import { Task, createTask } from './Task';
 import Camera from './Camera';
 import IndiManager from "./IndiManager";
 import {ImagingSetupInstance} from "./ImagingSetupManager";
 import ImageProcessor from "./ImageProcessor";
+import IndirectionSynchronizer from './IndirectionSynchronizer';
 
 const logger = Log.logger(__filename);
 
@@ -91,7 +93,109 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 }
             }
         });
+
+        // Report the focuser temperature
+        new IndirectionSynchronizer<BackofficeStatus, null|IndiPropertyIdentifier>(
+            this.appStateManager,
+            AccessPath.ForWildcard((e, ids)=>e.imagingSetup.configuration.byuuid[ids[0]].focuserSettings.temperatureProperty),
+            (imagingSetupUuid: string, propertyIdentifier: null|IndiPropertyIdentifier)=> {
+                this.refreshFocuserTemperature(imagingSetupUuid);
+                if (propertyIdentifier !== null) {
+                    return this.appStateManager.addTypedSynchronizer(
+                        AccessPath.For((e)=>e.indiManager.deviceTree[propertyIdentifier.device][propertyIdentifier.vector]),
+                        ()=> this.refreshFocuserTemperature(imagingSetupUuid),
+                        false
+                    )
+                } else {
+                    return null;
+                }
+            }
+        );
+
+        // Report the focuser position
+        new IndirectionSynchronizer<BackofficeStatus, null|string>(
+            this.appStateManager,
+            AccessPath.ForWildcard((e, ids)=>e.imagingSetup.configuration.byuuid[ids[0]].focuserDevice),
+            (imagingSetupUuid: string, focuserDevice: null|string)=> {
+                this.refreshFocuserPosition(imagingSetupUuid);
+                if (focuserDevice !== null) {
+                    return this.appStateManager.addTypedSynchronizer(
+                        AccessPath.For((e)=>e.indiManager.deviceTree[focuserDevice]['ABS_FOCUS_POSITION']),
+                        ()=> this.refreshFocuserPosition(imagingSetupUuid),
+                        false
+                    )
+                } else {
+                    return null;
+                }
+            }
+        );
+
     }
+
+    refreshFocuserPosition(imagingSetupUid: string)
+    {
+        const instance = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUid);
+        if (!instance.exists()) {
+            return;
+        }
+        const imagingSetup = instance.config();
+
+        let value;
+
+        const focuserDevice = imagingSetup.focuserDevice;
+        if (focuserDevice !== null) {
+            value = this.indiManager.getNumberPropertyValue(focuserDevice, 'ABS_FOCUS_POSITION', 'FOCUS_ABSOLUTE_POSITION');
+        } else {
+            value = { value: null, warning: null };
+        }
+
+        logger.info("Updated focuser position to ", {imagingSetupUid, value});
+        imagingSetup.dynState.temperatureWarning = value.warning;
+        if (value.value === null) {
+            if (imagingSetup.dynState.curFocus === null) {
+                return;
+            }
+            imagingSetup.dynState.curFocus = null;
+        } else {
+            if (imagingSetup.dynState.curFocus === null) {
+                imagingSetup.dynState.curFocus = {
+                    filter: null,
+                    temp: null,
+                    position: value.value
+                }
+                this.refreshFocuserPosition(imagingSetupUid);
+            } else {
+                imagingSetup.dynState.curFocus.position = value.value;
+            }
+        }
+    }
+
+    refreshFocuserTemperature(imagingSetupUid: string)
+    {
+        const instance = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUid);
+        if (!instance.exists()) {
+            return;
+        }
+        const imagingSetup = instance.config();
+        if (imagingSetup.dynState.curFocus === null) {
+            imagingSetup.dynState.temperatureWarning = null;
+            return;
+        }
+
+        let value;
+
+        const tempProp = imagingSetup.focuserSettings.temperatureProperty
+        if (tempProp !== null) {
+            value = this.indiManager.getNumberPropertyValue(tempProp.device, tempProp.vector, tempProp.property);
+        } else {
+            value = { value: null, warning: null }
+        }
+
+        logger.info("Updated focuser temp to ", {imagingSetupUid, value});
+        imagingSetup.dynState.curFocus!.temp = value.value;
+        imagingSetup.dynState.temperatureWarning = value.warning;
+    }
+
 
     getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI> {
         return {

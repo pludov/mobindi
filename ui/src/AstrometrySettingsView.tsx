@@ -12,7 +12,7 @@ import PromiseSelector from './PromiseSelector';
 import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
-import * as AccessPath from './utils/AccessPath';
+import * as AccessPath from './shared/AccessPath';
 import * as BackendRequest from "./BackendRequest";
 import * as AstrometryStore from "./AstrometryStore";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';

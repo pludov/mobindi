@@ -5,7 +5,7 @@ import * as Store from './Store';
 import { BackendAccessorImpl } from './utils/BackendAccessor';
 
 import * as BackendRequest from "./BackendRequest";
-import * as Accessor from './utils/AccessPath';
+import * as Accessor from './shared/AccessPath';
 
 
 class ImagingSetupAccessor extends BackendAccessorImpl<ImagingSetup> {

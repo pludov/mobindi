@@ -2,7 +2,7 @@ import React from 'react';
 import '../../AstrometryView.css';
 import * as Store from "../../Store";
 import * as Help from "../../Help";
-import * as AccessPath from '../../utils/AccessPath';
+import * as AccessPath from '../../shared/AccessPath';
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
 import Float from '../../primitives/Float';

@@ -1,3 +1,4 @@
+import { WildcardAccessPath } from "./AccessPath";
 import JsonProxy, { NoWildcard, SynchronizerTriggerCallback, TriggeredWildcard } from "./JsonProxy";
 import Log from './Log';
 import * as Obj from "./Obj";
@@ -18,11 +19,11 @@ export default class IndirectionSynchronizer<ROOT, POINTER> {
 
     // pointerPath is limited to one wildcard
     constructor(appStateManager: JsonProxy<ROOT>,
-                pointerPath: Array<string|null>,
+                pointerPath: WildcardAccessPath<ROOT, POINTER>,
                 listenBuilder: (wildcardValues: string, pointer: POINTER)=>SynchronizerTriggerCallback|null)
     {
         this.appStateManager = appStateManager;
-        this.pointerPath = pointerPath;
+        this.pointerPath = pointerPath.path;
         this.listenBuilder = listenBuilder;
         let nullFound = false;
         for(const v of this.pointerPath) {

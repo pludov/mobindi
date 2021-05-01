@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as Store from './Store';
 import * as Utils from './Utils';
 
-import * as AccessPath from "./utils/AccessPath";
+import * as AccessPath from "./shared/AccessPath";
 import * as BackendAccessor from "./utils/BackendAccessor";
 import * as BackofficeStatus from '@bo/BackOfficeStatus';
 import TextEdit from './TextEdit';

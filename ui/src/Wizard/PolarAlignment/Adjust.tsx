@@ -2,7 +2,7 @@ import React from 'react';
 import '../../AstrometryView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
-import * as AccessPath from '../../utils/AccessPath';
+import * as AccessPath from '../../shared/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';

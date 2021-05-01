@@ -1,5 +1,7 @@
 'use strict';
 
+import { WildcardAccessPath } from './AccessPath';
+
 /**
  * Created by ludovic on 21/07/17.
  */
@@ -762,6 +764,12 @@ export default class JsonProxy<CONTENTTYPE> {
         this.synchronizerRoot.addToPath(this.root, listener, path, 0, forceInitialTrigger, locateWidlcards ? [] : undefined);
 
         return listener;
+    }
+
+    addTypedSynchronizer<TARGET>(path: WildcardAccessPath<CONTENTTYPE, TARGET>, callback: (to:TriggeredWildcard)=>(void), forceInitialTrigger: boolean, locateWidlcards: true):SynchronizerTriggerCallback
+    addTypedSynchronizer<TARGET>(path: WildcardAccessPath<CONTENTTYPE, TARGET>, callback: ()=>(void), forceInitialTrigger: boolean):SynchronizerTriggerCallback
+    addTypedSynchronizer<TARGET>(path: WildcardAccessPath<CONTENTTYPE, TARGET>, callback: (to:TriggeredWildcard)=>(void), forceInitialTrigger:boolean, locateWidlcards?: boolean):SynchronizerTriggerCallback {
+        return this.addSynchronizer(path.path, callback, forceInitialTrigger, locateWidlcards as any);
     }
 
     // Call untils no more synchronizer is available

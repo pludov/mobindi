@@ -1,6 +1,6 @@
 import JsonProxy from '../shared/JsonProxy';
 import * as Store from "../Store"
-import {AccessPath, For} from "./AccessPath"
+import {AccessPath, For} from "../shared/AccessPath"
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 

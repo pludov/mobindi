@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as AccessPath from './utils/AccessPath';
+import * as AccessPath from './shared/AccessPath';
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Text from './primitives/Text';

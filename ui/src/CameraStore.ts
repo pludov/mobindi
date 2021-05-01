@@ -4,7 +4,7 @@ import * as Store from './Store';
 import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
 import { BackendAccessorImpl } from './utils/BackendAccessor';
-import * as Accessor from './utils/AccessPath';
+import * as Accessor from './shared/AccessPath';
 import { CameraDeviceSettings } from '@bo/BackOfficeStatus';
 
 

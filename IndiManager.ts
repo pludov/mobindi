@@ -773,4 +773,26 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     {
         this.doUpdateDriverParam(message);
     }
+
+    public getNumberPropertyValue(dev: string, vec:string, prop: string) : {value: number|null, warning: string|null}
+    {
+        let warning : string|null = null;
+        let value : number|null = null;
+        if (this.connection !== undefined) {
+            const str = this.connection.getDevice(dev).getVector(vec).getPropertyValueIfExists(prop);
+            if (str !== null) {
+                const v = parseFloat(str);
+                if (!isNaN(v)) {
+                    value = v;
+                } else {
+                    warning = "Invalid value";
+                }
+            } else {
+                warning = "Value not available";
+            }
+        } else {
+            warning = "No INDI connection";
+        }
+        return {warning, value};
+    }
 }

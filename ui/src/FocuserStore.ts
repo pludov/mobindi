@@ -4,7 +4,7 @@ import CancellationToken from 'cancellationtoken';
 import * as Store from './Store';
 import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
-import * as AccessPath from './utils/AccessPath';
+import * as AccessPath from './shared/AccessPath';
 
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import { BackendAccessorImpl } from './utils/BackendAccessor';

@@ -5,7 +5,7 @@ import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
 import { BackendAccessorImpl, RecursiveBackendAccessor } from './utils/BackendAccessor';
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
-import * as AccessPath from './utils/AccessPath';
+import * as AccessPath from './shared/AccessPath';
 
 class CurrentImagingSetupAccessor implements Store.Accessor<string|null> {
     fromStore = (store:Store.Content)=> {
