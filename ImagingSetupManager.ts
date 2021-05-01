@@ -39,6 +39,10 @@ export class ImagingSetupInstance {
     }
 }
 
+type StoredConfiguration = Omit<ImagingSetupStatus["configuration"], "byuuid"> & {
+    byuuid:{[uuid:string]:Omit<ImagingSetup, "dynState">};
+};
+
 
 export default class ImagingSetupManager
         implements RequestHandler.APIAppProvider<BackOfficeAPI.ImagingSetupManagerAPI> {
@@ -65,13 +69,14 @@ export default class ImagingSetupManager
         this.currentStatus = this.appStateManager.getTarget().imagingSetup;
         this.context = context;
 
-        new ConfigStore<ImagingSetupStatus["configuration"]>(appStateManager, 'imagingSetup', ['imagingSetup', 'configuration'], {
+        new ConfigStore<ImagingSetupStatus["configuration"], StoredConfiguration>(appStateManager, 'imagingSetup', ['imagingSetup', 'configuration'], {
             byuuid: {}
         }, {
             byuuid: {}
         }, (c)=>{
+            const ret : ImagingSetupStatus["configuration"] = {byuuid:{}};
             for(const uuid of Object.keys(c.byuuid)) {
-                const imagingSetup = c.byuuid[uuid];
+                const imagingSetup = {...c.byuuid[uuid], dynState: this.defaultDynState()};
                 // Ensure compatibility
                 if (!imagingSetup.cameraSettings) {
                     imagingSetup.cameraSettings = this.defaultCameraSettings();
@@ -80,10 +85,20 @@ export default class ImagingSetupManager
                 if (!imagingSetup.focuserSettings) {
                     imagingSetup.focuserSettings = this.defaultFocuserSettings();
                 }
-
+                ret.byuuid[uuid] = imagingSetup;
             }
-            return c;
-        });
+            return ret;
+        },
+            (c: ImagingSetupStatus["configuration"])=> {
+                const ret: StoredConfiguration = {byuuid: {}};
+                for(const uuid of Object.keys(c.byuuid)) {
+                    const {dynState, ...stored} = c.byuuid[uuid];
+
+                    ret.byuuid[uuid] = stored;
+                }
+                return ret;
+            }
+        );
 
         // Update configuration/dyn states
         this.appStateManager.addSynchronizer(
@@ -270,6 +285,13 @@ export default class ImagingSetupManager
         return name + suffix;
     }
 
+    defaultDynState=()=>{
+        return {
+            curFocus: null,
+            refFocus: null,
+        }
+    }
+
     defaultFocuserSettings() {
         return {
             range: 1000,
@@ -298,6 +320,7 @@ export default class ImagingSetupManager
             focuserDevice: null,
             focuserSettings: this.defaultFocuserSettings(),
             cameraSettings: this.defaultCameraSettings(),
+            dynState: this.defaultDynState(),
         }
     }
 

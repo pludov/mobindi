@@ -1,6 +1,17 @@
 import { AstrometryResult } from "./ProcessorTypes";
 import { IndiMessage } from "./IndiTypes";
 
+export type FocuserPoint = {
+    temp: number|null;
+    filter: string|null;
+    position: number;
+}
+
+export type ImagingSetupDynState = {
+    curFocus: FocuserPoint|null;
+    refFocus: FocuserPoint|null;
+}
+
 export type ImagingSetup = {
     name: string;
     cameraDevice: null|string;
@@ -10,6 +21,8 @@ export type ImagingSetup = {
     availableFilters: string[];
     cameraSettings: CameraDeviceSettings;
     focuserSettings: FocuserSettings;
+
+    dynState: ImagingSetupDynState;
 }
 
 export type CameraDeviceSettings = {
