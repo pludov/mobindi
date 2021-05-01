@@ -1,13 +1,15 @@
 import CancellationToken from 'cancellationtoken';
-import {BackofficeStatus, ImagingSetup, ImagingSetupStatus} from './shared/BackOfficeStatus';
+import Log from './Log';
+import {BackofficeStatus, ImagingSetup, ImagingSetupStatus } from './shared/BackOfficeStatus';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {IdGenerator} from "./IdGenerator";
 import ConfigStore from './ConfigStore';
-import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
+import JsonProxy, { TriggeredWildcard } from './JsonProxy';
 import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 
+const logger = Log.logger(__filename);
 
 export class ImagingSetupInstance {
 
@@ -287,7 +289,8 @@ export default class ImagingSetupManager
 
     defaultDynState=()=>{
         return {
-            curFocus: null,
+            // FIXME: remove this when focuser status tracking is complete
+            curFocus: {position: 0, temp : null, filter: null,},
             refFocus: null,
         }
     }
