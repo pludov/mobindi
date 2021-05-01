@@ -12,6 +12,8 @@ export type ImagingSetupDynState = {
     refFocus: FocuserPoint|null;
     temperatureWarning: string|null;
     focuserWarning: string|null;
+    // Focus related
+    filterWheelWarning: string|null;
 }
 
 export type ImagingSetup = {

@@ -130,6 +130,27 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             }
         );
 
+        // Report the filterwheel position
+        for(const w of ['FILTER_SLOT', 'FILTER_NAME']) {
+            const watchedVec = w;
+            new IndirectionSynchronizer<BackofficeStatus, null|string>(
+                this.appStateManager,
+                AccessPath.ForWildcard((e, ids)=>e.imagingSetup.configuration.byuuid[ids[0]].filterWheelDevice),
+                (imagingSetupUuid: string, filterWheelDevice: null|string)=> {
+                    this.refreshFocuserFilter(imagingSetupUuid);
+                    if (filterWheelDevice !== null) {
+                        return this.appStateManager.addTypedSynchronizer(
+                            AccessPath.For((e)=>e.indiManager.deviceTree[filterWheelDevice][watchedVec]),
+                            ()=> this.refreshFocuserFilter(imagingSetupUuid),
+                            false
+                        )
+                    } else {
+                        return null;
+                    }
+                }
+            );
+        }
+
     }
 
     refreshFocuserPosition(imagingSetupUid: string)
@@ -149,23 +170,26 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             value = { value: null, warning: null };
         }
 
-        logger.info("Updated focuser position to ", {imagingSetupUid, value});
-        imagingSetup.dynState.temperatureWarning = value.warning;
-        if (value.value === null) {
-            if (imagingSetup.dynState.curFocus === null) {
-                return;
-            }
-            imagingSetup.dynState.curFocus = null;
-        } else {
-            if (imagingSetup.dynState.curFocus === null) {
-                imagingSetup.dynState.curFocus = {
-                    filter: null,
-                    temp: null,
-                    position: value.value
-                }
-                this.refreshFocuserPosition(imagingSetupUid);
+        if (imagingSetup.dynState.focuserWarning !== value.warning
+            || imagingSetup.dynState.curFocus?.position !== (value.value !== null ? value.value : undefined)) {
+
+            logger.info("Updated focuser position to ", {imagingSetupUid, value});
+            imagingSetup.dynState.focuserWarning = value.warning;
+            if (value.value === null) {
+                imagingSetup.dynState.curFocus = null;
             } else {
-                imagingSetup.dynState.curFocus.position = value.value;
+                if (imagingSetup.dynState.curFocus === null) {
+                    imagingSetup.dynState.curFocus = {
+                        filter: null,
+                        temp: null,
+                        position: value.value
+                    }
+                    // When creating, force values for other parts
+                    this.refreshFocuserTemperature(imagingSetupUid);
+                    this.refreshFocuserFilter(imagingSetupUid);
+                } else {
+                    imagingSetup.dynState.curFocus.position = value.value;
+                }
             }
         }
     }
@@ -191,9 +215,52 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             value = { value: null, warning: null }
         }
 
-        logger.info("Updated focuser temp to ", {imagingSetupUid, value});
-        imagingSetup.dynState.curFocus!.temp = value.value;
-        imagingSetup.dynState.temperatureWarning = value.warning;
+        if (imagingSetup.dynState.curFocus!.temp !== value.value
+                || imagingSetup.dynState.temperatureWarning !== value.warning) {
+            logger.info("Updated focuser temp to ", {imagingSetupUid, value});
+            imagingSetup.dynState.curFocus!.temp = value.value;
+            imagingSetup.dynState.temperatureWarning = value.warning;
+        }
+    }
+
+    refreshFocuserFilter(imagingSetupUid: string)
+    {
+        const instance = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUid);
+        if (!instance.exists()) {
+            return;
+        }
+        const imagingSetup = instance.config();
+        if (imagingSetup.dynState.curFocus === null) {
+            imagingSetup.dynState.filterWheelWarning = null;
+            return;
+        }
+
+        let value;
+        let strValue;
+        const filterWheelDevice = imagingSetup.filterWheelDevice;
+        if (filterWheelDevice !== null) {
+            value = this.indiManager.getNumberPropertyValue(filterWheelDevice, 'FILTER_SLOT', 'FILTER_SLOT_VALUE');
+            if (value.value !== null) {
+                strValue = {
+                    warning: value.warning,
+                    value: this.context.filterWheel.getFilterId(filterWheelDevice, value.value),
+                }
+            } else {
+                strValue = {
+                    value: null,
+                    warning: value.warning
+                };
+            }
+        } else {
+            strValue = { value: null, warning: null };
+        }
+
+        if (imagingSetup.dynState.curFocus.filter !== strValue.value
+            || imagingSetup.dynState.temperatureWarning !== strValue.warning) {
+            logger.info("Updated focuser filter to ", {imagingSetupUid, strValue});
+            imagingSetup.dynState.curFocus.filter = strValue.value;
+            imagingSetup.dynState.temperatureWarning = strValue.warning;
+        }
     }
 
 

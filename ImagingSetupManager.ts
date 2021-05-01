@@ -293,6 +293,7 @@ export default class ImagingSetupManager
             refFocus: null,
             temperatureWarning: null,
             focuserWarning: null,
+            filterWheelWarning: null,
         }
     }
 

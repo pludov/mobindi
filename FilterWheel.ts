@@ -168,6 +168,18 @@ export default class FilterWheel
 
     }
 
+    public getFilterId(fwId: string, no: number) {
+        try {
+            const ids = this.computeFilterIds(fwId);
+            if (no >= 1 && no <= ids.length) {
+                return ids[no-1];
+            }
+            return "" + no;
+        } catch(e) {
+            return "" + no;
+        }
+    }
+
     abortFilterChange= async(ct:CancellationToken, payload:any)=>{}
 
     private needConfirmation(fwId:string) {
