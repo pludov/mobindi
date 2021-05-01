@@ -264,6 +264,20 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
     }
 
 
+    updateReferencePoint(imagingSetupUuid: string) {
+        this.refreshFocuserFilter(imagingSetupUuid);
+        this.refreshFocuserTemperature(imagingSetupUuid);
+        this.refreshFocuserPosition(imagingSetupUuid);
+
+        const dynState = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid).config().dynState;
+        if (!dynState.curFocus) {
+            throw new Error("Focuser not ready");
+        }
+        const newRef = {...dynState.curFocus!, time: new Date().getTime()};
+        logger.info("Updating refernce point", newRef)
+        dynState.refFocus = newRef;
+    }
+
     getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI> {
         return {
             abort: this.abort,
@@ -519,6 +533,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         }
         logger.info('Found best position', {bestPos, bestValue});
         await moveFocuser(bestPos!);
+        this.updateReferencePoint(imagingSetup);
         return bestPos!;
     }
 
