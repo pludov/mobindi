@@ -104,6 +104,29 @@ export type IndiMessageWithUid = IndiMessage & {
     uid: string;
 };
 
+export type FilterSettings = {
+    disabled?: boolean;
+
+    refPos: number;
+    refTemp?: number;
+    ref: string;
+
+    // Do not move for less than this nr of steps
+    min?: number;
+
+    // Error when move is requested over this nr of steps
+    max?: number;
+
+    tempSensor?: string;
+
+    focuser?: string;
+    
+    // Step per degree
+    compensation: number;
+    // By filter id
+    delta: {[id:string]: number};
+}
+
 export type IndiDeviceConfiguration = {
     driver: string;
     config?: string;
@@ -114,6 +137,7 @@ export type IndiDeviceConfiguration = {
         disableAskCoverScope?: boolean;
         autoConnect?: boolean;
         confirmFilterChange?: boolean;
+        filterSettings?: FilterSettings;
     };
 };
 

@@ -538,6 +538,17 @@ export default class SequenceManager
                         filterId: param.filter,
                     });
                     ct.throwIfCancelled();
+
+                    if (param.type === 'FRAME_LIGHT') {
+                        logger.info('Adjusting focuser', {sequence, uuid, filter: param.filter});
+                        sequence.progress = "Focuser " + shootTitle;
+
+                        await this.context.filterWheel.updateFilterFocus(ct, {
+                            cameraDeviceId: sequence.camera,
+                            filterId: param.filter,
+                        });
+                        ct.throwIfCancelled();                    
+                    }
                 }
 
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;

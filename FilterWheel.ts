@@ -20,7 +20,7 @@ export default class FilterWheel
     currentStatus: FilterWheelStatus;
     context: AppContext;
     get indiManager() { return this.context.indiManager };
-
+    get focuser() { return this.context.focuser };
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context:AppContext) {
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().filterWheel = {
@@ -241,6 +241,106 @@ export default class FilterWheel
         return driver === "indi_manual_wheel";
     }
 
+    private getFilterSettings(fwId: string) {
+        const devConf = this.indiManager.currentStatus.configuration.indiServer.devices;
+        if (!hasKey(devConf, fwId)) {
+            return undefined;
+        }
+    
+        return devConf[fwId].options.filterSettings;
+    }
+
+    updateFilterFocus= async(ct:CancellationToken, payload: {cameraDeviceId: string, filterId: string}) => {
+        let filterWheelDeviceId:string;
+        
+        const camStatus = this.context.camera.currentStatus;
+        if (!hasKey(camStatus.dynStateByDevices, payload.cameraDeviceId)) {
+            throw new Error("Invalid camera");
+        }
+        const camDynState = camStatus.dynStateByDevices[payload.cameraDeviceId];
+        if (!camDynState.filterWheelDevice) {
+            throw new Error("Camera has no filterwheel");
+        }
+        filterWheelDeviceId = camDynState.filterWheelDevice;
+        
+        const settings = this.getFilterSettings(filterWheelDeviceId);
+        if (!settings) {
+            logger.info('FilterWheel has no filter settings', {payload});
+            return;
+        }
+
+        if (settings.disabled) {
+            logger.info('FilterWheel focus adjustment is disabled', {payload, settings});
+            return;
+        }
+
+        if (!Obj.hasKey(settings.delta || {}, payload.filterId)) {
+            logger.warn('FilterWheel has no shift information for filter id', {payload, settings});
+            return;
+        }
+        
+        if (!Obj.hasKey(settings.delta || {}, settings.ref)) {
+            logger.warn('FilterWheel has no shift information for reference filter', {payload, settings});
+            return;
+        }
+
+        // Here, assume focuser & filterwheel are the same device.
+        const focuserDeviceId = settings.focuser || filterWheelDeviceId;
+
+        let deltaTemp:number = 0;
+        let currentTemp:number|null = null;
+
+        if (settings.tempSensor !== undefined) {
+
+            // (parseFloat(currentTemp) - settings?.refTemp)
+
+            let sensorPath = settings.tempSensor.split(/\./);
+            if (sensorPath.length < 3) {
+                sensorPath = [focuserDeviceId, ...sensorPath];
+            }
+
+            const [meteoDeviceId, meteoVec, meteoProp] = sensorPath;
+
+            const meteoDevice = this.indiManager.checkDeviceConnected(meteoDeviceId);
+        
+            let currentTempStr = meteoDevice.getVector(meteoVec).getPropertyValueIfExists(meteoProp);
+
+            if (currentTempStr === null || isNaN(parseFloat(currentTempStr))) {
+                logger.warn('Unable to adjust focus : invalid temperature', {sensorPath, payload, currentTemp});
+                throw new Error("Unable to read focuser temperature");
+            }
+
+            if (settings.refTemp === undefined) {
+                throw new Error("Missing reference temperature");
+            }
+
+            currentTemp = parseFloat(currentTempStr);
+            deltaTemp = currentTemp - settings.refTemp;
+        }
+        
+        const currentPos = this.focuser.getFocuserPos(focuserDeviceId);
+        
+        let newPos = settings?.refPos +
+                    (settings.delta[payload.filterId] - settings.delta[settings.ref]) +
+                    deltaTemp * (settings?.compensation || 0);
+        
+        logger.info("Focuser adjustment computed", {focuserDeviceId, filterWheelDeviceId, currentPos, newPos, currentTemp, deltaTemp, settings});
+        if (Math.round(newPos) === Math.round(currentPos)) {
+            logger.info("Skipping focuser adjustment for same step value");
+            return;
+        }
+        let delta = Math.abs(newPos - currentPos);
+        if (settings.min !== undefined && delta < settings.min) {
+            logger.info("Skipping focuser adjustment under the move thresold", {newPos, currentPos, delta, settings});
+        }
+        if (settings.max !== undefined && delta > settings.max) {
+            logger.warn("Rejecting focuser adjustment over the move thresold", {newPos, currentPos, delta, settings});
+            throw new Error("Focuser move is too large");
+        }
+
+        await this.focuser.moveFocuserWithBacklash(ct, focuserDeviceId, newPos);
+    }
+
     // Operation can be canceled by user
     changeFilter= async(ct:CancellationToken, payload: {cameraDeviceId?: string, filterWheelDeviceId?: string, filterNumber?: number, filterId?: string, force?: boolean})=>{
         let filterWheelDeviceId:string;
@@ -357,6 +457,10 @@ export default class FilterWheel
         } finally {
             this.currentStatus.dynStateByDevices[filterWheelDeviceId].targetFilterPos = null;
         }
+
+        // Adjust the focuser (special case, hardcoded here)
+        this.currentStatus
+
         return true;
     }
 
