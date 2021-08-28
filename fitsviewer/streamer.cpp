@@ -22,6 +22,8 @@
 #include "RawDataStorage.h"
 #include "FitsFile.h"
 
+#define INDI_SHARED_BLOB_SUPPORT
+
 using namespace std;
 
 using nlohmann::json;
@@ -40,14 +42,18 @@ struct FrameContext {
 static bool nextEntryDone = false;
 static void * nextEntryData = nullptr;
 static size_t nextEntrySize = 0;
+static std::string nextEntryFormat;
 static FrameContext nextEntryFrame;
 
 static FrameContext indiFrame;
 
+static uint64_t blobsize = 0;
+
 class MyClient : public INDI::BaseClient
 {
+    std::string dev, prop;
  public:
-    MyClient() {}
+    MyClient(const std::string & dev, const std::string & prop) : dev(dev), prop(prop) {}
     virtual ~MyClient() {}
 protected:
     virtual void newDevice(INDI::BaseDevice *dp) {
@@ -58,6 +64,10 @@ protected:
     }
     virtual void newProperty(INDI::Property *property) {
         // std::cerr << "new property\n";
+        if (dev == property->getDeviceName() && prop == property->getName()) {
+            setBLOBMode(BLOBHandling::B_ONLY, dev.c_str(), prop.c_str());
+        }
+
         if (property->getNumber()) {
             this->newNumber(property->getNumber());
         }
@@ -67,18 +77,20 @@ protected:
     }
     virtual void newBLOB(IBLOB *bp) {
         std::cerr << "new blob: " << bp->format << "\n";
-        if (strcmp(bp->format, ".fits")) {
-            std::cerr << "ignoring unsupported blob type: " << bp->format << "\n";
-            return;
-        }
 
         nextEntryMutex.lock();
 
         // Don't leak dropped frames
         if (nextEntryDone) {
+            fprintf(stderr, "dropping blob\n");
+#ifdef INDI_SHARED_BLOB_SUPPORT
+            IDSharedBlobFree(nextEntryData);
+#else
             free(nextEntryData);
+#endif
         }
 
+        nextEntryFormat = bp->format;
         nextEntryData = bp->blob;
         nextEntrySize = bp->bloblen;
         // Free from INDI POV
@@ -214,11 +226,13 @@ int main (int argc, char ** argv) {
 
     pipesize = fcntl(1, F_SETPIPE_SZ, &pipesize);
     
-    MyClient * client = new MyClient();
+    MyClient * client = new MyClient(argv[3], argv[4]);
     client->setServer(argv[1], atoi(argv[2]));
     client->watchDevice(argv[3]);
-    client->connectServer();
-    client->setBLOBMode(BLOBHandling::B_ONLY, argv[3], argv[4]);
+    if (!client->connectServer()) {
+        fprintf(stderr, "unable to connect to indi\n");
+        return 1;
+    }
 
     bool first = true;
 
@@ -233,21 +247,37 @@ int main (int argc, char ** argv) {
             outputJson(j);
         }
 
+        std::string format;
         void * data;
         size_t size;
-        {
-            std::unique_lock<std::mutex> lock(nextEntryMutex);
+        do {
+            {
+                std::unique_lock<std::mutex> lock(nextEntryMutex);
 
-            while(!nextEntryDone) {
-                nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
+                while(!nextEntryDone) {
+                    nextEntryCond.wait_for(lock,  std::chrono::milliseconds(100));
+                }
+                data = nextEntryData;
+                size = nextEntrySize;
+                format = nextEntryFormat;
+
+                nextEntryDone = false;
+                nextEntryData = nullptr;
+                nextEntryFormat = "";
+                nextEntrySize = 0;
             }
-            data = nextEntryData;
-            size = nextEntrySize;
 
-            nextEntryDone = false;
-            nextEntryData = nullptr;
-            nextEntrySize = 0;
-        }
+            if (format != ".fits") {
+                std::cerr << "ignoring unsupported blob type: " << format << "\n";
+#ifdef INDI_SHARED_BLOB_SUPPORT
+                IDSharedBlobFree(data);
+#else
+                free(data);
+#endif
+                continue;
+            }
+        } while(format != ".fitsZZZZ");
+
 
         SharedCache::WorkerError * nextEntryError = nullptr;
 
@@ -263,8 +293,11 @@ int main (int argc, char ** argv) {
             fprintf(stderr, "stream error");
             return 1;
         }
-
+#ifdef INDI_SHARED_BLOB_SUPPORT
+        IDSharedBlobFree(data);
+#else
         free(data);
+#endif
 
         RawDataStorage * storage = (RawDataStorage*)nextEntry->data();
         int w = storage->w;
