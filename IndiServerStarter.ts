@@ -213,6 +213,8 @@ export default class IndiServerStarter {
                 ||(!compatible(this.currentConfiguration.devices[running], this.wantedConfiguration.devices[running]))
                 ||(restartId !== - 1))
             {
+                logger.info("About to stop driver", { id: running, state: this.currentConfiguration.devices});
+
                 ret.push({
                     notBefore: undefined,
                     start: ()=>{
@@ -240,6 +242,8 @@ export default class IndiServerStarter {
         for(const wanted of Object.keys(this.wantedConfiguration.devices)) {
             if (!Object.prototype.hasOwnProperty.call(this.currentConfiguration.devices, wanted)) {
                 const details = Obj.deepCopy(this.wantedConfiguration.devices[wanted]);
+
+                logger.info("About to start driver", {id: wanted, state: this.currentConfiguration.devices});
 
                 ret.push({
                     notBefore: Obj.getOwnProp(this.currentConfiguration.startDelay, wanted),
