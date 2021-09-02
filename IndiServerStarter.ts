@@ -341,7 +341,7 @@ export default class IndiServerStarter {
                     }
                     todo!.done();
                 },
-                30000,
+                120000,
                 ()=>{
                     const e = new Error(todo!.cmd === 'ping' ? 'Indi ping timedout' : 'Indi fifo command timedout');
                     (e as any).isFifoTimeout = true;
@@ -352,7 +352,11 @@ export default class IndiServerStarter {
             return todo!.cmd === 'ping' ? 0 : 1;
         } catch(e) {
             logger.error('IndiServer error', e);
-            this.currentConfiguration.devices = {};
+            if (!e.isFifoTimeout) {
+                this.currentConfiguration.devices = {};
+            } else {
+                logger.error('Assuming unchanged configuration', e);
+            }
             this.indiFifoError++;
             return 'dead';
         }
