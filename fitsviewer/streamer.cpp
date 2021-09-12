@@ -22,8 +22,6 @@
 #include "RawDataStorage.h"
 #include "FitsFile.h"
 
-#define INDI_SHARED_BLOB_SUPPORT
-
 using namespace std;
 
 using nlohmann::json;
