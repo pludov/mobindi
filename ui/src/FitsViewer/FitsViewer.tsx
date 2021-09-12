@@ -249,6 +249,21 @@ class JQImageDisplay {
         return true;
     }
 
+    static allowHttpFallback() {
+        const env = process.env.NODE_ENV;
+        if (document.location.protocol === 'https:' || env === 'development') {
+            const raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+            const chrome = raw ? parseInt(raw[2], 10) : false;
+
+            if (chrome && chrome > 79) {
+                return false;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     computeSrc(path:string|null, serial: string|null, optionalImageSize?:ImageSize)
     {
         const imageSize = optionalImageSize || this.currentImageSize;
@@ -280,8 +295,7 @@ class JQImageDisplay {
                 bin = 0;
             }
 
-            const env = process.env.NODE_ENV;
-            if (document.location.protocol === 'https:' || env === 'development') {
+            if (JQImageDisplay.allowHttpFallback()) {
                 str = "http://" + document.location.hostname + ":" + this.directPort + (document.location.pathname.replace(/\/[^/]+/, '') || '/');
             } else {
                 str = "";
