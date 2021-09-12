@@ -3,14 +3,17 @@
  * Start a promise and binds it to the state of component (a number of running promises)
  * 
  */
-async function promiseToState<T>(promise:()=>Promise<T>, component: React.Component, prop='runningPromise'):Promise<T>
+type FilteredKeys<T, U> = keyof { [P in keyof T]: T[P] extends U ? P : never };
+
+async function promiseToStateProp<T,STATE, PROPS>(promise:()=>Promise<T>, component: React.Component<PROPS, STATE>, prop: FilteredKeys<STATE, number>& string):Promise<T>
 {
+    const actualProp: FilteredKeys<STATE, number>&string = prop as any;
     function inc(value:number) {
         component.setState((prevState, props) => {
-            var current = prevState[prop];
+            let current: number = prevState[actualProp] as any;
             if (!current) current = 0;
             return Object.assign({}, prevState, {
-                [prop]: current + value
+                [actualProp]: current + value
             });
         });
     }
@@ -22,6 +25,11 @@ async function promiseToState<T>(promise:()=>Promise<T>, component: React.Compon
     } finally {
         inc(-1);
     }
+}
+
+async function promiseToState<T,STATE extends {runningPromise: number}, PROPS>(promise:()=>Promise<T>, component: React.Component<PROPS, STATE>):Promise<T>
+{
+    return await promiseToStateProp(promise, component, 'runningPromise');
 }
 
 // Evaluate f function, but if fail, return def
@@ -92,4 +100,4 @@ export function isArrayEqual<U>(a : U, b: U): boolean
 }
 
 
-export {promiseToState, noErr, has};
+export {promiseToState, promiseToStateProp, noErr, has};

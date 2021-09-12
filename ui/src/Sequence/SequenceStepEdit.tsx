@@ -73,6 +73,7 @@ type State = {
     lastForcedParam?: string;
     lastForcedParamUid?: string;
 
+    runningPromise: number;
 };
 
 const SortableItem = SortableElement<{
@@ -184,7 +185,8 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         this.state = {
             parameterSplit: undefined,
             newItems: {},
-            lastNewItemSerial: 0
+            lastNewItemSerial: 0,
+            runningPromise: 0,
         };
     }
 

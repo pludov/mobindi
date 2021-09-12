@@ -159,6 +159,8 @@ export type FocuserAPI = {
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     focus: (payload: {})=>number;
     abort: (payload: {})=>void;
+    sync: (payload: {imagingSetupUuid: string})=>void;
+    adjust: (payload: {imagingSetupUuid: string})=>void;
 }
 
 export type ImageProcessorAPI = {

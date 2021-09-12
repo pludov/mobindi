@@ -3,7 +3,9 @@ import * as React from 'react';
 import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import CancellationToken from 'cancellationtoken';
 import Log from './shared/Log';
+import * as FocuserDelta from './shared/FocuserDelta';
 import * as FocuserStore from "./FocuserStore";
+import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 
@@ -25,36 +27,70 @@ type MappedProps = {
 
 type Props = InputProps & MappedProps;
 
-class FocuserDeltaView extends React.PureComponent<Props> {
+type State = {
+    runningPromise: number;
+}
+
+class FocuserDeltaView extends React.PureComponent<Props, State> {
 
     constructor(props: Props) {
         super(props);
+        this.state = { runningPromise : 0 };
     }
 
-    clicked=(what: string)=>{
+    private readonly move = async () => {
+        if (this.props.imagingSetup === null) {
+            throw new Error("Invalid imagingSetup");
+        }
+        return await BackendRequest.RootInvoker("focuser")("adjust")(
+            CancellationToken.CONTINUE,
+            {
+                imagingSetupUuid: this.props.imagingSetup
+            }
+        );
+    }
 
+    private readonly sync = async ()=> {
+        if (this.props.imagingSetup === null) {
+            throw new Error("Invalid imagingSetup");
+        }
+        return await BackendRequest.RootInvoker("focuser")("sync")(
+            CancellationToken.CONTINUE,
+            {
+                imagingSetupUuid: this.props.imagingSetup
+            }
+        );
+    }
+
+    private readonly clicked=(what: string)=>{
+        if (what === "move") {
+            Utils.promiseToState(this.move, this);
+        }
+
+        if (what === "sync") {
+            Utils.promiseToState(this.sync, this);
+        }
     }
 
     render() {
         if (!this.props.valid) {
             return null;
         }
-        if (this.props.warning) {
-            return <span>{this.props.warning}</span>
-        } else {
-            return <select value="" onChange={(e)=>this.clicked(e.target.value)}>
-                    <option value="" hidden={true}>{"Δ"+this.props.delta}</option>
-                    {this.props.delta !== undefined && this.props.delta != 0
-                        ?
-                            <>
-                                <option value="Move">Move</option>
-                                <option value="Sync">Sync</option>
-                            </>
-                        :
-                            null
-                    }
+
+        // FIXME: display warnings details
+        return <>
+            {this.props.warning
+                ?
+                    <span className={"Notification_Inline Notification_Warning"}>⚠</span>
+                :
+                    null
+            }
+            <select value="" onChange={(e)=>this.clicked(e.target.value)} className={this.state.runningPromise ? "BusyInfinite": "" }>
+                    <option value="" hidden={true}>{this.props.delta !== undefined ? "Δ"+this.props.delta : "N/A"}</option>
+                    <option disabled={this.props.delta === undefined || this.props.delta === 0} value="move">Adjust</option>
+                    <option disabled={this.props.delta === 0} value="sync">Sync</option>
                 </select>
-        }
+        </>;
     }
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
@@ -71,7 +107,7 @@ class FocuserDeltaView extends React.PureComponent<Props> {
         let delta;
         let warning:string = "";
         try {
-            delta = FocuserStore.getFocusDelta(imagingSetup.dynState, focuserSettings.focusStepPerDegree, focuserSettings.focuserFilterAdjustment, focuserSettings.temperatureProperty);
+            delta = FocuserDelta.getFocusDelta(imagingSetup.dynState, focuserSettings.focusStepPerDegree, focuserSettings.focuserFilterAdjustment, focuserSettings.temperatureProperty);
         } catch(e) {
             warning = e.message;
             delta = null;

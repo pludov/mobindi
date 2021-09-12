@@ -24,7 +24,7 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 type State = {
-    runningPromise?: boolean;
+    runningPromise: number;
 }
 
 export class SequenceControler extends React.PureComponent<Props, State> {
@@ -37,6 +37,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = {
+            runningPromise: 0
         };
     }
 

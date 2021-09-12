@@ -21,12 +21,15 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 type State = {
+    runningPromise: number
 }
 
 class IndiFilterWheelFocusAdjusterConfig extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
-        this.state = {};
+        this.state = {
+            runningPromise: 0,
+        };
     }
 
     render() {

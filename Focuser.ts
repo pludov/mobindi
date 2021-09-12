@@ -5,6 +5,7 @@ import { hasKey } from './Obj';
 import * as AccessPath from './AccessPath';
 import * as Algebra from './Algebra';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
+import * as FocuserDelta from './FocuserDelta';
 import * as RequestHandler from './RequestHandler';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import ConfigStore from './ConfigStore';
@@ -150,7 +151,64 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                 }
             );
         }
+    }
 
+    public moveFocuserWithBacklash = async (ct: CancellationToken, imagingSetupUuid: string, target: number):Promise<void>=>{
+        const config = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid).config();
+        if (config.focuserDevice === null) {
+            throw new Error("No focuser declared in imagingSetup");
+        }
+        const focuserId = config.focuserDevice;
+
+        target = Math.round(target);
+
+        const connection = this.indiManager.getValidConnection();
+
+        // check device connected
+        const focuser = connection.getDevice(focuserId);
+        if (!focuser.isConnected()) {
+            logger.warn("Focuser not connected");
+            throw new Error("Focuser not connected");
+        }
+
+        // Move to the starting point
+        const absPos = focuser.getVector('ABS_FOCUS_POSITION');
+        if (!absPos.isReadyForOrder()) {
+            logger.warn("Focuser not ready");
+            throw new Error("Focuser is not ready");
+        }
+
+        const moveForward = config.focuserSettings.lowestFirst;
+        let currentPos:number = parseFloat(absPos.getPropertyValue("FOCUS_ABSOLUTE_POSITION"));
+
+        const backlash = config.focuserSettings.backlash;
+        let intermediate = undefined;
+        if (backlash != 0) {
+            if (moveForward) {
+                // Need backlash clearance in this direction
+                if (target < currentPos) {
+                    intermediate = target - backlash;
+                }
+            } else {
+                if (target > currentPos) {
+                    intermediate = target + backlash;
+                }
+            }
+            if (intermediate !== undefined && intermediate < 0) {
+                intermediate = 0;
+            }
+            // FIXME: check upper bound
+        }
+
+        if ((intermediate !== undefined) && (intermediate !== target)) {
+            // Account for backlash
+            logger.info('Clearing backlash', {intermediate, target});
+            await this.rawMoveFocuser(ct, focuserId, intermediate);
+        }
+
+        // Direct move
+        logger.info('Moving focuser', {target});
+        await this.rawMoveFocuser(ct, focuserId, target);
     }
 
     refreshFocuserPosition(imagingSetupUid: string)
@@ -283,6 +341,8 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             abort: this.abort,
             focus: this.focus,
             setCurrentImagingSetup: this.setCurrentImagingSetup,
+            sync: this.sync,
+            adjust: this.adjust,
         }
     }
 
@@ -321,6 +381,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         );
     }
 
+    // FIXME : Must receive an imagingSetupUuid and never refer to the current (which is only UI)
     private getCurrentConfiguration(): {imagingSetupInstance: ImagingSetupInstance, camera: string, focuser: string, settings: FocuserSettings} {
         const imagingSetupInstance = this.context.imagingSetupManager.getImagingSetupInstance(this.currentStatus.currentImagingSetup);
 
@@ -417,41 +478,6 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
 
         let currentStep = firstStep;
         let stepId = 0;
-        
-        const moveFocuser= async(target:number)=>{
-            target = Math.round(target);
-
-            const backlash = config.settings.backlash;
-            let intermediate = undefined;
-            if (backlash != 0) {
-                if (moveForward) {
-                    // Need backlash clearance in this direction
-                    if (target < lastKnownPos) {
-                        intermediate = target - backlash;
-                    }
-                } else {
-                    if (target > lastKnownPos) {
-                        intermediate = target + backlash;
-                    }
-                }
-                if (intermediate !== undefined && intermediate < 0) {
-                    intermediate = 0;
-                }
-                // FIXME: check upper bound
-            }
-
-            lastKnownPos = target;
-            
-            if ((intermediate !== undefined) && (intermediate !== target)) {
-                // Account for backlash
-                logger.info('Clearing backlash', {intermediate, target});
-                await this.rawMoveFocuser(ct, focuserId, intermediate);
-            }
-
-            // Direct move
-            logger.info('Moving focuser', {target});
-            await this.rawMoveFocuser(ct, focuserId, target);
-        }
 
         function nextStep() {
             return currentStep + (moveForward ? stepSize : -stepSize);
@@ -462,7 +488,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         }
 
         // Move to currentStep
-        await moveFocuser(currentStep);
+        await this.moveFocuserWithBacklash(ct, imagingSetup,currentStep);
         
         while(!done(currentStep)) {
             
@@ -473,7 +499,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
                             prefix: 'focus_ISO8601_step_' + Math.floor(currentStep)
                         }));
         
-            const moveFocuserPromise = done(nextStep()) ? undefined : moveFocuser(nextStep());
+            const moveFocuserPromise = done(nextStep()) ? undefined : this.moveFocuserWithBacklash(ct, imagingSetup, nextStep());
             try {
                 const starFieldResponse = await this.imageProcessor.compute(ct, {
                     starField: { source: {
@@ -508,7 +534,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
 
         if (data.length < 5) {
             logger.warn('Could not find best position. Moving back to origin', {initialPos});
-            await moveFocuser(initialPos);
+            await this.moveFocuserWithBacklash(ct, imagingSetup, initialPos);
             throw new Error("Not enough data for focus");
         }
         
@@ -532,7 +558,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
             }
         }
         logger.info('Found best position', {bestPos, bestValue});
-        await moveFocuser(bestPos!);
+        await this.moveFocuserWithBacklash(ct, imagingSetup, bestPos!);
         this.updateReferencePoint(imagingSetup);
         return bestPos!;
     }
@@ -573,5 +599,24 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         if (this.currentPromise !== null) {
             this.currentPromise.cancel();
         }
+    }
+
+    sync=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
+        await this.updateReferencePoint(payload.imagingSetupUuid);
+    }
+
+    adjust=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
+        const imagingSetup = this.context.imagingSetupManager.getImagingSetupInstance(payload.imagingSetupUuid);
+
+        const imagingSetupConf = imagingSetup.config();
+
+        const imagingSetupDynState = imagingSetupConf.dynState;
+        const focusStepPerDegree = imagingSetupConf.focuserSettings?.focusStepPerDegree;
+        const focuserFilterAdjustment = imagingSetupConf.focuserSettings?.focuserFilterAdjustment;
+        const temperatureProperty = imagingSetupConf.focuserSettings?.temperatureProperty;
+
+        const targetPos = FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focuserFilterAdjustment, temperatureProperty);
+
+        await this.moveFocuserWithBacklash(ct, payload.imagingSetupUuid, targetPos.abs);
     }
 }

@@ -336,6 +336,7 @@ export type FocuserUpdateCurrentSettingsRequest = {
 export type FocuserStatus = {
     currentImagingSetup: string|null;
     config: AutoFocusConfiguration;
+    // FIXME: must be turned into a imagingSetupUuid map
     current: AutoFocusStatus;
 }
 
