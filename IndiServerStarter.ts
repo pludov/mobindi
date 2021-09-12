@@ -239,7 +239,7 @@ export default class IndiServerStarter {
         // Start new requirements
         for(const wanted of Object.keys(this.wantedConfiguration.devices)) {
             if (!Object.prototype.hasOwnProperty.call(this.currentConfiguration.devices, wanted)) {
-                var details = Obj.deepCopy(this.wantedConfiguration.devices[wanted]);
+                const details = Obj.deepCopy(this.wantedConfiguration.devices[wanted]);
 
                 ret.push({
                     notBefore: Obj.getOwnProp(this.currentConfiguration.startDelay, wanted),
