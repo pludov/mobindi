@@ -2,9 +2,6 @@ import * as React from 'react';
 import * as Store from './Store';
 import * as Utils from './Utils';
 
-import TextEdit from './TextEdit';
-import * as Help from './Help';
-
 import * as BackendRequest from "./BackendRequest";
 import PromiseSelector from './PromiseSelector';
 import DeviceConnectBton from './DeviceConnectBton';
@@ -32,8 +29,6 @@ type State = {
 }
 
 class IndiDriverConfig extends React.PureComponent<Props, State> {
-    static filterHelp = Help.key("Filter config", "A JSON string with filter relative adjustment.");
-
     constructor(props:Props) {
         super(props);
         this.state = {runningPromise: 0};
@@ -42,21 +37,6 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         this.autoGphotoSensorSize = this.switchBoolean('autoGphotoSensorSize');
         this.askCoverScope = this.switchBoolean('disableAskCoverScope', true);
         this.confirmFilterChange = this.switchBoolean('confirmFilterChange');
-
-        this.updateFilterConfig = (targetValue:string)=> {
-            Utils.promiseToState(
-                (async ()=> {
-                    await BackendRequest.RootInvoker("indi")("updateDriverParam")(
-                        CancellationToken.CONTINUE,
-                        {
-                            driver: this.props.driverId,
-                            key: 'filterSettings',
-                            value: targetValue ? JSON.parse(targetValue) : undefined
-                        });
-                }),
-                this
-            );
-        }
     }
 
     static supportAutoGphotoSensorSize(driver: string) {
@@ -86,7 +66,6 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
     private readonly autoGphotoSensorSize:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
     private readonly askCoverScope:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
     private readonly confirmFilterChange:(e:React.ChangeEvent<HTMLInputElement>)=>(void);
-    private readonly updateFilterConfig:(s:string)=>(void);
 
     renderFilterWheel() {
         return <>
@@ -97,13 +76,6 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
                             checked={!!this.props.details?.confirmFilterChange}
                             onChange={this.confirmFilterChange}
                     />
-            </div>
-            <div>
-                Filter configuration:
-                    <TextEdit
-                            value={this.props.details?.filterSettings ? JSON.stringify(this.props.details?.filterSettings, null, 2): ""}
-                            helpKey={IndiDriverConfig.filterHelp}
-                            onChange={this.updateFilterConfig}/>
             </div>
         </>
     }
