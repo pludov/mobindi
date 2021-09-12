@@ -83,7 +83,6 @@ class CameraView extends React.PureComponent<Props> {
     static mapStateToProps= ()=> {
         return (store:Store.Content, ownProps: InputProps):MappedProps=>{
             const imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
-            console.log('Camera view: ', store, ownProps.imagingSetupIdAccessor);
             const imagingSetupInstance = ImagingSetupStore.getImagingSetup(store, imagingSetup);
 
             const cameraDevice = imagingSetupInstance !== null ? imagingSetupInstance.cameraDevice : null;
