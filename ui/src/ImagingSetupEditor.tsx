@@ -7,6 +7,7 @@ import * as BackendRequest from "./BackendRequest";
 import * as AccessPath from './shared/AccessPath';
 import * as Store from "./Store";
 import * as ImagingSetupStore from "./ImagingSetupStore";
+import * as FocuserStore from "./FocuserStore";
 import CancellationToken from 'cancellationtoken';
 
 import TextEdit from './TextEdit';
@@ -68,17 +69,22 @@ type MappedProps = {
     cameraDevice: ImagingSetup["cameraDevice"];
     filterWheelDevice: ImagingSetup["filterWheelDevice"];
     focuserDevice:ImagingSetup["focuserDevice"];
+    hasFocuserTemperatureReferenceProperty: boolean;
+    focusStepPerDegree: number|null;
 }
 
 type Props = InputProps & MappedProps;
 
 
-type State = {}
+type State = {
+    busy: number;
+}
 
 class ImagingSetupEditor extends React.PureComponent<Props, State> {
 
     constructor(props: Props) {
         super(props);
+        this.state = {busy: 0};
     }
 
     updateName=async (name:string)=> {
@@ -101,6 +107,20 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                     value
                 }
             );
+        }
+    }
+
+    updateFocusStepPerDegree=async (e:string) => {
+        try {
+            this.setState((s)=>{busy: s.busy+1});
+
+            let value = e.trim() ? parseFloat(e.trim()) : null;
+
+            if (value == null || !isNaN(value)) {
+                await FocuserStore.focuserSettingsAccessor(this.props.imagingSetupUid).prop("focusStepPerDegree").send(value);
+            }
+        } finally {
+            this.setState((s)=>{busy: s.busy-1});
         }
     }
 
@@ -151,6 +171,18 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                         <IndiPropertyIdentifierSelector
                                 helpKey={temperaturePropertySelectorHelp}
                                 accessor={this.focuserTemperatureReferenceProperty(this.props.imagingSetupUid)}/>
+                        {this.props.focuserDevice && this.props.filterWheelDevice && this.props.hasFocuserTemperatureReferenceProperty
+                            ?
+                                <>
+                                    <div>Temperature compensation (step per °C):</div>
+                                    <TextEdit
+                                        busy={!!this.state.busy}
+                                        value={this.props.focusStepPerDegree === null ? "" : (this.props.focusStepPerDegree||0).toString()}
+                                        onChange={(e)=>this.updateFocusStepPerDegree(e)} />
+                                </>
+
+                            : null
+                        }
                     </div>
                     : null
                 }
@@ -162,12 +194,16 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
         const byuuid= store.backend?.imagingSetup?.configuration?.byuuid;
         if (Utils.has(byuuid, ownProps.imagingSetupUid)) {
-            const {cameraDevice, filterWheelDevice, focuserDevice, ...details} = byuuid![ownProps.imagingSetupUid];
+            const {cameraDevice, filterWheelDevice, focuserDevice, focuserSettings, ...details} = byuuid![ownProps.imagingSetupUid];
 
+            const hasFocuserTemperatureReferenceProperty = !!focuserSettings?.temperatureProperty;
+            const focusStepPerDegree = (focuserSettings || {focusStepPerDegree: null}).focusStepPerDegree;
             return {
                 visible: true,
                 name: details.name,
                 cameraDevice, filterWheelDevice, focuserDevice,
+                hasFocuserTemperatureReferenceProperty,
+                focusStepPerDegree,
             }
         } else {
             return {
@@ -176,6 +212,8 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                 cameraDevice: null,
                 filterWheelDevice: null,
                 focuserDevice: null,
+                hasFocuserTemperatureReferenceProperty: false,
+                focusStepPerDegree: 0,
             }
         }
     }

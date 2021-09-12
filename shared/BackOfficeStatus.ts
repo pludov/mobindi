@@ -311,6 +311,7 @@ export type FocuserSettings = {
 
     focuserFilterAdjustment: FilterWheelDeltas;
     temperatureProperty: null|IndiPropertyIdentifier;
+    focusStepPerDegree: null|number;
 }
 
 export type AutoFocusConfiguration = {

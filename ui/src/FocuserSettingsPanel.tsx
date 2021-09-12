@@ -8,6 +8,7 @@ import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceSettingsBton from './DeviceSettingsBton';
+import FocuserDeltaView from './FocuserDeltaView';
 import IndiPropertyView from "./indiview/IndiPropertyView";
 
 import './CameraView.css'
@@ -62,6 +63,7 @@ class FocuserSettingsPanel extends React.PureComponent<Props> {
                                         showVecLabel={false} compact={true} forcedValue={undefined}
                                         busy={this.props.busy}
                                         onChange={this.changeCallback}/>
+                        <FocuserDeltaView imagingSetup={this.props.imagingSetup}/>
                         <DeviceConnectBton deviceId={this.props.device}/>
                         <DeviceSettingsBton deviceId={this.props.device}/>
                     </CameraViewDevicePanel>
