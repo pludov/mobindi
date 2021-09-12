@@ -2,6 +2,10 @@
     display: block;
 }
 
+.IndiPropertyCompact {
+    display: inline;
+}
+
 .IndiPropertyView {
     flex-grow: 1;
     flex-shrink: 1;

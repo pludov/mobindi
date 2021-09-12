@@ -16,11 +16,14 @@ type InputProps = {
     vec: string;
     prop:string;
     showVecLabel: boolean;
-    forcedValue: boolean;
+    compact?: boolean;
+    busy?: boolean;
+    forcedValue: undefined|string;
     onChange: (prop:string, truc: boolean, value:string)=>(void);
 }
 
 type MappedProps = {
+    valid: boolean;
     vecLabel: IndiVector["$label"];
     vecType: IndiVector["$type"];
     vecRule: IndiVector["$rule"];
@@ -179,11 +182,16 @@ class IndiPropertyView extends PureComponent<Props> {
     // props: forcedValue
     // onChange(newValue)
     render() {
-        var label = this.props.propLabel;
+        if (!this.props.valid) {
+            return null;
+        }
+        let label = this.props.propLabel;
         if (this.props.vecLabel != undefined && label != this.props.vecLabel) {
             label = this.props.vecLabel + ": " + label;
         }
 
+        let className= this.props.compact ? "IndiPropertyCompact": "IndiProperty";
+        const busyClassName = this.props.busy ? " BusyInfinite " : ""
 /*        var test = [ -400, -0.0001, 0.00001, 0.99999999999, 1.000000001, 20.9914239, 45212145421241.9914239, 1e19 ];
         var formats = [ "%1.0m", "%1.3m", "%1.5m", "%1.6m", "%1.8m", "%1.9m"];
         for(var i  = 0; i < test.length; ++i) {
@@ -199,7 +207,7 @@ class IndiPropertyView extends PureComponent<Props> {
             if (this.props.vecRule == 'AtMostOne') {
                 return <input
                     type="button"
-                    className={"IndiSwitchButton IndiSwitchButton" + this.props.value}
+                    className={busyClassName + "IndiSwitchButton IndiSwitchButton" + this.props.value}
                     value={label}
                     onClick={(e) => {
                         this.props.onChange(
@@ -210,8 +218,9 @@ class IndiPropertyView extends PureComponent<Props> {
                 />
 
             } else {
-                return <div className="IndiProperty">
+                return <div className={className}>
                     <input
+                        className={busyClassName}
                         type="checkbox"
                         checked={this.props.value == 'On'}
                         onChange={(e) => {
@@ -224,16 +233,16 @@ class IndiPropertyView extends PureComponent<Props> {
                     {label}</div>
             }
         } else if (this.props.vecPerm != 'ro') {
-            return <div className="IndiProperty">
-                        {label}:
+            return <div className={className}>
+                        {!this.props.compact ? label + ":" : "" }
                         <TextEdit
                             value={this.renderValue(this.props.value)}
+                            busy={this.props.busy}
                             onChange={(e)=> {this.props.onChange(this.props.prop, false, this.parseValue(e))}}/>
                     </div>;
         } else {
-            return <div className="IndiProperty">{label}: {this.renderValue(this.props.value)}</div>
+            return <div className={className}>{label}: {this.renderValue(this.props.value)}</div>
         }
-
     }
 
 
@@ -248,6 +257,7 @@ class IndiPropertyView extends PureComponent<Props> {
 
         if (vec === undefined || prop === undefined) {
             return {
+                valid: false,
                 vecLabel: "",
                 vecType: "Switch",
                 vecPerm: "",
@@ -258,6 +268,7 @@ class IndiPropertyView extends PureComponent<Props> {
             } as MappedProps
         } else {
             return {
+                valid: true,
                 vecLabel: ownProps.showVecLabel ? vec.$label: undefined,
                 vecType: vec.$type,
                 vecRule: vec.$rule,

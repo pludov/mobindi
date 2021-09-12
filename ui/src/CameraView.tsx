@@ -14,6 +14,7 @@ import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import * as ImagingSetupStore from './ImagingSetupStore';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
+import FocuserSettingsPanel from './FocuserSettingsPanel';
 
 const logger = Log.logger(__filename);
 
@@ -60,6 +61,7 @@ class CameraView extends React.PureComponent<Props> {
                 </div>
                 <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
                 <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                <FocuserSettingsPanel imagingSetup={this.props.imagingSetup}/>
             </div>
             <div className="CameraViewDisplay">
                 <FitsViewerWithAstrometry

@@ -44,6 +44,7 @@ class FullScreenEdit extends React.PureComponent<FullScreenEditProps> {
 
 type Props = {
     value: string;
+    busy?: boolean;
     onChange: (s:string)=>(void);
     focusRef?: React.RefObject<HTMLDivElement>;
     helpKey?: Help.Key;
@@ -71,7 +72,7 @@ export default class TextEdit extends React.PureComponent<Props, State> {
         if (v === undefined || v === "") {
             v = " ";
         }
-        return <span className="TextEdit" ref={this.props.focusRef} tabIndex={0} onClick={this.openEditor} {...this.props.helpKey?.dom()}>{v}{editor}</span>
+        return <span className={"TextEdit"+ (this.props.busy ? " BusyInfinite" : "")} ref={this.props.focusRef} tabIndex={0} onClick={this.openEditor} {...this.props.helpKey?.dom()}>{v}{editor}</span>
     }
 
     openEditor=()=>{

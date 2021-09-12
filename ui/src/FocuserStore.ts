@@ -3,6 +3,7 @@ import CancellationToken from 'cancellationtoken';
 
 import * as Store from './Store';
 import Log from './shared/Log';
+import * as IndiStore from "./IndiStore";
 import * as BackendRequest from "./BackendRequest";
 import * as AccessPath from './shared/AccessPath';
 
@@ -56,3 +57,13 @@ class CurrentImagingSetupAccessor implements Store.Accessor<string|null> {
 
 export const currentImagingSetupAccessor = defaultMemoize(()=>new CurrentImagingSetupAccessor());
 
+
+export function isFocuserBusy(state: Store.Content, focuserId: string)
+{
+    const vec = IndiStore.getVector(state, focuserId, 'ABS_FOCUS_POSITION');
+    console.log('What about ', vec);
+    if (vec !== null && vec.$state === "Busy") {
+        return true;
+    }
+    return false;
+}
