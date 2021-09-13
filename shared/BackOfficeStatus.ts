@@ -312,6 +312,8 @@ export type FocuserSettings = {
     focuserFilterAdjustment: FilterWheelDeltas;
     temperatureProperty: null|IndiPropertyIdentifier;
     focusStepPerDegree: null|number;
+    // Only move when the ideal distance is at least that distance away
+    focusStepTolerance: number;
 }
 
 export type AutoFocusConfiguration = {

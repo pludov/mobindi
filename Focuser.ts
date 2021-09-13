@@ -613,9 +613,10 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         const imagingSetupDynState = imagingSetupConf.dynState;
         const focusStepPerDegree = imagingSetupConf.focuserSettings?.focusStepPerDegree;
         const focuserFilterAdjustment = imagingSetupConf.focuserSettings?.focuserFilterAdjustment;
+        const focusStepTolerance = imagingSetupConf.focuserSettings?.focusStepTolerance;
         const temperatureProperty = imagingSetupConf.focuserSettings?.temperatureProperty;
 
-        const targetPos = FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focuserFilterAdjustment, temperatureProperty);
+        const targetPos = FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focusStepTolerance, focuserFilterAdjustment, temperatureProperty);
 
         await this.moveFocuserWithBacklash(ct, payload.imagingSetupUuid, targetPos.abs);
     }

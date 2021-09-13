@@ -1,6 +1,6 @@
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
-import {BackofficeStatus, ImagingSetup, ImagingSetupStatus } from './shared/BackOfficeStatus';
+import {BackofficeStatus, FocuserSettings, ImagingSetup, ImagingSetupStatus } from './shared/BackOfficeStatus';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {IdGenerator} from "./IdGenerator";
 import ConfigStore from './ConfigStore';
@@ -86,6 +86,8 @@ export default class ImagingSetupManager
 
                 if (!imagingSetup.focuserSettings) {
                     imagingSetup.focuserSettings = this.defaultFocuserSettings();
+                } else {
+                    imagingSetup.focuserSettings = this.updateFocuserSettings(imagingSetup.focuserSettings);
                 }
                 ret.byuuid[uuid] = imagingSetup;
             }
@@ -297,7 +299,7 @@ export default class ImagingSetupManager
         }
     }
 
-    defaultFocuserSettings() {
+    defaultFocuserSettings():FocuserSettings {
         return {
             range: 1000,
             steps: 5,
@@ -308,7 +310,12 @@ export default class ImagingSetupManager
             focuserFilterAdjustment: {},
             temperatureProperty: null,
             focusStepPerDegree: null,
+            focusStepTolerance: 0,
         }
+    }
+
+    updateFocuserSettings(t: Partial<FocuserSettings>):FocuserSettings {
+        return Object.assign(this.defaultFocuserSettings(), t);
     }
 
     defaultCameraSettings() {

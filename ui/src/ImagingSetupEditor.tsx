@@ -15,13 +15,18 @@ import PromiseSelector, { Props as PromiseSelectorProps }  from './PromiseSelect
 
 import { connect } from 'react-redux';
 import { createSelector, defaultMemoize } from 'reselect'
-import { ImagingSetup } from '@bo/BackOfficeStatus';
+import { FocuserSettings, ImagingSetup } from '@bo/BackOfficeStatus';
 import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
-import IndiPropertySelector from './indiview/IndiPropertyIdentifierSelector';
 import IndiPropertyIdentifierSelector from './indiview/IndiPropertyIdentifierSelector';
 
-const temperaturePropertySelectorHelp = Help.key("Select temperature source", "Select a INDI property that will be used for temperature compensation at the focuser");
+const namePropertyHelp = Help.key("Name", "Give a name to this imaging setup. Will use camera name by default");
+const cameraSelectorHelp = Help.key("Camera", "Select the main camera for this imaging setup");
+const filterWheelSelectorHelp = Help.key("Filter wheel", "Select the filter wheel for this imaging setup");
+const focuserSelectorHelp = Help.key("Focuser", "Select the focuser for this imaging setup");
 
+const temperaturePropertySelectorHelp = Help.key("Select temperature source", "Select a INDI property that will be used for temperature compensation at the focuser");
+const focusStepPerDegreeHelp = Help.key("Temperature compensation (step per °C)", "Number of step to move the focuser per degree (°C) change. Use negative if step are counter backward (lower = further from objective).");
+const focusStepToleranceHelp = Help.key("Minimal adjustment (step)", "Avoid moving focuser for delta under this thresold");
 
 type IndiDeviceListItem = {
     id: string;
@@ -71,6 +76,7 @@ type MappedProps = {
     focuserDevice:ImagingSetup["focuserDevice"];
     hasFocuserTemperatureReferenceProperty: boolean;
     focusStepPerDegree: number|null;
+    focusStepTolerance: number;
 }
 
 type Props = InputProps & MappedProps;
@@ -110,18 +116,30 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
         }
     }
 
-    updateFocusStepPerDegree=async (e:string) => {
+    updateSetting=async(setting: keyof FocuserSettings, e: string) => {
         try {
             this.setState((s)=>{busy: s.busy+1});
 
             let value = e.trim() ? parseFloat(e.trim()) : null;
 
-            if (value == null || !isNaN(value)) {
-                await FocuserStore.focuserSettingsAccessor(this.props.imagingSetupUid).prop("focusStepPerDegree").send(value);
+            if (value === null || !isNaN(value)) {
+                await FocuserStore.focuserSettingsAccessor(this.props.imagingSetupUid).prop(setting).send(value);
             }
         } finally {
             this.setState((s)=>{busy: s.busy-1});
         }
+
+    }
+
+    updateFocusStepPerDegree=async (e:string) => {
+        return await this.updateSetting("focusStepPerDegree", e);
+    }
+
+    updateFocusStepTolerance=async(e:string)=> {
+        if (!e.trim()) {
+            throw new Error("Invalid empty value");
+        }
+        return await this.updateSetting("focusStepTolerance", e);
     }
 
     setCamera = this.setDevice("cameraDevice");
@@ -137,11 +155,13 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                         Name:
                         <TextEdit
                             value={this.props.name}
+                            helpKey={namePropertyHelp}
                             onChange={(e)=>this.updateName(e)} />
                 </div>
                 <div className="IndiProperty">
                         Camera:
                         <CameraSelector
+                                helpKey={cameraSelectorHelp}
                                 active={this.props.cameraDevice}
                                 setValue={this.setCamera}
                                 />
@@ -150,6 +170,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                         Filter wheel:
                         <FilterWheelSelector
                                 active={this.props.filterWheelDevice}
+                                helpKey={filterWheelSelectorHelp}
                                 setValue={this.setFilterWheel}
                                 nullAlwaysPossible={true}
                                 />
@@ -158,29 +179,48 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                         Focuser:
                         <FocuserSelector
                                 active={this.props.focuserDevice}
+                                helpKey={focuserSelectorHelp}
                                 setValue={this.setFocuser}
                                 nullAlwaysPossible={true}
                                 />
                 </div>
-                {this.props.focuserDevice && this.props.filterWheelDevice
+                {this.props.focuserDevice
                     ?
                     <div >
-                        <div>Focuser adjustment for filters:</div>
-                        <IndiFilterWheelFocusAdjusterConfig accessor={this.imagingSetupAccessorFactory(this.props.imagingSetupUid)}/>
+                        {this.props.filterWheelDevice
+                            ? <>
+                                <div>Focuser adjustment for filters:</div>
+                                <IndiFilterWheelFocusAdjusterConfig accessor={this.imagingSetupAccessorFactory(this.props.imagingSetupUid)}/>
+                            </>
+                            : null
+                        }
                         <div>Focuser temperature adjustment source:</div>
                         <IndiPropertyIdentifierSelector
                                 helpKey={temperaturePropertySelectorHelp}
                                 accessor={this.focuserTemperatureReferenceProperty(this.props.imagingSetupUid)}/>
-                        {this.props.focuserDevice && this.props.filterWheelDevice && this.props.hasFocuserTemperatureReferenceProperty
+                        {this.props.hasFocuserTemperatureReferenceProperty
                             ?
                                 <>
-                                    <div>Temperature compensation (step per °C):</div>
+                                    <div>{focusStepPerDegreeHelp.title}:</div>
                                     <TextEdit
+                                        helpKey={focusStepPerDegreeHelp}
                                         busy={!!this.state.busy}
                                         value={this.props.focusStepPerDegree === null ? "" : (this.props.focusStepPerDegree||0).toString()}
-                                        onChange={(e)=>this.updateFocusStepPerDegree(e)} />
+                                        onChange={this.updateFocusStepPerDegree} />
                                 </>
 
+                            : null
+                        }
+                        {this.props.filterWheelDevice || this.props.hasFocuserTemperatureReferenceProperty
+                            ?
+                                <>
+                                    <div>{focusStepToleranceHelp.title}:</div>
+                                    <TextEdit
+                                        busy={!!this.state.busy}
+                                        helpKey={focusStepToleranceHelp}
+                                        value={this.props.focusStepTolerance.toString()}
+                                        onChange={this.updateFocusStepTolerance} />
+                                </>
                             : null
                         }
                     </div>
@@ -198,12 +238,14 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
 
             const hasFocuserTemperatureReferenceProperty = !!focuserSettings?.temperatureProperty;
             const focusStepPerDegree = (focuserSettings || {focusStepPerDegree: null}).focusStepPerDegree;
+            const focusStepTolerance = focuserSettings?.focusStepTolerance || 0;
             return {
                 visible: true,
                 name: details.name,
                 cameraDevice, filterWheelDevice, focuserDevice,
                 hasFocuserTemperatureReferenceProperty,
                 focusStepPerDegree,
+                focusStepTolerance,
             }
         } else {
             return {
@@ -214,6 +256,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                 focuserDevice: null,
                 hasFocuserTemperatureReferenceProperty: false,
                 focusStepPerDegree: 0,
+                focusStepTolerance: 0,
             }
         }
     }

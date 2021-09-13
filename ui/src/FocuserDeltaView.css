@@ -1,0 +1,11 @@
+.FocuserDeltaGood {
+    color: darkgreen;
+}
+
+.FocuserDeltaAverage {
+    color: darkorange;
+}
+
+.FocuserDeltaBad {
+    color: darkred;
+}

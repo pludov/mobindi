@@ -4,12 +4,11 @@ import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import CancellationToken from 'cancellationtoken';
 import Log from './shared/Log';
 import * as FocuserDelta from './shared/FocuserDelta';
-import * as FocuserStore from "./FocuserStore";
 import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 
-import './CameraView.css'
+import './FocuserDeltaView.css'
 import * as ImagingSetupStore from './ImagingSetupStore';
 
 const logger = Log.logger(__filename);
@@ -23,6 +22,7 @@ type MappedProps = {
     warning: string | null;
     same: boolean;
     delta: number | undefined;
+    deltaWeight: number | undefined;
 }
 
 type Props = InputProps & MappedProps;
@@ -77,7 +77,16 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
             return null;
         }
 
-        // FIXME: display warnings details
+        let deltaWeightClass: string = "";
+        if (this.props.deltaWeight !== undefined) {
+            if (this.props.deltaWeight <= 0.5) {
+                deltaWeightClass = "FocuserDeltaGood";
+            } else if (this.props.deltaWeight < 1) {
+                deltaWeightClass = "FocuserDeltaAverage";
+            } else {
+                deltaWeightClass = "FocuserDeltaBad";
+            }
+        }
         return <>
             {this.props.warning
                 ?
@@ -85,7 +94,8 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                 :
                     null
             }
-            <select value="" onChange={(e)=>this.clicked(e.target.value)} className={this.state.runningPromise ? "BusyInfinite": "" }>
+            <select value="" onChange={(e)=>this.clicked(e.target.value)}
+                        className={(this.state.runningPromise ? " BusyInfinite ": "") + deltaWeightClass }>
                     <option value="" hidden={true}>{this.props.delta !== undefined ? "Δ"+this.props.delta : "N/A"}</option>
                     <option disabled={this.props.delta === undefined || this.props.delta === 0} value="move">Adjust</option>
                     <option disabled={this.props.delta === 0} value="sync">Sync</option>
@@ -101,13 +111,14 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                 warning: null,
                 same: false,
                 delta: undefined,
+                deltaWeight: undefined,
             }
         }
         const focuserSettings = imagingSetup.focuserSettings;
         let delta;
         let warning:string = "";
         try {
-            delta = FocuserDelta.getFocusDelta(imagingSetup.dynState, focuserSettings.focusStepPerDegree, focuserSettings.focuserFilterAdjustment, focuserSettings.temperatureProperty);
+            delta = FocuserDelta.getFocusDelta(imagingSetup.dynState, focuserSettings.focusStepPerDegree, focuserSettings.focusStepTolerance, focuserSettings.focuserFilterAdjustment, focuserSettings.temperatureProperty);
         } catch(e) {
             warning = e.message;
             delta = null;
@@ -119,6 +130,7 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                 imagingSetup.dynState.filterWheelWarning ||
                 imagingSetup.dynState.focuserWarning,
             delta: delta?.fromCur,
+            deltaWeight: delta?.fromCurWeight,
             same:
                 imagingSetup.dynState.curFocus?.temp === imagingSetup.dynState.refFocus?.temp &&
                 imagingSetup.dynState.curFocus?.filter === imagingSetup.dynState.refFocus?.filter &&

@@ -3,6 +3,7 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 export type FocusDelta = {
     fromRef: number;
     fromCur: number;
+    fromCurWeight: number;  // 0 when exact match. >= 1 for delta over tolerance
     abs: number;
 }
 
@@ -20,6 +21,7 @@ function getFilterAdjustment(focuserFilterAdjustment: BackOfficeStatus.FilterWhe
 
 export function getFocusDelta(imagingSetupDynState: BackOfficeStatus.ImagingSetupDynState,
                               focusStepPerDegree: null|number,
+                              focusStepTolerance: number,
                               focuserFilterAdjustment: BackOfficeStatus.FilterWheelDeltas,
                               temperatureProperty: null|BackOfficeStatus.IndiPropertyIdentifier): FocusDelta
 {
@@ -55,9 +57,12 @@ export function getFocusDelta(imagingSetupDynState: BackOfficeStatus.ImagingSetu
         delta += filterDelta;
     }
 
+    const fromCur = imagingSetupDynState.refFocus.position + delta - imagingSetupDynState.curFocus.position;
+    const fromCurWeight = focusStepTolerance >= 1 ? Math.abs(fromCur) / focusStepTolerance : fromCur == 0 ? 0 : 1;
     return {
         fromRef: delta,
-        fromCur: imagingSetupDynState.refFocus.position + delta - imagingSetupDynState.curFocus.position,
+        fromCur,
+        fromCurWeight,
         abs: imagingSetupDynState.refFocus.position + delta,
     }
 }
