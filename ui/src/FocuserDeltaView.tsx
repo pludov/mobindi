@@ -87,6 +87,8 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                 deltaWeightClass = "FocuserDeltaBad";
             }
         }
+
+        const currentTitle = this.props.delta !== undefined ? "Δ"+this.props.delta : "N/A";
         return <>
             {this.props.warning
                 ?
@@ -96,7 +98,7 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
             }
             <select value="" onChange={(e)=>this.clicked(e.target.value)}
                         className={(this.state.runningPromise ? " BusyInfinite ": "") + deltaWeightClass }>
-                    <option value="" hidden={true}>{this.props.delta !== undefined ? "Δ"+this.props.delta : "N/A"}</option>
+                    <option value="">{currentTitle}</option>
                     <option disabled={this.props.delta === undefined || this.props.delta === 0} value="move">Adjust</option>
                     <option disabled={this.props.delta === 0} value="sync">Sync</option>
                 </select>
