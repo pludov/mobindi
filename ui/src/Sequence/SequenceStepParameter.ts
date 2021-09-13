@@ -10,6 +10,8 @@ export type ImagingSetupCapacity = {
     iso?: boolean;
     bin?: boolean;
     filter?: boolean;
+    focuser?: boolean;
+    canAdjustFocuser?: boolean;
 };
 
 export type ParamDesc = {
@@ -42,6 +44,21 @@ function cameraIndiVectorCapacity(vec: string, k: keyof ImagingSetupCapacity) {
 
 function hasFilter(imagingSetupId: string, store: Store.Content) {
     return { filter: !!ImagingSetupStore.getImagingSetup(store, imagingSetupId)?.filterWheelDevice };
+}
+
+function hasFocuser(imagingSetupId: string, store: Store.Content) {
+    const iis = ImagingSetupStore.getImagingSetup(store, imagingSetupId);
+    return {
+        focuser: (!!iis?.focuserDevice),
+        canAdjustFocuser:
+                    (!!iis?.focuserDevice)
+                &&
+                    (
+                        (!!iis?.focuserSettings?.temperatureProperty)
+                        ||
+                        (!!iis?.filterWheelDevice)
+                    )
+    }
 }
 
 export const parameters:GroupDesc[] = [
@@ -99,6 +116,20 @@ export const parameters:GroupDesc[] = [
                 render: (s)=>s.renderDithering,
                 renderMore: (s)=>s.renderDitheringDetails,
             },
+        ]
+    },
+    {
+        id: "focuser",
+        title: "Focuser adjustment",
+        childs: [
+            {
+                id: "focuser",
+                title: "Focuser adjustment",
+                splittable: false,
+                render: (s)=>s.renderFocuser,
+                capacity: hasFocuser,
+                available: (cap)=>!!cap.canAdjustFocuser,
+            }
         ]
     },
     {

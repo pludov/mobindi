@@ -19,7 +19,7 @@ import { hasKey } from '../shared/Obj';
 import { atPath } from '../shared/JsonPath';
 
 import "./SequenceStepEdit.css";
-import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest, PatchSequenceStepRequest } from '@bo/BackOfficeAPI';
+import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest, PatchSequenceStepRequest, UpdateSequenceStepFocuserRequest } from '@bo/BackOfficeAPI';
 import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
@@ -158,7 +158,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     static readonly ditheringHelp = Help.key("Dithering", ()=>(<span>
         Control dithering:
         <ul>
-            <li>On: Apply dithering for every images. If step has childs, the dithering is performed at every repeat of the list of child steps</li>
+            <li>On: Apply dithering for every images. If step has childs, the dithering is performed at every cycle of the list of child steps</li>
             <li>Once: Apply the dithering only on step entrance (whatever repeat and foreach are)</li>
             <li>Off: Disable any dithering for this steps and it substeps</li>
         </ul>
@@ -166,6 +166,17 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
     </span>));
 
     static readonly ditheringDetailsHelp = Help.key("Dithering parameters", "Set dithering parameters.");
+
+
+    static readonly focuserHelp = Help.key("Focuser adjustment", ()=>(<span>
+        Control focuser adjustment:
+        <ul>
+            <li>On: Apply focuser adjustment (temperature and filter compensation) for every images. If step has childs, the adjustment is performed at every cycle of the list of child steps</li>
+            <li>Once: Apply the focuser adjustment only on step entrance (whatever repeat and foreach are)</li>
+            <li>Off: Disable any focuser adjustment for this steps and it substeps</li>
+        </ul>
+    </span>));
+    static readonly focuserDetailsHelp = Help.key("Focuser adjustment parameters", "Set focus adjustment parameters.");
 
     static readonly repeatHelp = Help.key("Repeat", "Repeat any number of time. For steps with no child, that really means take that ammount of exposure. For steps with childs, the whole list of childs is repeated");
     static readonly dropParameterHelp = Help.key("Remove the selected parameter");
@@ -236,6 +247,22 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
             return await this.updateSequenceStepParam("foreach", this.updateForeachValue(stepDesc.foreach!, foreachStepUuid, value as any));
         }
+    }
+
+    private updateSequenceStepFocuser = async(wanted: boolean | "once") => {
+        const payload:UpdateSequenceStepFocuserRequest = {
+            sequenceUid: this.props.sequenceUid,
+            stepUidPath: JSON.parse(this.props.sequenceStepUidPath),
+            focuser: !!wanted,
+        };
+        if (!!wanted) {
+            payload.settings = {once : wanted === "once"};
+        }
+
+        await BackendRequest.RootInvoker("sequence")("updateSequenceStepFocuser")(
+            CancellationToken.CONTINUE,
+            payload,
+            );
     }
 
     private updateSequenceStepDithering = async(wanted: boolean | "once") => {
@@ -535,6 +562,32 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                         }}
                         getFilter={(store)=>atPath(store, settingsPath + ".filter") || null}
                     />
+    }
+
+    private focuserDetailsModal = React.createRef<Modal>();
+
+    renderFocuser=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
+        const val = this.props.detailsStack[this.props.detailsStack.length-1].focuser;
+
+        return <>
+            <select
+                        value={val === undefined ? "" : val === null ? "false" : (val.once ? "once" : "true" ) }
+                        ref={focusRef}
+                        {...SequenceStepEdit.focuserHelp.dom()}
+                        onChange={
+                            (e: React.ChangeEvent<HTMLSelectElement>)=> Utils.promiseToState(
+                                        ()=>this.updateSequenceStepFocuser(e.target.value === "once" ? "once" : e.target.value === 'true'), this)
+                        }>
+                    <option value="" disabled hidden>Choose...</option>
+                    <option value="true">On</option>
+                    <option value="once">Once</option>
+                    <option value="false">Off</option>
+            </select>
+            <input type="button" value="..." disabled={!val} {...SequenceStepEdit.focuserDetailsHelp.dom()}onClick={()=>{
+                const c = this.focuserDetailsModal.current;
+                if (c) c.open();
+            }}/>
+        </>;
     }
 
     private ditheringDetailsModal = React.createRef<Modal>();

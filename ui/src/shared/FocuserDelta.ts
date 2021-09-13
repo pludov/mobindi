@@ -4,7 +4,7 @@ export type FocusDelta = {
     fromRef: number;
     fromCur: number;
     fromCurWeight: number;  // 0 when exact match. >= 1 for delta over tolerance
-    abs: number;
+    abs: number; // Ideal value (absolute)
 }
 
 function getFilterAdjustment(focuserFilterAdjustment: BackOfficeStatus.FilterWheelDeltas, filter:string|null) {

@@ -1,7 +1,7 @@
 import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
-import { CameraDeviceSettings, SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters } from './BackOfficeStatus';
+import { CameraDeviceSettings, SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings } from './BackOfficeStatus';
 import { Json } from './Json';
 
 export type ToolExecuterAPI = {
@@ -79,6 +79,13 @@ export type UpdateSequenceStepDitheringRequest = {
     settings?: Partial<SequenceDitheringSettings>;
 }
 
+export type UpdateSequenceStepFocuserRequest = {
+    sequenceUid: string;
+    stepUidPath: string[];
+    focuser: boolean;
+    settings?: Partial<SequenceFocuserSettings>;
+}
+
 export type MoveSequenceStepsRequest = {
     sequenceUid:string;
     stepUidPath: string[];
@@ -120,6 +127,7 @@ export type SequenceAPI = {
     patchSequenceStep: (payload: PatchSequenceStepRequest)=>void;
     updateSequenceStep: (payload: UpdateSequenceStepRequest)=>void;
     updateSequenceStepDithering: (payload: UpdateSequenceStepDitheringRequest)=>void;
+    updateSequenceStepFocuser: (payload: UpdateSequenceStepFocuserRequest)=>void;
     moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
 }

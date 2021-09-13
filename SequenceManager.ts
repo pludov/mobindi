@@ -313,6 +313,27 @@ export default class SequenceManager
         }
     }
 
+    public updateSequenceStepFocuser = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepFocuserRequest)=>{
+        const parentStep = this.findStepFromRequest(message);
+        const wanted = message.focuser;
+
+        if (!wanted) {
+            parentStep.focuser = null;
+        } else {
+            if (!parentStep.focuser) {
+                // FIXME: recall default settings here
+                parentStep.focuser = {...{}, once: false}
+            }
+            if (message.settings) {
+                const s = message.settings;
+
+                Object.assign(parentStep.focuser, message.settings);
+                // FIXME: retain default settings ?
+            }
+        }
+
+    }
+
     public updateSequenceStepDithering = async (ct: CancellationToken, message:BackOfficeAPI.UpdateSequenceStepDitheringRequest)=>{
         const parentStep = this.findStepFromRequest(message);
         const wanted = message.dithering;
@@ -579,6 +600,33 @@ export default class SequenceManager
                     ct.throwIfCancelled();
                 }
 
+                if (param.focuser) {
+                    let delta;
+
+                    try {
+                        delta = this.context.focuser.getFocuserDelta(sequence.imagingSetup || "invalid");
+                    } catch(e) {
+                        if (e instanceof Error) {
+                            throw new Error("Focuser: "+ e.message);
+                        }
+                        throw e;
+                    }
+
+                    logger.debug('Got focuser delta', {sequence, uuid, delta});
+
+                    if (delta.fromCurWeight >= 1) {
+                        logger.info('Focuser needs adjustment', {sequence, uuid, delta});
+                        sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+
+                        await this.context.focuser.moveFocuserWithBacklash(ct, sequence.imagingSetup || "invalid", delta.abs);
+
+                        logger.info('Focuser adjustment done', {sequence, uuid});
+                        ct.throwIfCancelled();
+                    } else {
+                        logger.info('Focuser is good enough', {sequence, uuid, delta});
+                    }
+                }
+
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;
                 ct.throwIfCancelled();
 
@@ -818,6 +866,7 @@ export default class SequenceManager
             patchSequenceStep: this.patchSequenceStep,
             updateSequenceStep: this.updateSequenceStep,
             updateSequenceStepDithering: this.updateSequenceStepDithering,
+            updateSequenceStepFocuser: this.updateSequenceStepFocuser,
             moveSequenceSteps: this.moveSequenceSteps,
             newSequence: this.newSequence,
             newSequenceStep: this.newSequenceStep,

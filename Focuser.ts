@@ -605,8 +605,8 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         await this.updateReferencePoint(payload.imagingSetupUuid);
     }
 
-    adjust=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
-        const imagingSetup = this.context.imagingSetupManager.getImagingSetupInstance(payload.imagingSetupUuid);
+    getFocuserDelta=(imagingSetupUuid: string)=> {
+        const imagingSetup = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid);
 
         const imagingSetupConf = imagingSetup.config();
 
@@ -616,7 +616,11 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         const focusStepTolerance = imagingSetupConf.focuserSettings?.focusStepTolerance;
         const temperatureProperty = imagingSetupConf.focuserSettings?.temperatureProperty;
 
-        const targetPos = FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focusStepTolerance, focuserFilterAdjustment, temperatureProperty);
+        return FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focusStepTolerance, focuserFilterAdjustment, temperatureProperty);
+    }
+
+    adjust=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
+        const targetPos = this.getFocuserDelta(payload.imagingSetupUuid);
 
         await this.moveFocuserWithBacklash(ct, payload.imagingSetupUuid, targetPos.abs);
     }

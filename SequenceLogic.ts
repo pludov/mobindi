@@ -331,18 +331,28 @@ export class SequenceLogic {
             }
         }
 
+        if (ret.focuser && ret.focuser.once) {
+            if (step.status.finishedLoopCount) {
+                delete ret.focuser;
+            }
+        }
+
         return ret;
     }
 
     getParameters(steps: Array<SequenceWithStatus>):SequenceStepParameters {
         const param:SequenceStepParameters = {};
         let ditheringStepId: number|undefined;
+        let focuserStepId: number|undefined;
 
         for(let i = 0; i < steps.length; ++i) {
             const o = steps[i];
             const stepParams = this.getStepParameters(o);
             if (Object.prototype.hasOwnProperty.call(stepParams, 'dithering')) {
                 ditheringStepId = i;
+            }
+            if (Object.prototype.hasOwnProperty.call(stepParams, 'focuser')) {
+                focuserStepId = i;
             }
             Object.assign(param, stepParams);
         }
@@ -372,6 +382,33 @@ export class SequenceLogic {
                 delete param.dithering;
             }
         }
+
+        if (focuserStepId !== undefined && param.focuser?.once) {
+            // We want loopCount == 0 + activeChild = firstChild + activeForeach = first
+            let first = true;
+            for(let i = focuserStepId; i < steps.length; ++i) {
+                const o = steps[i];
+                if (o.status.finishedLoopCount) {
+                    first = false;
+                    break;
+                }
+
+                if (o.step.childs && o.status.activeChild !== o.step.childs.list[0]) {
+                    first = false;
+                    break;
+                }
+
+                if (o.step.foreach && o.status.currentForeach !== null && o.status.currentForeach !== o.step.foreach.list[0]) {
+                    first = false;
+                    break;
+                }
+
+            }
+            if (!first) {
+                delete param.focuser;
+            }
+        }
+
 
         return param;
 

@@ -55,6 +55,10 @@ export type SequenceDitheringSettings = DitheringSettings & {
     once: boolean;
 }
 
+export type SequenceFocuserSettings = {
+    once: boolean;
+}
+
 export type SequenceStepParameters = {
     exposure?:number;
     iso?: string;
@@ -63,6 +67,7 @@ export type SequenceStepParameters = {
     filter?: string|null;
 
     dithering?: null|SequenceDitheringSettings;
+    focuser?: null|SequenceFocuserSettings;
 }
 
 export type SequenceStep = SequenceStepParameters & {
