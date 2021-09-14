@@ -20,7 +20,6 @@ type InputProps = {
 type MappedProps = {
     valid: boolean;
     warning: string | null;
-    same: boolean;
     delta: number | undefined;
     deltaWeight: number | undefined;
 }
@@ -111,7 +110,6 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
             return {
                 valid: false,
                 warning: null,
-                same: false,
                 delta: undefined,
                 deltaWeight: undefined,
             }
@@ -120,7 +118,11 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
         let delta;
         let warning:string = "";
         try {
-            delta = FocuserDelta.getFocusDelta(imagingSetup.dynState, focuserSettings.focusStepPerDegree, focuserSettings.focusStepTolerance, focuserSettings.focuserFilterAdjustment, focuserSettings.temperatureProperty);
+            delta = FocuserDelta.getFocusDelta({
+                ...focuserSettings,
+                curFocus: imagingSetup.dynState.curFocus,
+                refFocus: imagingSetup.refFocus,
+            });
         } catch(e) {
             warning = e.message;
             delta = null;
@@ -133,10 +135,6 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                 imagingSetup.dynState.focuserWarning,
             delta: delta?.fromCur,
             deltaWeight: delta?.fromCurWeight,
-            same:
-                imagingSetup.dynState.curFocus?.temp === imagingSetup.dynState.refFocus?.temp &&
-                imagingSetup.dynState.curFocus?.filter === imagingSetup.dynState.refFocus?.filter &&
-                imagingSetup.dynState.curFocus?.position === imagingSetup.dynState.refFocus?.position
         }
     }
 }

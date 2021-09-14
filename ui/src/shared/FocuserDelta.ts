@@ -19,17 +19,24 @@ function getFilterAdjustment(focuserFilterAdjustment: BackOfficeStatus.FilterWhe
 }
 
 
-export function getFocusDelta(imagingSetupDynState: BackOfficeStatus.ImagingSetupDynState,
-                              focusStepPerDegree: null|number,
-                              focusStepTolerance: number,
-                              focuserFilterAdjustment: BackOfficeStatus.FilterWheelDeltas,
-                              temperatureProperty: null|BackOfficeStatus.IndiPropertyIdentifier): FocusDelta
+export type FocusDeltaParameters = {
+    curFocus: BackOfficeStatus.FocuserPoint|null;
+    refFocus: BackOfficeStatus.FocuserPoint|null;
+    focusStepPerDegree: null|number;
+    focusStepTolerance: number;
+    focuserFilterAdjustment: BackOfficeStatus.FilterWheelDeltas;
+    temperatureProperty: null|BackOfficeStatus.IndiPropertyIdentifier;
+}
+
+export function getFocusDelta(param : FocusDeltaParameters): FocusDelta
 {
-    if (imagingSetupDynState.curFocus === null) {
+    const {curFocus, refFocus, focusStepPerDegree, focusStepTolerance, focuserFilterAdjustment, temperatureProperty} = {...param};
+
+    if (curFocus === null) {
         throw new Error("Missing current state");
     }
 
-    if (imagingSetupDynState.refFocus === null) {
+    if (refFocus === null) {
         throw new Error("Missing reference state");
     }
 
@@ -37,32 +44,32 @@ export function getFocusDelta(imagingSetupDynState: BackOfficeStatus.ImagingSetu
 
     if (focusStepPerDegree !== null && focusStepPerDegree !== undefined && temperatureProperty !== null) {
         // Account for temperature change
-        if (imagingSetupDynState.refFocus.temp === null) {
+        if (refFocus.temp === null) {
             throw new Error("No temperature reference");
         }
 
-        if (imagingSetupDynState.curFocus.temp === null) {
+        if (curFocus.temp === null) {
             throw new Error("Current temperature not known");
         }
 
-        const tempDelta = focusStepPerDegree * (imagingSetupDynState.curFocus.temp - imagingSetupDynState.refFocus.temp);
+        const tempDelta = focusStepPerDegree * (curFocus.temp - refFocus.temp);
         delta += tempDelta;
     }
 
-    if (imagingSetupDynState.refFocus.filter !== imagingSetupDynState.curFocus.filter) {
-        const ref = getFilterAdjustment(focuserFilterAdjustment, imagingSetupDynState.refFocus.filter);
-        const curr = getFilterAdjustment(focuserFilterAdjustment, imagingSetupDynState.curFocus.filter);
+    if (refFocus.filter !== curFocus.filter) {
+        const ref = getFilterAdjustment(focuserFilterAdjustment, refFocus.filter);
+        const curr = getFilterAdjustment(focuserFilterAdjustment, curFocus.filter);
 
         const filterDelta = curr - ref;
         delta += filterDelta;
     }
 
-    const fromCur = imagingSetupDynState.refFocus.position + delta - imagingSetupDynState.curFocus.position;
+    const fromCur = refFocus.position + delta - curFocus.position;
     const fromCurWeight = focusStepTolerance >= 1 ? Math.abs(fromCur) / focusStepTolerance : fromCur == 0 ? 0 : 1;
     return {
         fromRef: delta,
         fromCur,
         fromCurWeight,
-        abs: imagingSetupDynState.refFocus.position + delta,
+        abs: refFocus.position + delta,
     }
 }

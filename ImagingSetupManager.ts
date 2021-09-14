@@ -334,6 +334,7 @@ export default class ImagingSetupManager
             focuserSettings: this.defaultFocuserSettings(),
             cameraSettings: this.defaultCameraSettings(),
             dynState: this.defaultDynState(),
+            refFocus: null,
         }
     }
 

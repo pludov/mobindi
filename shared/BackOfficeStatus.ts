@@ -9,7 +9,6 @@ export type FocuserPoint = {
 
 export type ImagingSetupDynState = {
     curFocus: FocuserPoint|null;
-    refFocus: FocuserPoint|null;
     temperatureWarning: string|null;
     focuserWarning: string|null;
     // Focus related
@@ -27,6 +26,7 @@ export type ImagingSetup = {
     focuserSettings: FocuserSettings;
 
     dynState: ImagingSetupDynState;
+    refFocus: FocuserPoint|null;
 }
 
 export type CameraDeviceSettings = {

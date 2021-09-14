@@ -327,13 +327,14 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         this.refreshFocuserTemperature(imagingSetupUuid);
         this.refreshFocuserPosition(imagingSetupUuid);
 
-        const dynState = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid).config().dynState;
+        const config = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid).config();
+        const dynState = config.dynState;
         if (!dynState.curFocus) {
             throw new Error("Focuser not ready");
         }
         const newRef = {...dynState.curFocus!, time: new Date().getTime()};
         logger.info("Updating refernce point", newRef)
-        dynState.refFocus = newRef;
+        config.refFocus = newRef;
     }
 
     getAPI():RequestHandler.APIAppImplementor<BackOfficeAPI.FocuserAPI> {
@@ -616,7 +617,14 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         const focusStepTolerance = imagingSetupConf.focuserSettings?.focusStepTolerance;
         const temperatureProperty = imagingSetupConf.focuserSettings?.temperatureProperty;
 
-        return FocuserDelta.getFocusDelta(imagingSetupDynState, focusStepPerDegree, focusStepTolerance, focuserFilterAdjustment, temperatureProperty);
+        return FocuserDelta.getFocusDelta({
+            curFocus: imagingSetupDynState.curFocus,
+            refFocus: imagingSetupConf.refFocus,
+            focusStepPerDegree,
+            focusStepTolerance,
+            focuserFilterAdjustment,
+            temperatureProperty
+        });
     }
 
     adjust=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
