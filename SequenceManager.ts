@@ -580,52 +580,64 @@ export default class SequenceManager
                     scopeState = newScopeState;
                 }
 
-                if (param.filter) {
-                    console.log('Setting filter to ' + param.filter);
-                    sequence.progress = "Filter " + shootTitle;
+                let guiderInhibiter = this.context.phd.createInhibiter();
 
-                    const filterWheelDeviceId = filterWheelDevice();
+                try {
+                    if (param.filter) {
+                        console.log('Setting filter to ' + param.filter);
+                        sequence.progress = "Filter " + shootTitle;
 
-                    if (filterWheelDeviceId === null) {
-                        throw new Error("Imaging setup has no filter wheel");
-                    }
+                        const filterWheelDeviceId = filterWheelDevice();
 
-                    this.indiManager.checkDeviceConnected(filterWheelDeviceId);
-
-                    await this.context.filterWheel.changeFilter(ct, {
-                        filterWheelDeviceId,
-                        filterId: param.filter,
-                    });
-
-                    ct.throwIfCancelled();
-                }
-
-                if (param.focuser) {
-                    let delta;
-
-                    try {
-                        delta = this.context.focuser.getFocuserDelta(sequence.imagingSetup || "invalid");
-                    } catch(e) {
-                        if (e instanceof Error) {
-                            throw new Error("Focuser: "+ e.message);
+                        if (filterWheelDeviceId === null) {
+                            throw new Error("Imaging setup has no filter wheel");
                         }
-                        throw e;
-                    }
 
-                    logger.debug('Got focuser delta', {sequence, uuid, delta});
+                        this.indiManager.checkDeviceConnected(filterWheelDeviceId);
 
-                    if (delta.fromCurWeight >= 1) {
-                        logger.info('Focuser needs adjustment', {sequence, uuid, delta});
-                        sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+                        await this.context.filterWheel.changeFilter(ct, {
+                            filterWheelDeviceId,
+                            filterId: param.filter,
+                        });
 
-                        await this.context.focuser.moveFocuserWithBacklash(ct, sequence.imagingSetup || "invalid", delta.abs);
-
-                        logger.info('Focuser adjustment done', {sequence, uuid});
                         ct.throwIfCancelled();
-                    } else {
-                        logger.info('Focuser is good enough', {sequence, uuid, delta});
                     }
+
+                    if (param.focuser) {
+                        let delta;
+
+                        try {
+                            delta = this.context.focuser.getFocuserDelta(sequence.imagingSetup || "invalid");
+                        } catch(e) {
+                            if (e instanceof Error) {
+                                throw new Error("Focuser: "+ e.message);
+                            }
+                            throw e;
+                        }
+
+                        logger.debug('Got focuser delta', {sequence, uuid, delta});
+
+                        if (delta.fromCurWeight >= 1) {
+                            logger.info('Focuser needs adjustment', {sequence, uuid, delta});
+                            sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+
+                            if (this.context.focuser.needGuideInhibition(sequence.imagingSetup || "invalid")) {
+                                await guiderInhibiter.start(ct);
+                            }
+
+                            await this.context.focuser.moveFocuserWithBacklash(ct, sequence.imagingSetup || "invalid", delta.abs);
+
+                            logger.info('Focuser adjustment done', {sequence, uuid});
+                            ct.throwIfCancelled();
+                        } else {
+                            logger.info('Focuser is good enough', {sequence, uuid, delta});
+                        }
+                    }
+
+                } finally {
+                    await guiderInhibiter.end(ct);
                 }
+                // FIXME : wait end of guiding to settle ?
 
                 sequence.progress = (stepTypeLabel) + " " + shootTitle;
                 ct.throwIfCancelled();

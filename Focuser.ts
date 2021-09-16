@@ -17,6 +17,7 @@ import IndiManager from "./IndiManager";
 import {ImagingSetupInstance} from "./ImagingSetupManager";
 import ImageProcessor from "./ImageProcessor";
 import IndirectionSynchronizer from './IndirectionSynchronizer';
+import { PhdGuideInhibiter } from './Phd';
 
 const logger = Log.logger(__filename);
 
@@ -627,9 +628,37 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         });
     }
 
+    private getGuidingInhibiter=(imagingSetupUuid: string): PhdGuideInhibiter => {
+        if (this.needGuideInhibition(imagingSetupUuid)) {
+            return this.context.phd.createInhibiter();
+        } else {
+            return {
+                start:async ()=>{},
+                end:async ()=>{},
+            }
+        }
+    }
+
+    public needGuideInhibition=(imagingSetupUuid: string) => {
+        const imagingSetup = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetupUuid);
+
+        const imagingSetupConf = imagingSetup.config();
+
+        return imagingSetupConf.focuserSettings.interruptGuiding;
+    }
+
     adjust=async(ct:CancellationToken, payload: {imagingSetupUuid: string}) => {
         const targetPos = this.getFocuserDelta(payload.imagingSetupUuid);
 
-        await this.moveFocuserWithBacklash(ct, payload.imagingSetupUuid, targetPos.abs);
+        if (targetPos.fromCur !== 0) {
+            const guidingInhibiter = this.getGuidingInhibiter(payload.imagingSetupUuid);
+
+            try {
+                await guidingInhibiter.start(ct);
+                await this.moveFocuserWithBacklash(ct, payload.imagingSetupUuid, targetPos.abs);
+            } finally {
+                await guidingInhibiter.end(ct);
+            }
+        }
     }
 }
