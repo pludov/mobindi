@@ -40,6 +40,13 @@ const defaultDithering= ():DitheringSettings => ({
     timeout: 60,
 });
 
+
+/* Prevent phd from guiding. Must be closed (end) */
+export type PhdGuideInhibiter = {
+    start: (ct: CancellationToken)=>Promise<void>;
+    end: (ct: CancellationToken)=>Promise<void>;
+}
+
 export default class Phd
         implements RequestHandler.APIAppProvider<BackOfficeAPI.PhdAPI>
 {
@@ -59,6 +66,10 @@ export default class Phd
     private streamCapture:Task<void>|undefined;
     private streamCaptureCanceled: boolean|undefined;
     private streamCaptureDevice: string|undefined;
+    private inhibiters : Map<string, PhdGuideInhibiter>;
+    private inhibiterId : number = 0;
+    // Currently running pause / unpause promise
+    private pausePromise: Promise<void>|undefined = undefined;
 
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext)
     {
@@ -67,8 +78,9 @@ export default class Phd
         this.running = true;
         this.stepId = 0;
         this.reqId = 0;
-    
+
         this.clientData = "";
+        this.inhibiters = new Map();
 
         this.appStateManager.getTarget().phd = {
             // Connecting
@@ -77,7 +89,7 @@ export default class Phd
             connected: false,
 
             AppState: "NotConnected",
-
+            paused: null,
             // null until known
             settling: null,
 
@@ -222,6 +234,24 @@ export default class Phd
             // Start a new streamCapture
             if (wantCaptureDevice !== undefined) {
                 this.startCapture(wantCaptureDevice);
+            }
+        }
+    }
+
+    private queryPauseStatus = async(ct:CancellationToken)=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_paused",
+                params:[]
+            });
+
+            if (ret !== this.currentStatus.paused) {
+                logger.info("Get paused returned", ret);
+            }
+            this.currentStatus.paused = !!ret;
+        } catch(e) {
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.currentStatus.paused = null;
             }
         }
     }
@@ -510,6 +540,7 @@ export default class Phd
         this.polling = true;
         try {
             await Promise.all([
+                    this.queryPauseStatus(CancellationToken.CONTINUE),
                     this.queryCurrentEquipment(CancellationToken.CONTINUE),
                     this.queryExposureDurations(CancellationToken.CONTINUE),
                     this.queryExposure(CancellationToken.CONTINUE),
@@ -593,6 +624,8 @@ export default class Phd
 
                                 this.currentStatus.star = null;
                                 this.currentStatus.AppState = "NotConnected";
+                                this.currentStatus.connected = false;
+                                this.currentStatus.paused = null;
                                 this.currentStatus.settling = null;
 
                                 this.signalListeners();
@@ -756,7 +789,6 @@ export default class Phd
                 if ("Event" in event) {
                     const eventToStatus:{[id:string]:PhdAppState} = {
                         "GuideStep":                "Guiding",
-                        "Paused":                   "Paused",
                         "StartCalibration":         "Calibrating",
                         "LoopingExposures":         "Looping",
                         "LoopingExposuresStopped":  "Stopped",
@@ -778,7 +810,14 @@ export default class Phd
                             this.currentStatus.AppState = event.State;
                             this.currentStatus.star = null;
                             this.currentStatus.settling = null;
+                            this.currentStatus.paused = null;
                             logger.debug('Initial status', {AppState: this.currentStatus.AppState});
+                            break;
+                        case "Paused":
+                            this.currentStatus.paused = true;
+                            break;
+                        case "Resumed":
+                            this.currentStatus.paused = false;
                             break;
                         case "SettleBegin":
                         case "Settling":
@@ -868,6 +907,11 @@ export default class Phd
                         delete simpleEvent.Mount;
                         simpleEvent.settling = this.currentStatus.settling.running;
                         this.pushStep(simpleEvent);
+                    }
+
+                    if (this.inhibiters.size && !this.pausePromise && !this.currentStatus.paused) {
+                        logger.info("Pausing phd guiding from status", this.currentStatus.AppState);
+                        this.setPaused(CancellationToken.CONTINUE, true);
                     }
 
                     this.signalListeners();
@@ -1132,6 +1176,86 @@ export default class Phd
         await this.queryExposure(ct);
     }
 
+    setPaused = async(ct: CancellationToken, paused: boolean)=> {
+        while (this.pausePromise) {
+            ct.throwIfCancelled();
+            try {
+                await this.pausePromise;
+            } catch(e) {}
+        }
+
+        const promise = (async ()=> {
+            // This allows promise to be set to this before continuing
+            await (async()=>{})();
+            try {
+                logger.info("Before (un)pausing phd", {want: paused, currentStatus: this.currentStatus});
+                await this.sendOrderWithFailureLog(ct, {
+                    method: 'set_paused',
+                    params: [ paused ]
+                });
+                logger.info("After (un)pausing phd", {want: paused, currentStatus: this.currentStatus});
+            } finally {
+                this.pausePromise = undefined;
+            }
+        })();
+        this.pausePromise = promise;
+        await promise;
+    }
+
+    createInhibiter = () => {
+        const disablerId = "" + (this.inhibiterId++);
+        let started : boolean = false;
+        let stopped : boolean = false;
+        const inhibiter:PhdGuideInhibiter = {
+            end: async (ct: CancellationToken)=>{
+                if (!started) {
+                    return;
+                }
+                if (stopped) {
+                    return;
+                }
+                stopped = true;
+                if (!this.inhibiters.has(disablerId)) {
+                    return ;
+                }
+                this.inhibiters.delete(disablerId);
+                if (this.inhibiters.size) {
+                    // Exit possibility here. May return before actual end - but it's ongoing anyway
+                    return ;
+                }
+                if (this.currentStatus.connected && this.currentStatus.paused) {
+                    logger.info("Phd guiding will be unpaused");
+                    // Remark: the unpause should be cancelable, but interrupting it would leave phd in paused status
+                    await this.setPaused(CancellationToken.CONTINUE, false);
+                }
+            },
+            start: async (ct: CancellationToken)=>{
+                if (started) {
+                    return;
+                }
+                started = true;
+                do {
+                    // Do we need to pause ?
+                    if (this.inhibiters.size) {
+                        this.inhibiters.set(disablerId, inhibiter);
+                        return ;
+                    }
+
+                    await this.pausePromise;
+                } while(this.pausePromise);
+                ct.throwIfCancelled();
+
+                this.inhibiters.set(disablerId, inhibiter);
+                if (this.currentStatus.connected && !this.currentStatus.paused) {
+                    // Making this interruptible may leave phd state random
+                    await this.setPaused(CancellationToken.CONTINUE, true);
+                }
+            }
+        };
+
+        return inhibiter;
+    }
+
     startLoop = async(ct: CancellationToken)=>{
         await this.connect(ct);
         await this.sendOrderWithFailureLog(ct, {
@@ -1142,7 +1266,7 @@ export default class Phd
 
     startGuide = async(ct:CancellationToken)=>{
         await this.connect(ct);
-
+        
         await this.sendOrderWithFailureLog(ct, {
                 method: "guide",
                 params: [
@@ -1150,6 +1274,10 @@ export default class Phd
                     false
                 ]
             });
+        // Discard all disablers
+        this.inhibiters.clear();
+        // Remark: the unpause should be cancelable, but interrupting it would leave phd in paused status
+        await this.setPaused(CancellationToken.CONTINUE, false);
     }
 
     stopGuide = async(ct:CancellationToken)=>{

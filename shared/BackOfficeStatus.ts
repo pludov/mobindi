@@ -528,6 +528,7 @@ export type PhdStatus = PhdGuideStats & {
     connected: boolean;
     AppState: PhdAppState;
     settling: PhdSettling|null;
+    paused: boolean|null;
     /** Polled configuration from PHD */
     serverConfiguration: PhdServerConfiguration|null;
     guideSteps: {[id:string]: PhdGuideStep};
