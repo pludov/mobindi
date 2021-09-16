@@ -434,7 +434,11 @@ export default class SequenceManager
                 fwhm =  Algebra.starFieldFwhm(starField);
                 if (isNaN(fwhm)) fwhm = undefined;
 
-                target.fwhm = fwhm;
+                if (fwhm === undefined) {
+                    delete target.fwhm;
+                } else {
+                    target.fwhm = fwhm;
+                }
                 target.starCount = starCount;
                 logger.info('Got FWHM', {shootResult, fwhm, starCount});
             }
