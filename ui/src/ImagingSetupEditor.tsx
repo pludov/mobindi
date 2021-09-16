@@ -18,6 +18,7 @@ import { createSelector, defaultMemoize } from 'reselect'
 import { FocuserSettings, ImagingSetup } from '@bo/BackOfficeStatus';
 import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
 import IndiPropertyIdentifierSelector from './indiview/IndiPropertyIdentifierSelector';
+import Bool from './primitives/Bool';
 
 const namePropertyHelp = Help.key("Name", "Give a name to this imaging setup. Will use camera name by default");
 const cameraSelectorHelp = Help.key("Camera", "Select the main camera for this imaging setup");
@@ -27,6 +28,7 @@ const focuserSelectorHelp = Help.key("Focuser", "Select the focuser for this ima
 const temperaturePropertySelectorHelp = Help.key("Select temperature source", "Select a INDI property that will be used for temperature compensation at the focuser");
 const focusStepPerDegreeHelp = Help.key("Temperature compensation (step per °C)", "Number of step to move the focuser per degree (°C) change. Use negative if step are counter backward (lower = further from objective).");
 const focusStepToleranceHelp = Help.key("Minimal adjustment (step)", "Avoid moving focuser for delta under this thresold");
+const focuserInterruptGuidingHelp = Help.key("Focuser affects guiding", "When enabled, PHD guiding gets paused during planned focuser move");
 
 type IndiDeviceListItem = {
     id: string;
@@ -147,6 +149,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
     setFocuser = this.setDevice("focuserDevice");
     imagingSetupAccessorFactory = defaultMemoize(ImagingSetupStore.imagingSetupAccessor);
     focuserTemperatureReferenceProperty = defaultMemoize((uid:string)=>ImagingSetupStore.imagingSetupAccessor(uid).child(AccessPath.For((e)=>e.focuserSettings.temperatureProperty)));
+    focuserInterruptGuiding = defaultMemoize((uid:string)=>ImagingSetupStore.imagingSetupAccessor(uid).child(AccessPath.For((e)=>e.focuserSettings.interruptGuiding)));
 
     render() {
         return (
@@ -223,6 +226,11 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                                 </>
                             : null
                         }
+                        <div>
+                            <Bool accessor={this.focuserInterruptGuiding(this.props.imagingSetupUid)}
+                                helpKey={focuserInterruptGuidingHelp}></Bool>
+                            {focuserInterruptGuidingHelp.title}
+                        </div>
                     </div>
                     : null
                 }

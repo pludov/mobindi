@@ -314,6 +314,8 @@ export type FocuserSettings = {
     targetCurrentPos: boolean;
     targetPos: number;
 
+    interruptGuiding: boolean;
+
     focuserFilterAdjustment: FilterWheelDeltas;
     temperatureProperty: null|IndiPropertyIdentifier;
     focusStepPerDegree: null|number;

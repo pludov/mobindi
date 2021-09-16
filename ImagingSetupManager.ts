@@ -311,6 +311,7 @@ export default class ImagingSetupManager
             temperatureProperty: null,
             focusStepPerDegree: null,
             focusStepTolerance: 0,
+            interruptGuiding: false,
         }
     }
 
