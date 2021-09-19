@@ -152,12 +152,12 @@ export const initialState:Content = {
     }
 }
 
-export function onImport(t:Content) {
+export function onImport(t:Partial<Content>) {
     delete t.messages;
 }
 
 // Swallow copy of the store. Do not inplace modify childs
-export function onExport(t:Content) {
+export function onExport(t:Partial<Content>) {
     delete t.messages;
 }
 

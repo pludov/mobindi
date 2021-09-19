@@ -1,0 +1,16 @@
+.MessageViewControlBton {
+    font-weight: bold;
+    font-family: "MobindiGlyphBton", "sans-serif";
+    min-width: 1.7em;
+}
+
+
+
+.MessageViewControlBton.On {
+    background-color: lightgreen;
+}
+
+.MessageViewControlBton.Off {
+    background-color: lightgrey;
+    color: grey;
+}
