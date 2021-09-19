@@ -1,11 +1,9 @@
+import Log from './shared/Log';
 import { BackendStatus } from "./BackendStore";
 import { WatchConfiguration } from "./NotificationStore";
 import * as Store from "./Store";
 
-const resources = {
-    tick: 'button-press.mp3',
-    gong: 'beep.mp3',
-};
+const logger = Log.logger(__filename);
 
 const audioContext = new (window.AudioContext || ((window as any).webkitAudioContext as AudioContext))();
 
@@ -21,7 +19,6 @@ export function setConfiguration(w : WatchConfiguration) {
         return;
     }
 
-    console.log('Updating audio alert config');
     const startStop = currentConfig.active !== w.active;
 
     currentConfig = w;
@@ -32,7 +29,6 @@ export function setConfiguration(w : WatchConfiguration) {
         }
     }
 }
-
 
 function fetchAudio(url: string): Promise<ArrayBuffer> {
     return new Promise((res, rej)=> {
@@ -46,12 +42,12 @@ function fetchAudio(url: string): Promise<ArrayBuffer> {
         }
 
         request.onerror = function(e) {
-            console.log('error');
+            logger.error('error fetching audio file', {url}, e);
             rej(e);
         }
 
         request.ontimeout = function(t) {
-            console.log('timeout');
+            logger.error('timeout fetching audio file', {url, t});
             rej(t);
         }
 
@@ -60,15 +56,18 @@ function fetchAudio(url: string): Promise<ArrayBuffer> {
 }
 
 async function loadSound(url: string): Promise<AudioBuffer> {
-    console.log('loading ', url);
+    logger.info('fetching audio file', {url});
     const buffer = await fetchAudio(url);
     const ret = await audioContext.decodeAudioData(buffer);
-    console.log('loaded ', url);
+    logger.info('fetched audio file', {url, duration: ret.duration});
     return ret;
 }
 
 
-function playSound(buffer: AudioBuffer, rate: number, tweak?: (t: AudioBufferSourceNode)=>{}) {
+function playSound(buffer: AudioBuffer|undefined, rate: number, tweak?: (t: AudioBufferSourceNode)=>{}) {
+    if (buffer === undefined) {
+        throw new Error("Missing audio resource");
+    }
     const source = audioContext.createBufferSource(); // creates a sound source
     source.buffer = buffer;                    // tell the source which sound to play
     source.playbackRate.value = rate;
@@ -99,12 +98,33 @@ function getAlarmState() {
     return undefined;
 }
 
-async function run(uniqueId: number) {
-    const tick = await loadSound('button-press.mp3');
-    const beep = await loadSound('beep.mp3');
-    const alarm = await loadSound('alert.mp3');
+type AudioResource = {
+    tick: AudioBuffer;
+    beep: AudioBuffer;
+    alarm: AudioBuffer;
+    startup: AudioBuffer;
+    finish: AudioBuffer;
+}
 
-    playSound(beep, 1);
+const resources: Partial<AudioResource> = {};
+
+async function loadIfMissing(key: keyof AudioResource, url: string)
+{
+    if (resources[key] !== undefined) return;
+    resources[key] = await loadSound(url);
+}
+
+async function run(uniqueId: number) {
+
+    await Promise.all([
+        loadIfMissing('tick', 'button-press.mp3'),
+        loadIfMissing('beep', 'beep.mp3'),
+        loadIfMissing('alarm', 'alert.mp3'),
+        loadIfMissing('startup', 'startup.mp3'),
+        loadIfMissing('finish', 'finish.mp3'),
+    ]);
+
+    playSound(resources.startup, 1);
 
     // FIXME: detect notifications ids from store
     // Warn those present for more than xxx seconds (configuration)
@@ -123,15 +143,15 @@ async function run(uniqueId: number) {
         if (currentRunnerId != uniqueId) {
             clearInterval(handler);
             stopAlarm();
-            playSound(beep, 0.5);
+            playSound(resources.finish, 1);
             return;
         }
 
         const alarmState = getAlarmState();
         if (alarmState) {
-            console.log(alarmState);
+            logger.info('Audio alarm state', {alarmState});
             if (alarmPlay === undefined) {
-                alarmPlay = playSound(alarm, 1, (t)=>t.loop=true);
+                alarmPlay = playSound(resources.alarm, 1, (t)=>t.loop=true);
             }
         } else {
             stopAlarm();
