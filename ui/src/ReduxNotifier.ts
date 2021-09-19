@@ -12,6 +12,7 @@ export default class ReduxNotifier extends Notifier {
     private readonly visibilityChange: string;
     private hidingTimeout: number | undefined;
     private store: Redux.Store<Store.Content>;
+    private watchActive: boolean|undefined;
 
     constructor() {
         super(undefined);
@@ -35,7 +36,8 @@ export default class ReduxNotifier extends Notifier {
         if (this.store == undefined) return;
         Actions.dispatch<BackendStore.BackendActions>(this.store)("backendStatus", {
             backendStatus: backendStatus,
-            backendError: backendError
+            backendError: backendError,
+            time: new Date().getTime(),
         });
 
     }
@@ -48,7 +50,7 @@ export default class ReduxNotifier extends Notifier {
     }
 
     protected wantConn() {
-        return !document[this.hidden];
+        return this.watchActive || !document[this.hidden];
     }
 
     handleVisibilityChange() {
@@ -67,13 +69,25 @@ export default class ReduxNotifier extends Notifier {
         }
     }
 
+    private checkWatchActive= ()=> {
+        const newActive = !!this.store.getState().watch.active;
+        if (newActive !== this.watchActive) {
+            this.watchActive = newActive;
+            logger.info("Watch active: ", newActive);
+            this.updateState();
+        }
+    }
+
     public attachToStore(store: Redux.Store<Store.Content>) {
         logger.info('Websocket: attached to store');
         this.store = store;
         this.dispatchBackendStatus();
+
+        store.subscribe(this.checkWatchActive);
+        this.checkWatchActive();
     }
 
     protected handleNotifications(n: {batch: any[]}|{data: any}) {
-        this.store.dispatch({type: "notification", ...n});
+        this.store.dispatch({type: "notification", ...n, time: new Date().getTime()});
     }
 }

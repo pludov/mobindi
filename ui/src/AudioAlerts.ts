@@ -1,7 +1,6 @@
+import { BackendStatus } from "./BackendStore";
 import { WatchConfiguration } from "./NotificationStore";
-
-type CurrentState = {
-}
+import * as Store from "./Store";
 
 const resources = {
     tick: 'button-press.mp3',
@@ -69,24 +68,77 @@ async function loadSound(url: string): Promise<AudioBuffer> {
 }
 
 
-function playSound(buffer: AudioBuffer, rate: number) {
+function playSound(buffer: AudioBuffer, rate: number, tweak?: (t: AudioBufferSourceNode)=>{}) {
     const source = audioContext.createBufferSource(); // creates a sound source
     source.buffer = buffer;                    // tell the source which sound to play
     source.playbackRate.value = rate;
+    if (tweak) tweak(source);
     //source.detune.value = -600;
     source.connect(audioContext.destination);       // connect the source to the context's destination (the speakers)
 
     source.start(0);                           // play the source now
                                                // note: on older systems, may have to use deprecated noteOn(time);
+    return source;
 }
 
+
+function getAlarmState() {
+    const state = Store.getStore().getState();
+
+    const now = new Date().getTime();
+
+    if ((state.backendStatus !== BackendStatus.Connected) &&
+        (state.backendLastCnxTime || 0) < now - 30000
+        && now - state.appStartTime > 30000)
+    {
+        // We have a connectivity issue
+        return "connectivity";
+    }
+
+
+    return undefined;
+}
 
 async function run(uniqueId: number) {
     const tick = await loadSound('button-press.mp3');
     const beep = await loadSound('beep.mp3');
+    const alarm = await loadSound('alert.mp3');
 
     playSound(beep, 1);
-    // FIXME: abort when uniqueId change
+
+    // FIXME: detect notifications ids from store
+    // Warn those present for more than xxx seconds (configuration)
+
+    let alarmPlay:AudioBufferSourceNode|undefined;
+    let handler: NodeJS.Timeout;
+
+    function stopAlarm() {
+        if (alarmPlay !== undefined) {
+            alarmPlay.stop();
+            alarmPlay = undefined;
+        }
+    }
+
+    function checkEverything() {
+        if (currentRunnerId != uniqueId) {
+            clearInterval(handler);
+            stopAlarm();
+            playSound(beep, 0.5);
+            return;
+        }
+
+        const alarmState = getAlarmState();
+        if (alarmState) {
+            console.log(alarmState);
+            if (alarmPlay === undefined) {
+                alarmPlay = playSound(alarm, 1, (t)=>t.loop=true);
+            }
+        } else {
+            stopAlarm();
+        }
+    }
+
+    handler = setInterval(checkEverything, 1000);
 }
 
 

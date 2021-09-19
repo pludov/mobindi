@@ -2,9 +2,12 @@ import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import * as Actions from "./Actions";
 import * as Store from "./Store";
 import * as JsonProxy from './shared/JsonProxy';
+import { time } from 'console';
 
 export type Content = {
     backendStatus: number;
+    backendLastCnxTime: number|null;
+    appStartTime: number;
     backendError: string|null;
     // FIXME: switch that to nullable
     backend: Partial<BackofficeStatus>;
@@ -13,22 +16,26 @@ export type Content = {
 export const initialState:Content = {
     backendStatus: 0,
     backendError: null,
+    backendLastCnxTime: null,
+    appStartTime: new Date().getTime(),
     backend: {
         apps: {}
     },
 }
 
-export function onImport(t:Content) {
+export function onImport(t:Partial<Content>) {
     delete t.backend;
     delete t.backendStatus;
     delete t.backendError;
+    delete t.appStartTime;
 }
 
 // Swallow copy of the store. Do not inplace modify childs
-export function onExport(t:Content) {
+export function onExport(t:Partial<Content>) {
     delete t.backend;
     delete t.backendStatus;
     delete t.backendError;
+    delete t.appStartTime;
 }
 
 export type BackendStatusValue = 0 | 1 | 2 | 3 | 4 | 5;
@@ -42,9 +49,13 @@ export const BackendStatus : {[Id:string]: BackendStatusValue} = {
     Failed: 5
 }
 
-const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: string, data?: BackofficeStatus }>
+const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: string, time: number, data?: BackofficeStatus }>
     = (state, action) => {
         state = Object.assign({}, state);
+        if (action.backendStatus === BackendStatus.Connected &&
+            state.backendStatus !== BackendStatus.Connected) {
+            state.backendLastCnxTime = action.time;
+        }
         state.backendStatus = action.backendStatus;
         if (Object.prototype.hasOwnProperty.call(action, "backendError")) {
             state.backendError = action.backendError || null;
@@ -62,7 +73,7 @@ const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: str
         return state;
     };
 
-const notification : Actions.Handler<{data?:BackofficeStatus, diff?: JsonProxy.Diff, batch? : JsonProxy.Diff[]}>
+const notification : Actions.Handler<{data?:BackofficeStatus, time: number, diff?: JsonProxy.Diff, batch? : JsonProxy.Diff[]}>
     = (state, action) => {
         // Mettre le status du backend
         state = Object.assign({}, state);
@@ -70,6 +81,7 @@ const notification : Actions.Handler<{data?:BackofficeStatus, diff?: JsonProxy.D
             state.backendStatus = BackendStatus.Connected;
             state.backendError = null;
             state.backend = {};
+            state.backendLastCnxTime = action.time;
         }
         if (action.data !== undefined) {
             state.backend = action.data;
