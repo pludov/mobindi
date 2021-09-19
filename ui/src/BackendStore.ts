@@ -56,6 +56,11 @@ const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: str
             state.backendStatus !== BackendStatus.Connected) {
             state.backendLastCnxTime = action.time;
         }
+        if (action.backendStatus !== BackendStatus.Connected &&
+            state.backendStatus === BackendStatus.Connected) {
+            // REcord the time also in case of disconnection
+            state.backendLastCnxTime = action.time;
+        }
         state.backendStatus = action.backendStatus;
         if (Object.prototype.hasOwnProperty.call(action, "backendError")) {
             state.backendError = action.backendError || null;
