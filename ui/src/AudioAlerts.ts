@@ -94,6 +94,12 @@ function getAlarmState() {
         return "connectivity";
     }
 
+    if (state.backend?.notification?.list?.length)
+    {
+        // FIXME: handle some filtering here ?
+        // We have an unread notification
+        return "notification";
+    }
 
     return undefined;
 }
