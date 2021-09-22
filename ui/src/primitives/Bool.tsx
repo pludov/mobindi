@@ -19,7 +19,7 @@ class Bool extends React.PureComponent<Props> {
             {this.props.children}
             <input
                 type='checkbox'
-                checked={this.props.value}
+                checked={!!this.props.value}
                 onChange={this.update}/>
         </span>;
     }
