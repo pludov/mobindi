@@ -16,6 +16,7 @@ import { Store } from 'redux';
 import * as ReactRedux from "react-redux";
 import ReduxNotifier from './ReduxNotifier';
 import * as Promises from './shared/Promises';
+import {AccessPath} from "./shared/AccessPath"
 
 export type Content =
             AppStore.Content &
@@ -104,6 +105,11 @@ export type Accessor<TYPE>={
     fromStore: (s:Content)=>TYPE;
     send: (t:TYPE)=>Promise<void>;
 }
+
+export interface RecursiveAccessor<TYPE> extends Accessor<TYPE> {
+    child<NewTarget>(path:AccessPath<TYPE, NewTarget>): RecursiveAccessor<NewTarget>;
+    prop<Prop extends keyof TYPE & string>(prop:Prop): RecursiveAccessor<TYPE[Prop]>;
+};
 
 export const emptyArray = [];
 

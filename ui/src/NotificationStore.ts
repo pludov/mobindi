@@ -1,6 +1,7 @@
 import * as Store from "./Store";
 import * as Actions from "./Actions";
 import * as AudioAlerts from "./AudioAlerts";
+import StoreAccessor from "./utils/StoreAccessor";
 
 export type Notification = {
     text: string,
@@ -15,6 +16,8 @@ export type NotificationStore = {
 
 export type WatchConfiguration = {
     active: boolean;
+    tictac: boolean;
+    tictacHours: boolean;
 }
 
 export type Content = {
@@ -29,7 +32,9 @@ export const initialState:Content = {
     },
 
     watch: {
-        active: false
+        active: false,
+        tictac: false,
+        tictacHours: false,
     }
 }
 
@@ -79,6 +84,20 @@ export async function switchWatchActive() {
     Actions.dispatch<NotificationActions>()("UpdateWatchConfiguration", {
         "value": {
             active
+        }
+    });
+}
+
+export function WatchConfigurationAccessor(): Store.RecursiveAccessor<WatchConfiguration> {
+    return new StoreAccessor({
+        fromStore:(e: Store.Content)=> {
+            return e.watch;
+        },
+
+        send:async (e:WatchConfiguration) => {
+            await Actions.dispatch<NotificationActions>()("UpdateWatchConfiguration", {
+                "value": e
+            });
         }
     });
 }

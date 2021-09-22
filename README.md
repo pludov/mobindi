@@ -282,3 +282,4 @@ You should have received a copy of the GNU General Public License along with thi
 
 Astrometry icon made by smashicons from www.flaticon.com
 
+Sound notification from: http://www.orangefreesounds.com/ and https://www.fesliyanstudios.com/

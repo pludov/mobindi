@@ -8,7 +8,7 @@ export interface BackendAccessor<TYPE> extends Store.Accessor<TYPE>{
     getPath:()=>string[];
 }
 
-export interface RecursiveBackendAccessor<TYPE> extends BackendAccessor<TYPE> {
+export interface RecursiveBackendAccessor<TYPE> extends BackendAccessor<TYPE>, Store.RecursiveAccessor<TYPE> {
     child<NewTarget>(path:AccessPath<TYPE, NewTarget>): RecursiveBackendAccessor<NewTarget>;
     prop<Prop extends keyof TYPE & string>(prop:Prop): RecursiveBackendAccessor<TYPE[Prop]>;
 };

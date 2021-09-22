@@ -8,11 +8,14 @@ const logger = Log.logger(__filename);
 const audioContext = new (window.AudioContext || ((window as any).webkitAudioContext as AudioContext))();
 
 let currentConfig : WatchConfiguration = {
-    active: false
+    active: false,
+    tictac: false,
+    tictacHours: false,
 };
 
 let currentRunnerId: number = 0;
-let currentRunner: Promise<void>;
+let currentRunner: Promise<void>|undefined;
+let currentRunnerConfUpdate : undefined|(()=>void) = undefined;
 
 export function setConfiguration(w : WatchConfiguration) {
     if (currentConfig === w) {
@@ -23,9 +26,20 @@ export function setConfiguration(w : WatchConfiguration) {
 
     currentConfig = w;
     if (startStop) {
+        const todo = currentRunnerConfUpdate;
         currentRunnerId++;
+        currentRunnerConfUpdate = undefined;
+        currentRunner = undefined;
+
+        if (todo) todo();
+
         if (currentConfig.active) {
             currentRunner = run(currentRunnerId);
+        }
+
+    } else {
+        if (currentRunnerConfUpdate) {
+            currentRunnerConfUpdate();
         }
     }
 }
@@ -106,7 +120,7 @@ function getAlarmState() {
 
 type AudioResource = {
     tick: AudioBuffer;
-    beep: AudioBuffer;
+    bell: AudioBuffer;
     alarm: AudioBuffer;
     startup: AudioBuffer;
     finish: AudioBuffer;
@@ -123,12 +137,17 @@ async function loadIfMissing(key: keyof AudioResource, url: string)
 async function run(uniqueId: number) {
 
     await Promise.all([
-        loadIfMissing('tick', 'button-press.mp3'),
-        loadIfMissing('beep', 'beep.mp3'),
+        loadIfMissing('tick', 'tick.mp3'),
+        loadIfMissing('bell', 'bell.mp3'),
         loadIfMissing('alarm', 'alert.mp3'),
         loadIfMissing('startup', 'startup.mp3'),
         loadIfMissing('finish', 'finish.mp3'),
     ]);
+
+    if (currentRunnerId != uniqueId) {
+        return;
+    }
+    currentRunnerConfUpdate = onConfUpdate;
 
     playSound(resources.startup, 1);
 
@@ -137,6 +156,7 @@ async function run(uniqueId: number) {
 
     let alarmPlay:AudioBufferSourceNode|undefined;
     let handler: NodeJS.Timeout;
+    let clockSchedule: NodeJS.Timeout|undefined;
 
     function stopAlarm() {
         if (alarmPlay !== undefined) {
@@ -146,13 +166,6 @@ async function run(uniqueId: number) {
     }
 
     function checkEverything() {
-        if (currentRunnerId != uniqueId) {
-            clearInterval(handler);
-            stopAlarm();
-            playSound(resources.finish, 1);
-            return;
-        }
-
         const alarmState = getAlarmState();
         if (alarmState) {
             logger.info('Audio alarm state', {alarmState});
@@ -165,50 +178,61 @@ async function run(uniqueId: number) {
     }
 
     handler = setInterval(checkEverything, 1000);
-}
 
-
-/*
-let prev = 0;
-
-function pad2(t:number) {
-    return ('' + t).padStart(2, "0");
-}
-
-function play() {
-    const time = schedule();
-    if (time === prev) {
-        return;
-    }
-    prev = time;
-
-    const dt = new Date(time);
-
-    const gong = (dt.getHours() % 12) || 12;
-
-    const gongDelay = 2;
-
-    if ((dt.getMinutes() % 60 === 0) && (dt.getSeconds() < gong * gongDelay)) {
-        if (dt.getSeconds() % gongDelay === 0) {
-            playSound(gongSound, 1);
+    let prevClock: number = 0;
+    function clock() {
+        clockSchedule = undefined;
+        const time = scheduleClock();
+        if (time === prevClock) {
+            return;
         }
-    } else {
-        let high = (time / 1000) % 2;
-        playSound(tickSound, 6 + 2 * high);
+        prevClock = time;
+
+        const dt = new Date(time);
+
+        const gong = (dt.getHours() % 12) || 12;
+
+        const gongDelay = 2;
+
+        if (currentConfig.tictacHours && (dt.getMinutes() % 60 === 0) && (dt.getSeconds() < gong * gongDelay)) {
+            if (dt.getSeconds() % gongDelay === 0) {
+                playSound(resources.bell, 1);
+            }
+        } else {
+            let high = (time / 1000) % 2;
+            playSound(resources.tick, 6 + 2 * high);
+        }
     }
-    
-    document.getElementById('hour').textContent = pad2(dt.getHours()) + ':' + pad2(dt.getMinutes()) + ':' + pad2(dt.getSeconds());
+
+    function unscheduleClock() {
+        if (clockSchedule !== undefined) {
+            clearTimeout(clockSchedule);
+            clockSchedule = undefined;
+        }
+    }
+
+    function scheduleClock() {
+        const date = new Date().getTime();
+        const nextSecond = (date - (date % 1000) + 1000);
+        clockSchedule = setTimeout(clock, nextSecond - date);
+        return (nextSecond - 1000);
+    }
+
+    function onConfUpdate() {
+        if ((!currentConfig.active) || (currentRunnerId !== uniqueId)) {
+            clearInterval(handler);
+            unscheduleClock();
+            playSound(resources.finish, 1);
+            return;
+        }
+
+        if (currentConfig.tictac) {
+            if (!clockSchedule) scheduleClock();
+        } else {
+            if (clockSchedule) unscheduleClock();
+        }
+
+    }
+
+    onConfUpdate();
 }
-
-function schedule() {
-    const date = new Date().getTime();
-    console.log('delay ', date%1000);
-    const nextSecond = (date - (date % 1000) + 1000);
-    setTimeout(play, nextSecond - date);
-    return (nextSecond - 1000);
-}
-
-schedule();
-
-
-*/
