@@ -7,12 +7,50 @@ import Notifier from "./Notifier";
 
 const logger = Log.logger(__filename);
 
+
+function detectScreenStatusByAnimationFrame(cb:(status: boolean)=>(void))
+{
+    let status:boolean|undefined = undefined;
+    let handle:number|undefined;
+    setInterval(()=> {
+        if (handle !== undefined) {
+            window.cancelAnimationFrame(handle);
+            handle = undefined;
+            if (status !== undefined) {
+                status = false;
+                cb(status);
+            }
+        }
+        window.requestAnimationFrame(()=> {
+            handle = undefined;
+            if (status !== true) {
+                status = true;
+                cb(status);
+            }
+        });
+    }, 5000);
+}
+
+function detectScreenStatusByFocusEvents(cb:(status: boolean)=>(void))
+{
+    window.addEventListener('blur', ()=> {
+        cb(false);
+    });
+    window.addEventListener('focus', ()=> {
+        cb(true);
+    });
+}
+
+
 export default class ReduxNotifier extends Notifier {
     private readonly hidden: string;
     private readonly visibilityChange: string;
     private hidingTimeout: number | undefined;
     private store: Redux.Store<Store.Content>;
     private watchActive: boolean|undefined;
+
+    private animationFrameStatus: boolean | undefined = undefined;
+    private focusStatus: boolean | undefined = undefined;
 
     constructor() {
         super(undefined);
@@ -28,7 +66,22 @@ export default class ReduxNotifier extends Notifier {
             this.visibilityChange = "webkitvisibilitychange";
         }
         logger.debug('hidden property found', {hidden: this.hidden, visibilityChange: this.visibilityChange});
-        document.addEventListener(this.visibilityChange, this.handleVisibilityChange.bind(this), false);
+        document.addEventListener(this.visibilityChange, this.handleVisibilityChange, false);
+
+        detectScreenStatusByFocusEvents((s)=> {
+            if (this.focusStatus !== s) {
+                this.focusStatus = s;
+                this.handleVisibilityChange();
+            }
+        });
+        /*
+        detectScreenStatusByAnimationFrame((s)=> {
+            if (this.animationFrameStatus !==  s) {
+                this.animationFrameStatus = s;
+                this.handleVisibilityChange();
+            }
+        });
+        */
     }
 
     protected onStatusChanged(backendStatus: BackendStore.BackendStatusValue, backendError?: string)
@@ -49,12 +102,17 @@ export default class ReduxNotifier extends Notifier {
         }
     }
 
-    protected wantConn() {
-        return this.watchActive || !document[this.hidden];
+    protected screenVisible = ()=> {
+        return (!document[this.hidden]) && (this.animationFrameStatus !== false) && (this.focusStatus !== false);
     }
 
-    handleVisibilityChange() {
-        if (document[this.hidden]) {
+    protected wantConn() {
+        return this.watchActive || this.screenVisible();
+    }
+
+    handleVisibilityChange = ()=>{
+        const screenVisible = this.screenVisible();
+        if (!screenVisible) {
             logger.info('Websocket: Became hidden');
             this.cancelHidingTimeout();
             this.hidingTimeout = window.setTimeout(()=>{
@@ -66,6 +124,12 @@ export default class ReduxNotifier extends Notifier {
             logger.info('Websocket: Became visible');
             this.cancelHidingTimeout();
             this.updateState();
+        }
+
+        if (this.store !== undefined) {
+            Actions.dispatch<BackendStore.BackendActions>(this.store)("screenVisible", {
+                screenVisible
+            });
         }
     }
 

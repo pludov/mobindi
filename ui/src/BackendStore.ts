@@ -11,6 +11,9 @@ export type Content = {
     backendError: string|null;
     // FIXME: switch that to nullable
     backend: Partial<BackofficeStatus>;
+
+    // Is there a real user watching ?
+    screenVisible?: boolean
 }
 
 export const initialState:Content = {
@@ -78,6 +81,16 @@ const backendStatus: Actions.Handler<{ backendStatus: number, backendError?: str
         return state;
     };
 
+const screenVisible : Actions.Handler<{ screenVisible:boolean }>
+    = (state, action) => {
+        const screenVisible = action.screenVisible;
+        if (state.screenVisible === screenVisible) {
+            return state;
+        }
+        return {...state, screenVisible };
+
+    }
+
 const notification : Actions.Handler<{data?:BackofficeStatus, time: number, diff?: JsonProxy.Diff, batch? : JsonProxy.Diff[]}>
     = (state, action) => {
         // Mettre le status du backend
@@ -102,6 +115,7 @@ const notification : Actions.Handler<{data?:BackofficeStatus, time: number, diff
 
 const actions = {
     backendStatus,
+    screenVisible,
     notification
 }
 

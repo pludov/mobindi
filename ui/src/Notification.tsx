@@ -11,9 +11,11 @@ type InputProps = {
 }
 type MappedProps = {
     visible: false;
+    screenVisible?: boolean;
 } | (
     {
-        visible : true
+        visible : true;
+        screenVisible?: boolean;
     }
     & NotificationItem
 )
@@ -79,7 +81,7 @@ class Notification extends React.PureComponent<Props, State> {
             this.prevDisplay = {...this.props}
         }
 
-        if (this.props.visible && details.type === "oneshot") {
+        if (this.props.visible && this.props.screenVisible !== false && details.type === "oneshot") {
             if (this.dismissTimeout === undefined) {
                 this.dismissTimeout = setTimeout(this.timedDimsiss, 5000);
             }
@@ -101,20 +103,24 @@ class Notification extends React.PureComponent<Props, State> {
     }
 
     static mapStateToProps = function(store:Store.Content, props:InputProps):MappedProps {
+        const screenVisible = store.screenVisible;
         const notification = store.backend.notification;
         if (!notification) {
             return {
+                screenVisible,
                 visible: false
             }
         }
         if (!has(notification.byuuid, props.uuid)) {
             return {
+                screenVisible,
                 visible: false
             }
         }
         return {
             visible: true,
-            ... notification.byuuid[props.uuid]
+            ... notification.byuuid[props.uuid],
+            screenVisible
         };
     }
 
