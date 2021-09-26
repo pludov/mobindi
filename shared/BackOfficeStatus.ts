@@ -59,13 +59,15 @@ export type SequenceFocuserSettings = {
     once: boolean;
 }
 
-export type SequenceStepParameters = {
+export type SequenceImageParameters = {
     exposure?:number;
     iso?: string;
     type?: string;
     bin?: number;
     filter?: string|null;
+}
 
+export type SequenceStepParameters = SequenceImageParameters & {
     dithering?: null|SequenceDitheringSettings;
     focuser?: null|SequenceFocuserSettings;
 }
@@ -104,11 +106,12 @@ export type SequenceStepStatus = {
     lastDitheredExecUuid?: string;
 }
 
-export type ImageStats = {
+export type ImageStats = SequenceImageParameters & {
     fwhm?: number;
     starCount?: number;
     guideStats?: PhdGuideStats;
     backgroundLevel?: number;
+    arrivalTime: number;
 }
 
 export type Sequence = {

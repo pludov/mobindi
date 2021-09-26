@@ -132,12 +132,15 @@ export default class SequenceManager
             // write callback (add new images)
             (content:SequenceStatus["sequences"])=>{
                 content = deepCopy(content);
+                const arrivalTime = new Date().getTime();
                 for(const sid of Object.keys(content.byuuid)) {
                     const seq = content.byuuid[sid];
                     seq.storedImages = [];
                     for(const uuid of seq.images) {
                         if (hasKey(this.context.camera.currentStatus.images.byuuid, uuid)) {
-                            const toWrite = {...this.context.camera.currentStatus.images.byuuid[uuid],
+                            const toWrite = {
+                                            arrivalTime,
+                                            ...this.context.camera.currentStatus.images.byuuid[uuid],
                                             ... Obj.getOwnProp(seq.imageStats, uuid)};
                             seq.storedImages.push(toWrite);
                         }
@@ -663,7 +666,14 @@ export default class SequenceManager
                 sequence.images.push(shootResult.uuid);
                 sequenceLogic.finish(currentExecutionStatus);
 
-                sequence.imageStats[shootResult.uuid] = {};
+                sequence.imageStats[shootResult.uuid] = Obj.noUndef({
+                    arrivalTime: new Date().getTime(),
+                    exposure: settings.exposure,
+                    iso: param.iso,
+                    type: param.type,
+                    bin: param.bin,
+                    filter: param.filter,
+                });
                 computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
             }
         }

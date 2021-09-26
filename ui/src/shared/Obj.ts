@@ -133,4 +133,13 @@ export function getOwnProp(o: any, s: any) {
     return undefined;
 }
 
-export { hasKey, mergeDeep, update, deepCopy, deepEqual, isObject };
+function noUndef<T> (obj: T): T {
+    for(const k of Object.keys(obj)) {
+        if ((obj as any)[k] === undefined) {
+            delete (obj as any)[k];
+        }
+    }
+    return obj;
+}
+
+export { hasKey, mergeDeep, update, deepCopy, deepEqual, isObject, noUndef };
