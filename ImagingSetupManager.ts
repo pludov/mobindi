@@ -4,7 +4,7 @@ import {BackofficeStatus, FocuserSettings, ImagingSetup, ImagingSetupStatus } fr
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {IdGenerator} from "./IdGenerator";
 import ConfigStore from './ConfigStore';
-import JsonProxy, { TriggeredWildcard } from './JsonProxy';
+import JsonProxy, { TriggeredWildcard } from './shared/JsonProxy';
 import * as Obj from "./Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";

@@ -1,6 +1,6 @@
 import { expect, assert } from 'chai';
 
-import * as AccessPath from './AccessPath';
+import * as AccessPath from '@src/shared/AccessPath';
 
 type Child = {
     c1: number;

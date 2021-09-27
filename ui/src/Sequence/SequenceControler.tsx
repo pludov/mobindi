@@ -15,6 +15,7 @@ import CancellationToken from 'cancellationtoken';
 type InputProps = {
     currentPath: string;
     editSequence:(uid:string)=>(void);
+    editSequenceMonitoring:(uid:string)=>(void);
 }
 type MappedProps = {
     uuid?: string;
@@ -31,6 +32,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     private static startBtonHelp = Help.key("Start", "Start the current sequence. The sequence will restart after the last successfull frame if possible.");
     private static stopBtonHelp = Help.key("Stop", "Stop the current sequence. The current exposure is aborted immediately. It is possible to restart it later (Start)");
     private static editBtonHelp = Help.key("edit", "Edit the definition of the sequence. Most parameter can be adjusted while sequence is running. They'll be applied after the end of the current exposure.");
+    private static editMonitoringBtonHelp = Help.key("monitoring", "Configure monitoring for the sequence. This will pause the sequence and emit notification when some condition are meet (like FWHM degradation, ...)");
     private static resetBtonHelp = Help.key("reset", "Reset the current sequence. It will restart from the begining, whatever process has already been made.");
     private static dropBtonHelp = Help.key("drop", "Remove the sequence from the list. The image files are not dropped.");
 
@@ -77,6 +79,10 @@ export class SequenceControler extends React.PureComponent<Props, State> {
         this.props.editSequence(this.props.uuid!);
     }
 
+    private openMonitoringDialog = ()=>{
+        this.props.editSequenceMonitoring(this.props.uuid!);
+    }
+
     render() {
         var clickable = {
             start: false,
@@ -105,6 +111,11 @@ export class SequenceControler extends React.PureComponent<Props, State> {
             }
         }
 
+        const monitoringActive = this.props.current?.backgroundMonitoring.enabled
+                        || this.props.current?.fwhmMonitoring.enabled
+                        || this.props.current?.activityMonitoring.enabled;
+        const monitoring = monitoringActive ? '🔔' : '🔕';
+
         const statusStr:string = !this.props.current
                 ? ("")
                 : (
@@ -123,23 +134,26 @@ export class SequenceControler extends React.PureComponent<Props, State> {
             </div>
             <input
                 {...SequenceControler.startBtonHelp.dom()}
+                className="GlyphBton"
                 type='button'
-                value='Start'
+                value='▶'
                 id='Start'
                 disabled={!clickable.start}
                 onClick={(e)=>Utils.promiseToState(this.startSequence, this)}
             />
             <input
                 {...SequenceControler.stopBtonHelp.dom()}
+                className="GlyphBton"
                 type='button'
-                value='Stop'
+                value='⏸'
                 id='Stop'
                 disabled={!clickable.stop}
                 onClick={(e)=>Utils.promiseToState(this.stopSequence, this)}
             />
-            <input {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='edit' onClick={this.openEditDialog}/>
-            <input {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='reset' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
-            <input {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='drop' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
+            <input className="GlyphBton" {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='✏️' onClick={this.openEditDialog}/>
+            <input className="GlyphBton" {...SequenceControler.editMonitoringBtonHelp.dom()} type='button' disabled={false} value={monitoring} onClick={this.openMonitoringDialog}/>
+            <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='🗘' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
+            <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
         </div>);
     }
 

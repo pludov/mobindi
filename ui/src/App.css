@@ -105,6 +105,11 @@ div {
   min-width: 0;
 }
 
+.GlyphBton {
+  font-weight: bold;
+  font-family: "MobindiGlyphBton", "sans-serif";
+  min-width: 1.7em;
+}
 
 .BusyInfinite {
   background-clip: border-box;

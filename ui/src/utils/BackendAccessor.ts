@@ -1,4 +1,4 @@
-import JsonProxy from '../shared/JsonProxy';
+import JsonProxy, { Diff } from '../shared/JsonProxy';
 import * as Store from "../Store"
 import {AccessPath, For} from "../shared/AccessPath"
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
@@ -74,7 +74,7 @@ export class BackendAccessorImpl<TYPE> implements RecursiveBackendAccessor<TYPE>
     // Returns a promise that perform a change.
     // A change is a set of jsonPath=>operation
     // Changes has: path, value, delete
-    public apply = async(changes:any):Promise<void>=>{
+    public apply = async(changes:Diff):Promise<void>=>{
         throw new Error("not implemented");
     }
 

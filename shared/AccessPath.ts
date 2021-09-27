@@ -1,0 +1,1 @@
+../ui/src/shared/AccessPath.ts

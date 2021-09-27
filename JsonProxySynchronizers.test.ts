@@ -2,7 +2,7 @@ import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy, { SynchronizerTriggerCallback, TriggeredWildcard, NoWildcard } from './JsonProxy';
+import JsonProxy, { SynchronizerTriggerCallback, TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
 import * as Obj from './Obj';
 
 class TestContext{

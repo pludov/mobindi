@@ -4,7 +4,7 @@ import 'mocha';
 import * as fs from 'fs';
 import {promisify} from "util";
 
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import {IndiConnection} from './Indi';
 import { IndiDevice } from "./shared/BackOfficeStatus";
 

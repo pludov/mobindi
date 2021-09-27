@@ -7,7 +7,7 @@ import * as Obj from './Obj.js';
 import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication, AppContext } from './ModuleBase.js';
-import JsonProxy from './JsonProxy.js';
+import JsonProxy from './shared/JsonProxy';
 import { BackofficeStatus, PhdStatus, PhdGuideStep, PhdSettling, PhdAppState, DitheringSettings, PhdConfiguration, PhdServerConfiguration, PhdGuideStats } from './shared/BackOfficeStatus.js';
 import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";

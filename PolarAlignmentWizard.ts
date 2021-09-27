@@ -11,7 +11,7 @@ import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
 import ScopeTrackCounter from './ScopeTrackCounter';
 import Astrometry from './Astrometry';
-import { SynchronizerTriggerCallback } from './JsonProxy';
+import { SynchronizerTriggerCallback } from './shared/JsonProxy';
 const Quaternion = require("quaternion");
 
 const logger = Log.logger(__filename);

@@ -13,9 +13,16 @@ function uuidMock() {
 }
 
 
+const unusedFields = {
+    fwhmMonitoring: {enabled: false},
+    backgroundMonitoring:  {enabled: false},
+    activityMonitoring: {enabled: false},
+}
+
 describe("SequenceLogicDithering", () => {
     it("Dither for all images", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -86,6 +93,7 @@ describe("SequenceLogicDithering", () => {
     
     it("Dither once - direct", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -158,6 +166,7 @@ describe("SequenceLogicDithering", () => {
     
     it("Dither once - with childs", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -240,6 +249,7 @@ describe("SequenceLogicDithering", () => {
     
     it("Dither once with repeat & foreach at same level", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -318,6 +328,7 @@ describe("SequenceLogicDithering", () => {
     
     it("Dither once with foreach at same level & childs", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -416,6 +427,7 @@ describe("SequenceLogicDithering", () => {
     // Dither once with parent repeat
     it("Dither once with parent repeat", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -486,6 +498,7 @@ describe("SequenceLogicDithering", () => {
     
     it("Dither once with parent foreach", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             

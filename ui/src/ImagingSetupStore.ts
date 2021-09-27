@@ -6,6 +6,7 @@ import { BackendAccessorImpl } from './utils/BackendAccessor';
 
 import * as BackendRequest from "./BackendRequest";
 import * as Accessor from './shared/AccessPath';
+import { Diff } from './shared/JsonProxy';
 
 
 class ImagingSetupAccessor extends BackendAccessorImpl<ImagingSetup> {
@@ -15,7 +16,7 @@ class ImagingSetupAccessor extends BackendAccessorImpl<ImagingSetup> {
         this.imagingSetup = imagingSetup;
     }
 
-    public apply = async (jsonDiff:any):Promise<void>=>{
+    public apply = async (jsonDiff:Diff):Promise<void>=>{
         if (this.imagingSetup === null) {
             throw new Error("No imaging setup selected");
         }

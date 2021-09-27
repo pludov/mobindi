@@ -2,7 +2,7 @@ import fs from 'fs';
 import tmp from 'tmp';
 import Log from './Log';
 import * as Obj from './Obj';
-import JsonProxy from "./JsonProxy";
+import JsonProxy from "./shared/JsonProxy";
 import { BackofficeStatus } from "./shared/BackOfficeStatus";
 
 const logger = Log.logger(__filename);

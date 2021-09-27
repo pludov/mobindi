@@ -2,7 +2,7 @@ import CancellationToken from 'cancellationtoken';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { BackofficeStatus, FilterWheelStatus} from './shared/BackOfficeStatus';
-import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
+import JsonProxy, { TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
 import { hasKey } from './Obj';
 import { Task } from "./Task.js";
 import * as Obj from "./Obj";

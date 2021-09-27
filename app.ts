@@ -24,7 +24,7 @@ import ImageProcessor from './ImageProcessor';
 import ImagingSetupManager from './ImagingSetupManager';
 
 
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import TriggerExecuter from './TriggerExecuter';
 import ToolExecuter from './ToolExecuter';
 

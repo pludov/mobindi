@@ -3,7 +3,7 @@ import Log from './Log';
 import * as Obj from './Obj';
 import ConfigStore from './ConfigStore';
 import { BackofficeStatus, TriggerConfig, TriggerExecuterStatus, ToolConfig } from './shared/BackOfficeStatus';
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import { AppContext } from './ModuleBase';
 
 const logger = Log.logger(__filename);

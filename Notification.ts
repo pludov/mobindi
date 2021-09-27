@@ -5,7 +5,7 @@ import CancellationToken from 'cancellationtoken';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, NotificationStatus, NotificationItem} from './shared/BackOfficeStatus';
-import JsonProxy, { has } from './JsonProxy';
+import JsonProxy, { has } from './shared/JsonProxy';
 import { hasKey, deepCopy } from './Obj';
 import { DriverInterface, Vector } from './Indi';
 import {Task, createTask} from "./Task.js";

@@ -2,7 +2,7 @@ import "source-map-support/register";
 import { expect, assert } from 'chai';
 import 'mocha';
 
-import JsonProxy, {has, WhiteList} from './JsonProxy';
+import JsonProxy, {has, WhiteList} from './shared/JsonProxy';
 
 /**
  * Created by ludovic on 21/07/17.

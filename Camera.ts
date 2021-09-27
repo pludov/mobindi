@@ -3,7 +3,7 @@ import MemoryStreams from 'memory-streams';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus} from './shared/BackOfficeStatus';
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";

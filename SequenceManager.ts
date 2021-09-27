@@ -6,7 +6,7 @@ import * as jsonpatch from 'json-patch';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus} from './shared/BackOfficeStatus';
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import * as Algebra from './Algebra';
 import { hasKey, deepCopy } from './Obj';
 import {Task, createTask} from "./Task.js";
@@ -106,7 +106,8 @@ export default class SequenceManager
                 this.sequenceIdGenerator.renumber(content.list, content.byuuid);
 
                 for(const sid of Object.keys(content.byuuid)) {
-                    const seq = content.byuuid[sid];
+                    const seq = this.completeSequence(content.byuuid[sid]);
+                    content.byuuid[sid] =seq;
                     seq.images = [];
                     if (!seq.imageStats) {
                         seq.imageStats = {};
@@ -136,7 +137,7 @@ export default class SequenceManager
                 for(const sid of Object.keys(content.byuuid)) {
                     const seq = content.byuuid[sid];
                     seq.storedImages = [];
-                    for(const uuid of seq.images) {
+                    for(const uuid of seq.images || []) {
                         if (hasKey(this.context.camera.currentStatus.images.byuuid, uuid)) {
                             const toWrite = {
                                             arrivalTime,
@@ -158,6 +159,30 @@ export default class SequenceManager
 
     }
 
+    private completeSequence=(t:Partial<Sequence>): Sequence=>{
+        const defaultSequence:Sequence = {
+            activityMonitoring: {
+                enabled: false
+            },
+            backgroundMonitoring: {
+                enabled: false
+            },
+            fwhmMonitoring: {
+                enabled: false,
+            },
+            imageStats: {},
+            images: [],
+            imagingSetup: null,
+            progress: null,
+            root: {},
+            status: 'error',
+            errorMessage: 'Convertion error',
+            stepStatus: {},
+            title: 'invalid sequence',
+        }
+        return {...defaultSequence, ...t};
+    }
+
     newSequence=async (ct: CancellationToken, message: {}):Promise<string>=>{
         const key = uuidv4();
         const firstSeq = uuidv4();
@@ -174,6 +199,10 @@ export default class SequenceManager
             },
             stepStatus: {
             },
+
+            fwhmMonitoring: { enabled: false },
+            backgroundMonitoring: { enabled: false },
+            activityMonitoring: { enabled: false },
 
             images: [],
             imageStats: {},
@@ -295,6 +324,15 @@ export default class SequenceManager
         const value = message.value;
 
         (seq as any)[param] = value;
+    }
+
+    public patchSequence = async (ct: CancellationToken, message: BackOfficeAPI.PatchSequenceRequest) => {
+        const seq = this.findSequenceFromRequest(message.sequenceUid);
+
+        const newImagingSetup = JsonProxy.applyDiff(seq, message.patch);
+
+        // FIXME: do the checking !
+        this.currentStatus.sequences.byuuid[message.sequenceUid] = newImagingSetup;
     }
 
     public patchSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.PatchSequenceStepRequest)=>{
@@ -889,6 +927,7 @@ export default class SequenceManager
         return {
             deleteSequenceStep: this.deleteSequenceStep,
             updateSequence: this.updateSequence,
+            patchSequence: this.patchSequence,
             patchSequenceStep: this.patchSequenceStep,
             updateSequenceStep: this.updateSequenceStep,
             updateSequenceStepDithering: this.updateSequenceStepDithering,

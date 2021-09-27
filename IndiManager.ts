@@ -8,7 +8,7 @@ import { DriverInterface, IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { IndiManagerStatus, IndiManagerSetPropertyRequest, BackofficeStatus } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
-import JsonProxy, { TriggeredWildcard, NoWildcard } from './JsonProxy';
+import JsonProxy, { TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import Timeout from './Timeout';
 import Sleep from './Sleep';

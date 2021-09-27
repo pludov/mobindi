@@ -12,9 +12,16 @@ function uuidMock() {
     }
 }
 
+const unusedFields = {
+    fwhmMonitoring: {enabled: false},
+    backgroundMonitoring:  {enabled: false},
+    activityMonitoring: {enabled: false},
+}
+
 describe("SequenceLogic", () => {
     it("Single step with repeat", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -98,6 +105,7 @@ describe("SequenceLogic", () => {
     
     it("repeat with two childs", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -268,6 +276,7 @@ describe("SequenceLogic", () => {
     it("simple foreach ", () => {
         // Really RGB, RGB, RGB
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             
@@ -366,6 +375,7 @@ describe("SequenceLogic", () => {
 
     it("foreach & repeat with two childs", () => {
         const sequence: Sequence = {
+            ...unusedFields,
             status: "idle",
             progress: null,
             

@@ -17,13 +17,12 @@ import EditableImagingSetupSelector from '../EditableImagingSetupSelector';
 
 
 type InputProps = {
-    currentPath: string;
+    uid: string;
     onClose: ()=>void;
 }
 
 type MappedProps = {
     displayable: boolean;
-    uid?: string;
     details?: Sequence;
     imagingSetupId?: string|null;
     imagingSetup?: ImagingSetup;
@@ -116,13 +115,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{
         const imagingSetupCapacitySelector = SequenceStepParameter.imagingSetupCapacityReselect();
         return (store: Store.Content, ownProps: InputProps)=> {
-            const selected = atPath(store, ownProps.currentPath);
-            if (!selected) {
-                return {
-                    displayable: false,
-                    imagingSetupCapacity: {},
-                };
-            }
+            const selected = ownProps.uid;
             const details = Utils.getOwnProp(store.backend.sequence?.sequences.byuuid, selected);
             if (details === undefined) {
                 return {
@@ -136,7 +129,6 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                 return {
                     displayable: true,
                     details,
-                    uid: selected,
                     imagingSetupId,
                     imagingSetupCapacity: {},
                 };
@@ -144,7 +136,6 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
 
             return {
                 displayable: true,
-                uid: selected,
                 details: details,
                 imagingSetup,
                 imagingSetupId,

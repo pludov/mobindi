@@ -3,6 +3,7 @@ import * as jsonpatch from 'json-patch';
 import * as ProcessorTypes from "./ProcessorTypes";
 import { CameraDeviceSettings, SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings } from './BackOfficeStatus';
 import { Json } from './Json';
+import { Diff } from '@src/shared/JsonProxy';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -57,6 +58,11 @@ export type UpdateSequenceRequest = {
     sequenceUid: string;
     param: string;
     value: any;
+}
+
+export type PatchSequenceRequest = {
+    sequenceUid: string,
+    patch: Diff;
 }
 
 export type UpdateSequenceStepRequest = {
@@ -123,6 +129,7 @@ export type SequenceAPI = {
     resetSequence: (payload: {sequenceUid: string})=>void;
     dropSequence: (payload: {sequenceUid: string})=>void;
     updateSequence: (payload: UpdateSequenceRequest)=>void;
+    patchSequence: (payload: PatchSequenceRequest)=>void;
     newSequenceStep: (payload: NewSequenceStepRequest)=>string[];
     patchSequenceStep: (payload: PatchSequenceStepRequest)=>void;
     updateSequenceStep: (payload: UpdateSequenceStepRequest)=>void;

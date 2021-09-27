@@ -18,6 +18,7 @@ import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import SequenceControler from './SequenceControler';
 import SequenceSelector from './SequenceSelector';
 import ImageDetail from "./ImageDetail";
+import SequenceMonitoringDialog from './SequenceMonitoringDialog';
 
 
 type SequenceViewDatabaseObject = {
@@ -26,8 +27,15 @@ type SequenceViewDatabaseObject = {
     imageStats?: BackOfficeStatus.Sequence["imageStats"],
 }
 
-type SequenceViewProps = {
-}
+type InputProps = {
+};
+
+type MappedProps = {
+    editSequenceDefinitionUid: string|undefined;
+    editSequenceMonitoringUid: string|undefined;
+};
+
+type SequenceViewProps = InputProps & MappedProps;
 
 const fieldList:Array<FieldDefinition & {id:string}> = [
     {
@@ -93,7 +101,11 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     }
 
     editSequence=(uid:string)=>{
-        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid});
+        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid, view: "definition"});
+    }
+
+    editSequenceMonitoring=(uid:string)=>{
+        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid, view: "monitoring"});
     }
 
     closeEditDialog = ()=> {
@@ -103,10 +115,20 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     render() {
         //var self = this;
         return(<div className="SequenceView">
-            <SequenceEditDialog
-                currentPath='$.sequence.editingSequence'
-                onClose={this.closeEditDialog}/>
-
+            {this.props.editSequenceDefinitionUid !== undefined
+                ?
+                    <SequenceEditDialog
+                        uid={this.props.editSequenceDefinitionUid}
+                        onClose={this.closeEditDialog}/>
+                : null
+            }
+            {this.props.editSequenceMonitoringUid !== undefined
+                ?
+                    <SequenceMonitoringDialog
+                        uid={this.props.editSequenceMonitoringUid}
+                        onClose={this.closeEditDialog}/>
+                : null
+            }
             <div className="SequenceControl">
                 <SequenceSelector
                     currentPath='$.sequence.currentSequence'
@@ -115,6 +137,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                 <SequenceControler
                     currentPath='$.sequence.currentSequence'
                     editSequence={this.editSequence}
+                    editSequenceMonitoring={this.editSequenceMonitoring}
                 />
             </div>
             <div className="SequenceViewDisplay">
@@ -151,7 +174,17 @@ class SequenceView extends PureComponent<SequenceViewProps> {
             </div>
         </div>);
     }
+
+    static mapStateToProps=(store: Store.Content, ownProps: InputProps) : MappedProps=>{
+        const editUid = store.sequence?.editingSequence;
+        const view = store.sequence?.editingSequenceView;
+
+        return {
+            editSequenceDefinitionUid: view === "definition" ? editUid : undefined,
+            editSequenceMonitoringUid: view === "monitoring" ? editUid : undefined,
+        };
+    }
 }
 
 
-export default SequenceView;
+export default Store.Connect(SequenceView);

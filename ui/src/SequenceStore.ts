@@ -1,10 +1,18 @@
+import { Sequence } from "@bo/BackOfficeStatus";
 import * as Actions from "./Actions";
 import * as Store from "./Store";
 import * as Utils from "./Utils";
+import { BackendAccessorImpl } from "./utils/BackendAccessor";
+
+import * as BackendRequest from "./BackendRequest";
+import * as Accessor from './shared/AccessPath';
+import CancellationToken from "cancellationtoken";
+import { Diff } from "./shared/JsonProxy";
 
 export type SequenceStoreContent = {
     currentSequence: string|undefined;
     editingSequence: string|undefined;
+    editingSequenceView: "definition"|"monitoring"|undefined;
     currentImage: string|undefined;
     currentImageAutoSelectSerial?: number;
     currentIsLast?: boolean;
@@ -13,6 +21,30 @@ export type SequenceStoreContent = {
 export type Content = {
     sequence: SequenceStoreContent;
 }
+
+
+class SequenceAccessor extends BackendAccessorImpl<Sequence> {
+    private sequenceUid: string;
+    constructor(sequenceUid: string) {
+        super(Accessor.For((e)=>e.sequence!.sequences.byuuid[sequenceUid!]));
+        this.sequenceUid = sequenceUid;
+    }
+
+    public apply = async (jsonDiff:Diff):Promise<void>=>{
+        if (this.sequenceUid === null) {
+            throw new Error("No imaging setup selected");
+        }
+        await BackendRequest.RootInvoker("sequence")("patchSequence")(
+            CancellationToken.CONTINUE,
+            {
+                sequenceUid: this.sequenceUid,
+                patch: jsonDiff
+            }
+        );
+    }
+}
+
+export const sequenceAccessor = (sequenceUid: string)=>new SequenceAccessor(sequenceUid);
 
 
 function adjuster(store:Store.Content):Store.Content {
@@ -105,8 +137,9 @@ const setCurrentSequence=(state: Store.Content, payload: {sequence: string})=>{
     }
 }
 
-const setEditingSequence=(state: Store.Content, payload: {sequence: string|undefined})=>{
-    if (state.sequence.editingSequence === payload.sequence) {
+const setEditingSequence=(state: Store.Content, payload: {sequence: string|undefined, view?: "monitoring"|"definition"})=>{
+    if (state.sequence.editingSequence === payload.sequence
+         && state.sequence.editingSequenceView === payload.view) {
         return state;
     }
     
@@ -115,6 +148,7 @@ const setEditingSequence=(state: Store.Content, payload: {sequence: string|undef
         sequence: {
             ...state.sequence,
             editingSequence: payload.sequence,
+            editingSequenceView: payload.view,
         }
     }
 }
@@ -134,6 +168,7 @@ export const initialState:Content = {
         currentImage: undefined,
         currentSequence: undefined,
         editingSequence: undefined,
+        editingSequenceView: undefined,
         currentImageAutoSelectSerial: undefined,
         currentIsLast: true,
     }

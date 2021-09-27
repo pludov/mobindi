@@ -6,7 +6,7 @@ import ConfigStore from './ConfigStore';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import { IndiConnection } from './Indi';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import {Task, createTask} from "./Task";

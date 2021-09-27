@@ -114,6 +114,14 @@ export type ImageStats = SequenceImageParameters & {
     arrivalTime: number;
 }
 
+export type SequenceValueMonitoring = {
+    enabled: boolean;
+}
+
+export type SequenceActivityMonitoring = {
+    enabled: boolean;
+}
+
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
     progress: string | null;
@@ -125,6 +133,11 @@ export type Sequence = {
 
     root: SequenceStep;
     stepStatus: {[id: string]: SequenceStepStatus};
+
+    fwhmMonitoring: SequenceValueMonitoring;
+    backgroundMonitoring: SequenceValueMonitoring;
+    activityMonitoring: SequenceActivityMonitoring;
+
 
     // uuids of images
     images: string [];

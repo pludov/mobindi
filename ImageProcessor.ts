@@ -3,7 +3,7 @@ import CancellationToken from 'cancellationtoken';
 
 import * as ProcessorTypes from './shared/ProcessorTypes';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
-import JsonProxy from './JsonProxy';
+import JsonProxy from './shared/JsonProxy';
 import { AppContext } from './ModuleBase';
 import { Pipe } from './SystemPromise';
 import * as RequestHandler from "./RequestHandler";

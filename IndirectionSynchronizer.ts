@@ -1,5 +1,5 @@
-import { WildcardAccessPath } from "./AccessPath";
-import JsonProxy, { NoWildcard, SynchronizerTriggerCallback, TriggeredWildcard } from "./JsonProxy";
+import { WildcardAccessPath } from "./shared/AccessPath";
+import JsonProxy, { NoWildcard, SynchronizerTriggerCallback, TriggeredWildcard } from "./shared/JsonProxy";
 import Log from './Log';
 import * as Obj from "./Obj";
 

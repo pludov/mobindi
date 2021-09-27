@@ -1,6 +1,6 @@
 import * as WebSocket from 'ws';
 import Log from './Log';
-import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList } from './JsonProxy';
+import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList } from './shared/JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import ClientRequest from './ClientRequest';
 
