@@ -17,6 +17,7 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 import { SequenceLogic, Progress } from './SequenceLogic';
+import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 
 const logger = Log.logger(__filename);
 
@@ -497,6 +498,7 @@ export default class SequenceManager
         }
 
         const computeStatsWithMetrics = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=>{
+            // FIXME :report error here
             await computeStats(ct, indiFrameType, shootResult, target, guideSteps);
 
             this.lastImageTime = Date.now();
@@ -511,219 +513,227 @@ export default class SequenceManager
         const sequenceLogic = async (ct: CancellationToken) => {
             let scopeState: ScopeState = "light";
 
-            while(true) {
-                ct.throwIfCancelled();
 
-                const sequence = getSequence();
-                const sequenceLogic = new SequenceLogic(sequence, uuidv4);
-
-                sequence.progress = null;
-                const nextStep = sequenceLogic.getNextStep();
-
-                if (nextStep === undefined) {
-                    logger.info('Sequence terminated', {sequence, uuid});
-                    return;
-                }
-
-                // const {stepId, step} = nextStep;
-
-                if (sequence.imagingSetup === null) {
-                    throw new Error("No imaging setup specified");
-                }
-
-                const imagingSetupInstance = ()=> {
-                    const isi = this.imagingSetupManager.getImagingSetupInstance(sequence.imagingSetup);
-
-                    if (!isi.exists()) {
-                        throw new Error("Unknown imaging setup");
-                    }
-
-                    return isi;
-                }
-
-                const cameraDevice = () => {
-                    const isi = imagingSetupInstance();
-                    const ret = isi.config().cameraDevice;
-                    if (ret === null) {
-                        throw new Error("Imaging setup has no camera");
-                    }
-                    return ret;
-                }
-
-                const filterWheelDevice = () => {
-                    const isi = imagingSetupInstance();
-                    const ret = isi.config().filterWheelDevice;
-                    if (ret === null) {
-                        throw new Error("Imaging setup has no filter wheel");
-                    }
-                    return ret;
-                }
-
-                // Check that camera is connected
-                const device = this.indiManager.checkDeviceConnected(cameraDevice());
-
-                const param : SequenceStep = sequenceLogic.getParameters(nextStep);
-
-                // Get the name of frame type
-                const stepTypeLabel =
-                        (param.type ? device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(param.type) : undefined)
-                        || 'image';
-
-                const progress = sequenceLogic.getProgress(nextStep);
-                this.currentSequenceProgress = progress;
-
-                const shootTitle = (progress.imagePosition + 1) + "/" + progress.totalCount
-                            + (progress.totalTime > 0
-                                ? (" " + Math.round(100 * progress.timeSpent / progress.totalTime) + "%")
-                                : ""
-                            );
-
-                if (!param.exposure) {
-                    throw new Error("Exposure not specified for " + shootTitle);
-                }
-
-                const settings:CameraDeviceSettings = {...param, exposure: param.exposure};
-
-                settings.prefix = sanitizePath(sequence.title) + '_' + sanitizePath(stepTypeLabel);
-
-                if (param.filter) {
-                    settings.prefix += '_' + sanitizePath(param.filter);
-                }
-
-                if (param.exposure < 1 || (param.exposure % 1)) {
-                    settings.prefix += '_' + Math.floor(param.exposure * 1000) + 'ms';
-                } else {
-                    settings.prefix += '_' + Math.floor(param.exposure) + 's';
-                }
-
-                settings.prefix += '_XXX';
-
-                const currentExecutionStatus = nextStep[nextStep.length - 1];
-                // Copy because it could change concurrently in case of removal/reorder
-                const currentExecutionUuid = currentExecutionStatus.status.execUuid;
-
-                if (param.dithering
-                    && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
-
-                    // FIXME: no dithering for first shoot of sequence
-                    logger.info('Dithering required', {sequence, uuid, dithering: param.dithering});
-                    sequence.progress = "Dither " + shootTitle;
-                    await this.context.phd.dither(ct, param.dithering);
-                    // Mark the dithering as done
-                    currentExecutionStatus.status.lastDitheredExecUuid = currentExecutionUuid;
+            const sequenceActivityWatchdog = new SequenceActivityWatchdog(this.appStateManager, this.context, uuid);
+            try {
+                sequenceActivityWatchdog.reset(0);
+                while(true) {
                     ct.throwIfCancelled();
-                    continue;
-                }
 
-                // Send a cover scope dialog if required
-                const newScopeState:ScopeState = (param.type && hasKey(stateByFrameType, param.type)) ? stateByFrameType[param.type] : 'light';
-                if (newScopeState !== scopeState) {
-                    if (this.needCoverScopeMessage(cameraDevice()))
-                    {
-                        // Check that camera is connected first
-                        this.indiManager.checkDeviceConnected(cameraDevice());
+                    const sequence = getSequence();
+                    const sequenceLogic = new SequenceLogic(sequence, uuidv4);
 
-                        // Ask confirmation
-                        const acked = await this.context.notification.dialog<boolean|"neverask">(ct, coverMessageByFrameType[newScopeState],
-                                                        [{title:"Ok", value: true}, {title:"Pause Seq", value: false}, {title:"Never ask", value: "neverask"}]);
-                        if (!acked) {
-                            throw new CancellationToken.CancellationError("User canceled");
-                        }
-                        if (acked === "neverask") {
-                            this.disableCoverScopeMessage(cameraDevice());
-                        }
+                    sequence.progress = null;
+                    const nextStep = sequenceLogic.getNextStep();
+
+                    if (nextStep === undefined) {
+                        logger.info('Sequence terminated', {sequence, uuid});
+                        return;
                     }
-                    scopeState = newScopeState;
-                }
 
-                let guiderInhibiter = this.context.phd.createInhibiter();
+                    // const {stepId, step} = nextStep;
 
-                try {
-                    if (param.filter) {
-                        console.log('Setting filter to ' + param.filter);
-                        sequence.progress = "Filter " + shootTitle;
+                    if (sequence.imagingSetup === null) {
+                        throw new Error("No imaging setup specified");
+                    }
 
-                        const filterWheelDeviceId = filterWheelDevice();
+                    const imagingSetupInstance = ()=> {
+                        const isi = this.imagingSetupManager.getImagingSetupInstance(sequence.imagingSetup);
 
-                        if (filterWheelDeviceId === null) {
+                        if (!isi.exists()) {
+                            throw new Error("Unknown imaging setup");
+                        }
+
+                        return isi;
+                    }
+
+                    const cameraDevice = () => {
+                        const isi = imagingSetupInstance();
+                        const ret = isi.config().cameraDevice;
+                        if (ret === null) {
+                            throw new Error("Imaging setup has no camera");
+                        }
+                        return ret;
+                    }
+
+                    const filterWheelDevice = () => {
+                        const isi = imagingSetupInstance();
+                        const ret = isi.config().filterWheelDevice;
+                        if (ret === null) {
                             throw new Error("Imaging setup has no filter wheel");
                         }
+                        return ret;
+                    }
 
-                        this.indiManager.checkDeviceConnected(filterWheelDeviceId);
+                    // Check that camera is connected
+                    const device = this.indiManager.checkDeviceConnected(cameraDevice());
 
-                        await this.context.filterWheel.changeFilter(ct, {
-                            filterWheelDeviceId,
-                            filterId: param.filter,
-                        });
+                    const param : SequenceStep = sequenceLogic.getParameters(nextStep);
 
+                    // Get the name of frame type
+                    const stepTypeLabel =
+                            (param.type ? device.getVector('CCD_FRAME_TYPE').getPropertyLabelIfExists(param.type) : undefined)
+                            || 'image';
+
+                    const progress = sequenceLogic.getProgress(nextStep);
+                    this.currentSequenceProgress = progress;
+
+                    const shootTitle = (progress.imagePosition + 1) + "/" + progress.totalCount
+                                + (progress.totalTime > 0
+                                    ? (" " + Math.round(100 * progress.timeSpent / progress.totalTime) + "%")
+                                    : ""
+                                );
+
+                    if (!param.exposure) {
+                        throw new Error("Exposure not specified for " + shootTitle);
+                    }
+
+                    const settings:CameraDeviceSettings = {...param, exposure: param.exposure};
+
+                    settings.prefix = sanitizePath(sequence.title) + '_' + sanitizePath(stepTypeLabel);
+
+                    if (param.filter) {
+                        settings.prefix += '_' + sanitizePath(param.filter);
+                    }
+
+                    if (param.exposure < 1 || (param.exposure % 1)) {
+                        settings.prefix += '_' + Math.floor(param.exposure * 1000) + 'ms';
+                    } else {
+                        settings.prefix += '_' + Math.floor(param.exposure) + 's';
+                    }
+
+                    settings.prefix += '_XXX';
+
+                    const currentExecutionStatus = nextStep[nextStep.length - 1];
+                    // Copy because it could change concurrently in case of removal/reorder
+                    const currentExecutionUuid = currentExecutionStatus.status.execUuid;
+
+                    if (param.dithering
+                        && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
+
+                        // FIXME: no dithering for first shoot of sequence
+                        logger.info('Dithering required', {sequence, uuid, dithering: param.dithering});
+                        sequence.progress = "Dither " + shootTitle;
+                        await this.context.phd.dither(ct, param.dithering);
+                        // Mark the dithering as done
+                        currentExecutionStatus.status.lastDitheredExecUuid = currentExecutionUuid;
                         ct.throwIfCancelled();
+                        continue;
                     }
 
-                    if (param.focuser) {
-                        let delta;
+                    // Send a cover scope dialog if required
+                    const newScopeState:ScopeState = (param.type && hasKey(stateByFrameType, param.type)) ? stateByFrameType[param.type] : 'light';
+                    if (newScopeState !== scopeState) {
+                        if (this.needCoverScopeMessage(cameraDevice()))
+                        {
+                            // Check that camera is connected first
+                            this.indiManager.checkDeviceConnected(cameraDevice());
 
-                        try {
-                            delta = this.context.focuser.getFocuserDelta(sequence.imagingSetup || "invalid");
-                        } catch(e) {
-                            if (e instanceof Error) {
-                                throw new Error("Focuser: "+ e.message);
+                            // Ask confirmation
+                            const acked = await this.context.notification.dialog<boolean|"neverask">(ct, coverMessageByFrameType[newScopeState],
+                                                            [{title:"Ok", value: true}, {title:"Pause Seq", value: false}, {title:"Never ask", value: "neverask"}]);
+                            if (!acked) {
+                                throw new CancellationToken.CancellationError("User canceled");
                             }
-                            throw e;
+                            if (acked === "neverask") {
+                                this.disableCoverScopeMessage(cameraDevice());
+                            }
                         }
+                        scopeState = newScopeState;
+                    }
 
-                        logger.debug('Got focuser delta', {sequence, uuid, delta});
+                    let guiderInhibiter = this.context.phd.createInhibiter();
 
-                        if (delta.fromCurWeight >= 1) {
-                            logger.info('Focuser needs adjustment', {sequence, uuid, delta});
-                            sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+                    try {
+                        if (param.filter) {
+                            console.log('Setting filter to ' + param.filter);
+                            sequence.progress = "Filter " + shootTitle;
 
-                            if (this.context.focuser.needGuideInhibition(sequence.imagingSetup || "invalid")) {
-                                await guiderInhibiter.start(ct);
+                            const filterWheelDeviceId = filterWheelDevice();
+
+                            if (filterWheelDeviceId === null) {
+                                throw new Error("Imaging setup has no filter wheel");
                             }
 
-                            await this.context.focuser.moveFocuserWithBacklash(ct, sequence.imagingSetup || "invalid", delta.abs);
+                            this.indiManager.checkDeviceConnected(filterWheelDeviceId);
 
-                            logger.info('Focuser adjustment done', {sequence, uuid});
+                            await this.context.filterWheel.changeFilter(ct, {
+                                filterWheelDeviceId,
+                                filterId: param.filter,
+                            });
+
                             ct.throwIfCancelled();
-                        } else {
-                            logger.info('Focuser is good enough', {sequence, uuid, delta});
                         }
+
+                        if (param.focuser) {
+                            let delta;
+
+                            try {
+                                delta = this.context.focuser.getFocuserDelta(sequence.imagingSetup || "invalid");
+                            } catch(e) {
+                                if (e instanceof Error) {
+                                    throw new Error("Focuser: "+ e.message);
+                                }
+                                throw e;
+                            }
+
+                            logger.debug('Got focuser delta', {sequence, uuid, delta});
+
+                            if (delta.fromCurWeight >= 1) {
+                                logger.info('Focuser needs adjustment', {sequence, uuid, delta});
+                                sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+
+                                if (this.context.focuser.needGuideInhibition(sequence.imagingSetup || "invalid")) {
+                                    await guiderInhibiter.start(ct);
+                                }
+
+                                await this.context.focuser.moveFocuserWithBacklash(ct, sequence.imagingSetup || "invalid", delta.abs);
+
+                                logger.info('Focuser adjustment done', {sequence, uuid});
+                                ct.throwIfCancelled();
+                            } else {
+                                logger.info('Focuser is good enough', {sequence, uuid, delta});
+                            }
+                        }
+
+                    } finally {
+                        await guiderInhibiter.end(ct);
                     }
+                    // FIXME : wait end of guiding to settle ?
 
-                } finally {
-                    await guiderInhibiter.end(ct);
+                    sequence.progress = (stepTypeLabel) + " " + shootTitle;
+                    ct.throwIfCancelled();
+
+                    const guideSteps:Array<PhdGuideStep> = [];
+                    const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
+
+                    logger.info('Starting exposure', {sequence, uuid, settings});
+                    let shootResult;
+                    try {
+                        sequenceActivityWatchdog.reset(-settings.exposure);
+                        shootResult = await this.context.camera.doShoot(ct, sequence.imagingSetup, ()=>(settings));
+                    } finally {
+                        unregisterPhd();
+                    }
+                    
+                    progress.imagePosition++;
+                    progress.timeSpent += param.exposure;
+
+                    sequence.images.push(shootResult.uuid);
+                    sequenceLogic.finish(currentExecutionStatus);
+
+                    sequence.imageStats[shootResult.uuid] = Obj.noUndef({
+                        arrivalTime: new Date().getTime(),
+                        exposure: settings.exposure,
+                        iso: param.iso,
+                        type: param.type,
+                        bin: param.bin,
+                        filter: param.filter,
+                    });
+                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
                 }
-                // FIXME : wait end of guiding to settle ?
-
-                sequence.progress = (stepTypeLabel) + " " + shootTitle;
-                ct.throwIfCancelled();
-
-                const guideSteps:Array<PhdGuideStep> = [];
-                const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
-
-                logger.info('Starting exposure', {sequence, uuid, settings});
-                let shootResult;
-                try {
-                    shootResult = await this.context.camera.doShoot(ct, sequence.imagingSetup, ()=>(settings));
-                } finally {
-                    unregisterPhd();
-                }
-                
-                progress.imagePosition++;
-                progress.timeSpent += param.exposure;
-
-                sequence.images.push(shootResult.uuid);
-                sequenceLogic.finish(currentExecutionStatus);
-
-                sequence.imageStats[shootResult.uuid] = Obj.noUndef({
-                    arrivalTime: new Date().getTime(),
-                    exposure: settings.exposure,
-                    iso: param.iso,
-                    type: param.type,
-                    bin: param.bin,
-                    filter: param.filter,
-                });
-                computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
+            } finally {
+                sequenceActivityWatchdog.end();
             }
         }
 
