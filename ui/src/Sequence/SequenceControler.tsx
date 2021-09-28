@@ -32,7 +32,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     private static startBtonHelp = Help.key("Start", "Start the current sequence. The sequence will restart after the last successfull frame if possible.");
     private static stopBtonHelp = Help.key("Stop", "Stop the current sequence. The current exposure is aborted immediately. It is possible to restart it later (Start)");
     private static editBtonHelp = Help.key("edit", "Edit the definition of the sequence. Most parameter can be adjusted while sequence is running. They'll be applied after the end of the current exposure.");
-    private static editMonitoringBtonHelp = Help.key("monitoring", "Configure monitoring for the sequence. This will pause the sequence and emit notification when some condition are meet (like FWHM degradation, ...)");
+    private static editMonitoringBtonHelp = Help.key("monitoring", "Configure monitoring for the sequence. This emit notification and possibly will pause the sequence when some conditions are met (like FWHM degradation, ...)");
     private static resetBtonHelp = Help.key("reset", "Reset the current sequence. It will restart from the begining, whatever process has already been made.");
     private static dropBtonHelp = Help.key("drop", "Remove the sequence from the list. The image files are not dropped.");
 
@@ -89,12 +89,14 @@ export class SequenceControler extends React.PureComponent<Props, State> {
             stop: false,
             edit: false,
             drop: false,
-            reset: false
+            reset: false,
+            monitor: false,
         }
         if (this.props.current) {
             clickable.edit = true;
             clickable.drop = true;
             clickable.reset = true;
+            clickable.monitor = true;
         }
         if (this.props.current && !this.state.runningPromise) {
             switch(this.props.current.status) {
@@ -104,6 +106,7 @@ export class SequenceControler extends React.PureComponent<Props, State> {
                     clickable.reset = false;
                     break;
                 case 'done':
+                    clickable.monitor = false;
                     break;
                 default:
                     clickable.start = true;
@@ -151,7 +154,15 @@ export class SequenceControler extends React.PureComponent<Props, State> {
                 onClick={(e)=>Utils.promiseToState(this.stopSequence, this)}
             />
             <input className="GlyphBton" {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='✏️' onClick={this.openEditDialog}/>
-            <input className="GlyphBton" {...SequenceControler.editMonitoringBtonHelp.dom()} type='button' disabled={false} value={monitoring} onClick={this.openMonitoringDialog}/>
+            <input
+                {...SequenceControler.editMonitoringBtonHelp.dom()}
+                className="GlyphBton"
+                type='button'
+                value={monitoring}
+                id='Monitor'
+                disabled={!clickable.monitor}
+                onClick={this.openMonitoringDialog}
+            />
             <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='🗘' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
             <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
         </div>);

@@ -34,6 +34,18 @@ type State = {
 
 class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
     private static closeBtonHelp = Help.key("Close", "Return to the sequence list. Changes are saved as they are made.");
+    private static enableActivityMonitoringHelp = Help.key(
+        "Activity monitoring",
+        "Emit a notification if the sequence is not progressing for longer than this duration. " +
+        "This includes all time spent between exposures, including focuser, dithering, image transfert. " +
+        "The actual exposure duration is not accounted for."
+    );
+    private static activityMonitoringDurationHelp = Help.key(
+        "Inactivity thresold",
+        "Maximum number of seconds expected between exposures. " +
+        "This must be large enough to cover duration of dithering, filter switch, image transfert, ... " +
+        "The actual exposure duration is not accounted for."
+    );
 
     constructor(props:Props) {
         super(props);
@@ -67,10 +79,12 @@ class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                     <Bool
                         accessor={this.activityMonitoringAccessor(this.props.uid)}
-                    /> Stuck in light exposure for more than
+                        helpKey={SequenceMonitoringDialog.enableActivityMonitoringHelp}
+                    /> No progress in sequence for more than
 
                     <Float
                         accessor={this.activityMonitoringDurationAccessor(this.props.uid)}
+                        helpKey={SequenceMonitoringDialog.activityMonitoringDurationHelp}
                     /> seconds.
                 </div>
 
