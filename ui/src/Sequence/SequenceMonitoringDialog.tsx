@@ -13,6 +13,7 @@ import TextEdit from "../TextEdit";
 import * as SequenceStepParameter from "./SequenceStepParameter";
 import CancellationToken from 'cancellationtoken';
 import Bool from '@src/primitives/Bool';
+import Float from '@src/primitives/Float';
 
 
 type InputProps = {
@@ -48,6 +49,10 @@ class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
         (uid:string)=>this.sequenceAccessor(uid).child(AccessPath.For((e)=>e.activityMonitoring.enabled))
     );
 
+    private activityMonitoringDurationAccessor = defaultMemoize(
+        (uid:string)=>new Store.UndefinedToNullAccessor(this.sequenceAccessor(uid).child(AccessPath.For((e)=>e.activityMonitoring.duration)))
+    );
+
     render() {
         if (!this.props.displayable) {
             return null;
@@ -62,7 +67,11 @@ class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                     <Bool
                         accessor={this.activityMonitoringAccessor(this.props.uid)}
-                    /> Stuck in light exposure for more than XXX seconds
+                    /> Stuck in light exposure for more than
+
+                    <Float
+                        accessor={this.activityMonitoringDurationAccessor(this.props.uid)}
+                    /> seconds.
                 </div>
 
 

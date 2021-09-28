@@ -120,6 +120,7 @@ export type SequenceValueMonitoring = {
 
 export type SequenceActivityMonitoring = {
     enabled: boolean;
+    duration?: number;
 }
 
 export type Sequence = {

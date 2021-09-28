@@ -28,6 +28,9 @@ class Float extends React.PureComponent<Props> {
     }
 
     numberFromString=(s:string)=>{
+        if (s.trim() === "") {
+            return null;
+        }
         const n = parseFloat(s);
         if (isNaN(n)) {
             throw new Error("float required");

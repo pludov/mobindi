@@ -1193,7 +1193,7 @@ export default class JsonProxy<CONTENTTYPE> {
         return {newObject: value};
     }
 
-    // Update an object
+    // Update an object, returning a swallow copy for modification (unmodified parts are shared)
     public static applyDiff(from : any, diff: Diff) {
         if (diff === undefined) {
             return from;

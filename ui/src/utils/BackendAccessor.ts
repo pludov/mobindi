@@ -23,7 +23,7 @@ class BackendChildAccessor<Root, Target> {
         this.relpath = path;
     }
 
-    apply(jsonDiff:any) {
+    private apply(jsonDiff:any) {
         for(let i = this.relpath.path.length - 1; i >= 0; --i) {
             jsonDiff =  {update: {[this.relpath.path[i]]: jsonDiff}};
         }
@@ -32,7 +32,15 @@ class BackendChildAccessor<Root, Target> {
     }
 
     send = (value:any)=>{
-        return this.apply(JsonProxy.asDiff(value));
+        if (value === undefined) {
+            let jsonDiff : Diff = {update: {}, delete: [this.relpath.path.slice(-1)[0]]};
+            for(let i = this.relpath.path.length - 2; i >= 0; --i) {
+                jsonDiff = {update: {[this.relpath.path[i]]: jsonDiff}};
+            }
+            return this.root.apply(jsonDiff);
+        } else {
+            return this.apply(JsonProxy.asDiff(value));
+        }
     }
 
     child<NewTarget>(path:AccessPath<Target, NewTarget>): RecursiveBackendAccessor<NewTarget> {

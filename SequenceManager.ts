@@ -329,10 +329,21 @@ export default class SequenceManager
     public patchSequence = async (ct: CancellationToken, message: BackOfficeAPI.PatchSequenceRequest) => {
         const seq = this.findSequenceFromRequest(message.sequenceUid);
 
-        const newImagingSetup = JsonProxy.applyDiff(seq, message.patch);
+        const newSeq = deepCopy(JsonProxy.applyDiff(seq, message.patch));
+        SequenceManager.syncOnUpdate(seq, newSeq);
 
-        // FIXME: do the checking !
-        this.currentStatus.sequences.byuuid[message.sequenceUid] = newImagingSetup;
+        this.currentStatus.sequences.byuuid[message.sequenceUid] = newSeq;
+    }
+
+    // Adjust to sane values after update
+    static syncOnUpdate(src: Sequence, dst: Sequence) {
+        if (!Obj.deepEqual(src.activityMonitoring, dst.activityMonitoring)) {
+            if (dst.activityMonitoring.enabled) {
+                if ((dst.activityMonitoring.duration || -1 ) < 0 ) {
+                    dst.activityMonitoring.duration = 300;
+                }
+            }
+        }
     }
 
     public patchSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.PatchSequenceStepRequest)=>{

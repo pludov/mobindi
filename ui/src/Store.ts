@@ -111,6 +111,30 @@ export interface RecursiveAccessor<TYPE> extends Accessor<TYPE> {
     prop<Prop extends keyof TYPE & string>(prop:Prop): RecursiveAccessor<TYPE[Prop]>;
 };
 
+export class UndefinedToNullAccessor<TYPE> implements Accessor<TYPE|null> {
+    private wrapped: Accessor<TYPE|undefined>;
+
+    constructor(wrapped: Accessor<TYPE|undefined>) {
+        this.wrapped = wrapped;
+    }
+
+    fromStore = (s:Content):TYPE|null=>{
+        const ret = this.wrapped.fromStore(s);
+        if (ret === undefined) {
+            return null;
+        }
+        return ret;
+    }
+
+    send = async (t:TYPE|null)=> {
+        if (t === null) {
+            await this.wrapped.send(undefined);
+        } else {
+            await this.wrapped.send(t);
+        }
+    }
+}
+
 export const emptyArray = [];
 
 export const emptyObject = {};
