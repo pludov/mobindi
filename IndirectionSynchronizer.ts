@@ -1,7 +1,7 @@
 import { WildcardAccessPath } from "./shared/AccessPath";
 import JsonProxy, { NoWildcard, SynchronizerTriggerCallback, TriggeredWildcard } from "./shared/JsonProxy";
 import Log from './Log';
-import * as Obj from "./Obj";
+import * as Obj from "./shared/Obj";
 
 const logger = Log.logger(__filename);
 

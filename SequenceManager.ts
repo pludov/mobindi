@@ -5,18 +5,18 @@ import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus, SequenceValueMonitoring} from './shared/BackOfficeStatus';
 import JsonProxy from './shared/JsonProxy';
 import * as Algebra from './Algebra';
-import { hasKey, deepCopy } from './Obj';
+import { hasKey, deepCopy } from './shared/Obj';
 import {Task, createTask} from "./Task.js";
 import {IdGenerator} from "./IdGenerator";
-import * as Obj from "./Obj";
+import * as Obj from "./shared/Obj";
 import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
-import { SequenceLogic, Progress } from './SequenceLogic';
+import { SequenceLogic, Progress } from './shared/SequenceLogic';
 import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 
 const logger = Log.logger(__filename);
@@ -166,10 +166,12 @@ export default class SequenceManager
                 enabled: false
             },
             backgroundMonitoring: {
-                enabled: false
+                enabled: false,
+                perClassStatus:{}
             },
             fwhmMonitoring: {
                 enabled: false,
+                perClassStatus:{}
             },
             imageStats: {},
             images: [],
@@ -201,8 +203,8 @@ export default class SequenceManager
             stepStatus: {
             },
 
-            fwhmMonitoring: { enabled: false },
-            backgroundMonitoring: { enabled: false },
+            fwhmMonitoring: { enabled: false, perClassStatus:{} },
+            backgroundMonitoring: { enabled: false, perClassStatus:{} },
             activityMonitoring: { enabled: false },
 
             images: [],
@@ -343,6 +345,51 @@ export default class SequenceManager
                 if ((dst.activityMonitoring.duration || -1 ) < 0 ) {
                     dst.activityMonitoring.duration = 300;
                 }
+            }
+        }
+
+        SequenceManager.syncStatMonitoring(src.fwhmMonitoring, dst.fwhmMonitoring);
+        SequenceManager.syncStatMonitoring(src.backgroundMonitoring, dst.backgroundMonitoring);
+    }
+
+
+    static emptyMonitoringClassStatus = {
+        status: "learning",
+        targetValue: null,
+        lastValue: null,
+        lastValueTime: null,
+
+        learningMinTime: 0,
+        notificationMinTime: 0,
+    };
+
+    static syncStatMonitoring(src: SequenceValueMonitoring, dst: SequenceValueMonitoring) {
+        if (Obj.deepEqual(src, dst)) {
+            return;
+        }
+        if (src.seuil && src.seuil < 0) {
+            dst.seuil = undefined;
+        }
+
+        for(const jsc of Object.keys(dst.perClassStatus)) {
+            const dstClassStatus = dst.perClassStatus[jsc];
+            if (dstClassStatus.targetValue !== null
+                    && dstClassStatus.status !== "disabled"
+                    && src.perClassStatus[jsc]?.targetValue !== dstClassStatus.targetValue)
+            {
+                dstClassStatus.status = "manual";
+            }
+
+            if (dstClassStatus.targetValue === null)
+            {
+                dstClassStatus.status = "disabled";
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(src?.perClassStatus, jsc)) {
+                dst.perClassStatus[jsc] = {
+                    ...SequenceManager.emptyMonitoringClassStatus,
+                    ...dstClassStatus
+                };
             }
         }
     }

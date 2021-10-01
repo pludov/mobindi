@@ -3,7 +3,7 @@ import fs from 'fs';
 import net from 'net';
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
-import * as Obj from './Obj.js';
+import * as Obj from './shared/Obj';
 import ConfigStore from './ConfigStore';
 import ProcessStarter from './ProcessStarter';
 import { ExpressApplication, AppContext } from './ModuleBase.js';

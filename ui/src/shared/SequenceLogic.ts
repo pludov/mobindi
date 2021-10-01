@@ -1,6 +1,6 @@
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters} from '@bo/BackOfficeStatus';
 
-import { hasKey } from './shared/Obj';
+import { hasKey } from './Obj';
 
 export type SequenceWithStatus = {
     step: SequenceStep;
@@ -18,7 +18,6 @@ export type Progress = {
     imagePosition: number;
     timeSpent: number;
 } & SequenceSize;
-
 
 
 export class SequenceLogic {

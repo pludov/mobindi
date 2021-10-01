@@ -1,7 +1,7 @@
 import fs from 'fs';
 import tmp from 'tmp';
 import Log from './Log';
-import * as Obj from './Obj';
+import * as Obj from './shared/Obj';
 import JsonProxy from "./shared/JsonProxy";
 import { BackofficeStatus } from "./shared/BackOfficeStatus";
 

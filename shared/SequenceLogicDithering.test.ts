@@ -1,7 +1,7 @@
 import "source-map-support/register";
 import { expect, assert } from 'chai';
 
-import { Sequence } from "./shared/BackOfficeStatus";
+import { Sequence } from "./BackOfficeStatus";
 import { SequenceLogic } from "./SequenceLogic";
 
 function uuidMock() {
@@ -14,8 +14,8 @@ function uuidMock() {
 
 
 const unusedFields = {
-    fwhmMonitoring: {enabled: false},
-    backgroundMonitoring:  {enabled: false},
+    fwhmMonitoring: {enabled: false, perClassStatus:{}},
+    backgroundMonitoring:  {enabled: false, perClassStatus:{}},
     activityMonitoring: {enabled: false},
 }
 

@@ -1,7 +1,7 @@
 const PolynomialRegression = require('ml-regression-polynomial');
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
-import { hasKey } from './Obj';
+import { hasKey } from './shared/Obj';
 import * as AccessPath from './shared/AccessPath';
 import * as Algebra from './Algebra';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';

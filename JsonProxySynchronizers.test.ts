@@ -3,7 +3,7 @@ import { expect, assert } from 'chai';
 import 'mocha';
 
 import JsonProxy, { SynchronizerTriggerCallback, TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
-import * as Obj from './Obj';
+import * as Obj from './shared/Obj';
 
 class TestContext{
     checkEmptyPath: () => void;

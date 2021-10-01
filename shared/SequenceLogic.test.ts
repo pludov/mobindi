@@ -1,7 +1,7 @@
 import "source-map-support/register";
 import { expect, assert } from 'chai';
 
-import { Sequence } from "./shared/BackOfficeStatus";
+import { Sequence, SequenceStepParameters } from "./BackOfficeStatus";
 import { SequenceLogic } from "./SequenceLogic";
 
 function uuidMock() {
@@ -13,13 +13,14 @@ function uuidMock() {
 }
 
 const unusedFields = {
-    fwhmMonitoring: {enabled: false},
-    backgroundMonitoring:  {enabled: false},
+    fwhmMonitoring: {enabled: false, perClassStatus:{}},
+    backgroundMonitoring:  {enabled: false, perClassStatus:{}},
     activityMonitoring: {enabled: false},
 }
 
+
 describe("SequenceLogic", () => {
-    it("Single step with repeat", () => {
+    function singleStep() {
         const sequence: Sequence = {
             ...unusedFields,
             status: "idle",
@@ -40,8 +41,43 @@ describe("SequenceLogic", () => {
             images: [],
             imageStats: {},
         }
-        
+        return sequence;
+    }
+
+    function scanAccumulator() {
+        const result: Array<{param: SequenceStepParameters, count: number}> = [];
+        const cb : (param: SequenceStepParameters, count: number)=>(void) =
+            (param, count) => {
+                param = {...param};
+                result.push({param, count});
+            };
+
+        return {cb, result};
+    }
+
+    it("Scan single step with repeat", () => {
+        const sequence = singleStep();
+
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const scan = scanAccumulator();
+        logic.scanParameters(scan.cb);
+
+        assert.deepStrictEqual(scan.result, [
+            {
+                param: {
+                    exposure: 10,
+                    bin: 1,
+                },
+                count: 2
+            }
+        ]);
+    });
+
+    it("Proceed single step with repeat", () => {
+        const sequence = singleStep();
+
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+
         let nextStep = logic.getNextStep();
         let nextStepParams;
 
@@ -103,38 +139,64 @@ describe("SequenceLogic", () => {
         assert.deepStrictEqual(nextStep, undefined);
     });
     
-    it("repeat with two childs", () => {
-        const sequence: Sequence = {
-            ...unusedFields,
-            status: "idle",
-            progress: null,
-            
-            title: "Test sequence",
-            imagingSetup: "imaging_setup_id",
-            errorMessage: null,
-            
-            stepStatus: {},
-            root: {
-                exposure: 10,
-                repeat: 2,
-                childs: {
-                    list: [ "aaaa", "bbbb" ],
-                    byuuid: {
-                        "aaaa": {
-                            bin: 2
-                        },
-                        "bbbb": {
-                            bin: 4
-                        }
+    const repeatWithTwoChilds:()=>Sequence=()=> ({
+        ...unusedFields,
+        status: "idle",
+        progress: null,
+        
+        title: "Test sequence",
+        imagingSetup: "imaging_setup_id",
+        errorMessage: null,
+        
+        stepStatus: {},
+        root: {
+            exposure: 10,
+            repeat: 2,
+            childs: {
+                list: [ "aaaa", "bbbb" ],
+                byuuid: {
+                    "aaaa": {
+                        bin: 2
+                    },
+                    "bbbb": {
+                        bin: 4
                     }
                 }
-            },
-            
-            // uuids of images
-            images: [],
-            imageStats: {},
-        }
+            }
+        },
         
+        // uuids of images
+        images: [],
+        imageStats: {},
+    });
+
+    it("scan repeat with two childs", () => {
+        const sequence = repeatWithTwoChilds();
+
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const scan = scanAccumulator();
+        logic.scanParameters(scan.cb);
+
+        assert.deepStrictEqual(scan.result, [
+            {
+                param: {
+                    exposure: 10,
+                    bin: 2,
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    bin: 4,
+                },
+                count: 2
+            }
+        ]);
+    })
+
+    it("proceed repeat with two childs", () => {
+        const sequence = repeatWithTwoChilds();
         
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
         let nextStep = logic.getNextStep();
@@ -273,48 +335,81 @@ describe("SequenceLogic", () => {
         assert.strictEqual(nextStep, undefined);
     });
 
-    it("simple foreach ", () => {
-        // Really RGB, RGB, RGB
-        const sequence: Sequence = {
-            ...unusedFields,
-            status: "idle",
-            progress: null,
-            
-            title: "Test sequence",
-            imagingSetup: "imaging_setup_id",
-            errorMessage: null,
-            
-            stepStatus: {},
-            root: {
-                exposure: 10,
-                repeat: 3,
-                childs: {
-                    list: [ "aaaa" ],
-                    byuuid: {
-                        "aaaa": {
-                            foreach: {
-                                param: "filter",
-                                list: [
-                                    "aaa",
-                                    "bbb",
-                                    "ccc"
-                                ],
-                                byuuid: {
-                                    "aaa": { filter: "red" },
-                                    "bbb": { filter: "green"},
-                                    "ccc": { filter: "blue"},
-                                }
+    const simpleForeach:()=>Sequence=()=>({
+        ...unusedFields,
+        status: "idle",
+        progress: null,
+        
+        title: "Test sequence",
+        imagingSetup: "imaging_setup_id",
+        errorMessage: null,
+        
+        stepStatus: {},
+        root: {
+            exposure: 10,
+            repeat: 3,
+            childs: {
+                list: [ "aaaa" ],
+                byuuid: {
+                    "aaaa": {
+                        foreach: {
+                            param: "filter",
+                            list: [
+                                "aaa",
+                                "bbb",
+                                "ccc"
+                            ],
+                            byuuid: {
+                                "aaa": { filter: "red" },
+                                "bbb": { filter: "green"},
+                                "ccc": { filter: "blue"},
                             }
                         }
                     }
                 }
-            },
-            
-            // uuids of images
-            images: [],
-            imageStats: {},
-        }
+            }
+        },
         
+        // uuids of images
+        images: [],
+        imageStats: {},
+    });
+
+    it("scan simple foreach ", () => {
+        const sequence = simpleForeach();
+
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const scan = scanAccumulator();
+        logic.scanParameters(scan.cb);
+        assert.deepStrictEqual(scan.result, [
+            {
+                param: {
+                    exposure: 10,
+                    filter: "red",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "green",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "blue",
+                },
+                count: 3
+            },
+        ]);
+
+    });
+
+    it("proceed simple foreach", () => {
+        // Really RGB, RGB, RGB
+        const sequence = simpleForeach();
         
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
         const uuidNext = uuidMock();
@@ -373,52 +468,114 @@ describe("SequenceLogic", () => {
         assert.strictEqual(nextStep, undefined);
     });
 
-    it("foreach & repeat with two childs", () => {
-        const sequence: Sequence = {
-            ...unusedFields,
-            status: "idle",
-            progress: null,
-            
-            title: "Test sequence",
-            imagingSetup: "imaging_setup_id",
-            errorMessage: null,
-            
-            stepStatus: {},
-            root: {
-                exposure: 10,
-                repeat: 2,
-                foreach: {
-                    param: "filter",
-                    list: [
-                        "aaa",
-                        "bbb",
-                        "ccc"
-                    ],
-                    byuuid: {
-                        "aaa": { filter: "red" },
-                        "bbb": { filter: "green"},
-                        "ccc": { filter: "blue"},
-                    }
-                },
-                childs: {
-                    list: [ "aaaa", "bbbb" ],
-                    byuuid: {
-                        "aaaa": {
-                            bin: 2
-                        },
-                        "bbbb": {
-                            bin: 4
-                        }
-                    }
+
+    const foreachAndRepeatWithTwoChilds:()=>Sequence=()=>({
+        ...unusedFields,
+        status: "idle",
+        progress: null,
+        
+        title: "Test sequence",
+        imagingSetup: "imaging_setup_id",
+        errorMessage: null,
+        
+        stepStatus: {},
+        root: {
+            exposure: 10,
+            repeat: 2,
+            foreach: {
+                param: "filter",
+                list: [
+                    "aaa",
+                    "bbb",
+                    "ccc"
+                ],
+                byuuid: {
+                    "aaa": { filter: "red" },
+                    "bbb": { filter: "green"},
+                    "ccc": { filter: "blue"},
                 }
             },
-            
-            // uuids of images
-            images: [],
-            imageStats: {},
-        }
+            childs: {
+                list: [ "aaaa", "bbbb" ],
+                byuuid: {
+                    "aaaa": {
+                        bin: 2
+                    },
+                    "bbbb": {
+                        bin: 4
+                    }
+                }
+            }
+        },
         
-        
+        // uuids of images
+        images: [],
+        imageStats: {},
+    });
+
+
+    it("scan foreach & repeat with two childs", () => {
+        const sequence = foreachAndRepeatWithTwoChilds();
+
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const scan = scanAccumulator();
+        logic.scanParameters(scan.cb);
+        assert.deepStrictEqual(scan.result, [
+            {
+                param: {
+                    exposure: 10,
+                    filter: "red",
+                    bin: 2,
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "red",
+                    bin: 4
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "green",
+                    bin: 2,
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "green",
+                    bin: 4,
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "blue",
+                    bin: 2,
+                },
+                count: 2
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "blue",
+                    bin: 4,
+                },
+                count: 2
+            },
+        ]);
+
+    });
+
+    it("proceed foreach & repeat with two childs", () => {
+        const sequence = foreachAndRepeatWithTwoChilds();
+
         const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
         const uuidNext = uuidMock();
 

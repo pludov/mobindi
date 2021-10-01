@@ -8,7 +8,7 @@ import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
 import {IdGenerator} from "./IdGenerator";
-import * as Obj from "./Obj";
+import * as Obj from "./shared/Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';

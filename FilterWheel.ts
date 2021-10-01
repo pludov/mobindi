@@ -3,9 +3,9 @@ import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { BackofficeStatus, FilterWheelStatus} from './shared/BackOfficeStatus';
 import JsonProxy, { TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
-import { hasKey } from './Obj';
+import { hasKey } from './shared/Obj';
 import { Task } from "./Task.js";
-import * as Obj from "./Obj";
+import * as Obj from "./shared/Obj";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 

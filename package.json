@@ -21,6 +21,7 @@
     "express-session": "^1.15.6",
     "express-ws": "^4.0.0",
     "immutability-helper": "^2.8.1",
+    "json-canonicalize": "^1.0.4",
     "json-patch": "^0.7.0",
     "jsonpath": "^1.0.1",
     "memory-streams": "^0.1.3",

@@ -1,6 +1,6 @@
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
-import * as Obj from './Obj';
+import * as Obj from './shared/Obj';
 import ConfigStore from './ConfigStore';
 import { BackofficeStatus, TriggerConfig, TriggerExecuterStatus, ToolConfig } from './shared/BackOfficeStatus';
 import JsonProxy from './shared/JsonProxy';

@@ -8,7 +8,7 @@ import { Task, createTask } from './Task';
 import Sleep from './Sleep';
 import * as Metrics from "./Metrics";
 
-import * as Obj from './Obj.js';
+import * as Obj from './shared/Obj';
 
 const logger = Log.logger(__filename);
 
