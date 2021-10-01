@@ -114,23 +114,40 @@ export type ImageStats = SequenceImageParameters & {
     arrivalTime: number;
 }
 
-export type SequenceValueMonitoringPerClass = {
-    status: "learning"|"learned"|"manual"|"disabled";
+export type SequenceValueMonitoringPerClassSettings = {
+    disable?: boolean;
+    manualValue?: number;
 
-    targetValue: number|null;
+    // Don't account for image before that time during learning
+    learningMinTime?: number;
+    // Don't account for image before that time during evaluation
+    evaluationMinTime?: number;
+}
+
+export type SequenceValueMonitoringPerClassStatus = {
+    lastMeanValue: number|null;
+    maxAllowedValue: number|null;
+
     lastValue: number|null;
     lastValueTime: number|null;
 
-    // Don't account for image before that time during learning
-    learningMinTime: number;
-    // Don't account for notification before that time during learning
-    notificationMinTime: number;
+    learnedValue: number|null;
+    learnedCount: number;
+
+    learningReady: boolean;
+
 }
 
 export type SequenceValueMonitoring = {
     enabled: boolean;
     seuil?: number;
-    perClassStatus: {[jcsConfig:string]: SequenceValueMonitoringPerClass };
+
+    evaluationCount: number;
+    evaluationPercentile: number;
+    learningCount: number;
+    learningPercentile: number;
+    perClassSettings: {[jcsConfig:string]: SequenceValueMonitoringPerClassSettings };
+    perClassStatus: {[jcsConfig:string]: SequenceValueMonitoringPerClassStatus };
 }
 
 export type SequenceActivityMonitoring = {

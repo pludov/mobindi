@@ -2,19 +2,15 @@ import * as React from 'react';
 import { defaultMemoize } from 'reselect';
 
 import { canonicalize } from 'json-canonicalize';
-import { SequenceActivityMonitoring, SequenceStep, SequenceStepParameters, SequenceValueMonitoring } from '@bo/BackOfficeStatus';
+import { SequenceStep } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
 import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
-import * as BackendRequest from '../BackendRequest';
-import TextEdit from "../TextEdit";
-import * as SequenceStepParameter from "./SequenceStepParameter";
-import CancellationToken from 'cancellationtoken';
-import Bool from '@src/primitives/Bool';
 import Float from '@src/primitives/Float';
+import Int from '@src/primitives/Int';
 import Modal from '@src/Modal';
 import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
@@ -25,18 +21,30 @@ type ParamSettings = {
     title: string;
     monitoringProp: "fwhmMonitoring"|"backgroundMonitoring";
     seuilHelp: Help.Key;
+    evaluationCountHelp: Help.Key;
+    evaluationPercentileHelp: Help.Key;
+    learningCountHelp: Help.Key;
+    learningPercentileHelp: Help.Key;
 }
 
 const titles: {[id: string]:ParamSettings} = {
     fwhm : {
         title: "Monitoring of FWHM",
         monitoringProp: "fwhmMonitoring",
-        seuilHelp: Help.key("Allowed variation from reference FWHM")
-    },
+        seuilHelp: Help.key("Allowed variation from reference FWHM"),
+        evaluationPercentileHelp: Help.key("Evaluation percentile", "For evaluation, will consider the FWHM at this percentile. 0 is min, 1 is max, 0.5 is median"),
+        evaluationCountHelp: Help.key("Evaluation count", "Use this amount of images for evaluation of the current FWHM. A percentile (parameterized median) is used to filter outliers."),
+        learningPercentileHelp: Help.key("Evaluation percentile", "For learning, will consider the FWHM at this percentile. 0 is min, 1 is max, 0.5 is median"),
+        learningCountHelp: Help.key("Learning count", "Use this amount of images for learning the reference FWHM. A percentile (parameterized median) is used to filter outliers."),
+        },
     background: {
         title: "Monitoring of background level",
         monitoringProp: "backgroundMonitoring",
-        seuilHelp: Help.key("Allowed variation from reference background level", "Background level is mesured in 0-1 interval")
+        seuilHelp: Help.key("Allowed variation from reference background level", "Background level is mesured in 0-1 interval"),
+        evaluationPercentileHelp: Help.key("Evaluation percentile", "For evaluation, will consider the background value at this percentile. 0 is min, 1 is max, 0.5 is median"),
+        evaluationCountHelp: Help.key("Evaluation count", "Use this amount of images for evaluation of the current background value. A percentile (parameterized median) is used to filter outliers."),
+        learningPercentileHelp: Help.key("Evaluation percentile", "For learning, will consider the background value at this percentile. 0 is min, 1 is max, 0.5 is median"),
+        learningCountHelp: Help.key("Learning count", "Use this amount of images for learning the reference background value. A percentile (parameterized median) is used to filter outliers."),
     },
 }
 
@@ -76,6 +84,35 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
             )
     );
 
+    private evaluationPercentileAccessor = defaultMemoize(
+        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring")=>
+            new Store.UndefinedToNullAccessor(
+                this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.evaluationPercentile))
+            )
+    );
+
+    private evaluationCountAccessor = defaultMemoize(
+        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring")=>
+            new Store.UndefinedToNullAccessor(
+                this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.evaluationCount))
+            )
+    );
+
+    private learningPercentileAccessor = defaultMemoize(
+        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring")=>
+            new Store.UndefinedToNullAccessor(
+                this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.learningPercentile))
+            )
+    );
+
+    private learningCountAccessor = defaultMemoize(
+        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring")=>
+            new Store.UndefinedToNullAccessor(
+                this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.learningCount))
+            )
+    );
+
+
     render() {
         if (!this.props.displayable) {
             return null;
@@ -89,7 +126,30 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
                         <Float
                             accessor={this.seuilAccessor(this.props.uid, this.props.monitoringProp)}
                             helpKey={titles[this.props.parameter].seuilHelp}
-                        /> seconds.
+                        />.
+                </div>
+                <div className="IndiProperty">
+                        Evaluate the last<Int
+                            accessor={this.evaluationCountAccessor(this.props.uid, this.props.monitoringProp)}
+                            helpKey={titles[this.props.parameter].evaluationCountHelp}
+                        /> frames. Use the percentile
+                        <Float
+                            accessor={this.evaluationPercentileAccessor(this.props.uid, this.props.monitoringProp)}
+                            helpKey={titles[this.props.parameter].evaluationPercentileHelp}
+                        />
+                        for median filtering.
+                </div>
+                <div className="IndiProperty">
+                        Learn over <Int
+                            accessor={this.learningCountAccessor(this.props.uid, this.props.monitoringProp)}
+                            helpKey={titles[this.props.parameter].evaluationCountHelp}
+                        /> frames.
+                        Use the percentile
+                        <Float
+                            accessor={this.learningPercentileAccessor(this.props.uid, this.props.monitoringProp)}
+                            helpKey={titles[this.props.parameter].evaluationPercentileHelp}
+                        />
+                        for median fitlering.
                 </div>
                 <div className="IndiProperty">
                     <table>
@@ -129,8 +189,8 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
             const logic = new SequenceLogic({
                 root,
                 activityMonitoring: {enabled: false},
-                fwhmMonitoring: {enabled: false, perClassStatus: {}},
-                backgroundMonitoring: {enabled: false, perClassStatus: {}},
+                fwhmMonitoring: {enabled: false, perClassStatus: {}, perClassSettings: {}, evaluationCount: 5, evaluationPercentile: 0.5, learningCount: 5, learningPercentile: 0.5},
+                backgroundMonitoring: {enabled: false, perClassStatus: {}, perClassSettings: {}, evaluationCount: 5, evaluationPercentile: 0.5, learningCount: 5, learningPercentile: 0.5},
                 errorMessage: null,
                 imageStats: {},
                 images: [],

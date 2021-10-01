@@ -1,4 +1,4 @@
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters} from '@bo/BackOfficeStatus';
+import { Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus} from '@bo/BackOfficeStatus';
 
 import { hasKey } from './Obj';
 
@@ -449,5 +449,21 @@ export class SequenceLogic {
 
         scanStepParameters({}, 1, this.sequence.root);
     }
+
+
+    static emptyMonitoringClassSettings: SequenceValueMonitoringPerClassSettings = {
+    };
+
+    static emptyMonitoringClassStatus:SequenceValueMonitoringPerClassStatus = {
+        lastValue: null,
+        lastValueTime: null,
+        learnedValue: null,
+        learnedCount: 0,
+
+        learningReady: false,
+        lastMeanValue: null,
+        maxAllowedValue: null,
+    };
+
 };
 

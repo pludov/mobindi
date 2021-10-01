@@ -1,3 +1,5 @@
+import { canonicalize } from 'json-canonicalize';
+
 import { SequenceStepParameters } from '@bo/BackOfficeStatus';
 
 
@@ -31,7 +33,7 @@ export class SequenceParamClassifier {
                     .sort((a, b)=>(this.exposureParamPriority[a]! - this.exposureParamPriority[b]!));
     }
 
-    addParameter(c : SequenceStepParameters)
+    addParameter=(c : SequenceStepParameters)=>
     {
         const add=(c : SequenceStepParameters, pid: number, map: RecursiveMap)=>{
             const params = this.exposureParamsOrdered[pid];
@@ -58,7 +60,7 @@ export class SequenceParamClassifier {
         add(c, 0, this.rootMap);
     }
 
-    extractParameters()
+    extractParameters=()=>
     {
         let result : Array<SequenceStepParameters> = [];
         const split=(cur: SequenceStepParameters, map : RecursiveMap, pid: number)=>{
@@ -81,5 +83,35 @@ export class SequenceParamClassifier {
         split({}, this.rootMap, 0);
 
         return result;
+    }
+
+    extractJcsIdForParameters=(e: SequenceStepParameters) : string=>
+    {
+        const result: SequenceStepParameters = {};
+        let failed = false;
+        const scan=(map : RecursiveMap, pid: number)=>{
+            const singleMap = map.size === 1;
+            const key = this.exposureParamsOrdered[pid];
+            const value = e[key];
+
+            if (!map.has(value)) {
+                failed = true;
+                return;
+            }
+
+            const next = map.get(value)!;
+
+            if (!singleMap) {
+                (result as any)[key] = value;
+            }
+
+            if (next.childs) {
+                scan(next.childs, pid+1);
+            }
+
+        }
+
+        scan(this.rootMap, 0);
+        return canonicalize(result);
     }
 }

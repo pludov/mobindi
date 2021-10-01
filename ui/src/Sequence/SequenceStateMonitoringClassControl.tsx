@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { defaultMemoize } from 'reselect';
 
-import { canonicalize } from 'json-canonicalize';
-import { SequenceActivityMonitoring, SequenceImageParameters, SequenceStep, SequenceStepParameters, SequenceValueMonitoring, SequenceValueMonitoringPerClass } from '@bo/BackOfficeStatus';
+import { SequenceImageParameters, SequenceStepParameters, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
 import * as Help from '../Help';
@@ -36,7 +35,8 @@ type InputProps = {
 type MappedProps = {
     settingsList: string[];
     settingsValues: SequenceImageParameters;
-    classStatus: SequenceValueMonitoringPerClass;
+    classStatus: SequenceValueMonitoringPerClassStatus;
+    classSettings: SequenceValueMonitoringPerClassSettings;
 }
 
 type State = {}
@@ -56,16 +56,21 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
 
     private perClassSettingsAccessor = defaultMemoize(
         (uid: string, prop:"backgroundMonitoring"|"fwhmMonitoring", jscId: string)=>
-            this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.perClassStatus[jscId]))
+            this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.perClassSettings[jscId]))
     );
 
-    private currentSeuilSettingsAccessor = defaultMemoize(
+    private manualValueAccessor = defaultMemoize(
         (uid: string, prop:"backgroundMonitoring"|"fwhmMonitoring", jscId: string)=>
-            this.perClassSettingsAccessor(uid, prop, jscId).child(AccessPath.For((e)=>e.targetValue))
+            new Store.UndefinedToNullAccessor(
+                this.perClassSettingsAccessor(uid, prop, jscId).child(AccessPath.For((e)=>e.manualValue))
+            )
     );
 
     render() {
-        const status = this.props.classStatus.status;
+        const status = this.props.classSettings.disable ? "disabled"
+                : this.props.classSettings.manualValue !== undefined ? "manual"
+                : this.props.classStatus.learningReady ? "learned" : "learning";
+
         return <tr>
             <td>
                 {this.props.classId}
@@ -91,23 +96,13 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             </td>
             <td>
                 <Float
-                    accessor={this.currentSeuilSettingsAccessor(this.props.uid, this.props.monitoring, this.props.classId)}
+                    accessor={this.manualValueAccessor(this.props.uid, this.props.monitoring, this.props.classId)}
                 />
             </td>
             <td>
                 {this.props.classStatus.lastValue}
             </td>
         </tr>;
-    }
-
-    static emptyClassStatus: SequenceValueMonitoringPerClass = {
-        status: "learning",
-        targetValue: null,
-        lastValue: null,
-        lastValueTime: null,
-
-        learningMinTime: 0,
-        notificationMinTime: 0,
     }
 
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{
@@ -123,10 +118,12 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         return (store: Store.Content, ownProps: InputProps)=> {
             const selected = ownProps.uid;
             const seqDef = Utils.getOwnProp(store.backend.sequence?.sequences.byuuid, selected);
-            const classStatus:SequenceValueMonitoringPerClass = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassStatus, ownProps.classId) || SequenceStatMonitoringClassControl.emptyClassStatus;
+            const classStatus:SequenceValueMonitoringPerClassStatus = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassStatus, ownProps.classId) || SequenceLogic.emptyMonitoringClassStatus;
+            const classSettings:SequenceValueMonitoringPerClassSettings = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassSettings, ownProps.classId) || SequenceLogic.emptyMonitoringClassSettings;
 
             return {
                 classStatus,
+                classSettings,
                 settingsList: parameterList(ownProps.classId),
                 settingsValues: parseJsc(ownProps.classId),
             };

@@ -5,7 +5,7 @@ import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus, SequenceValueMonitoring} from './shared/BackOfficeStatus';
+import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus, SequenceValueMonitoring, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './shared/JsonProxy';
 import * as Algebra from './Algebra';
 import { hasKey, deepCopy } from './shared/Obj';
@@ -18,6 +18,7 @@ import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 import { SequenceLogic, Progress } from './shared/SequenceLogic';
 import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
+import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
 
 const logger = Log.logger(__filename);
 
@@ -167,11 +168,21 @@ export default class SequenceManager
             },
             backgroundMonitoring: {
                 enabled: false,
-                perClassStatus:{}
+                evaluationCount: 5,
+                evaluationPercentile: 0.5,
+                learningCount: 5,
+                learningPercentile: 0.5,
+                perClassSettings:{},
+                perClassStatus:{},
             },
             fwhmMonitoring: {
                 enabled: false,
-                perClassStatus:{}
+                evaluationCount: 5,
+                evaluationPercentile: 0.5,
+                learningCount: 5,
+                learningPercentile: 0.5,
+                perClassSettings:{},
+                perClassStatus:{},
             },
             imageStats: {},
             images: [],
@@ -190,7 +201,7 @@ export default class SequenceManager
         const key = uuidv4();
         const firstSeq = uuidv4();
         // FIXME: takes parameters from the last created sequence
-        this.currentStatus.sequences.byuuid[key] = {
+        this.currentStatus.sequences.byuuid[key] = this.completeSequence({
             status: 'idle',
             title: 'New sequence',
             progress: null,
@@ -200,16 +211,10 @@ export default class SequenceManager
             root: {
                 type: 'FRAME_LIGHT'
             },
-            stepStatus: {
-            },
-
-            fwhmMonitoring: { enabled: false, perClassStatus:{} },
-            backgroundMonitoring: { enabled: false, perClassStatus:{} },
-            activityMonitoring: { enabled: false },
 
             images: [],
             imageStats: {},
-        };
+        });
         this.currentStatus.sequences.list.push(key);
         return key;
     }
@@ -353,16 +358,6 @@ export default class SequenceManager
     }
 
 
-    static emptyMonitoringClassStatus = {
-        status: "learning",
-        targetValue: null,
-        lastValue: null,
-        lastValueTime: null,
-
-        learningMinTime: 0,
-        notificationMinTime: 0,
-    };
-
     static syncStatMonitoring(src: SequenceValueMonitoring, dst: SequenceValueMonitoring) {
         if (Obj.deepEqual(src, dst)) {
             return;
@@ -373,21 +368,10 @@ export default class SequenceManager
 
         for(const jsc of Object.keys(dst.perClassStatus)) {
             const dstClassStatus = dst.perClassStatus[jsc];
-            if (dstClassStatus.targetValue !== null
-                    && dstClassStatus.status !== "disabled"
-                    && src.perClassStatus[jsc]?.targetValue !== dstClassStatus.targetValue)
-            {
-                dstClassStatus.status = "manual";
-            }
-
-            if (dstClassStatus.targetValue === null)
-            {
-                dstClassStatus.status = "disabled";
-            }
 
             if (!Object.prototype.hasOwnProperty.call(src?.perClassStatus, jsc)) {
                 dst.perClassStatus[jsc] = {
-                    ...SequenceManager.emptyMonitoringClassStatus,
+                    ...SequenceLogic.emptyMonitoringClassStatus,
                     ...dstClassStatus
                 };
             }
@@ -562,8 +546,12 @@ export default class SequenceManager
 
 
             const sequenceActivityWatchdog = new SequenceActivityWatchdog(this.appStateManager, this.context, uuid);
+            const sequenceFwhmWatcher = new SequenceStatisticWatcher(this.appStateManager, this.context, uuid, "fwhm", "fwhmMonitoring");
+            const sequenceBackgroundWatcher = new SequenceStatisticWatcher(this.appStateManager, this.context, uuid, "backgroundLevel", "backgroundMonitoring");
             try {
                 sequenceActivityWatchdog.reset(0);
+                sequenceFwhmWatcher.start();
+                sequenceBackgroundWatcher.start();
                 while(true) {
                     ct.throwIfCancelled();
 
@@ -777,10 +765,14 @@ export default class SequenceManager
                         bin: param.bin,
                         filter: param.filter,
                     });
-                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps);
+                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps)
+                        .finally(sequenceFwhmWatcher.updateStats)
+                        .finally(sequenceBackgroundWatcher.updateStats);
                 }
             } finally {
                 sequenceActivityWatchdog.end();
+                sequenceFwhmWatcher.end();
+                sequenceBackgroundWatcher.end();
             }
         }
 
