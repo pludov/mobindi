@@ -142,7 +142,10 @@ class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
 
                     <input type="button" value="..." {...SequenceMonitoringDialog.backgroundMonitoringSettingsHelp.dom()} onClick={this.showBackgroundMonitoring}/>
                     <Modal ref={this.backgroundMonitoringModal}>
-                        settings...
+                        <SequenceStatMonitoringDialog
+                                parameter="background"
+                                uid={this.props.uid}
+                            />
                     </Modal>
                 </div>
 
@@ -157,8 +160,8 @@ class SequenceMonitoringDialog extends React.PureComponent<Props, State> {
     }
 
     private showBackgroundMonitoring=()=>{
-        this.fwhmMonitoringModal!.current!.open();
-        this.backgroundMonitoringModal!.current!.close();
+        this.backgroundMonitoringModal!.current!.open();
+        this.fwhmMonitoringModal!.current!.close();
     }
 
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{

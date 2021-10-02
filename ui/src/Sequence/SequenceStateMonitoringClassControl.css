@@ -1,0 +1,54 @@
+.SequenceStatMonitoringClassControlDisabled {
+    text-decoration: line-through;
+}
+
+.MonitoringUseLearnedValue.ToggleBton {
+    background: unset;
+}
+
+.MonitoringUseLearnedValue.ToggleBton.checked:before {
+    content: "⌫";
+    color: #fff;
+}
+
+.MonitoringUseLearnedValue.ToggleBton.unchecked:before {
+    content: "⌫";
+    color: #fff;
+    filter: grayscale(100%);
+}
+
+.MonitoringResetLearning.QuickBton {
+    background: unset;
+    color: #fff;
+}
+
+.MonitoringResetLearning.QuickBton:before {
+    content: "🗘";
+}
+
+.SequenceStatMonitoringClassControlCell {
+    display: inline-flex;
+    width: 100%;
+    justify-content: right;
+}
+
+th>.SequenceStatMonitoringClassControlCell {
+    justify-content: left;
+}
+
+
+.SequenceStatMonitoringClassControlTable {
+    width: 100%;
+}
+
+.LearningProgress.full {
+    color: green;
+}
+
+.AcquisitionProgress.full {
+    color: green;
+}
+
+.AcquisitionProgress.alert.full {
+    color: red;
+}

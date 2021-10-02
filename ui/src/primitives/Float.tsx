@@ -8,6 +8,7 @@ type Props = {
     min?: number;
     max?: number;
     helpKey?: Help.Key;
+    digits?: number;
 }
 
 const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, {}>(BaseText.default);
@@ -24,7 +25,13 @@ class Float extends React.PureComponent<Props> {
     }
 
     numberToString=(n?:number|null)=>{
-        return "" + (n !== null && n !== undefined ? n :"");
+        if (n === null || n === undefined) {
+            return "";
+        }
+        if (this.props.digits !== undefined) {
+            return n.toFixed(this.props.digits);
+        }
+        return "" + n;
     }
 
     numberFromString=(s:string)=>{
@@ -41,6 +48,15 @@ class Float extends React.PureComponent<Props> {
         if (this.props.max !== undefined && n > this.props.max) {
             throw new Error("Must be <= " + this.props.max);
         }
+
+        // keep precision of current value
+        if (this.props.digits !== undefined) {
+            const current = this.props.accessor.fromStore(Store.getStore().getState());
+            if (current !== null && current !== undefined && this.numberToString(current) === s) {
+                return current;
+            }
+        }
+
         return n;
     }
 }

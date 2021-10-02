@@ -111,6 +111,33 @@ export interface RecursiveAccessor<TYPE> extends Accessor<TYPE> {
     prop<Prop extends keyof TYPE & string>(prop:Prop): RecursiveAccessor<TYPE[Prop]>;
 };
 
+export class TransformAccessor<STOREDTYPE, ACCESSORTYPE> implements Accessor<ACCESSORTYPE> {
+    private wrapped: Accessor<STOREDTYPE>;
+    private toStoreFn: (v: ACCESSORTYPE)=>STOREDTYPE;
+    private fromStoreFn: (v:STOREDTYPE, s:Content)=>ACCESSORTYPE;
+
+    constructor(wrapped: Accessor<STOREDTYPE>, xform:
+        {
+            toStore: TransformAccessor<STOREDTYPE, ACCESSORTYPE>["toStoreFn"],
+            fromStore: TransformAccessor<STOREDTYPE, ACCESSORTYPE>["fromStoreFn"],
+        }
+    ) {
+        this.wrapped = wrapped;
+        this.toStoreFn = xform.toStore;
+        this.fromStoreFn = xform.fromStore;
+    }
+
+    fromStore = (s:Content):ACCESSORTYPE=>{
+        const ret = this.wrapped.fromStore(s);
+        return this.fromStoreFn(ret, s);
+    }
+
+    send = async (t:ACCESSORTYPE)=> {
+        const v = this.toStoreFn(t);
+        return await this.wrapped.send(v);
+    }
+}
+
 export class UndefinedToNullAccessor<TYPE> implements Accessor<TYPE|null> {
     private wrapped: Accessor<TYPE|undefined>;
 

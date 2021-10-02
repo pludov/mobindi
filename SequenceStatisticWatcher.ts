@@ -88,6 +88,10 @@ export class SequenceStatisticWatcher {
     }
 
     private doEval = ()=> {
+        if (this.done) {
+            return;
+        }
+
         // Verifiy timing
         // Emit notification
         // replace the timer
@@ -184,19 +188,21 @@ export class SequenceStatisticWatcher {
                 const classStatus = Obj.getOwnProp(monitoringSettings.perClassStatus, jcs)!;
                 const dynStatus: PerClassDynStatus|undefined = Obj.getOwnProp(perClassDynStatus, jcs)!;
 
-
                 // Compute the learned value
-                classStatus.learnedCount = monitoringSettings.learningCount;
+                // Only take the last learningCount
+                dynStatus.learningValues = dynStatus.learningValues.slice(-monitoringSettings.learningCount);
+                classStatus.learnedCount = dynStatus.learningValues.length;
                 classStatus.learningReady = dynStatus.learningValues.length >= monitoringSettings.learningCount;
                 classStatus.learnedValue = getPercentile(dynStatus.learningValues, monitoringSettings.learningPercentile);
 
                 classStatus.lastValueTime = dynStatus.lastImageTime === undefined ? null : dynStatus.lastImageTime;
                 classStatus.lastValue = dynStatus.evaluationValues.length ? dynStatus.evaluationValues[0] : null;
 
+                classStatus.currentCount = dynStatus.evaluationValues.length;
                 if (dynStatus.evaluationValues.length >= monitoringSettings.evaluationCount) {
-                    classStatus.lastMeanValue = getPercentile(dynStatus.evaluationValues, monitoringSettings.evaluationPercentile);
+                    classStatus.currentValue = getPercentile(dynStatus.evaluationValues, monitoringSettings.evaluationPercentile);
                 } else {
-                    classStatus.lastMeanValue = null;
+                    classStatus.currentValue = null;
                 }
 
                 if (classSettings.disable) {
@@ -207,7 +213,7 @@ export class SequenceStatisticWatcher {
                     classStatus.maxAllowedValue = !classStatus.learningReady ? null : classStatus.learnedValue;
                 }
 
-                dynStatus.alarm= (classStatus.maxAllowedValue !== null) && (classStatus.lastMeanValue !== null) && (classStatus.lastMeanValue > classStatus.maxAllowedValue + (monitoringSettings.seuil || 0));
+                dynStatus.alarm= (classStatus.maxAllowedValue !== null) && (classStatus.currentValue !== null) && (classStatus.currentValue > classStatus.maxAllowedValue + (monitoringSettings.seuil || 0));
                 if (dynStatus.alarm && alarmJcsId === undefined) {
                     alarmJcsId = jcs;
                 }
@@ -246,9 +252,9 @@ export class SequenceStatisticWatcher {
         if (this.done) {
             return;
         }
+        this.done = true;
 
         this.clearNotification();
-        this.done = true;
         if (this.sequenceTrigger) {
             for(const trigger of this.sequenceTrigger) {
                 this.appStateManager.removeSynchronizer(trigger);

@@ -378,6 +378,34 @@ export default class SequenceManager
         }
     }
 
+    public resetStatMonitoringLearning = async(ct: CancellationToken, message: BackOfficeAPI.ResetStatMonitoringRequest)=> {
+        const seq = this.findSequenceFromRequest(message.sequenceUid);
+        const monitoring = seq[message.monitoring];
+
+        if (Obj.hasKey(monitoring.perClassSettings, message.classId)) {
+            monitoring.perClassSettings[message.classId].learningMinTime = new Date().getTime();
+        }
+        if (Obj.hasKey(monitoring.perClassStatus, message.classId)) {
+            seq[message.monitoring].perClassStatus[message.classId].learnedValue = null;
+            seq[message.monitoring].perClassStatus[message.classId].learnedCount = 0;
+            seq[message.monitoring].perClassStatus[message.classId].learningReady = false;
+        }
+    }
+
+    public resetStatMonitoringCurrent = async(ct: CancellationToken, message: BackOfficeAPI.ResetStatMonitoringRequest)=> {
+        const seq = this.findSequenceFromRequest(message.sequenceUid);
+        const monitoring = seq[message.monitoring];
+
+        if (Obj.hasKey(monitoring.perClassSettings, message.classId)) {
+            monitoring.perClassSettings[message.classId].evaluationMinTime = new Date().getTime();
+        }
+        if (Obj.hasKey(monitoring.perClassStatus, message.classId)) {
+            seq[message.monitoring].perClassStatus[message.classId].currentValue = null;
+            seq[message.monitoring].perClassStatus[message.classId].currentCount = 0;
+        }
+    }
+
+
     public patchSequenceStep = async (ct: CancellationToken, message:BackOfficeAPI.PatchSequenceStepRequest)=>{
         const parentStep = this.findStepFromRequest(message);
 
@@ -999,6 +1027,8 @@ export default class SequenceManager
             stopSequence: this.stopSequence,
             resetSequence: this.resetSequence,
             dropSequence: this.dropSequence,
+            resetStatMonitoringLearning: this.resetStatMonitoringLearning,
+            resetStatMonitoringCurrent: this.resetStatMonitoringCurrent,
         }
     }
 }

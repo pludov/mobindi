@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { defaultMemoize } from 'reselect';
 
-import { SequenceImageParameters, SequenceStepParameters, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus } from '@bo/BackOfficeStatus';
+import { SequenceImageParameters, SequenceStepParameters, SequenceValueMonitoring, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
 import * as Help from '../Help';
@@ -14,11 +14,14 @@ import * as SequenceStepParameter from "./SequenceStepParameter";
 import CancellationToken from 'cancellationtoken';
 import Bool from '@src/primitives/Bool';
 import Float from '@src/primitives/Float';
+import QuickBton from '@src/primitives/QuickBton';
 import Modal from '@src/Modal';
 import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
 import Text from '@src/primitives/Text';
-
+import ToggleBton from '@src/primitives/ToggleBton';
+import ProgressMeter from '@src/primitives/ProgressMeter';
+import "./SequenceStateMonitoringClassControl.css";
 
 type InputProps = {
     // sequence
@@ -28,102 +31,261 @@ type InputProps = {
     classId: string;
 
     // The parameter
-    parameter: "fwhm"|"background";
-    monitoring: "fwhmMonitoring"|"backgroundMonitoring";
+    parameter: "fwhm" | "background";
+    monitoring: "fwhmMonitoring" | "backgroundMonitoring";
 }
 
 type MappedProps = {
+    enabled: boolean;
     settingsList: string[];
     settingsValues: SequenceImageParameters;
+    monitoringSettings: SequenceValueMonitoring;
     classStatus: SequenceValueMonitoringPerClassStatus;
     classSettings: SequenceValueMonitoringPerClassSettings;
+    accessors: AccessorFactory;
 }
 
 type State = {}
 
 type Props = InputProps & MappedProps;
 
-class SequenceStatMonitoringClassControl extends React.PureComponent<Props, State> {
 
-    constructor(props:Props) {
-        super(props);
-    }
-
-    private monitoringSettingsAccessor = defaultMemoize(
-        (uid:string, prop:"backgroundMonitoring"|"fwhmMonitoring")=>
-            SequenceStore.sequenceAccessor(uid).child(AccessPath.For((e)=>e[prop]))
+class AccessorFactory {
+    monitoringSettings = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring") =>
+            SequenceStore.sequenceAccessor(uid).child(AccessPath.For((e) => e[prop]))
     );
 
-    private perClassSettingsAccessor = defaultMemoize(
-        (uid: string, prop:"backgroundMonitoring"|"fwhmMonitoring", jscId: string)=>
-            this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.perClassSettings[jscId]))
+    perClassSettings = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            this.monitoringSettings(uid, prop).child(AccessPath.For((e) => e.perClassSettings[jscId]))
     );
 
-    private manualValueAccessor = defaultMemoize(
-        (uid: string, prop:"backgroundMonitoring"|"fwhmMonitoring", jscId: string)=>
+    perClassStatus = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            this.monitoringSettings(uid, prop).child(AccessPath.For((e) => e.perClassStatus[jscId]))
+    );
+
+    manualValue = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
             new Store.UndefinedToNullAccessor(
-                this.perClassSettingsAccessor(uid, prop, jscId).child(AccessPath.For((e)=>e.manualValue))
+                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue))
             )
     );
 
+    learningCount = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring") =>
+            this.monitoringSettings(uid, prop).child(AccessPath.For((e)=>e.learningCount))
+    );
+
+    learnedCount = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            this.perClassStatus(uid, prop, jscId).child(AccessPath.For((e)=>e.learnedCount))
+    );
+
+    evaluationCount = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring") =>
+            this.monitoringSettings(uid, prop).child(AccessPath.For((e)=>e.evaluationCount))
+    );
+
+    evaluatedCount = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            this.perClassStatus(uid, prop, jscId).child(AccessPath.For((e)=>e.currentCount))
+    );
+
+    resetLearning = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            new Store.TransformAccessor<number | undefined, boolean>(
+                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.learningMinTime)),
+                {
+                    fromStore: ()=> {
+                        return false;
+                    },
+                    toStore: (b:boolean):number|undefined => {
+                        if (!b) throw "Unsupported";
+                        const last = this.perClassStatus(uid, prop, jscId).fromStore(Store.getStore().getState())?.lastValueTime;
+                        if (last === null) return undefined;
+                        return last;
+                    }
+                })
+    );
+
+    refValueIsManual = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            new Store.TransformAccessor<number | undefined, boolean>(
+                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue)),
+                {
+                    toStore: (b: boolean):number|undefined => {
+                        if (!b) {
+                            return undefined;
+                        }
+                        let v = this.perClassStatus(uid, prop, jscId).fromStore(Store.getStore().getState())?.learnedValue;
+                        if (v === undefined || v === null) {
+                            v = 0;
+                        }
+                        return v;
+                    },
+                    fromStore: (b: number|undefined)=> {
+                        return b !== undefined;
+                    },
+                }
+            )
+    );
+
+    refValue = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            new Store.TransformAccessor<number | undefined, number | null>(
+                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue)),
+                {
+                    toStore: (b: number|null) => {
+                        if (b === null) return undefined;
+                        return b;
+                    },
+                    fromStore: (b: number|undefined, s:Store.Content) => {
+                        if (b === undefined) {
+                            const status = this.perClassStatus(uid, prop, jscId).fromStore(s);
+                            const learned = status?.learnedValue;
+                            if (learned !== undefined) {
+                                return learned;
+                            }
+                            return null;
+                        }
+                        return b;
+                    },
+                }
+            )
+    );
+
+
+    enabledStatus = defaultMemoize(
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+            new Store.TransformAccessor<boolean | undefined, boolean>(
+                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.disable)),
+                {
+                    toStore: (b: boolean | undefined) => !b,
+                    fromStore: (b: boolean) => !b
+                }
+            )
+    );
+}
+
+
+class SequenceStatMonitoringClassControl extends React.PureComponent<Props, State> {
+    constructor(props: Props) {
+        super(props);
+    }
+
+    private resetLearning = async()=> {
+        return await BackendRequest.RootInvoker("sequence")("resetStatMonitoringLearning")(
+            CancellationToken.CONTINUE,
+            {
+                sequenceUid: this.props.uid,
+                monitoring: this.props.monitoring,
+                classId: this.props.classId,
+            }
+        );
+    }
+
+    private resetCurrent = async()=> {
+        return await BackendRequest.RootInvoker("sequence")("resetStatMonitoringCurrent")(
+            CancellationToken.CONTINUE,
+            {
+                sequenceUid: this.props.uid,
+                monitoring: this.props.monitoring,
+                classId: this.props.classId,
+            }
+        );
+    }
+
     render() {
-        const status = this.props.classSettings.disable ? "disabled"
-                : this.props.classSettings.manualValue !== undefined ? "manual"
-                : this.props.classStatus.learningReady ? "learned" : "learning";
+        const digits = this.props.parameter === "fwhm" ? 2 : 5;
 
-        return <tr>
-            <td>
+        const alert = this.props.classStatus.currentValue !== null &&
+                      this.props.classStatus.maxAllowedValue != null &&
+                    this.props.classStatus.currentValue > this.props.classStatus.maxAllowedValue;
+
+        return <tr className={`SequenceStatMonitoringClassControl${this.props.enabled ? "Enabled" : "Disabled"}`}>
+            <th>
+                <div className="SequenceStatMonitoringClassControlCell">
+                <Bool accessor={this.props.accessors.enabledStatus(this.props.uid, this.props.monitoring, this.props.classId)} />
                 {this.props.classId}
-            </td>
+                </div>
+            </th>
             <td>
-                {status}
-
-                {status === 'learning' || status === 'learned' || status === 'manual'
-                    ? <input type="button" value="disable"/>
-                    : null
-                }
-
-                {status === 'learning' || status === 'learned'
-                    ? <input type="button" value="re-learn"/>
-                    : null
-                }
-
-                <input type="button" value="set"/>
-                {status === 'manual' || status === 'disabled'
-                    ? <input type="button" value="auto"/>
-                    : null
-                }
-            </td>
-            <td>
+                <div className="SequenceStatMonitoringClassControlCell">
                 <Float
-                    accessor={this.manualValueAccessor(this.props.uid, this.props.monitoring, this.props.classId)}
+                    accessor={this.props.accessors.refValue(this.props.uid, this.props.monitoring, this.props.classId)}
+                    digits={digits}
                 />
+                {this.props.classSettings.manualValue ?
+                    <ToggleBton
+                        className="MonitoringUseLearnedValue"
+                        accessor={this.props.accessors.refValueIsManual(this.props.uid, this.props.monitoring, this.props.classId)}
+                        />
+                :
+                    <>
+                        <ProgressMeter
+                            current={this.props.accessors.learnedCount(this.props.uid, this.props.monitoring, this.props.classId)}
+                            max={this.props.accessors.learningCount(this.props.uid, this.props.monitoring)}
+                            className="LearningProgress"
+                            />
+                        <QuickBton
+                            className="MonitoringResetLearning"
+                            onClick={this.resetLearning}
+                            />
+                    </>
+                }
+                </div>
             </td>
             <td>
-                {this.props.classStatus.lastValue}
+                <div className="SequenceStatMonitoringClassControlCell">
+                    {this.props.classStatus.currentValue !== null
+                        ? this.props.classStatus.currentValue.toFixed(digits)
+                        : "N/A"
+                    }
+
+                    <>
+                        <ProgressMeter
+                            current={this.props.accessors.evaluatedCount(this.props.uid, this.props.monitoring, this.props.classId)}
+                            max={this.props.accessors.evaluationCount(this.props.uid, this.props.monitoring)}
+                            className={`AcquisitionProgress ${alert? "alert": ""}`}
+                            />
+                        <QuickBton
+                            className="MonitoringResetLearning"
+                            onClick={this.resetCurrent}
+                            />
+                    </>
+
+                </div>
             </td>
         </tr>;
     }
 
-    static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{
-        const parseJsc = defaultMemoize((jsc:string)=>{
+    static mapStateToProps: () => (store: Store.Content, ownProps: InputProps) => MappedProps = () => {
+        const accessors = new AccessorFactory();
+
+        const parseJsc = defaultMemoize((jsc: string) => {
             return JSON.parse(jsc) as SequenceStepParameters;
         });
-        const parameterList = defaultMemoize((jsc:string)=> {
+        const parameterList = defaultMemoize((jsc: string) => {
             const ssp = parseJsc(jsc);
             const classifier = new SequenceParamClassifier();
-            return classifier.exposureParamsOrdered.filter(e=>Object.prototype.hasOwnProperty.call(ssp, e));
+            return classifier.exposureParamsOrdered.filter(e => Object.prototype.hasOwnProperty.call(ssp, e));
         });
 
-        return (store: Store.Content, ownProps: InputProps)=> {
+        return (store: Store.Content, ownProps: InputProps) => {
             const selected = ownProps.uid;
             const seqDef = Utils.getOwnProp(store.backend.sequence?.sequences.byuuid, selected);
-            const classStatus:SequenceValueMonitoringPerClassStatus = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassStatus, ownProps.classId) || SequenceLogic.emptyMonitoringClassStatus;
-            const classSettings:SequenceValueMonitoringPerClassSettings = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassSettings, ownProps.classId) || SequenceLogic.emptyMonitoringClassSettings;
-
+            const enabled = accessors.enabledStatus(ownProps.uid, ownProps.monitoring, ownProps.classId).fromStore(store);
+            const classStatus: SequenceValueMonitoringPerClassStatus = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassStatus, ownProps.classId) || SequenceLogic.emptyMonitoringClassStatus;
+            const classSettings: SequenceValueMonitoringPerClassSettings = Utils.getOwnProp(seqDef?.[ownProps.monitoring].perClassSettings, ownProps.classId) || SequenceLogic.emptyMonitoringClassSettings;
+            const monitoringSettings = accessors.monitoringSettings(ownProps.uid, ownProps.monitoring).fromStore(store);
             return {
+                accessors,
+                enabled,
                 classStatus,
                 classSettings,
+                monitoringSettings,
                 settingsList: parameterList(ownProps.classId),
                 settingsValues: parseJsc(ownProps.classId),
             };

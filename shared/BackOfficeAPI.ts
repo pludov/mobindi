@@ -72,6 +72,12 @@ export type UpdateSequenceStepRequest = {
     value?: string|number|boolean|null|SequenceForeach<keyof SequenceStepParameters>;
 }
 
+export type ResetStatMonitoringRequest = {
+    sequenceUid: string;
+    monitoring: "fwhmMonitoring" | "backgroundMonitoring";
+    classId: string;
+}
+
 export type PatchSequenceStepRequest = {
     sequenceUid: string;
     stepUidPath: string[];
@@ -137,6 +143,8 @@ export type SequenceAPI = {
     updateSequenceStepFocuser: (payload: UpdateSequenceStepFocuserRequest)=>void;
     moveSequenceSteps: (payload: MoveSequenceStepsRequest)=>void;
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
+    resetStatMonitoringLearning: (payload: ResetStatMonitoringRequest)=>void,
+    resetStatMonitoringCurrent: (payload: ResetStatMonitoringRequest)=>void,
 }
 
 export type ExposedNotificationRequest = {

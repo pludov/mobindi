@@ -457,11 +457,14 @@ export class SequenceLogic {
     static emptyMonitoringClassStatus:SequenceValueMonitoringPerClassStatus = {
         lastValue: null,
         lastValueTime: null,
+
         learnedValue: null,
         learnedCount: 0,
-
         learningReady: false,
-        lastMeanValue: null,
+
+        currentValue: null,
+        currentCount: 0,
+
         maxAllowedValue: null,
     };
 

@@ -16,6 +16,8 @@ import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
 import SequenceStateMonitoringClasseControl from './SequenceStateMonitoringClassControl';
 
+import "./SequenceStatMonitoringDialog.css";
+
 
 type ParamSettings = {
     title: string;
@@ -152,19 +154,16 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
                         for median fitlering.
                 </div>
                 <div className="IndiProperty">
-                    <table>
+                    <table className="SequenceStatMonitoringClassTable">
                         <thead>
                             <tr>
                                 <th>
                                 </th>
                                 <th>
-                                    Status
-                                </th>
-                                <th>
                                     Ref.
                                 </th>
                                 <th>
-                                    Last.
+                                    Cur.
                                 </th>
                            </tr>
                         </thead>

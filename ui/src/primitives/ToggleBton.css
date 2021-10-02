@@ -1,0 +1,26 @@
+.ToggleBton {
+    background-color: #ccc;
+    margin-left: 0.1em;
+    margin-right: 0.1em;
+    padding-left: 0.05em;
+    border-radius: 0.3em;
+    padding-right: 0.05em;
+    padding-top: 0em;
+    padding-bottom: 0em;
+    color: #000;
+    height: 1.5em;
+    line-height: 2em;
+    border-width: 0.15em;
+    vertical-align: baseline;
+    display: inline-flex;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.ToggleBton.checked:before {
+    content: "☑";
+}
+
+.ToggleBton.unchecked:before {
+    content: "☐";
+}

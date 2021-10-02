@@ -125,7 +125,9 @@ export type SequenceValueMonitoringPerClassSettings = {
 }
 
 export type SequenceValueMonitoringPerClassStatus = {
-    lastMeanValue: number|null;
+    currentValue: number|null;
+    currentCount: number;
+
     maxAllowedValue: number|null;
 
     lastValue: number|null;
