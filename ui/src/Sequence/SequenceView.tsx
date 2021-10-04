@@ -1,15 +1,15 @@
 import React, { Component, PureComponent} from 'react';
 
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
-
+import { defaultMemoize } from 'reselect';
 import * as Actions from '../Actions';
 import * as Store from '../Store';
 import * as Help from '../Help';
+import * as AccessPath from '../shared/AccessPath';
 
 import * as SequenceStore from '../SequenceStore';
 import * as Utils from '../Utils';
 import Table, { HeaderItem, FieldDefinition } from '../table/Table';
-import { atPath } from '../shared/JsonPath';
 import SequenceEditDialog from './SequenceEditDialog';
 
 import './SequenceView.css';
@@ -18,7 +18,12 @@ import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import SequenceControler from './SequenceControler';
 import SequenceSelector from './SequenceSelector';
 import ImageDetail from "./ImageDetail";
-import SequenceMonitoringDialog from './SequenceMonitoringDialog';
+import ToggleBton from '@src/primitives/ToggleBton';
+import Conditional from '@src/primitives/Conditional';
+import AccessorSelector from '@src/primitives/AccessorSelector';
+import SequenceActivityMonitoringView from './SequenceActivityMonitoringView';
+import SequenceFwhmMonitoringView from './SequenceFwhmMonitoringView';
+import SequenceBackgroundMonitoringView from './SequenceBackgroundMonitoringView';
 
 
 type SequenceViewDatabaseObject = {
@@ -32,7 +37,9 @@ type InputProps = {
 
 type MappedProps = {
     editSequenceDefinitionUid: string|undefined;
-    editSequenceMonitoringUid: string|undefined;
+    uid: string|undefined;
+    accessors: AccessorFactory;
+    currentMonitoring: SequenceStore.SequenceStoreContent["currentMonitoringView"];
 };
 
 type SequenceViewProps = InputProps & MappedProps;
@@ -75,6 +82,29 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
 const fields = fieldList.reduce((c, a)=>{c[a.id]=a; return c}, {});
 const defaultHeader:HeaderItem[] = fieldList.map(e=>({id: e.id}));
 
+class AccessorFactory {
+    currentMonitoring= defaultMemoize(
+        ()=>new SequenceStore.SequenceStoreContentAccessor().child(AccessPath.For((e)=>e.currentMonitoringView))
+    );
+
+    displayMonitoring= defaultMemoize(
+        ()=>new Store.TransformAccessor<string | undefined, boolean>(
+            new SequenceStore.SequenceStoreContentAccessor().child(AccessPath.For((e)=>e.currentMonitoringView)),
+            {
+                fromStore: (s:string|undefined)=>{
+                    return !!s;
+                },
+                toStore: (b:boolean)=> {
+                    if (!b) {
+                        return undefined;
+                    }
+                    return Store.getStore().getState().sequence.lastMonitoringView || "activity";
+                }
+            }
+        )
+    );
+}
+
 class SequenceView extends PureComponent<SequenceViewProps> {
     constructor(props:SequenceViewProps) {
         super(props);
@@ -101,11 +131,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     }
 
     editSequence=(uid:string)=>{
-        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid, view: "definition"});
-    }
-
-    editSequenceMonitoring=(uid:string)=>{
-        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid, view: "monitoring"});
+        Actions.dispatch<SequenceStore.SequenceActions>()("setEditingSequence", {sequence: uid});
     }
 
     closeEditDialog = ()=> {
@@ -122,13 +148,6 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                         onClose={this.closeEditDialog}/>
                 : null
             }
-            {this.props.editSequenceMonitoringUid !== undefined
-                ?
-                    <SequenceMonitoringDialog
-                        uid={this.props.editSequenceMonitoringUid}
-                        onClose={this.closeEditDialog}/>
-                : null
-            }
             <div className="SequenceControl">
                 <SequenceSelector
                     currentPath='$.sequence.currentSequence'
@@ -137,52 +156,91 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                 <SequenceControler
                     currentPath='$.sequence.currentSequence'
                     editSequence={this.editSequence}
-                    editSequenceMonitoring={this.editSequenceMonitoring}
                 />
+                <div>
+                    <ToggleBton
+                        className="SequenceViewMonitoringBton"
+                        accessor={this.props.accessors.displayMonitoring()}
+                        />
+                    <Conditional
+                        accessor={this.props.accessors.displayMonitoring()}>
+
+                        <AccessorSelector
+                            accessor={this.props.accessors.currentMonitoring()}>
+                            <option value="activity">activity</option>
+                            <option value="fwhm">fwhm</option>
+                            <option value="background">background</option>
+                        </AccessorSelector>
+                    </Conditional>
+                </div>
             </div>
-            <div className="SequenceViewDisplay">
-                <ImageDetail
-                    currentPath='$.sequence.currentImage'
-                    detailPath='$.backend.camera.images.byuuid'
-                />
-            </div>
-            <div className="SequenceViewTable">
-                <Table statePath="$.sequenceView.list"
-                    fields={fields}
-                    defaultHeader={defaultHeader}
-                    getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>
-                        {
-                            const currentSequenceId = store.sequence.currentSequence;
-                            const currentSequence = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, currentSequenceId);
-                            return {
-                                images: store.backend.camera?.images.byuuid,
-                                imageList: currentSequence?.images,
-                                imageStats: currentSequence?.imageStats,
-                            };
-                        }
-                    }
-                    getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
-                    getItem={(db:SequenceViewDatabaseObject,uid:string)=>
-                        ({
-                            ...Utils.getOwnProp(db.images, uid),
-                            ...Utils.getOwnProp(db.imageStats, uid)
-                        })}
-                    currentPath='$.sequence.currentImage'
-                    currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
-                    onItemClick={this.setCurrentImage}
-                />
-            </div>
+
+            {this.props.currentMonitoring === undefined ?
+                <>
+                    <div className="SequenceViewDisplay">
+                        <ImageDetail
+                            currentPath='$.sequence.currentImage'
+                            detailPath='$.backend.camera.images.byuuid'
+                        />
+                    </div>
+                    <div className="SequenceViewTable">
+                        <Table statePath="$.sequenceView.list"
+                            fields={fields}
+                            defaultHeader={defaultHeader}
+                            getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>
+                                {
+                                    const currentSequenceId = store.sequence.currentSequence;
+                                    const currentSequence = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, currentSequenceId);
+                                    return {
+                                        images: store.backend.camera?.images.byuuid,
+                                        imageList: currentSequence?.images,
+                                        imageStats: currentSequence?.imageStats,
+                                    };
+                                }
+                            }
+                            getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
+                            getItem={(db:SequenceViewDatabaseObject,uid:string)=>
+                                ({
+                                    ...Utils.getOwnProp(db.images, uid),
+                                    ...Utils.getOwnProp(db.imageStats, uid)
+                                })}
+                            currentPath='$.sequence.currentImage'
+                            currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
+                            onItemClick={this.setCurrentImage}
+                        />
+                    </div>
+                </>
+            :null}
+
+            {this.props.currentMonitoring === 'activity' && this.props.uid !== undefined ?
+                <SequenceActivityMonitoringView uid={this.props.uid}/>
+            :null}
+
+            {this.props.currentMonitoring === 'fwhm' && this.props.uid !== undefined ?
+                <SequenceFwhmMonitoringView uid={this.props.uid}/>
+            :null}
+
+            {this.props.currentMonitoring === 'background' && this.props.uid !== undefined ?
+                <SequenceBackgroundMonitoringView uid={this.props.uid}/>
+            :null}
+
         </div>);
     }
 
-    static mapStateToProps=(store: Store.Content, ownProps: InputProps) : MappedProps=>{
-        const editUid = store.sequence?.editingSequence;
-        const view = store.sequence?.editingSequenceView;
+    static mapStateToProps: ()=>(store: Store.Content, ownProps: InputProps) => MappedProps =() => {
+        const accessors = new AccessorFactory();
 
-        return {
-            editSequenceDefinitionUid: view === "definition" ? editUid : undefined,
-            editSequenceMonitoringUid: view === "monitoring" ? editUid : undefined,
-        };
+        return (store: Store.Content, ownProps: InputProps)=> {
+            const uid = store.sequence.currentSequence;
+            const editUid = store.sequence?.editingSequence;
+            const currentMonitoring = accessors.currentMonitoring().fromStore(store);
+            return {
+                accessors,
+                currentMonitoring,
+                uid,
+                editSequenceDefinitionUid: editUid,
+            };
+        }
     }
 }
 

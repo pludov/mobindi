@@ -1,3 +1,7 @@
 .SequenceStatMonitoringClassTable {
     width: 100%;
 }
+
+.SequenceStatContainer {
+    overflow-x: auto;
+}

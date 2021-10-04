@@ -382,13 +382,20 @@ export default class SequenceManager
         const seq = this.findSequenceFromRequest(message.sequenceUid);
         const monitoring = seq[message.monitoring];
 
-        if (Obj.hasKey(monitoring.perClassSettings, message.classId)) {
-            monitoring.perClassSettings[message.classId].learningMinTime = new Date().getTime();
+        const classSettings = Obj.getOwnProp(monitoring.perClassSettings, message.classId);
+
+        if (classSettings !== undefined) {
+            classSettings.learningMinTime = new Date().getTime();
         }
-        if (Obj.hasKey(monitoring.perClassStatus, message.classId)) {
-            seq[message.monitoring].perClassStatus[message.classId].learnedValue = null;
-            seq[message.monitoring].perClassStatus[message.classId].learnedCount = 0;
-            seq[message.monitoring].perClassStatus[message.classId].learningReady = false;
+
+        const classStatus = Obj.getOwnProp(monitoring.perClassStatus, message.classId);
+        if (classStatus !== undefined) {
+            classStatus.learnedValue = null;
+            classStatus.learnedCount = 0;
+            classStatus.learningReady = false;
+            if ((!classSettings?.disable) && (classSettings?.manualValue === undefined)) {
+                classStatus.maxAllowedValue = null;
+            }
         }
     }
 

@@ -21,7 +21,7 @@ class Conditional<TYPE> extends React.PureComponent<Props<TYPE>> {
         } else {
             display = !!value;
         }
-        return display ? null: this.props.children;
+        return display ? this.props.children : null;
     }
 
     static mapStateToProps<TYPE>(store: Store.Content, ownProps: InputProps<TYPE>) {

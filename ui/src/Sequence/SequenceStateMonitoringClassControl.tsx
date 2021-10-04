@@ -10,7 +10,6 @@ import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
 import * as BackendRequest from '../BackendRequest';
 import TextEdit from "../TextEdit";
-import * as SequenceStepParameter from "./SequenceStepParameter";
 import CancellationToken from 'cancellationtoken';
 import Bool from '@src/primitives/Bool';
 import Float from '@src/primitives/Float';
@@ -171,6 +170,8 @@ class AccessorFactory {
 
 
 class SequenceStatMonitoringClassControl extends React.PureComponent<Props, State> {
+    private sequenceParamClassifier = new SequenceParamClassifier();
+
     constructor(props: Props) {
         super(props);
     }
@@ -197,6 +198,18 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         );
     }
 
+    private classTitle = defaultMemoize((jcs:string)=> {
+        const props = JSON.parse(jcs);
+        const items = [];
+        for(const key of this.sequenceParamClassifier.exposureParamsOrdered)
+        {
+            if (Utils.has(props, key)) {
+                items.push(props[key]);
+            }
+        }
+        return items.join(',');
+    });
+
     render() {
         const digits = this.props.parameter === "fwhm" ? 2 : 5;
 
@@ -204,11 +217,11 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
                       this.props.classStatus.maxAllowedValue != null &&
                     this.props.classStatus.currentValue > this.props.classStatus.maxAllowedValue;
 
-        return <tr className={`SequenceStatMonitoringClassControl${this.props.enabled ? "Enabled" : "Disabled"}`}>
+        return <tr className={`SequenceStatMonitoringClassControl ${this.props.enabled ? "Enabled" : "Disabled"}`}>
             <th>
                 <div className="SequenceStatMonitoringClassControlCell">
                 <Bool accessor={this.props.accessors.enabledStatus(this.props.uid, this.props.monitoring, this.props.classId)} />
-                {this.props.classId}
+                <span>{this.classTitle(this.props.classId)}</span>
                 </div>
             </th>
             <td>
@@ -239,10 +252,12 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             </td>
             <td>
                 <div className="SequenceStatMonitoringClassControlCell">
-                    {this.props.classStatus.currentValue !== null
-                        ? this.props.classStatus.currentValue.toFixed(digits)
-                        : "N/A"
-                    }
+                    <span className="cameraSetting">
+                        {this.props.classStatus.currentValue !== null
+                            ? this.props.classStatus.currentValue.toFixed(digits)
+                            : "N/A"
+                        }
+                    </span>
 
                     <>
                         <ProgressMeter

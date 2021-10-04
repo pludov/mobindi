@@ -28,6 +28,14 @@
     padding: 0px;
 }
 
+.SequenceStatusContainer {
+    min-width: 12em;
+    line-height: 2em;
+}
+.SequenceStatusBreak {
+    width: 100%;
+}
+
 .SequenceStatusERROR {
     font-weight: bold;
     color: red;
@@ -45,7 +53,9 @@
 
 .SequenceControl {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    column-gap: 0.3em;
 }
 
 .SequenceViewDisplay {
@@ -56,6 +66,21 @@
 .SequenceViewTable {
     display: flex;
     flex: 1;
+}
+
+.SequenceViewMonitoringBton.ToggleBton.checked:before {
+    content: "📉";
+    color: #fff;
+}
+
+.SequenceViewMonitoringBton.ToggleBton.unchecked:before {
+    content: "📉";
+    color: #aaa;
+    filter: grayscale(100%);
+}
+
+.SequenceViewMonitoringConfig{
+    order: 2
 }
 
 @media (min-aspect-ratio: 4/3) {
@@ -87,3 +112,5 @@
         order: 2;
     }
 }
+
+

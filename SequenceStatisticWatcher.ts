@@ -40,6 +40,8 @@ export class SequenceStatisticWatcher {
     private notification?: string;
     private notificationJcsId?: string;
 
+    private dismissed: {[id:string] : boolean} = {};
+
     constructor(appStateManager:JsonProxy<BackofficeStatus>, context: AppContext,
                     uid:string,
                     statKey: KeysMatching<ImageStats, number|undefined>,
@@ -77,6 +79,7 @@ export class SequenceStatisticWatcher {
                 false
             )
         ];
+        this.doEval();
     }
 
     private clearNotification=()=>{
@@ -182,7 +185,7 @@ export class SequenceStatisticWatcher {
                 }
             }
 
-            let alarmJcsId: string|undefined = undefined;
+            let alarmJcsIds: Array<string> = [];
             for(const jcs of settingJcsIds) {
                 const classSettings = Obj.getOwnProp(monitoringSettings.perClassSettings, jcs)!;
                 const classStatus = Obj.getOwnProp(monitoringSettings.perClassStatus, jcs)!;
@@ -208,37 +211,71 @@ export class SequenceStatisticWatcher {
                 if (classSettings.disable) {
                     classStatus.maxAllowedValue = null;
                 } else if (classSettings.manualValue !== undefined) {
-                    classStatus.maxAllowedValue = classSettings.manualValue;
+                    classStatus.maxAllowedValue = classSettings.manualValue + (monitoringSettings.seuil || 0);
                 } else {
-                    classStatus.maxAllowedValue = !classStatus.learningReady ? null : classStatus.learnedValue;
+                    classStatus.maxAllowedValue =
+                            (!classStatus.learningReady) || (classStatus.learnedValue  === null)
+                                ? null
+                                : classStatus.learnedValue + (monitoringSettings.seuil || 0)
                 }
 
-                dynStatus.alarm= (classStatus.maxAllowedValue !== null) && (classStatus.currentValue !== null) && (classStatus.currentValue > classStatus.maxAllowedValue + (monitoringSettings.seuil || 0));
-                if (dynStatus.alarm && alarmJcsId === undefined) {
-                    alarmJcsId = jcs;
+                dynStatus.alarm= (classStatus.maxAllowedValue !== null)
+                                && (classStatus.currentValue !== null)
+                                && (classStatus.currentValue > classStatus.maxAllowedValue);
+                if (dynStatus.alarm) {
+                    alarmJcsIds.push(jcs);
                 }
             }
 
-            // Update the status
-            if (this.notification && this.notificationJcsId !== alarmJcsId) {
+            logger.debug('Sequence statistic watcher status', {
+                    monitoringKey: this.monitoringKey,
+                    alarmJcsIds,
+                    dismissed: this.dismissed
+            })
+            // Drop the current notification if not relevant anymore
+            if (this.notification && alarmJcsIds.indexOf(this.notificationJcsId!) === -1) {
                 this.clearNotification();
             }
 
-            if (alarmJcsId) {
-                if (this.notificationJcsId === undefined) {
-                    // Emit a notification
-                    const title = `Sequence statistics are wrong for ${alarmJcsId}`;
-                    this.notification = this.context.notification.doNotify(title, "dialog", [
-                        {
-                            title: "dismiss",
-                            value: true,
-                        }
-                    ]);
-                    this.notificationJcsId = alarmJcsId;
+            // Acquiese all non valid alarms
+            for(const jcs of Object.keys(this.dismissed)) {
+                if (alarmJcsIds.indexOf(jcs) === -1) {
+                    logger.debug("Dismissed", {jcs});
+                    delete this.dismissed[jcs];
                 }
+            }
+
+            const nonDismissedJcsIds = alarmJcsIds.filter((k)=>!Obj.hasKey(this.dismissed, k));
+            if (nonDismissedJcsIds.length && !this.notification) {
+                const alarmJcsId = nonDismissedJcsIds[0];
+                logger.info("Emitting notification", {
+                    monitoringKey: this.monitoringKey,
+                    alarmJcsId,
+                });
+
+                // Emit a notification
+                const title = `Sequence statistics are wrong for ${alarmJcsId}`;
+                this.notification = this.context.notification.doNotify(title, "dialog", [
+                    {
+                        title: "dismiss",
+                        value: true,
+                    }
+                ]);
+                this.notificationJcsId = alarmJcsId;
+                this.context.notification.onNotificationResult(this.notification, (c: any)=> {
+                    logger.info("Dismissed notification", {
+                        monitoringKey: this.monitoringKey,
+                        alarmJcsId,
+                    });
+                    this.dismissed[alarmJcsId] = true;
+                    this.notification = undefined;
+                    this.notificationJcsId = undefined;
+                    this.doEval();
+                });
             }
         } else {
             this.clearNotification();
+            this.dismissed = {};
         }
     }
 

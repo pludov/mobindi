@@ -16,11 +16,14 @@ type Props = InputProps & MappedProps;
 
 class ToggleBton extends React.PureComponent<Props> {
     render() {
-        return <span className='cameraSetting' {...this.props.helpKey?.dom()}>
-            <div
-                className={`ToggleBton ${this.props.className || ""} ${!!this.props.value ? "checked" : "unchecked"}`}
+        return (
+        <span className='cameraSetting' >
+            <button
+                className={`GlyphBton ToggleBton ${this.props.className || ""} ${!!this.props.value ? "checked" : "unchecked"}`}
+                {...this.props.helpKey?.dom()}
                 onClick={this.update}/>
-        </span>;
+        </span>
+        );
     }
 
     update=()=>{

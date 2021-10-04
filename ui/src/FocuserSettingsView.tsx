@@ -44,7 +44,7 @@ export default class FocuserSettingsView extends React.PureComponent<Props> {
             <Bool accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetCurrentPos))} helpKey={FocuserSettingsView.targetCurrentPosHelp}>
                 Start from current pos
             </Bool>
-            <Conditional accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetCurrentPos))}>
+            <Conditional accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetCurrentPos))} condition={(e:boolean)=>(!e)}>
                 <Int accessor={this.props.accessor.child(AccessPath.For((e)=>e.targetPos))} min={0} helpKey={FocuserSettingsView.targetPosHelp}>
                     Target Pos
                 </Int>

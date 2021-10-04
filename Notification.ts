@@ -71,6 +71,10 @@ export default class Notification
         }
     }
 
+    onNotificationResult(uid: string, cb:(v: any)=>void) {
+        this.watchers[uid] = cb;
+    }
+
     dialog<T>(ct: CancellationToken, title: string, options:Array<{title:string, value:T}>):Promise<T> {
         return new Promise<T>((res, rej)=> {
             let unrej: undefined|{ (): void; (): void; (): void; };

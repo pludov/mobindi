@@ -11,16 +11,15 @@ import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
 import Float from '@src/primitives/Float';
 import Int from '@src/primitives/Int';
-import Modal from '@src/Modal';
 import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
 import SequenceStateMonitoringClasseControl from './SequenceStateMonitoringClassControl';
 
-import "./SequenceStatMonitoringDialog.css";
+import "./SequenceStatMonitoringView.css";
+import Conditional from '@src/primitives/Conditional';
 
 
 type ParamSettings = {
-    title: string;
     monitoringProp: "fwhmMonitoring"|"backgroundMonitoring";
     seuilHelp: Help.Key;
     evaluationCountHelp: Help.Key;
@@ -31,7 +30,6 @@ type ParamSettings = {
 
 const titles: {[id: string]:ParamSettings} = {
     fwhm : {
-        title: "Monitoring of FWHM",
         monitoringProp: "fwhmMonitoring",
         seuilHelp: Help.key("Allowed variation from reference FWHM"),
         evaluationPercentileHelp: Help.key("Evaluation percentile", "For evaluation, will consider the FWHM at this percentile. 0 is min, 1 is max, 0.5 is median"),
@@ -40,7 +38,6 @@ const titles: {[id: string]:ParamSettings} = {
         learningCountHelp: Help.key("Learning count", "Use this amount of images for learning the reference FWHM. A percentile (parameterized median) is used to filter outliers."),
         },
     background: {
-        title: "Monitoring of background level",
         monitoringProp: "backgroundMonitoring",
         seuilHelp: Help.key("Allowed variation from reference background level", "Background level is mesured in 0-1 interval"),
         evaluationPercentileHelp: Help.key("Evaluation percentile", "For evaluation, will consider the background value at this percentile. 0 is min, 1 is max, 0.5 is median"),
@@ -67,7 +64,7 @@ type State = {}
 
 type Props = InputProps & MappedProps;
 
-class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
+class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = {
@@ -121,9 +118,6 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
         }
         return <span>
                 <div className="IndiProperty">
-                        {titles[this.props.parameter].title} - {this.props.title}
-                </div>
-                <div className="IndiProperty">
                         Max deviation from reference:
                         <Float
                             accessor={this.seuilAccessor(this.props.uid, this.props.monitoringProp)}
@@ -131,29 +125,40 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
                         />.
                 </div>
                 <div className="IndiProperty">
-                        Evaluate the last<Int
+                        Evaluate the last <Int
                             accessor={this.evaluationCountAccessor(this.props.uid, this.props.monitoringProp)}
                             helpKey={titles[this.props.parameter].evaluationCountHelp}
-                        /> frames. Use the percentile
-                        <Float
-                            accessor={this.evaluationPercentileAccessor(this.props.uid, this.props.monitoringProp)}
-                            helpKey={titles[this.props.parameter].evaluationPercentileHelp}
-                        />
-                        for median filtering.
+                        /> frames. 
+                        
+                        <Conditional
+                            accessor={this.evaluationCountAccessor(this.props.uid, this.props.monitoringProp)}
+                            condition={(v:number|null)=>(v !== null && v>1)}>
+                            Use the percentile
+                            <Float
+                                accessor={this.evaluationPercentileAccessor(this.props.uid, this.props.monitoringProp)}
+                                helpKey={titles[this.props.parameter].evaluationPercentileHelp}
+                            />
+                            for median filtering.
+                        </Conditional>
                 </div>
                 <div className="IndiProperty">
                         Learn over <Int
                             accessor={this.learningCountAccessor(this.props.uid, this.props.monitoringProp)}
                             helpKey={titles[this.props.parameter].evaluationCountHelp}
                         /> frames.
-                        Use the percentile
-                        <Float
-                            accessor={this.learningPercentileAccessor(this.props.uid, this.props.monitoringProp)}
-                            helpKey={titles[this.props.parameter].evaluationPercentileHelp}
-                        />
-                        for median fitlering.
+
+                        <Conditional
+                            accessor={this.learningCountAccessor(this.props.uid, this.props.monitoringProp)}
+                            condition={(v:number|null)=>(v !== null && v>1)}>
+                            Use the percentile
+                            <Float
+                                accessor={this.learningPercentileAccessor(this.props.uid, this.props.monitoringProp)}
+                                helpKey={titles[this.props.parameter].evaluationPercentileHelp}
+                            />
+                            for median fitlering.
+                        </Conditional>
                 </div>
-                <div className="IndiProperty">
+                <div className="IndiProperty SequenceStatContainer">
                     <table className="SequenceStatMonitoringClassTable">
                         <thead>
                             <tr>
@@ -232,4 +237,4 @@ class SequenceStatMonitoringDialog extends React.PureComponent<Props, State> {
     }
 }
 
-export default Store.Connect(SequenceStatMonitoringDialog);
+export default Store.Connect(SequenceStatMonitoringView);

@@ -81,7 +81,7 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                         <div>
                             Use mount position: <Bool accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
                         </div>
-                        <Conditional accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} condition={(e:boolean)=>(!e)}>
+                        <Conditional accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))}>
                         <div>
                             Initial search radius (°):
                             <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>

@@ -1,7 +1,10 @@
-.SequenceStatMonitoringClassControlDisabled {
+.SequenceStatMonitoringClassControl.Disabled {
     text-decoration: line-through;
 }
 
+.SequenceStatMonitoringClassControl>th {
+    font-weight: normal;
+}
 .MonitoringUseLearnedValue.ToggleBton {
     background: unset;
 }

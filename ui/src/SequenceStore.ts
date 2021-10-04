@@ -7,15 +7,17 @@ import { BackendAccessorImpl } from "./utils/BackendAccessor";
 import * as BackendRequest from "./BackendRequest";
 import * as Accessor from './shared/AccessPath';
 import CancellationToken from "cancellationtoken";
-import { Diff } from "./shared/JsonProxy";
+import JsonProxy, { Diff } from "./shared/JsonProxy";
+import StorePatchAccessor from "./utils/StorePatchAccessor";
 
 export type SequenceStoreContent = {
     currentSequence: string|undefined;
     editingSequence: string|undefined;
-    editingSequenceView: "definition"|"monitoring"|undefined;
     currentImage: string|undefined;
     currentImageAutoSelectSerial?: number;
     currentIsLast?: boolean;
+    currentMonitoringView?: "activity"|"fwhm"|"background";
+    lastMonitoringView?: "activity"|"fwhm"|"background";
 }
 
 export type Content = {
@@ -41,6 +43,21 @@ class SequenceAccessor extends BackendAccessorImpl<Sequence> {
                 patch: jsonDiff
             }
         );
+    }
+}
+
+export class SequenceStoreContentAccessor extends StorePatchAccessor<SequenceStoreContent>
+{
+    constructor() {
+        super();
+    }
+
+    protected async apply(jsonDiff: Diff) {
+        Actions.dispatch<SequenceActions>()("patchSequenceStoreContent", {diff: jsonDiff});
+    }
+
+    fromStore(store:Store.Content) {
+        return store.sequence;
     }
 }
 
@@ -137,19 +154,32 @@ const setCurrentSequence=(state: Store.Content, payload: {sequence: string})=>{
     }
 }
 
-const setEditingSequence=(state: Store.Content, payload: {sequence: string|undefined, view?: "monitoring"|"definition"})=>{
-    if (state.sequence.editingSequence === payload.sequence
-         && state.sequence.editingSequenceView === payload.view) {
+const setEditingSequence=(state: Store.Content, payload: {sequence: string|undefined})=>{
+    if (state.sequence.editingSequence === payload.sequence) {
         return state;
     }
-    
+
     return {
         ...state,
         sequence: {
             ...state.sequence,
             editingSequence: payload.sequence,
-            editingSequenceView: payload.view,
         }
+    }
+}
+
+const patchSequenceStoreContent=(state: Store.Content, payload: {diff: Diff})=>{
+
+    const sequence:SequenceStoreContent = JsonProxy.applyDiff(state.sequence, payload.diff);
+    if (sequence === state.sequence) {
+        return state;
+    }
+    if (sequence.currentMonitoringView !== sequence.lastMonitoringView && sequence.currentMonitoringView) {
+        sequence.lastMonitoringView = sequence.currentMonitoringView;
+    }
+    return {
+        ...state,
+        sequence
     }
 }
 
@@ -157,6 +187,7 @@ const actions = {
     setCurrentImage,
     setCurrentSequence,
     setEditingSequence,
+    patchSequenceStoreContent,
 }
 
 export type SequenceActions = typeof actions;
@@ -168,7 +199,6 @@ export const initialState:Content = {
         currentImage: undefined,
         currentSequence: undefined,
         editingSequence: undefined,
-        editingSequenceView: undefined,
         currentImageAutoSelectSerial: undefined,
         currentIsLast: true,
     }

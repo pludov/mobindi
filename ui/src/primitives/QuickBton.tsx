@@ -11,11 +11,12 @@ type Props = {
 
 class QuickBton extends React.PureComponent<Props> {
     render() {
-        return <span className='cameraSetting' {...this.props.helpKey?.dom()}>
+        return (
             <div
                 className={`QuickBton ${this.props.className || ""}`}
+                {...this.props.helpKey?.dom()}
                 onClick={this.update}/>
-        </span>;
+        );
     }
 
     update=()=>{

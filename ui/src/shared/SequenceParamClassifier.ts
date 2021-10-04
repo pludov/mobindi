@@ -2,8 +2,8 @@ import { canonicalize } from 'json-canonicalize';
 
 import { SequenceStepParameters } from '@bo/BackOfficeStatus';
 
-
-type RecursiveMap = Map<any, {order: number, value: any, childs?: RecursiveMap}>;
+type RecursiveMapEntry = {order: number, value: any, childs?: RecursiveMap};
+type RecursiveMap = Map<any, RecursiveMapEntry>;
 
 /* Decide split points for deciding sets of parameters */
 export type ExposureSettingsPriority = {
@@ -62,14 +62,14 @@ export class SequenceParamClassifier {
 
     extractParameters=()=>
     {
-        let result : Array<SequenceStepParameters> = [];
+        let result : Array<SequenceStepParameters&{order:number}> = [];
         const split=(cur: SequenceStepParameters, map : RecursiveMap, pid: number)=>{
             const singleMap = map.size === 1;
 
             for(const entry of Array.from(map.values()).sort((a, b)=>(a.order - b.order)))
             {
                 if (!entry.childs) {
-                    result.push({...cur});
+                    result.push({...cur, order: entry.order});
                 } else if (singleMap) {
                     split(cur, entry.childs, pid + 1);
                 } else {
@@ -82,7 +82,12 @@ export class SequenceParamClassifier {
 
         split({}, this.rootMap, 0);
 
-        return result;
+        result.sort((a,b)=>a.order - b.order);
+
+        return result.map(e=>{
+            const {order, ...param} = e;
+            return param;
+        });
     }
 
     extractJcsIdForParameters=(e: SequenceStepParameters) : string=>

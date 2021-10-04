@@ -15,7 +15,6 @@ import CancellationToken from 'cancellationtoken';
 type InputProps = {
     currentPath: string;
     editSequence:(uid:string)=>(void);
-    editSequenceMonitoring:(uid:string)=>(void);
 }
 type MappedProps = {
     uuid?: string;
@@ -79,10 +78,6 @@ export class SequenceControler extends React.PureComponent<Props, State> {
         this.props.editSequence(this.props.uuid!);
     }
 
-    private openMonitoringDialog = ()=>{
-        this.props.editSequenceMonitoring(this.props.uuid!);
-    }
-
     render() {
         var clickable = {
             start: false,
@@ -125,47 +120,41 @@ export class SequenceControler extends React.PureComponent<Props, State> {
                     this.props.current.status == 'error'
                     ? '' + this.props.current.errorMessage
                     :  this.props.current.status);
-        return(<div>
-            <div className='messageContainer'>
-                    <div className='messageTitle' key="title">Status:</div>
-                    <div className='messageContent' key="status">
-                        <StatusLabel
-                                text={statusStr}
-                                className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} />
-                        {this.props.current && this.props.current.progress ? <i>{this.props.current.progress}</i> : null}
-                    </div>
+        return(<>
+            <div className='SequenceStatusContainer'>
+                    Status:
+
+                    <StatusLabel
+                            text={statusStr}
+                            className={"SequenceStatus" + (this.props.current ? this.props.current.status.toUpperCase() : "NONE")} />
+                    {this.props.current && this.props.current.progress ? <i>{this.props.current.progress}</i> : null}
+
             </div>
-            <input
-                {...SequenceControler.startBtonHelp.dom()}
-                className="GlyphBton"
-                type='button'
-                value='▶'
-                id='Start'
-                disabled={!clickable.start}
-                onClick={(e)=>Utils.promiseToState(this.startSequence, this)}
-            />
-            <input
-                {...SequenceControler.stopBtonHelp.dom()}
-                className="GlyphBton"
-                type='button'
-                value='⏸'
-                id='Stop'
-                disabled={!clickable.stop}
-                onClick={(e)=>Utils.promiseToState(this.stopSequence, this)}
-            />
-            <input className="GlyphBton" {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='✏️' onClick={this.openEditDialog}/>
-            <input
-                {...SequenceControler.editMonitoringBtonHelp.dom()}
-                className="GlyphBton"
-                type='button'
-                value={monitoring}
-                id='Monitor'
-                disabled={!clickable.monitor}
-                onClick={this.openMonitoringDialog}
-            />
-            <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='🗘' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
-            <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
-        </div>);
+            <div className='SequenceStatusBreak'></div>
+            <div>
+                <input
+                    {...SequenceControler.startBtonHelp.dom()}
+                    className="GlyphBton"
+                    type='button'
+                    value='▶'
+                    id='Start'
+                    disabled={!clickable.start}
+                    onClick={(e)=>Utils.promiseToState(this.startSequence, this)}
+                />
+                <input
+                    {...SequenceControler.stopBtonHelp.dom()}
+                    className="GlyphBton"
+                    type='button'
+                    value='⏸'
+                    id='Stop'
+                    disabled={!clickable.stop}
+                    onClick={(e)=>Utils.promiseToState(this.stopSequence, this)}
+                />
+                <input className="GlyphBton" {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='✏️' onClick={this.openEditDialog}/>
+                <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='🗘' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
+                <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
+            </div>
+        </>);
     }
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {

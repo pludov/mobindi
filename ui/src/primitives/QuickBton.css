@@ -8,11 +8,8 @@
     padding-top: 0em;
     padding-bottom: 0em;
     color: #000;
-    height: 1.5em;
-    line-height: 2em;
     border-width: 0.15em;
-    vertical-align: baseline;
-    display: inline-flex;
+    vertical-align: middle;
     font-weight: bold;
     cursor: pointer;
 }
