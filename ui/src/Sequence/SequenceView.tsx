@@ -55,7 +55,7 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         id: 'backgroundLevel',
         title: 'BG',
         defaultWidth: '4em',
-        render: (o:BackOfficeStatus.ImageStats)=>(o.backgroundLevel === undefined ? null: <span className='stat-bg'>{o.backgroundLevel.toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits: 3})}</span>),
+        render: (o:BackOfficeStatus.ImageStats)=>(o.backgroundLevel === undefined ? null: <span className='stat-bg'>{Math.trunc(o.backgroundLevel * 65535).toString()}</span>),
     },
     {
         id: 'fwhm',

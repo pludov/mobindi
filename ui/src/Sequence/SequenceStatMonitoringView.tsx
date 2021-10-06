@@ -13,7 +13,7 @@ import Float from '@src/primitives/Float';
 import Int from '@src/primitives/Int';
 import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
-import SequenceStateMonitoringClasseControl from './SequenceStateMonitoringClassControl';
+import SequenceStateMonitoringClassControl from './SequenceStateMonitoringClassControl';
 
 import "./SequenceStatMonitoringView.css";
 import Conditional from '@src/primitives/Conditional';
@@ -39,7 +39,7 @@ const titles: {[id: string]:ParamSettings} = {
         },
     background: {
         monitoringProp: "backgroundMonitoring",
-        seuilHelp: Help.key("Allowed variation from reference background level", "Background level is mesured in 0-1 interval"),
+        seuilHelp: Help.key("Allowed variation from reference background level", "Background level is mesured in 0-65535 interval"),
         evaluationPercentileHelp: Help.key("Evaluation percentile", "For evaluation, will consider the background value at this percentile. 0 is min, 1 is max, 0.5 is median"),
         evaluationCountHelp: Help.key("Evaluation count", "Use this amount of images for evaluation of the current background value. A percentile (parameterized median) is used to filter outliers."),
         learningPercentileHelp: Help.key("Evaluation percentile", "For learning, will consider the background value at this percentile. 0 is min, 1 is max, 0.5 is median"),
@@ -47,9 +47,15 @@ const titles: {[id: string]:ParamSettings} = {
     },
 }
 
+type Scaler = {
+    statToView:(n:number)=>number;
+    viewToStat:(n:number)=>number;
+};
+
 type InputProps = {
     uid: string;
     parameter: "fwhm"|"background";
+    scaler?: Scaler;
 }
 
 type MappedProps = {
@@ -77,9 +83,15 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
     );
 
     private seuilAccessor = defaultMemoize(
-        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring")=>
-            new Store.UndefinedToNullAccessor(
-                this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.seuil))
+        (uid:string, prop: "backgroundMonitoring"|"fwhmMonitoring", scaler: Scaler|undefined)=>
+            new Store.TransformAccessor<number | null, number | null>(
+                new Store.UndefinedToNullAccessor(
+                    this.monitoringSettingsAccessor(uid, prop).child(AccessPath.For((e)=>e.seuil))
+                ),
+                {
+                    toStore: (e)=>(e === null || ! scaler ? e : scaler.viewToStat(e)),
+                    fromStore: (e)=>(e=== null || ! scaler ? e : scaler.statToView(e)),
+                }
             )
     );
 
@@ -120,7 +132,7 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
                 <div className="IndiProperty">
                         Max deviation from reference:
                         <Float
-                            accessor={this.seuilAccessor(this.props.uid, this.props.monitoringProp)}
+                            accessor={this.seuilAccessor(this.props.uid, this.props.monitoringProp, this.props.scaler)}
                             helpKey={titles[this.props.parameter].seuilHelp}
                         />.
                 </div>
@@ -128,8 +140,8 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
                         Evaluate the last <Int
                             accessor={this.evaluationCountAccessor(this.props.uid, this.props.monitoringProp)}
                             helpKey={titles[this.props.parameter].evaluationCountHelp}
-                        /> frames. 
-                        
+                        /> frames.
+
                         <Conditional
                             accessor={this.evaluationCountAccessor(this.props.uid, this.props.monitoringProp)}
                             condition={(v:number|null)=>(v !== null && v>1)}>
@@ -174,10 +186,11 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
                         </thead>
                         <tbody>
                             {this.props.parameters.map((jsc)=>
-                                <SequenceStateMonitoringClasseControl
+                                <SequenceStateMonitoringClassControl
                                     key={jsc}
                                     monitoring={this.props.monitoringProp}
                                     parameter={this.props.parameter}
+                                    scaler={this.props.scaler}
                                     classId={jsc}
                                     uid={this.props.uid}/>
                             )}

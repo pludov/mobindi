@@ -23,6 +23,11 @@ type Props = InputProps & MappedProps;
 type State = {
 }
 
+const backgroundScaler = {
+    statToView: (n:number)=>n*65535.0,
+    viewToStat: (n:number)=>n/65535.0,
+};
+
 class SequenceBackgroundMonitoringView extends React.PureComponent<Props, State> {
     private static enableBackgroundMonitoringHelp = Help.key(
         "Watch background level evolution (notification)"
@@ -59,6 +64,7 @@ class SequenceBackgroundMonitoringView extends React.PureComponent<Props, State>
                     <SequenceStatMonitoringView
                                     parameter="background"
                                     uid={this.props.uid}
+                                    scaler={backgroundScaler}
                                 />
                 </span>
             </div>

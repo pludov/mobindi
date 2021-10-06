@@ -22,6 +22,11 @@ import ToggleBton from '@src/primitives/ToggleBton';
 import ProgressMeter from '@src/primitives/ProgressMeter';
 import "./SequenceStateMonitoringClassControl.css";
 
+type Scaler = {
+    statToView:(n:number)=>number;
+    viewToStat:(n:number)=>number;
+};
+
 type InputProps = {
     // sequence
     uid: string;
@@ -32,6 +37,8 @@ type InputProps = {
     // The parameter
     parameter: "fwhm" | "background";
     monitoring: "fwhmMonitoring" | "backgroundMonitoring";
+
+    scaler?: Scaler;
 }
 
 type MappedProps = {
@@ -66,9 +73,15 @@ class AccessorFactory {
     );
 
     manualValue = defaultMemoize(
-        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
-            new Store.UndefinedToNullAccessor(
-                this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue))
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string, scaler: Scaler) =>
+            new Store.TransformAccessor<number | null, number | null>(
+                new Store.UndefinedToNullAccessor(
+                    this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue))
+                ),
+                {
+                    toStore: (e)=>(e === null ? e : scaler.viewToStat(e)),
+                    fromStore: (e)=>(e=== null ? e : scaler.statToView(e)),
+                }
             )
     );
 
@@ -132,24 +145,24 @@ class AccessorFactory {
     );
 
     refValue = defaultMemoize(
-        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string) =>
+        (uid: string, prop: "backgroundMonitoring" | "fwhmMonitoring", jscId: string, scaler: Scaler|undefined) =>
             new Store.TransformAccessor<number | undefined, number | null>(
                 this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.manualValue)),
                 {
                     toStore: (b: number|null) => {
                         if (b === null) return undefined;
-                        return b;
+                        return scaler ? scaler.viewToStat(b) : b;
                     },
                     fromStore: (b: number|undefined, s:Store.Content) => {
                         if (b === undefined) {
                             const status = this.perClassStatus(uid, prop, jscId).fromStore(s);
                             const learned = status?.learnedValue;
-                            if (learned !== undefined) {
-                                return learned;
+                            if (learned !== undefined && learned !== null) {
+                                return scaler ? scaler.statToView(learned) : learned;
                             }
                             return null;
                         }
-                        return b;
+                        return scaler ? scaler.statToView(b) : b;
                     },
                 }
             )
@@ -211,7 +224,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
     });
 
     render() {
-        const digits = this.props.parameter === "fwhm" ? 2 : 5;
+        const digits = this.props.parameter === "fwhm" ? 2 : 0;
 
         const alert = this.props.classStatus.currentValue !== null &&
                       this.props.classStatus.maxAllowedValue != null &&
@@ -227,7 +240,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             <td>
                 <div className="SequenceStatMonitoringClassControlCell">
                 <Float
-                    accessor={this.props.accessors.refValue(this.props.uid, this.props.monitoring, this.props.classId)}
+                    accessor={this.props.accessors.refValue(this.props.uid, this.props.monitoring, this.props.classId, this.props.scaler)}
                     digits={digits}
                 />
                 {this.props.classSettings.manualValue ?
@@ -254,7 +267,10 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
                 <div className="SequenceStatMonitoringClassControlCell">
                     <span className="cameraSetting">
                         {this.props.classStatus.currentValue !== null
-                            ? this.props.classStatus.currentValue.toFixed(digits)
+                            ? (this.props.scaler
+                                ? this.props.scaler.statToView(this.props.classStatus.currentValue)
+                                : this.props.classStatus.currentValue
+                                ).toFixed(digits)
                             : "N/A"
                         }
                     </span>
