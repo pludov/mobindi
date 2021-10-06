@@ -5,7 +5,15 @@ import * as Store from "./Store";
 
 const logger = Log.logger(__filename);
 
-const audioContext = new (window.AudioContext || ((window as any).webkitAudioContext as AudioContext))();
+const audioContext: AudioContext|undefined = (()=> {
+    if (window.AudioContext) {
+        return new window.AudioContext();
+    }
+    if ((window as any).webkitAudioContext) {
+        return new (((window as any).webkitAudioContext))() as AudioContext;
+    }
+    return undefined;
+})()
 
 let currentConfig : WatchConfiguration = {
     active: false,
@@ -70,6 +78,10 @@ function fetchAudio(url: string): Promise<ArrayBuffer> {
 }
 
 async function loadSound(url: string): Promise<AudioBuffer> {
+    if (audioContext === undefined) {
+        throw new Error("Audio not available");
+    }
+
     logger.info('fetching audio file', {url});
     const buffer = await fetchAudio(url);
     const ret = await audioContext.decodeAudioData(buffer);
@@ -79,6 +91,9 @@ async function loadSound(url: string): Promise<AudioBuffer> {
 
 
 function playSound(buffer: AudioBuffer|undefined, rate: number, tweak?: (t: AudioBufferSourceNode)=>{}) {
+    if (audioContext === undefined) {
+        throw new Error("Audio not available");
+    }
     if (buffer === undefined) {
         throw new Error("Missing audio resource");
     }

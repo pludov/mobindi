@@ -7,7 +7,7 @@ matrix:
         directories:
           - "node_modules"
           - "ui/node_modules"
-      script: npm install && npm run tsc && npm test && cd ui && npm install && CI=false npm run-script build
+      script: npm install && npm run tsc && npm test && cd ui && npm install && CI=false npm run-script build && npm run-script test
     - language: cpp
       compiler: gcc
       dist: xenial

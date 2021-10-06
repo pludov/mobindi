@@ -120,7 +120,11 @@
       "[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|ts|tsx)$"
     ],
     "moduleNameMapper": {
-      "^react-native$": "react-native-web"
+      "^react-native$": "react-native-web",
+      "^@src/(.*)$": "<rootDir>/src/$1",
+      "^@bo/(.*)$": "<rootDir>/../shared/$1",
+      "^@SkyAlgo/(.*)$": "<rootDir>/../SkyAlgorithms/$1",
+      "shared-worker-loader!(.*)$": "$1"
     },
     "moduleFileExtensions": [
       "web.ts",
@@ -137,7 +141,7 @@
     ],
     "globals": {
       "ts-jest": {
-        "tsConfigFile": "/home/ludovic/WebstormProjects/IPhd/ui/tsconfig.test.json"
+        "tsConfigFile": "<rootDir>/tsconfig.test.json"
       }
     }
   },
