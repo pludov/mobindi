@@ -9,15 +9,12 @@ import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
 import * as BackendRequest from '../BackendRequest';
-import TextEdit from "../TextEdit";
 import CancellationToken from 'cancellationtoken';
 import Bool from '@src/primitives/Bool';
 import Float from '@src/primitives/Float';
 import QuickBton from '@src/primitives/QuickBton';
-import Modal from '@src/Modal';
 import { SequenceLogic } from '@src/shared/SequenceLogic';
 import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
-import Text from '@src/primitives/Text';
 import ToggleBton from '@src/primitives/ToggleBton';
 import ProgressMeter from '@src/primitives/ProgressMeter';
 import "./SequenceStateMonitoringClassControl.css";
@@ -182,6 +179,16 @@ class AccessorFactory {
 }
 
 
+export function exposureToString(exp: number) {
+    if (exp >= 1 && Math.abs(parseFloat(exp.toFixed(0)) - exp) < 0.001) {
+        return exp.toFixed(0) + "s";
+    } else if (exp >=1 || ((exp >= 0.1 && Math.abs(parseFloat(exp.toFixed(1)) - exp) < 0.001))) {
+        return exp.toFixed(1) + "s";
+    } else {
+        return (exp * 1000).toFixed(0) + "ms";
+    }
+}
+
 class SequenceStatMonitoringClassControl extends React.PureComponent<Props, State> {
     private sequenceParamClassifier = new SequenceParamClassifier();
 
@@ -217,7 +224,24 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         for(const key of this.sequenceParamClassifier.exposureParamsOrdered)
         {
             if (Utils.has(props, key)) {
-                items.push(props[key]);
+                const v = props[key];
+                let vstr: string;
+
+                switch(key) {
+                    case "exposure":
+                        vstr = exposureToString(v);
+                        break;
+                    case "bin":
+                        vstr = "bin" + v;
+                        break;
+                    case "iso":
+                        vstr = v + "iso";
+                        break;
+                    default:
+                        vstr = "" + v;
+                }
+
+                items.push(vstr);
             }
         }
         return items.join(',');
