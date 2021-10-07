@@ -159,6 +159,8 @@ export type SequenceActivityMonitoring = {
 
 export type Sequence = {
     status: "idle"|"running"|"paused"|"done"|"error";
+    // The current image parameters (canonical jcs from SequenceClassiffier)
+    currentImageClass?: string;
     progress: string | null;
     title: string;
     imagingSetup: string | null;

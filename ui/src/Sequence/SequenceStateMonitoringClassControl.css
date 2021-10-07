@@ -5,6 +5,11 @@
 .SequenceStatMonitoringClassControl>th {
     font-weight: normal;
 }
+
+.SequenceStatMonitoringClassControl.Active>th {
+    color: #6e6eeb;
+}
+
 .MonitoringUseLearnedValue.ToggleBton {
     background: unset;
 }

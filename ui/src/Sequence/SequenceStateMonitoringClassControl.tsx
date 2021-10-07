@@ -40,6 +40,7 @@ type InputProps = {
 
 type MappedProps = {
     enabled: boolean;
+    isActive: boolean;
     settingsList: string[];
     settingsValues: SequenceImageParameters;
     monitoringSettings: SequenceValueMonitoring;
@@ -244,6 +245,9 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
                 items.push(vstr);
             }
         }
+        if (items.length === 0) {
+            return "Frames";
+        }
         return items.join(',');
     });
 
@@ -254,7 +258,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
                       this.props.classStatus.maxAllowedValue != null &&
                     this.props.classStatus.currentValue > this.props.classStatus.maxAllowedValue;
 
-        return <tr className={`SequenceStatMonitoringClassControl ${this.props.enabled ? "Enabled" : "Disabled"}`}>
+        return <tr className={`SequenceStatMonitoringClassControl ${this.props.enabled ? "Enabled" : "Disabled"} ${this.props.isActive ? "Active": "Idle"}`}>
             <th>
                 <div className="SequenceStatMonitoringClassControlCell">
                 <Bool accessor={this.props.accessors.enabledStatus(this.props.uid, this.props.monitoring, this.props.classId)} />
@@ -338,6 +342,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             return {
                 accessors,
                 enabled,
+                isActive: seqDef?.currentImageClass === ownProps.classId,
                 classStatus,
                 classSettings,
                 monitoringSettings,

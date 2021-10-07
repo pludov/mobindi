@@ -19,6 +19,7 @@ import ConfigStore from './ConfigStore';
 import { SequenceLogic, Progress } from './shared/SequenceLogic';
 import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
+import { SequenceParamClassifier } from './shared/SequenceParamClassifier';
 
 const logger = Log.logger(__filename);
 
@@ -648,6 +649,13 @@ export default class SequenceManager
                     const progress = sequenceLogic.getProgress(nextStep);
                     this.currentSequenceProgress = progress;
 
+                    {
+                        const classifier = new SequenceParamClassifier();
+                        sequenceLogic.scanParameters(classifier.addParameter);
+
+                        sequence.currentImageClass = classifier.extractJcsIdForParameters(param);
+                    }
+
                     const shootTitle = (progress.imagePosition + 1) + "/" + progress.totalCount
                                 + (progress.totalTime > 0
                                     ? (" " + Math.round(100 * progress.timeSpent / progress.totalTime) + "%")
@@ -830,6 +838,9 @@ export default class SequenceManager
                 }
             } else {
                 seq.errorMessage = null;
+            }
+            if (s === 'done') {
+                delete seq.currentImageClass;
             }
             this.currentSequenceUuid = null;
             this.currentSequencePromise = null;

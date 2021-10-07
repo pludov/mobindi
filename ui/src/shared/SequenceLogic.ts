@@ -9,6 +9,7 @@ export type SequenceWithStatus = {
 
 
 export type SequenceSize = {
+    currentImageClass?: string;
     totalCount: number;
     totalTime: number;
 }
