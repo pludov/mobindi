@@ -1,6 +1,5 @@
 import "source-map-support/register";
 import { expect, assert } from 'chai';
-import 'mocha';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { exposureToString } from './SequenceStateMonitoringClassControl';
