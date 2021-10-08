@@ -324,7 +324,12 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         const accessors = new AccessorFactory();
 
         const parseJsc = defaultMemoize((jsc: string) => {
-            return JSON.parse(jsc) as SequenceStepParameters;
+            try {
+                return JSON.parse(jsc) as SequenceStepParameters;
+            } catch(error) {
+                console.warn("Unable to parse: " + jsc, error);
+                return {} as SequenceStepParameters;
+            }
         });
         const parameterList = defaultMemoize((jsc: string) => {
             const ssp = parseJsc(jsc);
