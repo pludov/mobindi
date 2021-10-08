@@ -87,7 +87,7 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
             }
         }
 
-        const currentTitle = this.props.delta !== undefined ? "Δ"+this.props.delta : "N/A";
+        const currentTitle = this.props.delta !== undefined ? "Δ"+Math.round(this.props.delta) : "N/A";
         return <>
             {this.props.warning
                 ?
