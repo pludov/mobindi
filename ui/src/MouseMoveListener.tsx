@@ -13,11 +13,46 @@ type PendingAction = {
     drag?: {dx: number, dy: number};
 }
 
+type TouchMemory = {
+    x: number;
+    y: number;
+    scx: number;
+    scy: number;
+    orgScx: number;
+    orgScy: number;
+}
+
 let globalListener:ScreenMouseMoveListener|undefined = undefined;
+
+
+// Get a rough estimate of DPI
+let dpiValue:number|undefined = undefined;
+function getDpi() {
+    if (dpiValue) {
+        return dpiValue;
+    }
+    for (let i = 56; i < 2000; i*=1.25) {
+        if (matchMedia("(max-resolution: " + Math.trunc(i) + "dpi)").matches === true) {
+            dpiValue = Math.trunc(i);
+            console.log('Found dpi ~ ', dpiValue);
+            return dpiValue;
+        }
+    }
+    dpiValue = Math.trunc(i);
+    return dpiValue;
+}
+
+// Touch must be idle for that duration (ms) for long press detection
+const longPressDelay = 500;
+// Allow small move during that duration (ms)
+const longPressIgnoreDelay = 400;
+// Ignore moves under this distance for long press detection
+const longPressIgnoreInchDist = 0.15;
 
 class ScreenMouseMoveListener {
     menuTimer:NodeJS.Timeout|null = null;
-    touches = {};
+    menuTimerStart:number|null = null;
+    touches:{[id:string]:TouchMemory} = {};
     mouseIsDown:boolean = false;
     mouseDragged:boolean = false;
     mouseDragPos?:{x:number, y:number} = undefined;
@@ -135,6 +170,7 @@ class ScreenMouseMoveListener {
         if (this.menuTimer !== null) {
             clearTimeout(this.menuTimer);
             this.menuTimer =  null;
+            this.menuTimerStart = null;
         }
     }
 
@@ -145,14 +181,30 @@ class ScreenMouseMoveListener {
         }
     }
 
+    private readonly updateTouches=(newTouches:ScreenMouseMoveListener["touches"])=>{
+        for(const id of Object.keys(this.touches)) {
+            if (Object.prototype.hasOwnProperty.call(newTouches, id)) {
+                const curT = this.touches[id];
+                const newT = newTouches[id];
+                newT.orgScx = curT.orgScx;
+                newT.orgScy = curT.orgScy;
+            }
+        }
+        Object.assign(this.touches, newTouches);
+    }
+
     readonly touchstart=(e:JQuery.TouchStartEvent<HTMLDivElement>)=>{
         e.preventDefault();
-        var touches = e.originalEvent!.changedTouches;
+        const touches = e.originalEvent!.changedTouches;
         for (var i=0; i<touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
             this.touches[uid] = {
                 x: touches[i].pageX,
-                y: touches[i].pageY
+                y: touches[i].pageY,
+                scx: touches[i].screenX,
+                scy: touches[i].screenY,
+                orgScx: touches[i].screenX,
+                orgScy: touches[i].screenY,
             }
         }
 
@@ -160,12 +212,14 @@ class ScreenMouseMoveListener {
         this.cancelMenuTimer();
         var activeTouches = Object.keys(this.touches);
         if (activeTouches.length == 1) {
-            var where = this.touches[activeTouches[0]];
-            where = {x: where.x, y: where.y};
+            const touch  = this.touches[activeTouches[0]];
+            const where = {x: touch.x, y: touch.y};
+            this.menuTimerStart = new Date().getTime();
             this.menuTimer = setTimeout(()=> {
+                this.menuTimerStart = null;
                 this.flushActions();
                 this.contextMenuAt(where.x, where.y);
-            }, 400);
+            }, longPressDelay);
         } else {
             this.flushActions();
             this.options.closeContextMenu();
@@ -176,7 +230,7 @@ class ScreenMouseMoveListener {
     private readonly touchend=(e:JQuery.TouchEventBase<HTMLDivElement>)=>{
         e.preventDefault();
         this.cancelMenuTimer();
-        var touches = e.originalEvent!.changedTouches;
+        const touches = e.originalEvent!.changedTouches;
         for (var i = 0; i < touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
             delete this.touches[uid];
@@ -197,20 +251,51 @@ class ScreenMouseMoveListener {
 
     private readonly touchmove=(e:JQuery.TouchMoveEvent<HTMLDivElement>)=>{
         e.preventDefault();
-        this.cancelMenuTimer();
-        var touches = e.originalEvent!.changedTouches;
-        var newTouches = {};
+
+        const touches = e.originalEvent!.changedTouches;
+        const newTouches:ScreenMouseMoveListener["touches"] = {};
         for (var i = 0; i<touches.length; i++) {
             var uid = "t:" + touches[i].identifier;
             if (Object.prototype.hasOwnProperty.call(this.touches, uid)) {
                 newTouches[uid] = {
                     x: touches[i].pageX,
-                    y: touches[i].pageY
+                    y: touches[i].pageY,
+                    scx: touches[i].screenX,
+                    scy: touches[i].screenY,
+                    orgScx: touches[i].screenX,
+                    orgScy: touches[i].screenY,
                 }
             }
         }
 
-        var activeTouches = Object.keys(this.touches);
+        const activeTouches = Object.keys(this.touches);
+
+        // Don't prevent within the first 400ms
+        const now = new Date().getTime();
+        if (this.menuTimerStart !== null && now - this.menuTimerStart < longPressIgnoreDelay) {
+            // We accept movment for the first 200ms, FIXME: unless large, define large ?
+            const newTouchesIds = Object.keys(newTouches);
+
+            // Smallest acceptable drift is 0.1 inch
+            const thresold:number = getDpi() * longPressIgnoreInchDist;
+
+            let delta:number = thresold;
+            if (newTouchesIds.length === 0) {
+                delta = 0;
+            } else if (activeTouches.length === 1 && newTouchesIds.length === 1 && activeTouches[0] === newTouchesIds[0]) {
+                const id = activeTouches[0];
+                const orgPos = [this.touches[id].orgScx, this.touches[id].orgScy];
+                const newPos = [newTouches[id].orgScx, newTouches[id].orgScy];
+
+                delta = Math.sqrt((orgPos[0]-newPos[0]) * (orgPos[0]-newPos[0]) + (orgPos[1]-newPos[1]) * (orgPos[1]-newPos[1]));
+            }
+            if (delta >= thresold) {
+                this.cancelMenuTimer();
+            }
+        } else {
+            this.cancelMenuTimer();
+        }
+
         if (activeTouches.length === 2) {
 
             var self = this;
@@ -232,7 +317,7 @@ class ScreenMouseMoveListener {
             }
 
             var before = getPosAndDist();
-            Object.assign(this.touches, newTouches);
+            this.updateTouches(newTouches);
             var after = getPosAndDist();
 
             var offset = this.child.offset()!;
@@ -259,9 +344,9 @@ class ScreenMouseMoveListener {
 
             this.pushAction({drag: {dx, dy}});
 
-            Object.assign(this.touches, newTouches);
+            this.updateTouches(newTouches);
         } else {
-            Object.assign(this.touches, newTouches);
+            this.updateTouches(newTouches);
         }
         this.checkDone();
     }
