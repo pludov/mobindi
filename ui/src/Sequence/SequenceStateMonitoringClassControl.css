@@ -31,7 +31,7 @@
 }
 
 .MonitoringResetLearning.QuickBton:before {
-    content: "🗘";
+    content: "↻";
 }
 
 .SequenceStatMonitoringClassControlCell {
