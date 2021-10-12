@@ -143,7 +143,7 @@ export default class IndiServerStarter {
         var child = child_process.spawn('indiserver', ['-v', '-f', fifopath], {
                 env: env,
                 detached: true,
-                stdio: 'ignore'
+                stdio: ['ignore', process.stdout, process.stderr],
             });
         child.on('error', (err:any)=> {
             logger.warn("Process indiserver error", err);
@@ -383,7 +383,7 @@ export default class IndiServerStarter {
                 }
                 let status;
                 do {
-                    const status = await this.pushOneDriverChange(task.cancellation);
+                    status = await this.pushOneDriverChange(task.cancellation);
 
                     if (status === 0 || status === 'dead') {
                         await Sleep(task.cancellation, 2000);
