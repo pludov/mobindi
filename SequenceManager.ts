@@ -759,7 +759,7 @@ export default class SequenceManager
 
                             if (delta.fromCurWeight >= 1) {
                                 logger.info('Focuser needs adjustment', {sequence, uuid, delta});
-                                sequence.progress = "Adjusting focuser " + shootTitle + " (" + delta.fromCur+")";
+                                sequence.progress = "Adjusting focuser " + shootTitle + " (" + Math.round(delta.fromCur) +")";
 
                                 if (this.context.focuser.needGuideInhibition(sequence.imagingSetup || "invalid")) {
                                     await guiderInhibiter.start(ct);
