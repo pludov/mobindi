@@ -133,7 +133,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         this.lifecycle(CancellationToken.CONTINUE);
 
         if (this.currentStatus.configuration.indiServer !== null) {
-            this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer);
+            this.indiServerStarter = new IndiServerStarter(this.currentStatus.configuration.indiServer, context);
         } else {
             this.indiServerStarter = null;
         }

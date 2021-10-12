@@ -9,6 +9,7 @@ import Sleep from './Sleep';
 import * as Metrics from "./Metrics";
 
 import * as Obj from './shared/Obj';
+import { AppContext } from './ModuleBase';
 
 const logger = Log.logger(__filename);
 
@@ -26,13 +27,15 @@ export default class IndiServerStarter {
     private currentConfiguration: IndiServerState;
     private wantedConfiguration: IndiServerConfiguration;
     private lifeCycle: Task<void>|null;
+    private context: AppContext;
 
     private indiFifoError : number = 0;
     private indiServerStartAttempt : number = 0;
     private indiDriverStartAttempt : {[id:string]: number} = {};
     private indiDriverStopAttempt : {[id:string]: number} = {};
 
-    constructor(wantedConfiguration: IndiServerConfiguration) {
+    constructor(wantedConfiguration: IndiServerConfiguration, context: AppContext) {
+        this.context = context;
         // The actual status of indiserver
         this.currentConfiguration = {
             path: null,
@@ -149,6 +152,7 @@ export default class IndiServerStarter {
             logger.warn("Process indiserver error", err);
         });
         logger.info('Started indiserver', {pid: child.pid});
+        this.currentConfiguration.devices = {};
     }
 
     public restartDevice=async (ct:CancellationToken, dev:string)=>
@@ -371,24 +375,35 @@ export default class IndiServerStarter {
     // otherwise,
     startLifeCycle=()=>{
         createTask<void>(CancellationToken.CONTINUE, async (task:Task<void>)=> {
+            let ranSuccessfully = false;
+            let firstStart = true;
             if (this.lifeCycle !== null) {
                 return;
             }
             this.lifeCycle = task;
             try {
-                const exists = await this.findIndiServer(task.cancellation, true);
-                
-                if (!exists) {
-                    await this.startIndiServer(task.cancellation);
-                }
                 let status;
                 do {
-                    status = await this.pushOneDriverChange(task.cancellation);
+                    const exists = await this.findIndiServer(task.cancellation, firstStart);
+                    firstStart = false;
 
+                    if (!exists) {
+                        if (ranSuccessfully) {
+                            logger.error('IndiServer stopped existing');
+                            this.context.notification.error('Indiserver was stopped/crashed');
+                        }
+                        await this.startIndiServer(task.cancellation);
+                        ranSuccessfully = false;
+                    }
+
+                    status = await this.pushOneDriverChange(task.cancellation);
+                    if (status !== 'dead') {
+                        ranSuccessfully = true;
+                    }
                     if (status === 0 || status === 'dead') {
                         await Sleep(task.cancellation, 2000);
                     }
-                } while(this.wantedConfiguration.autorun && status !== "dead");
+                } while(this.wantedConfiguration.autorun);
             } catch(error) {
                 logger.error('IndiServerStarter error', error);
             } finally {
