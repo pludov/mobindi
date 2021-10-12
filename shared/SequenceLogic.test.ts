@@ -469,6 +469,179 @@ describe("SequenceLogic", () => {
     });
 
 
+    const twoForeach:()=>Sequence=()=>({
+        ...unusedFields,
+        status: "idle",
+        progress: null,
+        
+        title: "Test sequence",
+        imagingSetup: "imaging_setup_id",
+        errorMessage: null,
+        
+        stepStatus: {},
+        root: {
+            repeat: 3,
+            childs: {
+                list: [ "aaaa", "bbbb" ],
+                byuuid: {
+                    "aaaa": {
+                        exposure: 10,
+                        foreach: {
+                            param: "filter",
+                            list: [
+                                "aaa",
+                                "bbb",
+                                "ccc"
+                            ],
+                            byuuid: {
+                                "aaa": { filter: "red" },
+                                "bbb": { filter: "green"},
+                                "ccc": { filter: "blue"},
+                            }
+                        }
+                    },
+                    "bbbb": {
+                        exposure: 20,
+                        foreach: {
+                            param: "filter",
+                            list: [
+                                "aaa",
+                                "bbb",
+                                "ccc"
+                            ],
+                            byuuid: {
+                                "aaa": { filter: "h" },
+                                "bbb": { filter: "s"},
+                                "ccc": { filter: "o"},
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        
+        // uuids of images
+        images: [],
+        imageStats: {},
+    });
+
+    it("scan two foreach ", () => {
+        const sequence = twoForeach();
+
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const scan = scanAccumulator();
+        logic.scanParameters(scan.cb);
+        assert.deepStrictEqual(scan.result, [
+            {
+                param: {
+                    exposure: 10,
+                    filter: "red",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "green",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 10,
+                    filter: "blue",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 20,
+                    filter: "h",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 20,
+                    filter: "s",
+                },
+                count: 3
+            },
+            {
+                param: {
+                    exposure: 20,
+                    filter: "o",
+                },
+                count: 3
+            },
+        ]);
+
+    });
+
+    it("proceed two foreach", () => {
+        // Really RGBHSO, RGBHSO, RGBHSO
+        const sequence = twoForeach();
+        
+        const logic:SequenceLogic = new SequenceLogic(sequence, uuidMock());
+        const uuidNext = uuidMock();
+
+        let nextStep : ReturnType<typeof logic.getNextStep>;
+        let nextStepParams;
+        
+        const filters = [ "red", "green", "blue", "h", "s", "o"];
+        const filterUuids = [ "aaa", "bbb", "ccc", "aaa", "bbb", "ccc"];
+        let execCount = 0;
+        for(let repeat of [0, 1, 2]) {
+            const uuidParent = uuidNext();
+            for(let baseId = 0; baseId < filters.length; baseId += 3) {
+                for(let filterPos = baseId; filterPos < baseId + 3; ++filterPos) {
+                    const filter = filters[filterPos];
+                    const filterUuid = filterUuids[filterPos];
+                    
+                    nextStep = logic.getNextStep();
+                    
+                    // Check parameters are exactly one
+                    assert.notStrictEqual(nextStep, undefined);
+                    assert.equal(nextStep!.length, 2);
+                    assert.deepStrictEqual(nextStep!.map(e=>e.status),
+                    [
+                        {
+                            "currentForeach": null,
+                            "finishedForeach": null,
+                            "execUuid": uuidParent,
+                            "finishedLoopCount": repeat,
+                            "parentExecUuid": null,
+                            "activeChild": (baseId === 0 ? "aaaa" : "bbbb"),
+                        },
+                        {
+                            "currentForeach": filterUuid,
+                            "finishedForeach": filterUuids.slice(baseId, filterPos).reduce((acc:any, value:string)=>{ acc[value] = true;return acc}, {}),
+                            "execUuid": uuidNext(),
+                            "finishedLoopCount": 0,
+                            "parentExecUuid": uuidParent,
+                        }
+                    ], `step ${repeat} with ${filter}`);
+                    assert.strictEqual(nextStep![1].step, baseId === 0 ? sequence.root.childs!.byuuid.aaaa : sequence.root.childs!.byuuid.bbbb);
+                    
+                    nextStepParams = logic.getParameters(nextStep!);
+
+                    assert.deepStrictEqual(nextStepParams, {
+                        filter: filter,
+                        exposure: filterPos < 3 ? 10 : 20,
+                    }, `step ${repeat} with ${filter}`);
+
+                    logic.finish(nextStep![nextStep!.length - 1]);
+                }
+                uuidNext();
+            }
+        }
+
+        nextStep = logic.getNextStep();
+        assert.strictEqual(nextStep, undefined);
+    });
+
+
+
     const foreachAndRepeatWithTwoChilds:()=>Sequence=()=>({
         ...unusedFields,
         status: "idle",
