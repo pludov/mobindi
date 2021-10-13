@@ -280,7 +280,7 @@ export default class Notifier {
         if (this.socket) {
             let notifications:any[] = [];
             let flushTimeout: NodeJS.Timeout|undefined = undefined;
-
+            let inactivityTimeout: NodeJS.Timeout|undefined = undefined;
             const orgSocket = this.socket;
 
             const discardEvent = (event:string)=>{
@@ -318,10 +318,26 @@ export default class Notifier {
                 }
             }
 
+            const discardInactivityTimeout=()=>{
+                if (inactivityTimeout) {
+                    clearTimeout(inactivityTimeout);
+                    inactivityTimeout = undefined;
+                }
+            }
+
+            const resetInactivityTimeout=()=>{
+                discardInactivityTimeout();
+                inactivityTimeout = setTimeout(()=> {
+                    inactivityTimeout = undefined;
+                    orgSocket.close();
+                }, 120000);
+            };
+
             this.socket.onopen = (data)=>{
                 if (discardEvent("onopen")) return;
-
                 logger.info('Websocket: connected');
+                resetInactivityTimeout();
+
                 this.write({
                     type: "auth",
                     whiteList: this.whiteList,
@@ -329,6 +345,7 @@ export default class Notifier {
             };
             this.socket.onmessage = (event)=>{
                 if (discardEvent("onmessage")) return;
+                resetInactivityTimeout();
 
                 const data = JSON.parse(event.data);
                 if (data.type == 'welcome') {
@@ -338,7 +355,6 @@ export default class Notifier {
 
                     this.handleNotifications({data: data.data});
                 }
-
 
                 if (data.type == 'requestEnd') {
                     flushNotifications();
@@ -373,6 +389,7 @@ export default class Notifier {
                 }
             };
             this.socket.onclose = (data)=>{
+                discardInactivityTimeout();
                 if (discardEvent("onclose")) return;
 
                 logger.info('Websocket: closed');
@@ -386,6 +403,7 @@ export default class Notifier {
                 }, 1000);
             };
             this.socket.onerror = (error)=>{
+                discardInactivityTimeout();
                 if (discardEvent("onerror")) return;
 
                 logger.error('Websocket: error', {url: this.url, error});
