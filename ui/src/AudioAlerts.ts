@@ -90,7 +90,14 @@ async function loadSound(url: string): Promise<AudioBuffer> {
 }
 
 
-function playSound(buffer: AudioBuffer|undefined, rate: number, tweak?: (t: AudioBufferSourceNode)=>{}) {
+function audioNow() {
+    if (audioContext == undefined) {
+        return new Date().getTime();
+    }
+    return audioContext.currentTime;
+}
+
+function playSound(buffer: AudioBuffer|undefined, opts?: {rate?: number, tweak?: (t: AudioBufferSourceNode)=>{}, when?: number, offset?:number}) {
     if (audioContext === undefined) {
         throw new Error("Audio not available");
     }
@@ -99,12 +106,12 @@ function playSound(buffer: AudioBuffer|undefined, rate: number, tweak?: (t: Audi
     }
     const source = audioContext.createBufferSource(); // creates a sound source
     source.buffer = buffer;                    // tell the source which sound to play
-    source.playbackRate.value = rate;
-    if (tweak) tweak(source);
+    source.playbackRate.value = opts?.rate || 1;
+    if (opts?.tweak) opts?.tweak(source);
     //source.detune.value = -600;
     source.connect(audioContext.destination);       // connect the source to the context's destination (the speakers)
 
-    source.start(0);                           // play the source now
+    source.start(opts?.when || 0, opts?.offset||0);                           // play the source now
                                                // note: on older systems, may have to use deprecated noteOn(time);
     return source;
 }
@@ -164,7 +171,7 @@ async function run(uniqueId: number) {
     }
     currentRunnerConfUpdate = onConfUpdate;
 
-    playSound(resources.startup, 1);
+    playSound(resources.startup);
 
     // FIXME: detect notifications ids from store
     // Warn those present for more than xxx seconds (configuration)
@@ -185,7 +192,7 @@ async function run(uniqueId: number) {
         if (alarmState) {
             logger.info('Audio alarm state', {alarmState});
             if (alarmPlay === undefined) {
-                alarmPlay = playSound(resources.alarm, 1, (t)=>t.loop=true);
+                alarmPlay = playSound(resources.alarm, {tweak: (t)=>t.loop=true});
             }
         } else {
             stopAlarm();
@@ -197,7 +204,7 @@ async function run(uniqueId: number) {
     let prevClock: number = 0;
     function clock() {
         clockSchedule = undefined;
-        const time = scheduleClock();
+        let {time, delay} = scheduleClock();
         if (time === prevClock) {
             return;
         }
@@ -209,13 +216,17 @@ async function run(uniqueId: number) {
 
         const gongDelay = 2;
 
+        // We are scheduled with a theorical 500 ms delay. So program the sound with that delay
+        const when = audioNow() + 0.5 - delay/1000;
+
         if (currentConfig.tictacHours && (dt.getMinutes() % 60 === 0) && (dt.getSeconds() < gong * gongDelay)) {
             if (dt.getSeconds() % gongDelay === 0) {
-                playSound(resources.bell, 1);
+                playSound(resources.bell, {when});
             }
         } else {
             let high = (time / 1000) % 2;
-            playSound(resources.tick, 6 + 2 * high);
+            const rate = 6 + 2 * high;
+            playSound(resources.tick, {rate, when});
         }
     }
 
@@ -227,17 +238,20 @@ async function run(uniqueId: number) {
     }
 
     function scheduleClock() {
-        const date = new Date().getTime();
+        // Insert a confortable 500 ms delay here (to program with good accuracy)
+        const date = new Date().getTime() + 500;
         const nextSecond = (date - (date % 1000) + 1000);
         clockSchedule = setTimeout(clock, nextSecond - date);
-        return (nextSecond - 1000);
+        const time = nextSecond - 1000;
+        const delay = date - time;
+        return { time, delay };
     }
 
     function onConfUpdate() {
         if ((!currentConfig.active) || (currentRunnerId !== uniqueId)) {
             clearInterval(handler);
             unscheduleClock();
-            playSound(resources.finish, 1);
+            playSound(resources.finish);
             return;
         }
 
