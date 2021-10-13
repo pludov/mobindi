@@ -111,8 +111,7 @@ function playSound(buffer: AudioBuffer|undefined, opts?: {rate?: number, tweak?:
     //source.detune.value = -600;
     source.connect(audioContext.destination);       // connect the source to the context's destination (the speakers)
 
-    source.start(opts?.when || 0, opts?.offset||0);                           // play the source now
-                                               // note: on older systems, may have to use deprecated noteOn(time);
+    source.start(Math.max(opts?.when || 0, 0), opts?.offset||0);
     return source;
 }
 
