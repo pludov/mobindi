@@ -56,11 +56,17 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
             );
 
             let fwhm = Algebra.starFieldFwhm(e.stars);
+            let stat;
             if (isNaN(fwhm)) {
+                if (e.stars.length) {
+                    stat = "All stars are saturated";
+                } else {
+                    stat = "No star found"
+                }
                 fwhm = 0;
+            } else {
+                stat = fwhm.toFixed(2) + " - " + e.stars.length + " stars"
             }
-
-            const stat = fwhm.toFixed(2) + " - " + e.stars.length + " stars"
 
             this.setState({
                 value: stat,
@@ -68,7 +74,7 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
             });
         } catch(e) {
             this.setState({
-                value: null,
+                value: "N/A " + (e.message || e),
                 loading: false
             });
         };
