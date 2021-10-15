@@ -73,6 +73,7 @@ namespace SharedCache {
 			j["y"] = i.y;
 			j["fwhm"] = i.fwhm;
 			j["peak"] = i.peak;
+			j["sat"] = i.sat;
 			j["stddev"] = i.stddev;
 			j["maxFwhm"] = i.maxFwhm;
 			j["maxStddev"] = i.maxStddev;
@@ -81,14 +82,16 @@ namespace SharedCache {
 			j["minStddev"] = i.minStddev;
 			j["minFwhmAngle"] = i.minFwhmAngle;
 			j["flux"] = i.flux;
+
 		}
 
 		void from_json(const nlohmann::json&j, StarOccurence & i)
 		{
 			i.x = j.at("x").get<double>();
 			i.y = j.at("y").get<double>();
-			i.fwhm = j.at("fwhm").get<double>();
+			i.sat = j.at("sat").get<bool>();
 			i.peak = j.at("peak").get<double>();
+			i.fwhm = j.at("fwhm").get<double>();
 			i.stddev = j.at("stddev").get<double>();
 			i.maxFwhm = j.at("maxFwhm").get<double>();
 			i.maxStddev = j.at("maxStddev").get<double>();

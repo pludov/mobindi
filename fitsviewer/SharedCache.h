@@ -107,6 +107,7 @@ namespace SharedCache {
 		struct StarOccurence {
 			double x, y;
 			double peak;
+			bool sat;
 			double fwhm, stddev, flux;
 			double maxFwhm, maxStddev, maxFwhmAngle;
 			double minFwhm, minStddev, minFwhmAngle;

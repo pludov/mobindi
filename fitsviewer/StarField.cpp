@@ -185,6 +185,7 @@ public:
 		BitMask checkedArea(0, 0, content->w - 1, content->h - 1);
 
 		int left = maxCount;
+		int satLeft = maxCount / 2;
 		std::vector<StarOccurence> resultVec;
 		resultVec.reserve(maxCount);
 		for(const auto & star : stars)
@@ -194,11 +195,21 @@ public:
 			sf.setExcludeMask(&checkedArea);
 			StarOccurence result;
 			if (sf.perform(result)) {
+				if (result.sat && satLeft <= 0) {
+					if (satLeft == 0) {
+						cout << "too many saturated\n";
+						satLeft--;
+					}
+					continue;
+				}
 				cout << result.x << "\t" << result.y << "\t=> " << result.fwhm << "\n";
 				resultVec.push_back(result);
 				maxCount--;
 				if (maxCount <= 0) {
 					break;
+				}
+				if (result.sat) {
+					satLeft--;
 				}
 			}
 		}

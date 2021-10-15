@@ -211,5 +211,6 @@ bool StarFinder::perform(StarOccurence & result) {
     result.minFwhmAngle = minAngle;
     result.flux = aduSum;
     result.peak = maxAbsAdu / (content->bitpix == 8 ? 255.0 : 65535.0);
+    result.sat = (maxAbsAdu << (content->bitpix - 16)) >= 65535*0.9;
     return true;
 }
