@@ -256,7 +256,7 @@ export default class Phd
         }
     }
 
-    private clearCalibration = ()=> {
+    private clearCalibrationData = ()=> {
         this.currentStatus.calibration = null;
     }
 
@@ -272,7 +272,7 @@ export default class Phd
             }
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
-                this.clearCalibration();
+                this.clearCalibrationData();
             }
         }
     }
@@ -524,7 +524,7 @@ export default class Phd
     }
 
     private clearPolledData = ()=> {
-        this.clearCalibration();
+        this.clearCalibrationData();
         this.clearExposure();
         this.clearCurrentEquipment();
         this.clearExposureDurations();
@@ -784,7 +784,7 @@ export default class Phd
                 }
                 var event = JSON.parse(data);
                 if (Obj.hasKey(event, 'Timestamp')) {
-                    event.TimeStamp = parseFloat(event.TimeStamp);
+                    event.Timestamp = parseFloat(event.Timestamp);
                 }
                 if ("Event" in event) {
                     const eventToStatus:{[id:string]:PhdAppState} = {
@@ -841,7 +841,7 @@ export default class Phd
                             }
                         case "CalibrationComplete":
                             {
-                                this.clearCalibration();
+                                this.clearCalibrationData();
                                 this.queryCalibration(CancellationToken.CONTINUE);
                                 break;
                             }
@@ -1130,6 +1130,7 @@ export default class Phd
             stopGuide: this.stopGuide,
             setExposure: this.setExposure,
             setLockPosition: this.setLockPosition,
+            clearCalibration: this.clearCalibration,
         }
         return ret;
     };
@@ -1292,6 +1293,13 @@ export default class Phd
                 params: [ payload.exposure ]
             });
         await this.queryExposure(ct);
+    }
+
+    clearCalibration = async(ct:CancellationToken, payload: {})=>{
+        await this.sendOrderWithFailureLog(ct, {
+                method: 'clear_calibration',
+            });
+        await this.queryCalibration(ct);
     }
 
     setLockPosition = async(ct: CancellationToken, payload: { x: number, y:number, exact: boolean})=>{

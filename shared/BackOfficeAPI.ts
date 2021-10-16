@@ -199,6 +199,7 @@ export type PhdAPI = {
     stopGuide: (payload: {})=>void;
     setExposure: (payload: {exposure: number})=>void;
     setLockPosition: (payload: { x: number, y:number, exact: boolean})=>void;
+    clearCalibration: (payload: {})=>void;
 }
 
 export type BackOfficeAPI = {
