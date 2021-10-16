@@ -1,5 +1,6 @@
 import "source-map-support/register";
 import { expect, assert } from 'chai';
+import * as util from 'util';
 import 'mocha';
 
 import JsonProxy, {has, WhiteList} from './shared/JsonProxy';
@@ -603,6 +604,28 @@ describe("Json proxy", () => {
         previousData = checkConst(data);
     });
 
+
+    it('inspect/stringify correctly', ()=>{
+        function initObj(obj:any) {
+            obj.a = "bonjour";
+            obj.b = {bChild:"truc"};
+            obj.c = ["a",2, "c"];
+            obj.c[1]++;
+            obj.c[2]={coucou:1};
+            obj.d={};
+            obj.d=false;
+        }
+
+        const changeTracker = new JsonProxy<any>();
+        const root = changeTracker.getTarget();
+        initObj(root);
+
+        const reference = {};
+        initObj(reference);
+
+        assert.strictEqual(util.inspect(root), util.inspect(reference), "Proxy not visible through util.inspect");
+        assert.strictEqual(JSON.stringify(root), JSON.stringify(reference), "Proxy not visible through JSON.stringify");
+    });
 
 
 });

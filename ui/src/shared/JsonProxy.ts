@@ -1,6 +1,7 @@
 'use strict';
 
 import { WildcardAccessPath } from './AccessPath';
+import * as util from 'util';
 
 /**
  * Created by ludovic on 21/07/17.
@@ -706,6 +707,14 @@ export default class JsonProxy<CONTENTTYPE> {
             serial: this.currentSerial,
             childSerial: undefined
         };
+        (details as any)[util.inspect.custom] = ()=>{
+            if (valueHasChild(details.value)) {
+                return details.value;
+            } else {
+                return util.inspect(details.value);
+            }
+        }
+
         this.useCurrentSerial();
         this.markDirty(details);
         return details;
@@ -882,7 +891,7 @@ export default class JsonProxy<CONTENTTYPE> {
                             currentDesc.value = null;
                             self.markDirty(currentDesc);
                         }
-                        if (currentDesc.value != newValue) {
+                        if (currentDesc.value !== newValue) {
                             currentDesc.value = newValue;
                             self.markDirty(currentDesc);
                         }
