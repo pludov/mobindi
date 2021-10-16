@@ -4,6 +4,7 @@ import ReactResizeDetector from 'react-resize-detector';
 import * as Store from '../Store';
 
 import { atPath } from '../shared/JsonPath';
+import * as Obj from '../shared/Obj';
 import './Table.css';
 import TableEntry from './TableEntry';
 import ObjectReselect from '../utils/ObjectReselect';
@@ -15,7 +16,8 @@ export type HeaderItem = {
 export type FieldDefinition = {
     render?:(item: any)=>React.ReactNode
     title: string;
-    defaultWidth: string;
+    minimumWidth: string;
+    grow?: number;
 }
 
 type InputProps<DatabaseObject> = {
@@ -24,6 +26,7 @@ type InputProps<DatabaseObject> = {
     currentAutoSelectSerialPath: string;
     fields: {[id: string]: FieldDefinition},
     defaultHeader: Array<HeaderItem>,
+    itemHeight: string;
 
     getDatabases: (store: Store.Content)=>DatabaseObject;
     // store => [items]
@@ -48,24 +51,86 @@ function firstDefined<T>(a: T, b: T): T
     return b;
 }
 
+type State = {
+    minId:number;
+    maxId:number;
+}
 /**
  * state for table is :
  *  (none)
  */
-class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
-    private selected = React.createRef<TableEntry<DatabaseObject>>();
+class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>, State> {
+    private selected = React.createRef<HTMLDivElement>();
 
+    private scrollAreaRef = React.createRef<HTMLDivElement>();
+    private tbodyRef = React.createRef<HTMLTableSectionElement>();
     private header = React.createRef<HTMLTableElement>();
     private lastScrollSerial?:number = undefined;
 
-    scrollIfRequired() {
-        if (this.lastScrollSerial === undefined || this.lastScrollSerial < this.props.currentAutoSelectSerial) {
-            const selected = this.selected.current;
-            if (selected) {
-                selected.scrollIn();
-                this.lastScrollSerial = (this.props.currentAutoSelectSerial||0);
-            }
+    constructor(props:Props<DatabaseObject>) {
+        super(props);
+        this.state = {
+            minId: 0,
+            maxId: 0
         }
+    }
+
+    getElemHeight() {
+        const match = /^([\d.]+)(.*)$/.exec(this.props.itemHeight);
+        if (!match) {
+            throw new Error("invalid height. Try 1.25em");
+        }
+        return {
+            elemHeight: parseFloat(match[1]),
+            heightUnit: match[2]
+        };
+    }
+
+    updateBounds=()=> {
+        const tbody = this.tbodyRef.current;
+        if (!tbody) return false;
+
+        const scrollAreaElt = this.scrollAreaRef.current;
+        if (!scrollAreaElt) return false;
+
+        const items = this.props.getItemList(this.props.databases);
+        const eltCount = items.length;
+
+        const sizeRef = tbody.getBoundingClientRect();
+        const heightRef = sizeRef.height / eltCount;
+
+        const scrollAreaRect = scrollAreaElt.getBoundingClientRect();
+        const scrollAreaHeight = scrollAreaRect.height;
+
+        const minId = Math.floor(scrollAreaElt.scrollTop / heightRef);
+        const maxId = Math.ceil((scrollAreaElt.scrollTop + scrollAreaHeight + 1) / heightRef) + 1;
+
+        if (this.state.minId === minId && this.state.maxId === maxId) {
+            return false;
+        }
+
+        this.setState({minId, maxId});
+
+        return true;
+    }
+
+    scrolled=()=>{
+        setTimeout(()=>{
+            this.updateBounds()
+        });
+    }
+
+    scrollIfRequired() {
+        setTimeout(()=>{
+            this.updateBounds();
+            if (this.lastScrollSerial === undefined || this.lastScrollSerial < this.props.currentAutoSelectSerial) {
+                const selected = this.selected.current;
+                if (selected) {
+                    selected.scrollIntoView();
+                    this.lastScrollSerial = (this.props.currentAutoSelectSerial||0);
+                }
+            }
+        },1);
     }
 
     componentDidMount() {
@@ -80,56 +145,102 @@ class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
         this.header.current!.style.width = width + "px";
     }
 
-    render() {
-        const content = [];
+    lastCellStyle:Array<React.CSSProperties>=[];
 
-        for(const o of this.props.getItemList(this.props.databases))
-        {
-            content.push(<TableEntry
-                key={o}
-                fields={this.props.fields}
-                header={this.props.header}
-                databases={this.props.databases}
-                getItem={this.props.getItem}
-                // statePath={this.props.statePath + '.items[' + JSON.stringify(o) + ']'}
-                uid={o}
-                onItemClick={this.props.onItemClick}
-                selected={o===this.props.current}
-                ref={o===this.props.current ? this.selected : null}
-            />);
-        }
+    cellStyle=()=> {
+        const { elemHeight, heightUnit } = this.getElemHeight();
 
-        const cols = [];
-        const header = [];
+        const cellStyle = [];
+        const cellMinWidths = []
+        let growSum = 0;
+
         for(const o of this.props.header) {
             const field = this.props.fields[o.id];
-            const style = field.defaultWidth.endsWith('%') ? { width: field.defaultWidth } : { minWidth: field.defaultWidth };
-            header.push(<th key={o.id}>
-                {field.title}
-            </th>);
-            cols.push(<col key={o.id} style={style}/>);
+            if (field.grow) growSum += field.grow;
+            cellMinWidths.push(field.minimumWidth);
         }
+        for(const o of this.props.header) {
+            const field = this.props.fields[o.id];
+            cellStyle.push({
+                width: !field.grow
+                        ? field.minimumWidth
+                        : `calc( ${field.minimumWidth} + ${field.grow / growSum} * ( 100% - ${cellMinWidths.join(' - ')} ) )`,
+                display: "inline-block",
+                height: (elemHeight + heightUnit)
+            });
+        }
+        if (!Obj.deepEqual(cellStyle, this.lastCellStyle)) {
+            this.lastCellStyle = cellStyle;
+            console.log(cellStyle);
+        }
+
+        return this.lastCellStyle;
+    }
+
+    render() {
+        const content = [];
+        const { elemHeight, heightUnit } = this.getElemHeight();
+
+        let id = 0;
+        const items = this.props.getItemList(this.props.databases);
+        let totalHeight = elemHeight * items.length;
+
+        const cellStyle = this.cellStyle();
+
+        const header = [];
+        let i = 0;
+        for(const o of this.props.header) {
+            const field = this.props.fields[o.id];
+            const style = cellStyle[i];
+            header.push(<div key={o.id} style={style} className={`CellHeader`}>
+                {field.title}
+            </div>);
+            i++;
+        }
+
+        let selector: React.ReactElement<any, any>|null = null;
+        let spacer: React.ReactElement<any, any>|null = null;
+        if (this.state.minId > 0) {
+            spacer = <div style={{height: (elemHeight * this.state.minId) + heightUnit}}>
+            </div>;
+        }
+        for(id = this.state.minId; id < this.state.maxId && id < items.length; ++id) {
+            const o = items[id];
+            const item = this.props.getItem(this.props.databases, o);
+            content.push(<TableEntry
+                    key={o}
+                    height={elemHeight + heightUnit}
+                    cellStyles={cellStyle}
+                    fields={this.props.fields}
+                    header={this.props.header}
+                    item={item}
+                    uid={o}
+                    onItemClick={this.props.onItemClick}
+                    selected={o===this.props.current}
+                />);
+        }
+
+        const selectedId = items.indexOf(this.props.current);
+        if (selectedId !== -1) {
+            selector=<div style={{height: (elemHeight + heightUnit),  position: "absolute", width: "100%", top: (selectedId * elemHeight) + heightUnit}} ref={this.selected}>
+            </div>
+        }
+
         return <div className="DataTable">
-            <table className="DataTableHeader" ref={this.header}>
-                <colgroup>
-                    {cols}
-                </colgroup>
-                <thead>
-                    <tr>{header}</tr>
-                </thead>
-            </table>
-            <div className="DataTableScrollable">
+            <div className="DataTableHeader" ref={this.header}>
+                <div>
+                    {header}
+                </div>
+            </div>
+            <div className="DataTableScrollable" ref={this.scrollAreaRef} onScroll={this.scrolled}>
                 <div>
                     <ReactResizeDetector handleWidth onResize={this.onParentResize} />
 
-                    <table className="DataTableData">
-                        <colgroup>
-                            {cols}
-                        </colgroup>
-                        <tbody>
-                            {content}
-                        </tbody>
-                    </table>
+                    <div className="DataTableData" style={{height: totalHeight + heightUnit, position: "relative"}} ref={this.tbodyRef}>
+                        {selector}
+                        {spacer}
+                        {content}
+                    </div>
                 </div>
             </div>
         </div>;

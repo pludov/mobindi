@@ -6,6 +6,8 @@ import * as Table from "./Table";
 import ScrollableText from '../ScrollableText';
 
 export type Props<DatabaseObject> = {
+    height: string;
+    cellStyles: Array<React.CSSProperties>;
     header: Array<Table.HeaderItem>;
     fields: {
         [id: string]: Table.FieldDefinition
@@ -13,9 +15,8 @@ export type Props<DatabaseObject> = {
     selected: boolean;
     uid: string;
 
-    databases: DatabaseObject;
+    item: any;
     onItemClick: (uid:string, e:React.MouseEvent<HTMLTableRowElement>)=>void;
-    getItem: (databases: DatabaseObject, uid:string)=>any,
 };
 
 class TableEntry<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
@@ -23,12 +24,13 @@ class TableEntry<DatabaseObject> extends React.PureComponent<Props<DatabaseObjec
 
     constructor(props:Props<DatabaseObject>) {
         super(props);
-        this.onClick = this.onClick.bind(this);
     }
 
     render() {
         var content = [];
-        const item = this.props.getItem(this.props.databases, this.props.uid);
+
+        const item = this.props.item;
+        let i = 0;
         for(var o of this.props.header)
         {
             var field = this.props.fields[o.id];
@@ -38,10 +40,17 @@ class TableEntry<DatabaseObject> extends React.PureComponent<Props<DatabaseObjec
             } else {
                 details = item === undefined ? "N/A" : "" + item[o.id];
             }
-            content.push(<td key={o.id}><ScrollableText>{details}</ScrollableText>
-            </td>)
+            content.push(<div key={o.id} className="Cell" style={this.props.cellStyles[i]}>
+                <ScrollableText>
+                    {details}
+                </ScrollableText>
+            </div>)
+            i++;
         }
-        return <tr onClick={this.onClick} className={this.props.selected?"selected" : ""} ref={this.tr}>{content}</tr>
+
+        return <div onClick={this.onClick} className={`Row ${this.props.selected?"selected" : ""}`} style={{height: this.props.height, overflow: "hidden" }} ref={this.tr}>
+                {content}
+            </div>
     }
 
     onClick=(e:React.MouseEvent<HTMLTableRowElement>)=>{

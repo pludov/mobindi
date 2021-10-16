@@ -48,25 +48,26 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
     {
         id: 'path',
         title:  'File',
-        defaultWidth: '100%',
+        minimumWidth: '3em',
+        grow: 1,
         render: (o:BackOfficeStatus.ImageStatus)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
     },
     {
         id: 'backgroundLevel',
         title: 'BG',
-        defaultWidth: '4em',
+        minimumWidth: '4em',
         render: (o:BackOfficeStatus.ImageStats)=>(o.backgroundLevel === undefined ? null: <span className='stat-bg'>{Math.trunc(o.backgroundLevel * 65535).toString()}</span>),
     },
     {
         id: 'fwhm',
         title: 'FWHM',
-        defaultWidth:'4em',
+        minimumWidth:'4em',
         render: (o:BackOfficeStatus.ImageStats)=>(o.fwhm === undefined ? null: <span className='stat-fwhm'>{o.fwhm.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits: 2})}</span>),
     },
     {
         id: 'guideStats',
         title: 'PHD',
-        defaultWidth: '4em',
+        minimumWidth: '4em',
         render: (o:BackOfficeStatus.ImageStats)=>{
             const rms = o.guideStats?.RADECDistanceRMS;
             if (rms === null || rms === undefined) {
@@ -185,6 +186,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     </div>
                     <div className="SequenceViewTable">
                         <Table statePath="$.sequenceView.list"
+                            itemHeight="1.20em"
                             fields={fields}
                             defaultHeader={defaultHeader}
                             getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>

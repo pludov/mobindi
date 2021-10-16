@@ -1,5 +1,5 @@
-table.DataTable {
-    min-width: 100%;
+.TableHeaderCell {
+    display: inline-block;
 }
 
 div.DataTable {
@@ -19,21 +19,34 @@ div.DataTableScrollable {
     flex: 1;
 }
 
-.DataTable td {
+.DataTable .Cell {
     overflow: hidden;
     white-space: nowrap;
     word-break: break-all;
     text-overflow: ellipsis;
-    max-width: 0em;
-    min-width: 0em;
 }
-.DataTable th {
+
+
+.CellHeader {
     overflow: hidden;
     white-space: nowrap;
     word-break: break-all;
     text-overflow: ellipsis;
-    max-width: 0em;
-    min-width: 0em;
+    font-weight: bold;
+    text-align: center;
+    border-right: 0.25vw solid #303030;
+    box-sizing: border-box;
+    height: 1.25em;
+    padding-left: 0.05em;
+    padding-right: 0.05em;
+}
+
+
+.Cell {
+    border-right: 0.25vw solid #303030;
+    box-sizing: border-box;
+    padding-left: 0.05em;
+    padding-right: 0.05em;
 }
 
 .DataTableHeader {
@@ -44,12 +57,8 @@ div.DataTableScrollable {
     border-bottom: 0.25vw solid #303030;
     border-spacing: 0px;
     border-collapse: separate;
-    table-layout: fixed;
     /* min-width: 100%; */
-}
-
-.DataTableHeader th {
-    margin: 0px;
+    height: 1.25em;
 }
 
 .DataTableData {
@@ -57,26 +66,13 @@ div.DataTableScrollable {
     display: block;
     border-spacing: 0px;
     border-collapse: separate;
-    table-layout: fixed;
     /*min-width: 100%;*/
 }
 
-.DataTableData td {
-    margin: 0px;
-}
-
-.DataTableHeader th:not(:first-child) {
-    border-left: 0.25vw solid #303030;
-}
-
-.DataTableData td:not(:first-child) {
-    border-left: 0.25vw solid #303030;
-}
-
-.DataTableData tr.selected {
+.DataTableData .Row.selected {
     background-color: #306060;
 }
 
-.DataTableData tr {
+.DataTableData .Row {
     cursor: pointer;
 }
