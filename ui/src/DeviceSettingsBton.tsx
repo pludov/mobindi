@@ -26,7 +26,7 @@ export default class DeviceSettingsBton extends React.PureComponent<Props> {
         return <>
             <input type="button" onClick={this.config} disabled={this.props.deviceId === null} className="DeviceSettingsBton" {...DeviceSettingsBton.help.dom()} value={"\u2699"}/>
             {this.props.deviceId !== null
-                ? <Modal ref={this.modal}>
+                ? <Modal ref={this.modal} closeOnChange={this.props.deviceId}>
                     <IndiDriverConfig driverId={this.props.deviceId!} />
                 </Modal>
                 : null

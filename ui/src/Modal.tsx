@@ -6,10 +6,12 @@ type Props = {
     forceVisible?: boolean;
     onClose?:()=>(void);
     closeHelpKey?: Help.Key;
+    closeOnChange?: any;
 }
 
 type State = {
     visible: boolean;
+    currentCloseOnChange: any;
 }
 
 // Remark: this could also be used for selectors
@@ -17,8 +19,16 @@ class Modal extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = {
-            visible: false
+            visible: false,
+            currentCloseOnChange: undefined
         }
+    }
+
+    static getDerivedStateFromProps(props: Props, state: State) {
+        if (state.visible && state.currentCloseOnChange !== props.closeOnChange) {
+            return {visible: false, currentCloseOnChange: undefined}
+        }
+        return {}
     }
 
     render() {
@@ -29,13 +39,13 @@ class Modal extends React.PureComponent<Props, State> {
         return <div className="Modal">
                     <div className="ModalContent">
                         {this.props.children}
-                        <input type='button' value='Close' onClick={this.close} {...this.props.closeHelpKey?.dom()}/>
+                        <input type='button' value={this.props.closeHelpKey?.title || 'Close'} onClick={this.close} {...this.props.closeHelpKey?.dom()}/>
                     </div>
         </div>;
     }
 
     public readonly open=()=>{
-        this.setState({visible: true});
+        this.setState({visible: true, currentCloseOnChange: this.props.closeOnChange});
     }
 
     public readonly close=()=>{

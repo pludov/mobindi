@@ -11,6 +11,7 @@ import { atPath } from '../shared/JsonPath';
 import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import StatusLabel from './StatusLabel';
 import CancellationToken from 'cancellationtoken';
+import Modal from '../Modal';
 
 type InputProps = {
     currentPath: string;
@@ -35,12 +36,18 @@ export class SequenceControler extends React.PureComponent<Props, State> {
     private static resetBtonHelp = Help.key("reset", "Reset the current sequence. It will restart from the begining, whatever process has already been made.");
     private static dropBtonHelp = Help.key("drop", "Remove the sequence from the list. The image files are not dropped.");
 
+
+    private static confirmDropBtonHelp = Help.key("confirm", "Confirm sequence removal");
+    private static abortDropBtonHelp = Help.key("abort", "Abort sequence removal");
+
     constructor(props:Props) {
         super(props);
         this.state = {
             runningPromise: 0
         };
     }
+
+    private deleteConfirm = React.createRef<Modal>();
 
     private startSequence = async()=>{
         await BackendRequest.RootInvoker("sequence")("startSequence")(
@@ -64,6 +71,10 @@ export class SequenceControler extends React.PureComponent<Props, State> {
             {
                 sequenceUid: this.props.uuid!,
             });
+    }
+
+    private confirmDropSequence = async()=> {
+        this.deleteConfirm.current?.open();
     }
 
     private dropSequence = async()=>{
@@ -151,8 +162,16 @@ export class SequenceControler extends React.PureComponent<Props, State> {
                     onClick={(e)=>Utils.promiseToState(this.stopSequence, this)}
                 />
                 <input className="GlyphBton" {...SequenceControler.editBtonHelp.dom()} type='button' disabled={!clickable.edit} value='✏️' onClick={this.openEditDialog}/>
-                <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='🗘' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
-                <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={(e)=>Utils.promiseToState(this.dropSequence, this)}/>
+                <input className="GlyphBton" {...SequenceControler.resetBtonHelp.dom()} type='button' disabled={!clickable.reset} value='↻' onClick={(e)=>Utils.promiseToState(this.resetSequence, this)}/>
+                <input className="GlyphBton" {...SequenceControler.dropBtonHelp.dom()} type='button' disabled={!clickable.drop} value='❌' onClick={this.confirmDropSequence}/>
+                <Modal
+                        closeOnChange={this.props.uuid}
+                        ref={this.deleteConfirm}
+                        closeHelpKey={SequenceControler.abortDropBtonHelp} >
+                    <div>Confirm removal of sequence {this.props.current?.title} ?
+                    </div>
+                    <input type="button" onClick={(e)=>Utils.promiseToState(this.dropSequence, this)} value={SequenceControler.dropBtonHelp.title} {...SequenceControler.confirmDropBtonHelp.dom()}></input>
+                </Modal>
             </div>
         </>);
     }
