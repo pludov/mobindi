@@ -38,7 +38,7 @@ function getDpi() {
             return dpiValue;
         }
     }
-    dpiValue = Math.trunc(i);
+    dpiValue = 2000;
     return dpiValue;
 }
 
