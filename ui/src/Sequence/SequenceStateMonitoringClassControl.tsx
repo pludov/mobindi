@@ -31,6 +31,8 @@ type InputProps = {
     // Json string for the class
     classId: string;
 
+    onlyOne: boolean;
+
     // The parameter
     parameter: "fwhm" | "background";
     monitoring: "fwhmMonitoring" | "backgroundMonitoring";
@@ -219,7 +221,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         );
     }
 
-    private classTitle = defaultMemoize((jcs:string)=> {
+    private classTitle = defaultMemoize((jcs:string, onlyOne: boolean)=> {
         const props = JSON.parse(jcs);
         const items = [];
         for(const key of this.sequenceParamClassifier.exposureParamsOrdered)
@@ -246,7 +248,10 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             }
         }
         if (items.length === 0) {
-            return "Frames";
+            if (onlyOne) {
+                return "Frames";
+            }
+            return "Others";
         }
         return items.join(',');
     });
@@ -262,7 +267,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
             <th>
                 <div className="SequenceStatMonitoringClassControlCell">
                 <Bool accessor={this.props.accessors.enabledStatus(this.props.uid, this.props.monitoring, this.props.classId)} />
-                <span>{this.classTitle(this.props.classId)}</span>
+                <span>{this.classTitle(this.props.classId, this.props.onlyOne)}</span>
                 </div>
             </th>
             <td>
@@ -324,12 +329,7 @@ class SequenceStatMonitoringClassControl extends React.PureComponent<Props, Stat
         const accessors = new AccessorFactory();
 
         const parseJsc = defaultMemoize((jsc: string) => {
-            try {
-                return JSON.parse(jsc) as SequenceStepParameters;
-            } catch(error) {
-                console.warn("Unable to parse: " + jsc, error);
-                return {} as SequenceStepParameters;
-            }
+            return JSON.parse(jsc) as SequenceStepParameters;
         });
         const parameterList = defaultMemoize((jsc: string) => {
             const ssp = parseJsc(jsc);

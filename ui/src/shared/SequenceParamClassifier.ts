@@ -74,7 +74,11 @@ export class SequenceParamClassifier {
                     split(cur, entry.childs, pid + 1);
                 } else {
                     const newCur = {...cur};
-                    newCur[this.exposureParamsOrdered[pid]] = entry.value;
+                    if (entry.value !== undefined) {
+                        newCur[this.exposureParamsOrdered[pid]] = entry.value;
+                    } else {
+                        delete newCur[this.exposureParamsOrdered[pid]];
+                    }
                     split(newCur, entry.childs, pid + 1);
                 }
             }

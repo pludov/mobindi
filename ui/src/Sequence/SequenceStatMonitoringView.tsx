@@ -188,6 +188,7 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
                             {this.props.parameters.map((jsc)=>
                                 <SequenceStateMonitoringClassControl
                                     key={jsc}
+                                    onlyOne={this.props.parameters.length === 1}
                                     monitoring={this.props.monitoringProp}
                                     parameter={this.props.parameter}
                                     scaler={this.props.scaler}
