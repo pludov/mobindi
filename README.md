@@ -43,6 +43,8 @@ existing softwares. You can find full software stack for astro/PI in the followi
 ## What's new
 
 ### Next release
+  * Auto adjustment of focuser according to temp & filters
+  * Audio alerts to wake up the user when some sequence parameters thresolds are crossed
   * Metrics endpoint for monitoring using Prometheus.
   * Improved sequence editor allowing to iterate various values of a parameter (like filters ...)
   * Histogram inspection available from image viewer
@@ -54,7 +56,7 @@ PORT=8081
   * Inline help available for most actions, with easy access from mobile device:
 
 ![Inline Help](docs/inline_help.gif?raw=true "Inline help example")
-
+  * Optional storage of fits-server data into ramdisk
 
 
 ### Release 1.2.0 (July 2019):
@@ -237,7 +239,19 @@ For system autostart, it is recommanded to first set a log directory:
 Then depending on your distro, adding the following to /etc/rc.local should autostart (just adjust path and user)
 
 ```
-su -l -c "/home/myuser/startup.sh" myuser &
+su -l -c "/home/pi/startup.sh" pi &
+```
+
+## Tweaking fits-server RAM
+
+Fits-server will store temporary files (fits data) in the /tmp/directory by default, consuming up to 128M.
+
+For performance reason, you can increase this amount and/or store it into memory (which is way faster)
+
+To store it into RAM and allocate up to 256M, use the following start commands in rc.local:
+```
+install --directory --owner pi /run/fits-server-cache
+su -l -c "FITS_SERVER_CACHE_PATH=/run/fits-server-cache FITS_SERVER_CACHE_SIZE=256M /home/pi/startup.sh" pi &
 ```
 
 ## Starting phd2/indiserver

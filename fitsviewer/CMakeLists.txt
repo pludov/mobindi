@@ -65,6 +65,14 @@ add_library(archive OBJECT
 
 
 #####################
+#   fitsmanager.cgi  #
+#####################
+
+add_executable(fits-server $<TARGET_OBJECTS:archive>  fits-server.cpp)
+target_link_libraries (fits-server ${CFITSIO_LIBRARIES})
+
+
+#####################
 #   fitsviewer.cgi  #
 #####################
 

@@ -227,8 +227,7 @@ public:
 
 int main (int argc, char ** argv) {
 	Cgicc formData;
-	// 128Mo cache
-	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
+	SharedCache::Cache * cache = new SharedCache::Cache();
 
 
 	SharedCache::Messages::ContentRequest contentRequest;

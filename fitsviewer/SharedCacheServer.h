@@ -115,6 +115,8 @@ public:
 	SharedCacheServer(const std::string & path, long maxSize);
 	virtual ~SharedCacheServer();
 
+	const std::string & getBasePath() const { return basePath; };
+
 	void init();
 
 

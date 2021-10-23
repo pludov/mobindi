@@ -371,10 +371,10 @@ namespace SharedCache {
 		void init();
 		bool connectExisting();
 
-		Cache(const std::string & path, long maxSize, int fd);
+		Cache(const class SharedCacheServer & parent, int fd);
 
 	public:
-		Cache(const std::string & path, long maxSize);
+		Cache();
 
 		Entry * getEntry(const Messages::ContentRequest & wanted);
 		Entry * startStreamImage();

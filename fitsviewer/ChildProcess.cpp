@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "ChildProcess.h"
 
@@ -44,4 +45,26 @@ int system(const std::string & command, const std::vector<std::string> &  argStr
         _Exit(127);
     }
     return 0;
+}
+
+std::string locateExe(const std::string & name)
+{
+    ssize_t bufsiz = PATH_MAX + 1;
+    char buf[ bufsiz ];
+
+    ssize_t nbytes = readlink("/proc/self/exe", buf, bufsiz - 1);
+    if (nbytes != -1) {
+        buf[nbytes + 1] = 0;
+        for(ssize_t p = nbytes - 1; p >= 0; --p) {
+            if (buf[p] == '/') {
+                buf[p + 1] = 0;
+                break;
+            }
+        }
+
+        return std::string(buf) + name;
+    } else {
+        perror("/proc/self/exe");
+    }
+    return name;
 }

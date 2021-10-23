@@ -6,4 +6,6 @@
 
 int system(const std::string & command, const std::vector<std::string> &  args);
 
+std::string locateExe(const std::string & baseName);
+
 #endif

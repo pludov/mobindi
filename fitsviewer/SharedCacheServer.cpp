@@ -183,10 +183,6 @@ void SharedCacheServer::init() {
 	Cache::setSockAddr(basePath, addr);
 	int rslt = bind(serverFd, (struct sockaddr*)&addr, sizeof(addr));
 	if (rslt == -1) {
-		if (errno == EADDRINUSE) {
-			// Suggest that another server just started.
-			return;
-		}
 		perror(basePath.c_str());
 		throw std::runtime_error("Unable to bind socket");
 	}
@@ -203,7 +199,7 @@ void SharedCacheServer::init() {
 		throw std::runtime_error("Unable to fork");
 	}
 	if (p == 0) {
-		std::cerr << "Server started\n";
+		std::cerr << "Fits server started at " <<  basePath << " (size: " << maxSize << ")\n";
 		signal (SIGHUP, SIG_IGN);
 
 		int nullFdw = open("/dev/null", O_WRONLY);
@@ -745,7 +741,7 @@ void SharedCacheServer::startWorker()
 		}
 		// FIXME: close all but fd[1]...
 		try {
-			Cache * clientCache = new Cache(basePath, maxSize, fd[1]);
+			Cache * clientCache = new Cache(*this, fd[1]);
 			// free all server
 			delete(this);
 
@@ -1018,7 +1014,7 @@ void SharedCacheServer::server()
 			}
 		}
 
-		ClientLoop: for(auto it = clients.begin(); it != clients.end();) {
+		for(auto it = clients.begin(); it != clients.end();) {
 			Client * c = (*it++);
 			if (c->producing.empty()) {
 				continue;

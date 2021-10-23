@@ -31,8 +31,7 @@ int main (int argc, char ** argv) {
 
 	SharedCache::Messages::ContentRequest contentRequest = rawRequest;
 
-	// 128Mo cache
-	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
+	SharedCache::Cache * cache = new SharedCache::Cache();
 
 
 	SharedCache::EntryRef result(cache->getEntry(contentRequest));

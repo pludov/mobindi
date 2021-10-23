@@ -216,8 +216,7 @@ int main (int argc, char ** argv) {
         std::cerr << "Usage: " << argv[0] << " indi_host indi_port device property\n";
         return 1;
     }
-	// 128Mo cache
-	SharedCache::Cache * cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
+	SharedCache::Cache * cache = new SharedCache::Cache();
 
 
     std::string streamId;

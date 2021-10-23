@@ -759,7 +759,7 @@ public:
 		// This is a power of two of the actual bin (0 => 1x1)
 		bin = 0;
 		firstImage = true;
-		cache = new SharedCache::Cache("/tmp/fitsviewer.cache", 128*1024*1024);
+		cache = new SharedCache::Cache();
 
 		wantSize = findArg(argc, argv, "--size");
 		disableHttp = findArg(argc, argv, "--no-http");

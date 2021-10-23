@@ -9,9 +9,11 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <assert.h>
 #include <iostream>
+#include "ChildProcess.h"
 #include "SharedCache.h"
 #include "SharedCacheServer.h"
 
@@ -201,23 +203,56 @@ namespace SharedCache {
 	}
 
 
-	Cache::Cache(const std::string & path, long maxSize) :
-				basePath(path)
-	{
-		this->maxSize = maxSize;
+	static void getCacheLocation(std::string & basePath, long & maxSize) {
+		const char * envCachePath = getenv("FITS_SERVER_CACHE_PATH");
+		const char * envCacheSize = getenv("FITS_SERVER_CACHE_SIZE");
+
+		if (envCachePath == nullptr) {
+			envCachePath = "/tmp/fits-server.cache";
+		}
+		if (envCacheSize == nullptr) {
+			envCacheSize = "128M";
+		}
+
+
+		basePath = envCachePath;
+		maxSize = atoll(envCacheSize);
+		auto envCacheSizeLen = strlen(envCacheSize);
+		char unit = envCacheSizeLen ? envCacheSize[envCacheSizeLen - 1] : 0;
+		switch(unit) {
+			case 'G':
+				maxSize *= 1024;
+			case 'M':
+				maxSize *= 1024;
+			case 'K':
+				maxSize *= 1024;
+		}
+
 		if (basePath.length() == 0 || basePath[0] != '/') {
-			throw std::runtime_error("invalide base path");
+			throw std::runtime_error("invalid cache path: " + std::string(envCachePath));
 		}
 
 		if (basePath[basePath.length() - 1] != '/') {
 			basePath += '/';
 		}
 
+		if (maxSize < 65536) {
+			throw std::runtime_error("invalid cache size: " + std::string(envCacheSize));
+		}
+	}
+
+	Cache::Cache() :
+				basePath()
+	{
+		getCacheLocation(basePath, maxSize);
+
+
+
 		init();
 	}
 
-	Cache::Cache(const std::string & path, long maxSize, int fd) :
-				basePath(path)
+	Cache::Cache(const SharedCacheServer & parent, int fd) :
+				basePath(parent.getBasePath())
 	{
 		this->maxSize = maxSize;
 		this->clientFd = fd;
@@ -361,9 +396,24 @@ namespace SharedCache {
 		if (connectExisting()) {
 			return;
 		}
+
+		// Attempt to start the server
 		for(int i = 0; i < 3; ++i) {
 			if (i > 0) usleep(5000);
-			(new SharedCacheServer(basePath, maxSize))->init();
+
+			// Find the path for fits-server.
+			std::string fitsServerExe = locateExe("fits-server");
+
+			std::vector<std::string> args;
+			args.push_back(basePath);
+			args.push_back(std::to_string(maxSize));
+
+			try {
+				system(fitsServerExe, args);
+			} catch(SharedCache::WorkerError e) {
+				// Ignore errors here since we'll retry anyway
+			}
+
 			if (connectExisting()) {
 				return;
 			}
