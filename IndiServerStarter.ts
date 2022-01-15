@@ -39,6 +39,7 @@ export default class IndiServerStarter {
         // The actual status of indiserver
         this.currentConfiguration = {
             path: null,
+            libpath: null,
             fifopath: null,
             devices: {},
             autorun: true,
@@ -126,12 +127,13 @@ export default class IndiServerStarter {
         if (fifopath === null) {
             throw new Error("Invalid indi fifo path");
         }
-        var env = process.env;
+        const env = {... process.env};
         if (this.currentConfiguration.path != null) {
-            env = {
-                ...env,
-                PATH:  this.currentConfiguration.path + ":" + env['PATH']
-            };
+            env.PATH = this.currentConfiguration.path + ":" + env['PATH']
+        }
+
+        if (this.currentConfiguration.libpath) {
+            env.LD_LIBRARY_PATH= this.currentConfiguration.libpath + (env.LD_LIBRARY_PATH ? ":" + env.LD_LIBRARY_PATH : "")
         }
 
         if (await SystemPromise.Exec(ct, {command: ["rm", "-f", "--", fifopath]}) !== 0) {

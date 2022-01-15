@@ -73,6 +73,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 driverPath: "none",
                 indiServer: {
                     path: null,
+                    libpath: null,
                     fifopath: null,
                     devices: {},
                     autorun: true,

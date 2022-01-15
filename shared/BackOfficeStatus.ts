@@ -203,6 +203,7 @@ export type IndiDeviceConfiguration = {
 
 export type IndiServerConfiguration = {
     path: null;
+    libpath: null;
     fifopath: null;
     devices: {[id: string]: IndiDeviceConfiguration};
     autorun: boolean;
