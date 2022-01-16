@@ -273,7 +273,7 @@ int main (int argc, char ** argv) {
 #endif
                 continue;
             }
-        } while(format != ".fitsZZZZ");
+        } while(format != ".fits");
 
 
         SharedCache::WorkerError * nextEntryError = nullptr;
