@@ -853,6 +853,19 @@ export default class Phd
                             settling: false
                         });
                     }
+                    if (event.Event === "LoopingExposures") {
+                        this.pushStep({
+                            Timestamp: event.Timestamp,
+                            settling: false
+                        });
+                    }
+                    if (event.Event === "SettleBegin") {
+                        this.pushStep({
+                            Timestamp: event.Timestamp,
+                            settling: true
+                        });
+                    }
+
                     if (event.Event == "GuideStep") {
                         this.currentStatus.star = {
                             SNR: event.SNR,

@@ -226,15 +226,15 @@ class PhdGraph extends React.PureComponent<Props, State> {
             labels: [],
         };
         const props = [
-            {prop: 'RADistance', color:'#ff0000'},
-            {prop:'DECDistance', color:'#0000ff'},
+            {prop: 'RADistance', label: 'RA', color:'#ff0000'},
+            {prop:'DECDistance', label: 'DEC', color:'#0000ff'},
             {prop: 'settling', color: '#808080',
                     yAxisID: 'settling',
-                    backgroundColor: 'rgb(60,100,1)',
+                    backgroundColor: 'rgba(60,100,1,0.5)',
                     borderColor: 'rgba(0,0,0,0)',
                     borderWidth: 0,
                     pointRadius: 0,
-                    fill: true,
+                    fill: 'origin',
                     stepped: false,
                     label: 'Settle',
                     flipFlop: true
@@ -311,10 +311,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
             var flipFlop = propDef.flipFlop;
             let previous:number|null|undefined = undefined;
             if (rawDatas) {
-                var keys = Array.from(Object.keys(rawDatas)).sort();
-                var prev = undefined;
-                for (var i =0; i < keys.length; ++i) {
-                    var uid = keys[i];
+                for (const uid of Array.from(Object.keys(rawDatas)).sort()) {
                     var entry = rawDatas[uid];
                     
                     var ts = entry.Timestamp * 1000;
