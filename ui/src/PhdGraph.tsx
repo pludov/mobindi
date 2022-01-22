@@ -347,10 +347,18 @@ class PhdGraph extends React.PureComponent<Props, State> {
                 {
                     id: 'default',
                     type: 'linear',
+                    gridLines: {
+                        display: true,
+                        color: '#808080',
+                        borderDash: [1, 1],
+                        zeroLineWidth: 1,
+                        zeroLineColor: '#808080',
+                        tickMarkLength: 5,
+                    },
                     ticks: {
                         beginAtZero: true,
                         min: -this.state.height,
-                        max: this.state.height
+                        max: this.state.height,
                     }
                 },
                 {
