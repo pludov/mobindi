@@ -25,13 +25,16 @@ type MappedProps = {
 }
 type Props = InputProps & MappedProps;
 
-// Avoid loosing zoom
-type State = {
-    height: number;
+export type Range = {
     track?: boolean;
     min?: number;
     max?: number;
     width?: number;
+}
+
+// Avoid loosing zoom
+type State = Range & {
+    height: number;
 }
 
 const arcSecs = [
@@ -52,30 +55,51 @@ const scales = [
     {value:"1800000", title:"30min"},
 ];
 
-const localStorageId = 'phdGraph';
+const defaultStorageId = 'lastTrackinPhdGraph';
+const activeStorageId = 'activePhdGraph';
+
+const defaultRange = {
+    track: true,
+    width: 300,
+}
+
+export function currentRangeAccessor(state : Store.Content): Range {
+    const ret = GenericUiStore.getComponentState<Range>(state, activeStorageId);
+    if (ret === undefined) {
+        return defaultRange
+    }
+    return ret;
+}
 
 // Afficher l'état de phd et permet de le controller
 class PhdGraph extends React.PureComponent<Props, State> {
     pendingTimeout: NodeJS.Timeout|null;
-    savedState : State;
+    savedDefaultState : State;
+    savedActiveState : Partial<State>;
 
 
     constructor(props:Props) {
         super(props);
         this.state = {...GenericUiStore.initComponentState<State>(
-                            "localStorageId",
-                            (t:State|undefined)=> ({height: 1, ...t}))
+                            defaultStorageId,
+                            (t:State|undefined)=> ({height: 1, ...defaultRange, ...t}))
         };
-        this.savedState = {...this.state};
+        this.savedDefaultState = {...this.state};
+        this.savedActiveState = {};
 
         this.pendingTimeout = null;
     }
 
     componentDidUpdate=()=>{
         if (this.state.track) {
-            if (!Obj.deepEqual(this.state, this.savedState)) {
-                GenericUiStore.updateComponentState("localStorageId", {...this.state});
+            if (!Obj.deepEqual(this.state, this.savedDefaultState)) {
+                GenericUiStore.updateComponentState(defaultStorageId, {...this.state});
+                this.savedDefaultState = {...this.state};
             }
+        }
+        if (!Obj.deepEqual(this.state, this.savedActiveState)) {
+            GenericUiStore.updateComponentState(activeStorageId, {...this.state});
+            this.savedActiveState = {...this.state};
         }
     }
 

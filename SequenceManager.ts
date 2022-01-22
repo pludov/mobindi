@@ -10,6 +10,7 @@ import JsonProxy from './shared/JsonProxy';
 import * as Algebra from './Algebra';
 import { hasKey, deepCopy } from './shared/Obj';
 import {Task, createTask} from "./Task.js";
+import * as GuideStats from "./GuideStats";
 import {IdGenerator} from "./IdGenerator";
 import * as Obj from "./shared/Obj";
 import * as Metrics from "./Metrics";
@@ -518,7 +519,7 @@ export default class SequenceManager
         const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=> {
             ct.throwIfCancelled();
 
-            target.guideStats = this.phd.computeGuideStats(guideSteps);
+            target.guideStats = GuideStats.computeGuideStats(guideSteps);
 
             const histogram = await this.imageProcessor.compute(ct,
                 {

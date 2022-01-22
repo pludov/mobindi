@@ -102,6 +102,10 @@ export function updateComponentState<T>(key: string, t:T) {
     });
 }
 
+export function getComponentState<T>(state : Store.Content, key:string) : T | undefined {
+    return Utils.getOwnProp(state.stateMemory, key);
+}
+
 export function adjusters() {
     return [
     ]

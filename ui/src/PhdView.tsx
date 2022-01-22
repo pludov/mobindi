@@ -33,10 +33,6 @@ type Props = InputProps & MappedProps;
 
 // Avoid loosing zoom
 type State = {
-    track?: boolean;
-    min?: number;
-    max?: number;
-    width?: number;
     view: ViewId;
 }
 

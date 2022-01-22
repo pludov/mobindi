@@ -3,21 +3,16 @@
  */
 import * as React from 'react';
 
+import { createSelector } from 'reselect';
 import * as Store from "./Store";
-import * as BackendRequest from "./BackendRequest";
+import * as GuideStats from "./shared/GuideStats";
 import './PhdView.css';
-import { PhdStatus } from '@bo/BackOfficeStatus';
+import * as PhdGraph from "./PhdGraph";
+import { PhdGuideStats, PhdGuideStep } from '@bo/BackOfficeStatus';
 
 
 type InputProps = {}
-type MappedProps = {
-    RADistanceRMS?:PhdStatus["RADistanceRMS"];
-    DECDistanceRMS?:PhdStatus["DECDistanceRMS"];
-    RADECDistanceRMS?:PhdStatus["RADECDistanceRMS"];
-    RADistancePeak?:PhdStatus["RADistancePeak"];
-    DECDistancePeak?:PhdStatus["DECDistancePeak"];
-    RADECDistancePeak?:PhdStatus["RADECDistancePeak"];
-}
+type MappedProps = PhdGuideStats;
 
 type Props = InputProps & MappedProps;
 
@@ -70,19 +65,60 @@ class PhdStats extends React.PureComponent<Props, State> {
             </>);
     }
 
-    static mapStateToProps = (store:Store.Content, ownProps: InputProps):MappedProps=>{
-        const phd = store.backend.phd;
-        if (phd === undefined) {
-            return {};
-        }
-        return {
-            RADistanceRMS: phd.RADistanceRMS,
-            DECDistanceRMS: phd.DECDistanceRMS,
-            RADECDistanceRMS: phd.RADECDistanceRMS,
-            RADistancePeak: phd.RADistancePeak,
-            DECDistancePeak: phd.DECDistancePeak,
-            RADECDistancePeak: phd.RADECDistancePeak,
-        };
+    static emptyGuideState: PhdGuideStats = {
+        DECDistancePeak: null,
+        DECDistanceRMS: null,
+        RADECDistancePeak: null,
+        RADECDistanceRMS: null,
+        RADistancePeak: null,
+        RADistanceRMS: null,
+    };
+
+    static mapStateToProps = ():(store:Store.Content, ownProps: InputProps)=>MappedProps=>{
+
+        return createSelector(
+            PhdGraph.currentRangeAccessor,
+            (store: Store.Content)=>store.backend.phd,
+            (store: Store.Content)=>store.backend.phd?.guideSteps,
+            (viewRange, phd, guideSteps)=> {
+                if (phd === undefined || guideSteps === undefined) {
+                    return PhdStats.emptyGuideState;
+                }
+
+                let min, max;
+                if (viewRange.track) {
+                    max = 0;
+                    for(const id of Object.keys(guideSteps)) {
+                        const step = guideSteps[id];
+                        if (step.Timestamp > max) {
+                            max = step.Timestamp;
+                        }
+                    }
+                    max *= 1000;
+                    min = max - viewRange.width!;
+                } else {
+                    min = viewRange.min!;
+                    max = viewRange.max!;
+                }
+
+                const selected: Array<PhdGuideStep> = [];
+                for(const id of Object.keys(guideSteps)) {
+                    const step = guideSteps[id];
+                    const time = 1000 * step.Timestamp;
+                    if (time >= min && time <= max && !step.settling) {
+                        selected.push(step);
+                    }
+                }
+
+                if (selected.length === 0) {
+                    return PhdStats.emptyGuideState;
+                }
+
+                const stats = GuideStats.computeGuideStats(selected);
+
+                return stats;
+            }
+        );
     }
 }
 
