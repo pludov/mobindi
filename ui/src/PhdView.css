@@ -52,12 +52,21 @@ table.RADECTable tr td:first-child{
     height: 100%;
 }
 
-.PhdRangeSelector {
+.PhdControlBlock {
+    display: block;
+    position: absolute;
     display: block;
     position: absolute;
     bottom: 0px;
     right: 0px;
     padding: 0px;
+}
+
+.PhdRangeSelector {
+    font-size: 0.6em;
+}
+
+.PhdHeightSelector {
     font-size: 0.6em;
 }
 

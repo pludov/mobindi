@@ -9,8 +9,10 @@ import * as ChartJSZoomPlugin from "./utils/ChartJSZoomPlugin";
 import moment from 'moment';
 
 import Log from './shared/Log';
+import * as Obj from './shared/Obj';
 import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
+import * as GenericUiStore from './GenericUiStore';
 import './PhdView.css';
 import { PhdStatus } from '@bo/BackOfficeStatus';
 import CancellationToken from 'cancellationtoken';
@@ -25,11 +27,20 @@ type Props = InputProps & MappedProps;
 
 // Avoid loosing zoom
 type State = {
+    height: number;
     track?: boolean;
     min?: number;
     max?: number;
     width?: number;
 }
+
+const arcSecs = [
+    {value:"1" , title:'±1"'},
+    {value:"2" , title:'±2"'},
+    {value:"4" , title:'±4"'},
+    {value:"8" , title:'±8"'},
+    {value:"16" , title:'±16"'},
+];
 
 const scales = [
     {value:"60000" , title:"1min"},
@@ -41,14 +52,31 @@ const scales = [
     {value:"1800000", title:"30min"},
 ];
 
+const localStorageId = 'phdGraph';
+
 // Afficher l'état de phd et permet de le controller
 class PhdGraph extends React.PureComponent<Props, State> {
     pendingTimeout: NodeJS.Timeout|null;
+    savedState : State;
+
 
     constructor(props:Props) {
         super(props);
-        this.state = {}
+        this.state = {...GenericUiStore.initComponentState<State>(
+                            "localStorageId",
+                            (t:State|undefined)=> ({height: 1, ...t}))
+        };
+        this.savedState = {...this.state};
+
         this.pendingTimeout = null;
+    }
+
+    componentDidUpdate=()=>{
+        if (this.state.track) {
+            if (!Obj.deepEqual(this.state, this.savedState)) {
+                GenericUiStore.updateComponentState("localStorageId", {...this.state});
+            }
+        }
     }
 
     startGuide = async ()=> {
@@ -61,6 +89,15 @@ class PhdGraph extends React.PureComponent<Props, State> {
 
     handlePan = ({chart}:any)=> {
         this.handleZoom({chart});
+    }
+
+    updateHeight = (e:React.ChangeEvent<HTMLSelectElement>) => {
+        const v = parseFloat(e.target.value);
+        if (this.pendingTimeout !== null) {
+            clearTimeout(this.pendingTimeout);
+            this.pendingTimeout = null;
+        }
+        this.setState({height: v});
     }
 
     updateZoom = (e:React.ChangeEvent<HTMLSelectElement>) => {
@@ -103,8 +140,6 @@ class PhdGraph extends React.PureComponent<Props, State> {
         }
         this.pendingTimeout = setTimeout(()=> {
             const {minMoment, maxMoment} = this.getTimeRange();;
-
-
             logger.debug('current min, max',  {minMoment, maxMoment, delta: maxMoment! - minMoment!});
             logger.debug('zoomed  min, max',  {newMin, newMax, delta: newMax - newMin});
             if (newMax === newMin) {
@@ -119,12 +154,15 @@ class PhdGraph extends React.PureComponent<Props, State> {
                     this.setState({
                         track: true,
                         width: newMax - newMin,
+                        min: undefined,
+                        max: undefined,
                     });
                 } else {
                     this.setState({
                         track: false,
                         min: chart.scales['time'].min,
                         max: chart.scales['time'].max,
+                        width: undefined,
                     });
                 }
 
@@ -287,8 +325,8 @@ class PhdGraph extends React.PureComponent<Props, State> {
                     type: 'linear',
                     ticks: {
                         beginAtZero: true,
-                        min: -1.0,
-                        max: 1.0
+                        min: -this.state.height,
+                        max: this.state.height
                     }
                 },
                 {
@@ -364,13 +402,18 @@ class PhdGraph extends React.PureComponent<Props, State> {
                     <div className="PhdGraph_Container">
                         <ReactChartJS.Line  data={chartData} options={chartOptions} plugins={ChartJSZoomPlugin.plugins()}/>
                     </div>
-                    <select value={currentZoom} onChange={this.updateZoom} className="PhdRangeSelector">
-                        {scales.map(e=> <option key={e.value} value={e.value}>{e.title}</option>)}
-                        <option value="full">full</option>
-                        {currentZoom === ''
-                            ? <option value="">custom</option>
-                            : null }
-                    </select>
+                    <div className="PhdControlBlock">
+                        <select value={this.state.height} onChange={this.updateHeight} className="PhdHeightSelector">
+                            {arcSecs.map(e=><option key={e.value} value={""+e.value}>{e.title}</option>)}
+                        </select>
+                        <select value={currentZoom} onChange={this.updateZoom} className="PhdRangeSelector">
+                            {scales.map(e=> <option key={e.value} value={e.value}>{e.title}</option>)}
+                            <option value="full">full</option>
+                            {currentZoom === ''
+                                ? <option value="">{this.state.width ? (this.state.width/1000).toFixed(1) + "s" : "custom"}</option>
+                                : null }
+                        </select>
+                    </div>
                 </div>);
     }
 
