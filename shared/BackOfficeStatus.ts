@@ -537,6 +537,8 @@ export type PhdGuideStep = {
     Timestamp: number;
     RADistanceRaw?: number,
     DECDistanceRaw?: number,
+    RADistance?: number,
+    DECDistance?: number,
     settling?: boolean;
 }
 
@@ -594,6 +596,8 @@ export type PhdStatus = PhdGuideStats & {
         mount?:PhdEquipmentStatus;
     };
     calibration: null|any;
+    calibrationProgress: null|string;
+    pixelScale: null|number;
     exposureDurations: Array<number>;
     exposure: null|number;
     lockPosition: null|{x: number, y:number};

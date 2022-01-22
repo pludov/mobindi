@@ -114,6 +114,8 @@ export default class Phd
             exposure: null,
             exposureDurations: [],
             calibration: null,
+            calibrationProgress: null,
+            pixelScale: null,
             streamingCamera: null,
             lockPosition: null,
         }
@@ -269,6 +271,23 @@ export default class Phd
             if (!Obj.deepEqual(ret, this.currentStatus.calibration)) {
                 logger.info('calibration data is ', ret);
                 this.currentStatus.calibration = ret as PhdStatus["calibration"];
+            }
+        } catch(e) {
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                this.clearCalibrationData();
+            }
+        }
+    }
+
+    private queryPixelScale = async(ct:CancellationToken)=> {
+        try {
+            const ret = await this.sendOrder(CancellationToken.CONTINUE, {
+                method: "get_pixel_scale",
+                params:[]
+            });
+            if (!Obj.deepEqual(ret, this.currentStatus.pixelScale)) {
+                logger.info('Pixel scale change detected: ', ret);
+                this.currentStatus.pixelScale = ret as PhdStatus["pixelScale"];
             }
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
@@ -546,6 +565,7 @@ export default class Phd
                     this.queryExposure(CancellationToken.CONTINUE),
                     this.queryCalibration(CancellationToken.CONTINUE),
                     this.queryLockPosition(CancellationToken.CONTINUE),
+                    this.queryPixelScale(CancellationToken.CONTINUE),
             ]);
         } finally {
             this.polling = false;
@@ -664,47 +684,41 @@ export default class Phd
     public computeGuideStats=(steps:Array<PhdGuideStep>):PhdGuideStats=>
     {
         // calcul RMS et RMS ad/dec
-        var rms = [0, 0];
-        var count = 0;
-        var keys:Array<keyof PhdGuideStep> = ['RADistanceRaw', 'DECDistanceRaw']
-        var maxs = [0, 0, 0];
+        let rms = [0, 0];
+        let keys:Array<keyof PhdGuideStep> = ['RADistance', 'DECDistance']
+        let maxs = [0, 0, 0];
+        let count = 0;
 
-        Outer: for(const step of steps)
+        let allVals : Array<Array<number>> = [[],[],[]];
+
+        for(const step of steps)
         {
-            const vals:number[] = [];
-            for(const key of keys)
-            {
+            const vals = [];
+            for(const key of keys) {
                 if (step[key] !== null && step[key] !== undefined) {
                     vals.push(step[key] as number);
-                } else {
-                    continue Outer;
                 }
             }
-
-            var dst2 = 0;
-            for(var i = 0; i < keys.length; ++i) {
-                let v:number = vals[i];
-                if (Math.abs(v) > maxs[i]) {
-                    maxs[i] = Math.abs(v);
+            if (vals.length == keys.length) {
+                vals.push(Math.sqrt(vals.reduce((acc, v)=>(acc+v*v), 0)));
+                for(let i = 0; i <vals.length; ++i) {
+                    allVals[i].push(vals[i]);
                 }
-                var v2 = v * v;
-                dst2 += v2;
-                rms[i] += v2;
             }
-            if (dst2 > maxs[2]) {
-                maxs[2] = dst2;
-            }
-            count++;
         }
 
-        maxs[2] = Math.sqrt(maxs[2]);
+        for(let i = 0; i < allVals.length; i++) {
+            const vals:number[] = allVals[i];
 
-        function calcRms(sqr:number, div:number):number|null
-        {
-            if (div == 0) {
-                return null;
-            }
-            return Math.sqrt(sqr / div);
+            const sz = vals.length;
+            const sumYSq = vals.map(e=>e*e).reduce((acc, v)=>(acc + v), 0);
+            const sumY = vals.reduce((acc, v)=>(acc + v), 0)
+            const max = vals.reduce((acc, v)=>(Math.abs(v)>acc ? Math.abs(v):acc), 0);
+
+            rms[i] = Math.sqrt((sz * sumYSq - sumY * sumY) / (sz * sz));
+            maxs[i] = max;
+
+            count = Math.max(count, sz);
         }
 
         function calcPeak(val:number, div:number)
@@ -715,10 +729,15 @@ export default class Phd
             return val;
         }
 
+        if (count) {
+            // FIXME: this is wrong. The variance of the 2D distance is considerably lower
+            rms[2] = Math.sqrt(rms[0]*rms[0] + rms[1]*rms[1]);
+        }
+
         return {
-            RADistanceRMS: calcRms(rms[0], count),
-            DECDistanceRMS: calcRms(rms[1], count),
-            RADECDistanceRMS: calcRms(rms[0] + rms[1], count),
+            RADistanceRMS: rms[0],
+            DECDistanceRMS: rms[1],
+            RADECDistanceRMS: rms[2],
             RADistancePeak: calcPeak(maxs[0], count),
             DECDistancePeak: calcPeak(maxs[1], count),
             RADECDistancePeak: calcPeak(maxs[2], count),
@@ -788,6 +807,7 @@ export default class Phd
                 }
                 if ("Event" in event) {
                     const eventToStatus:{[id:string]:PhdAppState} = {
+                        "StartGuiding":             "Guiding",
                         "GuideStep":                "Guiding",
                         "StartCalibration":         "Calibrating",
                         "LoopingExposures":         "Looping",
@@ -862,6 +882,7 @@ export default class Phd
                             {
                                 // Starts an async refresh of configuration
                                 this.refreshServerConfiguration();
+                                this.queryPixelScale(CancellationToken.CONTINUE);
                                 break;
                             }
                         default:
@@ -880,6 +901,11 @@ export default class Phd
                                         this.currentStatus.settling = null;
                                     }
                                 }
+                            }
+                            if (event.Event === 'Calibrating') {
+                                this.currentStatus.calibrationProgress = event.State || null;
+                            } else {
+                                this.currentStatus.calibrationProgress = null;
                             }
                     };
                     if ((event.Event == "Paused") || (event.Event == "LoopingExposuresStopped")) {
@@ -900,11 +926,31 @@ export default class Phd
                         }
 
 
-                        var simpleEvent = Object.assign({}, event);
-                        delete simpleEvent.Event;
-                        delete simpleEvent.Host;
-                        delete simpleEvent.Inst;
-                        delete simpleEvent.Mount;
+                        const rawEvent = Object.assign({}, event);
+                        delete rawEvent.Event;
+                        delete rawEvent.Host;
+                        delete rawEvent.Inst;
+                        delete rawEvent.Mount;
+                        const simpleEvent : PhdGuideStep = rawEvent;
+
+                        if ((simpleEvent.RADistanceRaw !== undefined) &&
+                            (simpleEvent.DECDistanceRaw !== undefined)) {
+                            let scale;
+                            if (this.currentStatus.pixelScale === null) {
+                                // FIXME: alert
+                                logger.warn('Pixel scale invalid. 1 is assumed');
+                                scale = 1;
+                            } else {
+                                scale = this.currentStatus.pixelScale;
+                            }
+
+                            simpleEvent.RADistance = simpleEvent.RADistanceRaw * scale;
+                            simpleEvent.DECDistance = simpleEvent.DECDistanceRaw * scale;
+                        } else {
+                            simpleEvent.RADistance = undefined;
+                            simpleEvent.DECDistance = undefined;
+                        }
+
                         simpleEvent.settling = this.currentStatus.settling.running;
                         this.pushStep(simpleEvent);
                     }
@@ -996,7 +1042,7 @@ export default class Phd
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
                 logger.error(`${order.method} failed`, e);
-                this.context.notification.error('[PHD] ' + (e.message || e));
+                this.context.notification.error('[PHD] ' + ((e as any).message || e));
             }
             throw e;
         }
@@ -1175,6 +1221,7 @@ export default class Phd
             params: [ true ]
         });
         await this.queryExposure(ct);
+        await this.queryPixelScale(ct);
     }
 
     setPaused = async(ct: CancellationToken, paused: boolean)=> {

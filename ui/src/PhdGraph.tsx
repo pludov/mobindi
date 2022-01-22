@@ -164,8 +164,8 @@ class PhdGraph extends React.PureComponent<Props, State> {
             labels: [],
         };
         const props = [
-            {prop: 'RADistanceRaw', color:'#ff0000'},
-            {prop:'DECDistanceRaw', color:'#0000ff'},
+            {prop: 'RADistance', color:'#ff0000'},
+            {prop:'DECDistance', color:'#0000ff'},
             {prop: 'settling', color: '#808080',
                     yAxisID: 'settling',
                     backgroundColor: 'rgb(60,100,1)',
