@@ -26,6 +26,8 @@ type InputProps = {}
 type MappedProps = {
     SNR: PhdStar["SNR"]|null;
     AppState: PhdStatus["AppState"]|null;
+    settling: PhdStatus["settling"]|null;
+    AppStateProgress: PhdStatus["AppStateProgress"];
     streamingCamera: PhdStatus["streamingCamera"]|null;
     calibrated: boolean;
 }
@@ -82,11 +84,22 @@ class PhdView extends React.PureComponent<Props, State> {
         if (this.props.AppState === null) {
             return null;
         }
+
+        const SNR = this.props.SNR ? "SNR: " + this.props.SNR : null;
+        const Progress = this.props.AppStateProgress;
+        const Separator = SNR && Progress ? " - " : SNR || Progress ? null : "SNR:";
+
+        const StateTitle = (this.props.AppState === "Guiding" && !!this.props.settling?.running )
+                            ? "Settling"
+                            : this.props.AppState;
         return (
             <div className="Page">
-                <div className={'PHDAppState PHDAppState_' + this.props.AppState}>{this.props.AppState}
+                <div className={'PHDAppState PHDAppState_' + this.props.AppState}>{StateTitle}
                 </div>
-                <div>SNR: {this.props.SNR}
+                <div>
+                    {SNR}
+                    {Separator}
+                    {Progress}
                 </div>
                 {this.state.view === "graph"
                     ?
@@ -136,6 +149,8 @@ class PhdView extends React.PureComponent<Props, State> {
             return {
                 SNR: null,
                 AppState: null,
+                AppStateProgress: null,
+                settling: null,
                 streamingCamera: null,
                 calibrated: false,
             };
@@ -143,6 +158,8 @@ class PhdView extends React.PureComponent<Props, State> {
         return {
             SNR: phd.star ? phd.star.SNR : null,
             AppState: phd.AppState,
+            AppStateProgress: phd.AppStateProgress,
+            settling: phd.settling,
             calibrated: !!(phd.calibration?.calibrated),
             streamingCamera: phd.streamingCamera,
         }

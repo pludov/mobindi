@@ -41,6 +41,13 @@ const defaultDithering= ():DitheringSettings => ({
     timeout: 60,
 });
 
+// Events which alter calibration state
+const CalibrationEvents:{[id: string]:boolean} = {
+    StartCalibration: true,
+    Calibrating: true,
+    CalibrationComplete: false,
+    CalibrationFailed: false,
+};
 
 /* Prevent phd from guiding. Must be closed (end) */
 export type PhdGuideInhibiter = {
@@ -90,6 +97,7 @@ export default class Phd
             connected: false,
 
             AppState: "NotConnected",
+            AppStateProgress: null,
             paused: null,
             // null until known
             settling: null,
@@ -115,7 +123,6 @@ export default class Phd
             exposure: null,
             exposureDurations: [],
             calibration: null,
-            calibrationProgress: null,
             pixelScale: null,
             streamingCamera: null,
             lockPosition: null,
@@ -645,6 +652,7 @@ export default class Phd
 
                                 this.currentStatus.star = null;
                                 this.currentStatus.AppState = "NotConnected";
+                                this.currentStatus.AppStateProgress = null;
                                 this.currentStatus.connected = false;
                                 this.currentStatus.paused = null;
                                 this.currentStatus.settling = null;
@@ -765,7 +773,10 @@ export default class Phd
                             }
                         case "AppState":
                             this.currentStatus.connected = true;
-                            this.currentStatus.AppState = event.State;
+                            if (event.State !== this.currentStatus.AppState) {
+                                this.currentStatus.AppState = event.State;
+                                this.currentStatus.AppStateProgress = null;
+                            }
                             this.currentStatus.star = null;
                             this.currentStatus.settling = null;
                             this.currentStatus.paused = null;
@@ -797,12 +808,6 @@ export default class Phd
                                 this.context.notification.notify("[PHD] " + event.Type + ": " + event.Msg);
                                 break;
                             }
-                        case "CalibrationComplete":
-                            {
-                                this.clearCalibrationData();
-                                this.queryCalibration(CancellationToken.CONTINUE);
-                                break;
-                            }
                         case "LockPositionLost":
                             {
                                 this.clearLockPosition();
@@ -830,6 +835,7 @@ export default class Phd
                                 if (oldStatus != newStatus) {
                                     this.currentStatus.star = null;
                                     this.currentStatus.AppState = newStatus;
+                                    this.currentStatus.AppStateProgress = null;
                                     if (newStatus == 'Guiding' && oldStatus != 'Paused' && oldStatus != 'LostLock') {
                                         this.currentStatus.firstStepOfRun = this.stepIdToUid(this.stepId + 1);
                                         this.updateStepsStats();
@@ -841,9 +847,9 @@ export default class Phd
                                 }
                             }
                             if (event.Event === 'Calibrating') {
-                                this.currentStatus.calibrationProgress = event.State || null;
+                                this.currentStatus.AppStateProgress = event.State || null;
                             } else {
-                                this.currentStatus.calibrationProgress = null;
+                                this.currentStatus.AppStateProgress = null;
                             }
                     };
                     if ((event.Event == "Paused") || (event.Event == "LoopingExposuresStopped")) {
@@ -863,6 +869,18 @@ export default class Phd
                         this.pushStep({
                             Timestamp: event.Timestamp,
                             settling: true
+                        });
+                    }
+
+                    if (Object.prototype.hasOwnProperty.call(CalibrationEvents, event.Event)) {
+                        const calibrating = CalibrationEvents[event.Event];
+                        this.clearCalibrationData();
+                        if (!calibrating) {
+                            this.queryCalibration(CancellationToken.CONTINUE);
+                        }
+                        this.pushStep({
+                            Timestamp: event.Timestamp,
+                            calibrating: calibrating,
                         });
                     }
 

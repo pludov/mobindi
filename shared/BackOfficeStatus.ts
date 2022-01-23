@@ -540,6 +540,7 @@ export type PhdGuideStep = {
     RADistance?: number,
     DECDistance?: number,
     settling?: boolean;
+    calibrating?: boolean;
 }
 
 
@@ -583,6 +584,7 @@ export type PhdStatus = PhdGuideStats & {
     phd_started: boolean;
     connected: boolean;
     AppState: PhdAppState;
+    AppStateProgress: null|string;
     settling: PhdSettling|null;
     paused: boolean|null;
     /** Polled configuration from PHD */
@@ -596,7 +598,6 @@ export type PhdStatus = PhdGuideStats & {
         mount?:PhdEquipmentStatus;
     };
     calibration: null|any;
-    calibrationProgress: null|string;
     pixelScale: null|number;
     exposureDurations: Array<number>;
     exposure: null|number;

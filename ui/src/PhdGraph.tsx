@@ -238,7 +238,19 @@ class PhdGraph extends React.PureComponent<Props, State> {
                     stepped: false,
                     label: 'Settle',
                     flipFlop: true
-                }
+                },
+            {prop: 'calibrating', color: '#808080',
+                yAxisID: 'settling',
+                backgroundColor: 'rgba(100,60,1,0.5)',
+                borderColor: 'rgba(0,0,0,0)',
+                borderWidth: 0,
+                pointRadius: 0,
+                fill: 'origin',
+                stepped: false,
+                label: 'cal',
+                flipFlop: true
+            }
+
             ];
 
         const {minMoment, maxMoment}=this.getTimeRange();
