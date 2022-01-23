@@ -126,6 +126,7 @@ export default class Phd
             pixelScale: null,
             streamingCamera: null,
             lockPosition: null,
+            lastLockedPosition: null,
         }
 
         this.pendingRequests = {};
@@ -369,6 +370,9 @@ export default class Phd
                 params:[]
             }) as null|number[];
             this.currentStatus.lockPosition=ret === null ? null : {x: ret[0], y:ret[1]};
+            if (ret !== null) {
+                this.currentStatus.lastLockedPosition = {x: ret[0], y: ret[1]};
+            }
         } catch(e) {
             if (!(e instanceof CancellationToken.CancellationError)) {
                 this.clearLockPosition();
@@ -819,6 +823,10 @@ export default class Phd
                                     x: event.X,
                                     y: event.Y,
                                 }
+                                this.currentStatus.lastLockedPosition = {
+                                    x: event.X,
+                                    y: event.Y,
+                                }
                                 break;
                             }
                         case "ConfigurationChange":
@@ -859,6 +867,11 @@ export default class Phd
                             settling: false
                         });
                     }
+
+                    if (event.Event === "StarLost") {
+                        this.clearLockPosition();
+                    }
+                    
                     if (event.Event === "LoopingExposures") {
                         this.pushStep({
                             Timestamp: event.Timestamp,
@@ -1145,6 +1158,7 @@ export default class Phd
             stopGuide: this.stopGuide,
             setExposure: this.setExposure,
             setLockPosition: this.setLockPosition,
+            findStar: this.findStar,
             clearCalibration: this.clearCalibration,
         }
         return ret;
@@ -1323,5 +1337,16 @@ export default class Phd
                 method: 'set_lock_position',
                 params: [payload.x, payload.y, payload.exact],
             });
+    }
+
+    findStar = async(ct: CancellationToken, payload: {roi?:  Array<number>}) => {
+        const params = [];
+        if (payload.roi) {
+            params.push(payload.roi);
+        }
+        await this.sendOrderWithFailureLog(ct, {
+            method: 'find_star',
+            params
+        });
     }
 }

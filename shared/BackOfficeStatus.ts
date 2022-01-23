@@ -602,6 +602,7 @@ export type PhdStatus = PhdGuideStats & {
     exposureDurations: Array<number>;
     exposure: null|number;
     lockPosition: null|{x: number, y:number};
+    lastLockedPosition: null|{x: number, y:number};
     streamingCamera: string|null;
 };
 

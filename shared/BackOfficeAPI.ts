@@ -199,6 +199,7 @@ export type PhdAPI = {
     stopGuide: (payload: {})=>void;
     setExposure: (payload: {exposure: number})=>void;
     setLockPosition: (payload: { x: number, y:number, exact: boolean})=>void;
+    findStar: (payload: {roi?: Array<number>})=>void;
     clearCalibration: (payload: {})=>void;
 }
 

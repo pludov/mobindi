@@ -1054,7 +1054,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             histogramView = null;
         }
         const childrenWithProps = React.Children.map(this.props.children, child =>
-            React.cloneElement(child as ReactElement<any>, { __fitsViewerDeclareChild: this.createMarkerToken })
+            child === null ? null : React.cloneElement(child as ReactElement<any>, { __fitsViewerDeclareChild: this.createMarkerToken })
         );
         return(
             <div className='FitsViewOverlayContainer'>

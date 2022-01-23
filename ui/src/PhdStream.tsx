@@ -16,8 +16,10 @@ import CancellationToken from 'cancellationtoken';
 
 type InputProps = {}
 type MappedProps = {
+    AppState?: PhdStatus["AppState"];
     streamingCamera?: PhdStatus["streamingCamera"];
     lockPosition?: PhdStatus["lockPosition"];
+    lastLockedPosition?: PhdStatus["lastLockedPosition"];
 } & Partial<CameraStream>
 
 type Props = InputProps & MappedProps;
@@ -26,7 +28,10 @@ type State = {}
 
 
 class PhdStream extends React.PureComponent<Props, State> {
-    private static selGuideStarHelp = Help.key("Sel. guide star", "Select the guide star for PHD.");
+    private static selStarHelp = Help.key("Sel. star", "Search star in the selected area (must not be guiding).");
+    private static autoFindHelp = Help.key("Auto-find", "Select best guide star over the whole image.");
+    private static lockHereHelp = Help.key("Lock here", "Lock the guiding position on the closest star.");
+
     constructor(props:Props) {
         super(props);
         this.state = {}
@@ -39,10 +44,43 @@ class PhdStream extends React.PureComponent<Props, State> {
         await BackendRequest.RootInvoker("phd")("setLockPosition")(CancellationToken.CONTINUE, {x: pos.imageX, y: pos.imageY, exact: false});
     }
 
+    private findStar = async (pos: any) => {
+        await BackendRequest.RootInvoker("phd")("findStar")(CancellationToken.CONTINUE, {});
+    }
+
+    private findStarHere = async (pos: any) => {
+        if (pos.imageX === undefined || pos.imageY === undefined) {
+            throw new Error("Position not set");
+        }
+        await BackendRequest.RootInvoker("phd")("findStar")(CancellationToken.CONTINUE, {
+            roi:
+                [
+                    pos.imageX - 15,
+                    pos.imageY - 15,
+                    30,
+                    30
+            ].map(Math.round)
+        });
+    }
+
     private readonly contextMenu = [
         {
-            title: 'Sel. guide star',
-            helpKey: PhdStream.selGuideStarHelp,
+            title: 'Sel. star',
+            helpKey: PhdStream.selStarHelp,
+            key: 'lock',
+            cb: this.findStarHere,
+            positional: false,
+        },
+        {
+            title: 'Auto-find',
+            helpKey: PhdStream.autoFindHelp,
+            key: 'lock',
+            cb: this.findStar,
+            positional: false,
+        },
+        {
+            title: 'Lock here',
+            helpKey: PhdStream.lockHereHelp,
             key: 'lock',
             cb: this.setLockPos,
             positional: true,
@@ -50,6 +88,12 @@ class PhdStream extends React.PureComponent<Props, State> {
     ];
 
     render() {
+        let lockActive =
+            this.props.lockPosition && this.props.AppState !== "LostLock"
+                ? this.props.lockPosition
+                : null;
+        let lockLost =
+            lockActive ? null : this.props.lastLockedPosition;
         return (
             <div className={"FitsViewer FitsViewContainer"}>
                 <FitsViewerInContext
@@ -60,9 +104,9 @@ class PhdStream extends React.PureComponent<Props, State> {
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
                         subframe={this.props.subframe}
                         streamSize={this.props.frameSize || this.props.streamSize || null}>
-                        {this.props.lockPosition
+                        {lockActive
                             ?
-                                <FitsMarker x={this.props.lockPosition.x} y={this.props.lockPosition.y}>
+                                <FitsMarker x={lockActive.x} y={lockActive.y}>
                                     <div className="PhdStarLock">
 
                                     </div>
@@ -70,7 +114,14 @@ class PhdStream extends React.PureComponent<Props, State> {
                             :
                                 null
                         }
-                            
+                        {lockLost
+                            ?
+                                <FitsMarker x={lockLost.x} y={lockLost.y}>
+                                    <div className="PhdStarLostLock"/>
+                                </FitsMarker>
+                            :
+                                null
+                        }
                 </FitsViewerInContext>
         </div>);
     }
@@ -92,6 +143,8 @@ class PhdStream extends React.PureComponent<Props, State> {
         return {
             streamingCamera,
             lockPosition: phd.lockPosition,
+            lastLockedPosition: phd.lastLockedPosition,
+            AppState: phd.AppState,
             ...stream
         };
     }

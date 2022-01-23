@@ -80,6 +80,16 @@ table.RADECTable tr td:first-child{
     border: 2px solid green;
 }
 
+.PhdStarLostLock {
+    display: block;
+    position: absolute;
+    top: calc(-3 * var(--pct) - 2px);
+    left: calc(-3 * var(--pct) - 2px);
+    width: calc(6 * var(--pct));
+    height: calc(6 * var(--pct));
+    border: 2px solid red;
+}
+
 .PhdViewChoose {
     flex-grow: 100;
     text-align: right;
