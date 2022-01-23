@@ -420,7 +420,7 @@ export default class Focuser implements RequestHandler.APIAppImplementor<BackOff
         const amplitude = config.settings.range;
         const stepCount = config.settings.steps;
         const data:Array<number[]> = [];
-        logger.info("Starting focus", {config});
+        logger.info("Starting focus", {camera: config.camera, focuser: config.focuser, settings: config.settings});
 
         // Find focuser & camera.
         const connection = this.indiManager.getValidConnection();
