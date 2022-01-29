@@ -444,7 +444,7 @@ void LookupTable::init(int imin, int imed, int imax)
 		this->min = imin;
 		this->max = imax;
 		this->med = imed;
-		this->split = this->min + this->max * (best.lowInterval.min != 0 ? best.lowInterval.min : best.lowInterval.max);
+		this->split = this->min + (this->max - this->min) * (best.lowInterval.min != 0 ? best.lowInterval.min : best.lowInterval.max);
 		this->shift1 = best.lowInterval.min == 0 ? 16 - best.lowBit : 16 - best.highBit;
 		this->shift2 = best.lowInterval.min != 0 ? 16 - best.lowBit : 16 - best.highBit;
 		this->data1 = fillTable(this->min, this->split - 1, this->split, this->shift1);
