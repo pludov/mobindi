@@ -23,6 +23,10 @@ if [ "$LOGDIR" != "" ]; then
 	export MOBINDI_LOGDIR="$LOGDIR"
 fi
 
+if [ "${PORT+x}" ]; then
+	export PORT
+fi
+
 if [ -z "$NODE_ENV" ]; then
 	export NODE_ENV=prod
 fi
