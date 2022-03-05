@@ -32,6 +32,8 @@ if [ -z "$NODE_ENV" ]; then
 fi
 
 # Startup nginx
-./nginx/nginx.sh
+if ! ./nginx/nginx.sh; then
+       echo "Failed to start nginx: $?" >&2
+fi
 
 exec npm start "$@"

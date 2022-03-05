@@ -236,7 +236,48 @@ For system autostart, it is recommanded to first set a log directory:
 ./install.sh --log-dir /var/log/mobindi
 ```
 
-Then depending on your distro, adding the following to /etc/rc.local should autostart (just adjust path and user)
+
+### Running as a systemd service
+
+Create the file `/lib/systemd/system/mobindi.service` with the following text content (replace User and ExecStart to match you installation if not using pi user):
+```
+[Unit]
+Description=MobIndi
+After=multi-user.target
+
+[Service]
+Type=idle
+User=pi
+ExecStart=/home/pi/mobindi/startup.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Declare the new service:
+```
+sudo systemctl daemon-reload
+```
+
+Enable the new service:
+```
+sudo systemctl enable mobindi.service
+```
+
+You can check the startup logs with:
+```
+sudo journalctl  -f -u mobindi.service
+```
+
+
+
+### Running from rc.local
+
+For older / not systemd distro, you can alternatively use this method to get mobindi started on boot.
+
+Add the following to /etc/rc.local file (just adjust path and user)
 
 ```
 su -l -c "/home/pi/startup.sh" pi &
