@@ -16,6 +16,7 @@ import Histogram from './Histogram';
 import FloatContainer from '../FloatContainer';
 import FloatWindow from '../FloatWindow';
 import FloatWindowMover from '../FloatWindowMover';
+import Crosshair from './Crosshair';
 
 const logger = Log.logger(__filename);
 
@@ -35,6 +36,7 @@ export type Levels = {
 
 export type FullState = {
     levels: Levels;
+    crosshair?: boolean;
 }
 
 type ImagePos = {
@@ -119,8 +121,8 @@ class JQImageDisplay {
     child:JQuery<HTMLDivElement>;
     
     levels: Levels;
+    crosshairInstance: Crosshair|null;
 
-    
     currentImageSize:ImageSize = {width: -1, height: -1};
     currentImagePos:CompleteImagePos = {x:0, y:0, w:0, h:0, centerx: 0.5, centery: 0.5, zoomToBestfit: 1};
 
@@ -128,18 +130,16 @@ class JQImageDisplay {
     directPort: number = parseInt(document.location.port);
 
     closeContextMenuCb:()=>void;
-    onViewSettingsChangeCb:(state:FullState)=>void;
     contextMenuCb:(x:number, y:number)=>void;
     posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void);
 
     mouseListener: MouseMoveListener;
 
-    constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, onViewSettingsChangeCb:(state:FullState)=>void, posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void)) {
+    constructor(elt:JQuery<HTMLDivElement>, contextMenuCb:(x:number, y:number)=>void, closeContextMenuCb:()=>void, posUpdatedCb:(pos: ImagePos, size: ImageSize)=>(void)) {
         
         this.child = elt;
         this.contextMenuCb = contextMenuCb;
         this.closeContextMenuCb = closeContextMenuCb;
-        this.onViewSettingsChangeCb = onViewSettingsChangeCb;
         this.posUpdatedCb = posUpdatedCb;
         elt.css('display', 'block');
         elt.css('width', '100%');
@@ -164,6 +164,29 @@ class JQImageDisplay {
             medium: 0.5,
             high: 0.95
         };
+
+        this.crosshairInstance = null;
+    }
+
+    updateCrossHairPosition = ()=>{
+        if (!this.crosshairInstance) {
+            return;
+        }
+        let imagePos:ImagePos;
+
+        if (this.currentImagePos) {
+            imagePos = this.currentImagePos;
+        } else {
+            imagePos = {
+                x: 0,
+                y: 0,
+                w: (this.child.width() || 0),
+                h: (this.child.height() || 0),
+            };
+        }
+
+        this.crosshairInstance.update(imagePos);
+
     }
 
     onResize = ()=>{
@@ -236,18 +259,11 @@ class JQImageDisplay {
     getFullState(): FullState
     {
         return {
-            levels: {...this.levels}
+            levels: {...this.levels},
+            crosshair: !!this.crosshairInstance,
         }
     }
 
-    changeLevels(f:(l:Levels)=>(boolean))
-    {
-        if (!f(this.levels)) {
-            return false;
-        }
-        this.emitStateChange();
-        return true;
-    }
 
     static allowHttpFallback() {
         const env = process.env.NODE_ENV;
@@ -313,11 +329,6 @@ class JQImageDisplay {
         return str;
     }
 
-    emitStateChange()
-    {
-        this.onViewSettingsChangeCb(this.getFullState());
-    }
-
     encodePathUrl(path: string) {
         if (path.startsWith("file:")) {
             return 'path=' + encodeURIComponent(path.substring(5));
@@ -369,9 +380,23 @@ class JQImageDisplay {
 
         const path = file ? "file:" + file : streamId ? "stream:" + streamId : null;
 
-        if (params !== undefined && 'levels' in params) {
+        if (params?.levels) {
             this.levels = params.levels;
         }
+
+        if (params?.crosshair !== undefined) {
+            if ((!!this.crosshairInstance) !== params.crosshair) {
+                if (this.crosshairInstance) {
+                    this.crosshairInstance.remove();
+                    this.crosshairInstance = null;
+                } else {
+                    this.crosshairInstance = new Crosshair();
+                    this.crosshairInstance.attach(this.child);
+                    this.updateCrossHairPosition();
+                }
+            }
+        }
+
         // FIXME: c'est ici qu'il faut continuer:
         // il faut assurer qu'on charge la taille avant, que computeurl dépende de la taille
         // et implementer le downsampling coté serveur
@@ -509,6 +534,33 @@ class JQImageDisplay {
         }
     }
 
+    private insertImg(img: HTMLImageElement) {
+        if (this.crosshairInstance) {
+            const elements = this.crosshairInstance.getElements();
+            // Find the first child
+            const childrens = this.child.children().filter(function(e) {
+                return elements.index(this) > -1;
+            });
+            $(img).insertBefore(childrens.get(0));
+        } else {
+            this.child.append(img);
+        }
+    }
+
+    // Remove all but crosshairs...
+    private removeImages() {
+        let toRemove = this.child.children();
+        if (this.crosshairInstance) {
+            console.log('toRemove before', toRemove);
+            const toKeep = this.crosshairInstance.getElements();
+            toRemove = toRemove.filter(function () {
+                return toKeep.index(this) === -1;
+            });
+            console.log('toRemove after', toRemove);
+        }
+        toRemove.remove();
+    }
+
     private setSrc(path:string|null, serial: string|null, src: string, window: Window|null) {
         if (this.currentImgSrc === src) {
             this.abortLoading();
@@ -570,7 +622,8 @@ class JQImageDisplay {
             $(this.loadingImg).css('top', $(this.currentImg).css("top"));
             $(this.loadingImg).css('left', $(this.currentImg).css("left"));
             this.applyWindow(this.loadingImg, this.loadingImgWindow);
-            this.child.append(this.loadingImg);
+
+            this.insertImg(this.loadingImg);
         } else {
             this.loadingToDisplay = false;
         }
@@ -603,14 +656,15 @@ class JQImageDisplay {
         this.currentImgPath = this.loadingImgPath;
         this.currentImgSerial = this.loadingImgSerial;
         this.currentImgWindow = this.loadingImgWindow;
-        this.child.empty();
+
+        this.removeImages();
 
         if (this.currentImg !== null) {
             this.currentImageSize = this.currentDetails!;
             
             $(this.currentImg).css('position', 'relative');
 
-            this.child.append(this.currentImg);
+            this.insertImg(this.currentImg);
 
             if (previousImg === null || previousSize.width != this.currentImageSize.width || previousSize.height != this.currentImageSize.height) {
                 this.bestFit();
@@ -739,7 +793,7 @@ class JQImageDisplay {
             }
         }
         this.setRawCurrentImagePos(targetPos);
-
+        this.updateCrossHairPosition();
         // Adjust the bin
         if (this.loadingDetailsPath === null) {
             // No path change. Make sure the path is the latest
@@ -910,7 +964,6 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.ImageDisplay = new JQImageDisplay(this.$el,
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
-            this.onViewSettingsChange.bind(this),
             this.onViewMoved);
         this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
     }
@@ -964,11 +1017,14 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.props.onViewSettingsChange(state);
     }
 
-    private readonly displaySetting=(which: LevelId|"fwhm"|"histogram"|null)=>{
+    private readonly displaySetting=(which: LevelId|"fwhm"|"histogram"|"crosshair"|null)=>{
         if (which === "histogram") {
             this.setState({contextmenu: null, histogramWindow: !this.state.histogramWindow});
         } else if (which === 'fwhm') {
             this.setState({contextmenu: null, histogramView: null, fwhm: true});
+        } else if (which === 'crosshair') {
+            this.switchCrosshair();
+            this.setState({contextmenu: null});
         } else {
             this.setState({contextmenu: null, histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
         }
@@ -995,6 +1051,12 @@ class FitsViewer extends React.PureComponent<Props, State> {
         var newViewSettings = this.getViewSettingsCopy();
         newViewSettings.levels[which] = v;
 
+        this.props.onViewSettingsChange(newViewSettings);
+    }
+
+    switchCrosshair = ()=> {
+        var newViewSettings = this.getViewSettingsCopy();
+        newViewSettings.crosshair = !newViewSettings.crosshair;
         this.props.onViewSettingsChange(newViewSettings);
     }
 
