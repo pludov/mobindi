@@ -20,16 +20,19 @@ type InputProps = {
 type MappedProps = {
     available: false;
     streamBton: false;
+    loopBton: false;
 } |
 {
     available: true;
     running: false;
     streamBton: boolean;
+    loopBton: boolean;
 } |
 {
     available: true;
     running: true;
     streamBton: boolean;
+    loopBton: boolean;
     managed: boolean;
     elapsed: number;
     exposure: number;
@@ -40,6 +43,7 @@ type Props = InputProps & MappedProps;
 class ShootBton extends React.PureComponent<Props> {
     static shootBtonHelp = Help.key("Shoot", "Start frame exposure on the selected INDI camera device.");
     static spyBtonHelp = Help.key("Spy", "Listen for image taken guiding capture software (for the selected INDI camera device).");
+    static loopBtonHelp = Help.key("Loop", "Continously take exposure (for the selected INDI camera device).");
     static abortBtonHelp = Help.key("Abort", "Abort the current frame capture on the selected INDI camera device.");
 
     constructor(props:Props) {
@@ -53,6 +57,10 @@ class ShootBton extends React.PureComponent<Props> {
 
         return <div className={'ShootBar' + (this.props.available && this.props.running ? ' ActiveShootBar' : ' InactiveShootBar')}>
             <input disabled={(!this.props.available) || this.props.running} type="button" onClick={this.shoot} className="ShootBton" value="Shoot" {...ShootBton.shootBtonHelp.dom()}/>
+            {this.props.loopBton
+                ? <input disabled={(!this.props.available) || (this.props.running && this.props.managed)} type="button" onClick={this.loop} className="ShootBton" value="Loop" {...ShootBton.loopBtonHelp.dom()}/>
+                : null
+            }
             {this.props.streamBton
                 ? <input disabled={(!this.props.available) || (this.props.running && this.props.managed)} type="button" onClick={this.stream} className="ShootBton" value="Spy" {...ShootBton.spyBtonHelp.dom()}/>
                 : null
@@ -80,8 +88,22 @@ class ShootBton extends React.PureComponent<Props> {
     }
 
     stream = async()=>{
-        const rslt = await BackendRequest.RootInvoker("camera")("stream")(CancellationToken.CONTINUE, {});
-        logger.info('stream rslt', {rslt});
+        try {
+            const rslt = await BackendRequest.RootInvoker("camera")("stream")(CancellationToken.CONTINUE, { loopExposure: false });
+            logger.info('stream rslt', {rslt});
+        } catch(e) {
+            logger.info('Stream problem', e);
+        }
+    }
+
+    loop = async()=> {
+        try {
+            const rslt = await BackendRequest.RootInvoker("camera")("stream")(CancellationToken.CONTINUE, { loopExposure: true });
+            logger.info('stream rslt', {rslt});
+            // FIXME: close on app quit
+        } catch(e) {
+            logger.info('Stream problem', e);
+        }
     }
 
     abort = async ()=>{
@@ -92,16 +114,20 @@ class ShootBton extends React.PureComponent<Props> {
         const active = ownProps.cameraDevice;
         let available = false;
         let streamBton = false;
+        let loopBton = false;
         if (active === undefined || active === null) {
-            return {available, streamBton};
+            return {available, streamBton, loopBton};
         }
 
         // Check if exposure is present
         const ccdExposureVec = IndiUtils.getVectorDesc(store, active, 'CCD_EXPOSURE');
         if (ccdExposureVec === undefined) {
-            return {available, streamBton}
+            return {available, streamBton, loopBton}
         }
         available = true;
+
+        streamBton = !!(Utils.getOwnProp(store.backend.camera?.dynStateByDevices,active)?.spyRecommanded);
+        loopBton = true;
 
         const currentStream = Utils.getOwnProp(store.backend?.camera?.currentStreams, active);
         if (currentStream !== undefined) {
@@ -111,16 +137,16 @@ class ShootBton extends React.PureComponent<Props> {
                 managed: true,
                 elapsed:0,
                 exposure: 0,
-                streamBton: true,
+                streamBton,
+                loopBton,
             }
         }
 
-        streamBton = !!(Utils.getOwnProp(store.backend.camera?.dynStateByDevices,active)?.spyRecommanded);
 
         const currentShoot = Utils.getOwnProp(store.backend.camera?.currentShoots, active);
 
         if (currentShoot === undefined) {
-            return {available, running: false, streamBton}
+            return {available, running: false, streamBton, loopBton}
         }
 
         let elapsed, exposure;
@@ -139,6 +165,7 @@ class ShootBton extends React.PureComponent<Props> {
             elapsed,
             exposure,
             streamBton,
+            loopBton,
         };
     }
 }

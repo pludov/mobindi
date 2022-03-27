@@ -123,7 +123,7 @@ export type FilterWheelAPI = {
 
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
-    stream: (stream: {})=>void;
+    stream: (stream: {loopExposure: boolean})=>void;
     abort: (payload: {})=>void;
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
 }

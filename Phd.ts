@@ -189,7 +189,7 @@ export default class Phd
             this.streamCaptureDevice = device;
             this.currentStatus.streamingCamera = device;
             try {
-                await this.context.camera.doStream(task.cancellation, device);
+                await this.context.camera.doStream(task.cancellation, device, false);
             } catch(e) {
                 if (!(e instanceof CancellationToken.CancellationError)) {
                     logger.warn('phd capture failed', {device}, e);

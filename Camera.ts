@@ -2,7 +2,7 @@ import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus} from './shared/BackOfficeStatus';
+import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus, CameraShoot} from './shared/BackOfficeStatus';
 import JsonProxy from './shared/JsonProxy';
 import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
@@ -384,6 +384,60 @@ export default class Camera
         return {imagingSetupInstance, device};
     }
 
+    private async applyShootSettings(task: Task<any>, device: string, currentShootSettings: CameraDeviceSettings) {
+        var exposure = currentShootSettings.exposure;
+        if (exposure === null || exposure === undefined) {
+            exposure = 0.1;
+        }
+        currentShootSettings.exposure = exposure;
+
+            // Set the binning - if prop is present only
+        if (currentShootSettings.bin !== null
+            && currentShootSettings.bin !== undefined
+            && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists())
+        {
+            task.cancellation.throwIfCancelled();
+            logger.debug('Bin upgrade', {device});
+            await this.indiManager.setParam(task.cancellation, device, 'CCD_BINNING', {
+                        HOR_BIN: '' + currentShootSettings.bin!,
+                        VER_BIN: '' + currentShootSettings.bin!
+                    });
+        }
+        // Reset the frame size - if prop is present only
+        if (Object.keys(this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device))).length != 0) {
+            task.cancellation.throwIfCancelled();
+            logger.debug('set crop', {device});
+            await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
+        }
+
+        // Set the iso
+        if (currentShootSettings.iso !== null
+                && currentShootSettings.iso !== undefined
+                && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()) {
+            task.cancellation.throwIfCancelled();
+            logger.debug('set iso', {device});
+            await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',
+                // FIXME : support cb for setParam
+                (vector:Vector) => {
+                    const vec = vector.getExistingVectorInTree();
+                    const v = currentShootSettings.iso;
+                    var childToSet = undefined;
+                    for(var id of vec.childNames)
+                    {
+                        var child = vec.childs[id];
+                        if (child.$label == v) {
+                            childToSet = id;
+                            break;
+                        }
+                    }
+                    if (childToSet === undefined) throw new Error("Unsupported iso value: " + v);
+                    logger.debug('found iso', {device, childToSet});
+                    return ({[childToSet]: 'On'});
+                }
+            );
+        }
+    }
+
     // Return a promise to shoot at the given camera (where)
     async doShoot(cancellation: CancellationToken, imagingSetup:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings):Promise<BackOfficeAPI.ShootResult>
     {
@@ -419,57 +473,8 @@ export default class Camera
             try {
                 const currentShootSettings = this.currentStatus.currentShoots[device];
                 logger.info('Starting shoot', {device, settings: currentShootSettings});
-                var exposure = currentShootSettings.exposure;
-                if (exposure === null || exposure === undefined) {
-                    exposure = 0.1;
-                }
-                currentShootSettings.exposure = exposure;
-                    
-                    // Set the binning - if prop is present only
-                if (currentShootSettings.bin !== null
-                    && currentShootSettings.bin !== undefined
-                    && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_BINNING').exists())
-                {
-                    task.cancellation.throwIfCancelled();
-                    logger.debug('Bin upgrade', {device});
-                    await this.indiManager.setParam(task.cancellation, device, 'CCD_BINNING', {
-                                HOR_BIN: '' + currentShootSettings.bin!,
-                                VER_BIN: '' + currentShootSettings.bin!
-                            });
-                }
-                // Reset the frame size - if prop is present only
-                if (Object.keys(this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device))).length != 0) {
-                    task.cancellation.throwIfCancelled();
-                    logger.debug('set crop', {device});
-                    await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
-                }
-
-                // Set the iso
-                if (currentShootSettings.iso !== null
-                        && currentShootSettings.iso !== undefined
-                        && this.indiManager.getValidConnection().getDevice(device).getVector('CCD_ISO').exists()) {
-                    task.cancellation.throwIfCancelled();
-                    logger.debug('set iso', {device});
-                    await this.indiManager.setParam(task.cancellation, device, 'CCD_ISO',
-                        // FIXME : support cb for setParam
-                        (vector:Vector) => {
-                            const vec = vector.getExistingVectorInTree();
-                            const v = currentShootSettings.iso;
-                            var childToSet = undefined;
-                            for(var id of vec.childNames)
-                            {
-                                var child = vec.childs[id];
-                                if (child.$label == v) {
-                                    childToSet = id;
-                                    break;
-                                }
-                            }
-                            if (childToSet === undefined) throw new Error("Unsupported iso value: " + v);
-                            logger.debug('found iso', {device, childToSet});
-                            return ({[childToSet]: 'On'});
-                        }
-                    );
-                }
+                
+                await this.applyShootSettings(task, device, currentShootSettings);
 
                 task.cancellation.throwIfCancelled();
                 await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_SETTINGS',
@@ -611,13 +616,97 @@ export default class Camera
         });
     }
 
+    async doLoopExposure(cancellation: CancellationToken, imagingSetup:string, settingsProvider?:(s:CameraDeviceSettings)=>CameraDeviceSettings) {
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(imagingSetup);
+        let settings = Object.assign({}, imagingSetupInstance.config().cameraSettings);
+        if (settingsProvider !== undefined) {
+            settings = settingsProvider(settings);
+        }
+        return await createTask<void>(cancellation, async (task)=>{
+                logger.info('Starting shoot', {device, settings: settings});
+
+                this.currentStatus.currentShoots[device] = Object.assign({
+                    status: 'init' as "init",
+                    managed: true,
+                    path: null,
+                    prefix: null,
+                    expLeft: settings.exposure,
+                }, settings);
+
+                const currentShootSettings = this.currentStatus.currentShoots[device];
+
+
+                await this.applyShootSettings(task, device, settings);
+
+                task.cancellation.throwIfCancelled();
+
+                const connection = this.indiManager.connection;
+                if (connection == undefined) {
+                    throw "Indi server not connected";
+                }
+
+                var expVector = connection.getDevice(device).getVector("CCD_EXPOSURE");
+
+                task.cancellation.throwIfCancelled();
+                logger.debug('starting loop exposure', {device});
+                expVector.setValues([{name: 'CCD_EXPOSURE_VALUE', value: '' + settings.exposure! }]);
+
+                const doneWithExposure = task.cancellation.onCancelled(() => {
+                        // FIXME: we must wait, otherwise a new shoot can begin while these are still occuring.
+                        var expVector = connection.getDevice(device).getVector("CCD_ABORT_EXPOSURE");
+                        expVector.setValues([{name: 'ABORT', value: 'On'}]);
+                });
+                let nextLog = new Date().getTime() + settings.exposure * 1000  + 5000;
+                try {
+                    // Make this uninterruptible
+                    await connection.wait(CancellationToken.CONTINUE, () => {
+                        logger.debug('Checking for exposure end', {device});
+
+                        var value = expVector.getPropertyValue("CCD_EXPOSURE_VALUE");
+                        var state = expVector.getState();
+                        if (value != "0") {
+                            currentShootSettings.status = 'Exposing';
+                        } else if (state == "Busy" && currentShootSettings.status == 'Exposing') {
+                            currentShootSettings.status = 'Downloading';
+                        }
+
+                        if (state === "Busy") {
+                            if (new Date().getTime() > nextLog) {
+                                logger.info('Still waiting exposure', {device, settings});
+                                nextLog = new Date().getTime() + 5000;
+                            }
+                            return false;
+                        }
+                        if (state !== "Ok" && state !== "Idle") {
+                            logger.warn('Wrong exposure state', {device, state});
+                            throw new Error("Exposure failed");
+                        }
+
+                        logger.debug('Exposure done', {device});
+                        return true;
+                    });
+                } finally {
+                    delete this.currentStatus.currentShoots[device];
+                    doneWithExposure();
+                }
+                task.cancellation.throwIfCancelled();
+
+                logger.debug('Finished loop image acquisistion', {device});
+        });
+    }
+
+    async loopExposure(cancellation: CancellationToken, imagingSetup:string) {
+        while(true) {
+            cancellation.throwIfCancelled();
+            await this.doLoopExposure(cancellation, imagingSetup);
+        }
+    }
+
     // Return a promise to stream the given camera
-    async doStream(cancellation: CancellationToken, device:string):Promise<void>
+    async doStream(cancellation: CancellationToken, imagingSetup:string, loopExposure: boolean):Promise<void>
     {
-        // On veut un objet de controle qui comporte à la fois la promesse et la possibilité de faire cancel
-        var connection:any;
-        var ccdFilePathInitRevId:any;
-        let shootResult:BackOfficeAPI.ShootResult;
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(imagingSetup);
+
 
         if (Object.prototype.hasOwnProperty.call(this.currentStatus.currentShoots, device)
                 && this.currentStatus.currentShoots[device].managed) {
@@ -658,6 +747,22 @@ export default class Camera
                         });
 
                 task.cancellation.throwIfCancelled();
+
+                let loopExposureTask;
+                if (loopExposure) {
+                    loopExposureTask = createTask(task.cancellation, async (loopTask)=>{
+                        try {
+                            await this.loopExposure(loopTask.cancellation, imagingSetup)
+                        } catch(e) {
+                            if (e instanceof CancellationToken.CancellationError) {
+                                return;
+                            }
+                            // This is fatal... Propagate
+                            logger.warn('loop exposure failed', e);
+                            task.cancel(e);
+                        }
+                    });
+                }
 
                 const unregister = task.cancellation.onCancelled(()=>{
             
@@ -706,6 +811,14 @@ export default class Camera
 
                 } finally {
                     unregister();
+                    if (loopExposureTask) {
+                        loopExposureTask?.cancel();
+                        try {
+                            await loopExposureTask
+                        } catch(e) {
+                            logger.info("Loop exposure task finished", e);
+                        }
+                    }
                 }
 
             } finally {
@@ -716,14 +829,12 @@ export default class Camera
         });
     }
 
-    stream = async (ct: CancellationToken, message: {})=>{
+    stream = async (ct: CancellationToken, message: {loopExposure: boolean})=>{
         if (this.currentStatus.currentImagingSetup === null) {
             throw new Error("No imaging setup selected");
         }
 
-        const {imagingSetupInstance, device} = this.resolveImagingSetup(this.currentStatus.currentImagingSetup);
-
-        return await this.doStream(ct, device);
+        return await this.doStream(ct, this.currentStatus.currentImagingSetup, message.loopExposure);
     }
 
     shoot = async (ct: CancellationToken, message:{})=>{
