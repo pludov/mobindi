@@ -314,9 +314,10 @@ namespace SharedCache {
 			throw std::runtime_error("socket");
 		}
 		struct sockaddr_un addr;
-		setSockAddr(basePath, addr);
+		int len;
+		setSockAddr(basePath, addr, len);
 
-		if (connect(clientFd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+		if (connect(clientFd, (struct sockaddr*)&addr, len) == -1) {
 			if (errno == ECONNREFUSED) {
 				close(clientFd);
 				return false;
@@ -377,11 +378,12 @@ namespace SharedCache {
 		return size;
 	}
 
-	void Cache::setSockAddr(const std::string basePath, struct sockaddr_un & addr)
+	void Cache::setSockAddr(const std::string basePath, struct sockaddr_un & addr, int & len)
 	{
 		memset(&addr, 0, sizeof(addr));
 		addr.sun_family = AF_UNIX;
-		strncpy(addr.sun_path + 1, basePath.c_str(), sizeof(addr.sun_path)-2);
+		strncpy(addr.sun_path + 1, basePath.c_str(), sizeof(addr.sun_path)-1);
+		len = offsetof(struct sockaddr_un, sun_path) + basePath.size() + 1;
 	}
 
 	void Cache::init()

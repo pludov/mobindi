@@ -380,7 +380,7 @@ namespace SharedCache {
 		Entry * startStreamImage();
 		bool waitStreamFrame(const std::string streamId, long serial, int timeout, bool & dead);
 
-		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr);
+		static void setSockAddr(const std::string basePath, struct sockaddr_un & addr, int & len);
 	};
 }
 

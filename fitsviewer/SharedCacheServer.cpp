@@ -180,8 +180,9 @@ void SharedCacheServer::init() {
 		throw std::runtime_error("Unable to setup socket");
 	}
 	struct sockaddr_un addr;
-	Cache::setSockAddr(basePath, addr);
-	int rslt = bind(serverFd, (struct sockaddr*)&addr, sizeof(addr));
+	int len;
+	Cache::setSockAddr(basePath, addr, len);
+	int rslt = bind(serverFd, (struct sockaddr*)&addr, len);
 	if (rslt == -1) {
 		perror(basePath.c_str());
 		throw std::runtime_error("Unable to bind socket");
