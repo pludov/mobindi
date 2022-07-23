@@ -104,6 +104,7 @@ class PhdStream extends React.PureComponent<Props, State> {
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
                         subframe={this.props.subframe}
                         streamSize={this.props.frameSize || this.props.streamSize || null}>
+                    <div className='FitsViewMarkers'>
                         {lockActive
                             ?
                                 <FitsMarker x={lockActive.x} y={lockActive.y}>
@@ -122,6 +123,7 @@ class PhdStream extends React.PureComponent<Props, State> {
                             :
                                 null
                         }
+                    </div>
                 </FitsViewerInContext>
         </div>);
     }

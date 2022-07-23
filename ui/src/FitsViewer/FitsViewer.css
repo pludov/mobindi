@@ -32,6 +32,18 @@
     z-index: 1;
 }
 
+.FwhmStar {
+    display: block;
+    position: absolute;
+    top: calc(-0.5 * var(--pct) - 2px);
+    left: calc(-0.5 * var(--pct) - 2px);
+    width: calc(2 * 0.5 * var(--pct));
+    height: calc(2 * 0.5 * var(--pct));
+    border: 2px solid grey;
+    border-radius: calc(0.5 * var(--pct));
+}
+
+
 div.ImageContextMenu div.Item {
     color: black;
     border: 0.1em solid #404060;

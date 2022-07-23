@@ -24,9 +24,11 @@ export default class LevelBar extends React.PureComponent<Props> {
 
     render() {
         return (
-            <div className="ImageBarSetting">
-                <div className="ImageBarContainer">
-                    <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate} onMouseUp={this.finishMove}/>
+            <div className='FitsSettingsOverlay'>
+                <div className="ImageBarSetting">
+                    <div className="ImageBarContainer">
+                        <input type='range' min='0' max='1' step='any' value={this.props.value} onChange={this.sendUpdate} onMouseUp={this.finishMove}/>
+                    </div>
                 </div>
             </div>
         );

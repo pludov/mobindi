@@ -3,6 +3,8 @@ import Log from '../shared/Log';
 import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
 import * as Algebra from '../shared/Algebra';
+import { ProcessorStarFieldOccurence } from '@bo/ProcessorTypes';
+import FitsMarker from './FitsMarker';
 
 const logger = Log.logger(__filename);
 
@@ -11,10 +13,16 @@ export type Props = {
     streamId: string|null;
 };
 
+type RankedStar = ProcessorStarFieldOccurence & {
+    fwhmRank: number;
+}
+
 export type State = {
     path: string|null;
     streamId: string|null;
     value: string|null;
+    stars: Array<RankedStar>;
+    maxStarRank: number;
     loading: boolean;
 };
 
@@ -25,7 +33,9 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
             path: null,
             streamId: null,
             value: null,
-            loading: false
+            loading: false,
+            maxStarRank: 0,
+            stars: [],
         }
     }
 
@@ -68,13 +78,24 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
                 stat = fwhm.toFixed(2) + " - " + e.stars.length + " stars"
             }
 
+            const rankedStars = e.stars.map(e=>({fwhmRank:NaN, ...e}))
+
+            const sortedStars = Algebra.starConsideredForFwhm(rankedStars).sort((a, b)=>a.fwhm < b.fwhm ? -1 : a.fwhm > b.fwhm ? 1 : 0) as Array<RankedStar>;
+            for(let i = 0; i < sortedStars.length; ++i) {
+                sortedStars[i].fwhmRank = i;
+            }
+
             this.setState({
                 value: stat,
+                stars: rankedStars,
+                maxStarRank: sortedStars.length,
                 loading: false
             });
         } catch(e) {
             this.setState({
                 value: "N/A " + (e.message || e),
+                stars: [],
+                maxStarRank: 0,
                 loading: false
             });
         };
@@ -98,14 +119,57 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
     }
 
     render() {
-        if (this.state.value === null) {
-            if (this.state.loading) {
-                return <div>...</div>;
+        const stars = [];
+        let minFwhm : number, maxFwhm: number;
+        for(let i = 0; i < this.state.stars.length; ++i) {
+            const star = this.state.stars[i];
+            if (i === 0) {
+                minFwhm = star.fwhm;
+                maxFwhm = star.fwhm;
             } else {
-                return <div>N/A</div>;
+                minFwhm = Math.min(minFwhm!, star.fwhm);
+                maxFwhm = Math.max(maxFwhm!, star.fwhm);
             }
-        } else {
-            return <div>{this.state.value}</div>
         }
+
+        const col = [
+            [ 0,255 ],
+            [ 0,0 ],
+            [ 255,0 ],
+        ];
+        const rejectedCol = [ 128,128,96 ];
+
+        for(let i = 0; i < 50 && i < this.state.stars.length; ++i) {
+            const star = this.state.stars[i];
+            let color;
+            if (isNaN(star.fwhmRank)) {
+                color = rejectedCol;
+            } else {
+                const fwhmFact = this.state.maxStarRank ? star.fwhmRank / this.state.maxStarRank : 0.5;
+                color = col.map(e=>((1-fwhmFact) * e[0] + (fwhmFact) * e[1]));
+            }
+
+            const rgb="rgb(" + color.map(e=>"" + Math.round(e)).join(',') + ")";
+
+            stars.push(<FitsMarker key={"s" + i} x={star.x} y={star.y}>
+                <div className="FwhmStar" style={{borderColor: rgb}}>
+                </div>
+            </FitsMarker>);
+        }
+        return <>
+            <div className='FitsSettingsOverlay'>
+                {(this.state.value === null)
+                    ?
+                        this.state.loading
+                        ?
+                            <div>...</div>
+                        :
+                            <div>N/A</div>
+                    :
+                        <div>{this.state.value}</div>
+                }
+            </div>
+            <div className='FitsViewMarkers'>{stars}</div>
+        </>;
     }
 }

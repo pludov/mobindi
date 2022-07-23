@@ -937,11 +937,16 @@ export class MarkerToken {
     }
 }
 
+export type FitsViewerContext = {
+    declareChild:(e:React.RefObject<HTMLDivElement>)=>MarkerToken|undefined;
+};
+
 class FitsViewer extends React.PureComponent<Props, State> {
     uid:number;
     ImageDisplay: JQImageDisplay;
     $el: JQuery<HTMLDivElement>;
     el: React.RefObject<HTMLDivElement> = React.createRef();
+    private readonly instanceContext: FitsViewerContext;
 
     constructor(props: Props) {
         super(props);
@@ -952,8 +957,13 @@ class FitsViewer extends React.PureComponent<Props, State> {
             fwhm: false,
             histogramWindow: false,
         };
+        this.instanceContext = {
+            declareChild: this.createMarkerToken
+        };
         // FIXME: persist state : histogram is visible
     }
+
+    static readonly ViewContext = React.createContext<FitsViewerContext>({declareChild:()=>undefined});
 
     componentDidUpdate(prevProps: Props) {
         this.ImageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
@@ -1115,44 +1125,41 @@ class FitsViewer extends React.PureComponent<Props, State> {
         } else {
             histogramView = null;
         }
-        const childrenWithProps = React.Children.map(this.props.children, child =>
-            child === null ? null : React.cloneElement(child as ReactElement<any>, { __fitsViewerDeclareChild: this.createMarkerToken })
-        );
+
         return(
-            <div className='FitsViewOverlayContainer'>
-                <div className='FitsView' ref={this.el}>
-                    <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
-                </div>
-                <div className='FitsViewMarkers'>
-                    {childrenWithProps}
-                </div>
-                <div className='FitsViewLoading'/>
-                <div className='FitsSettingsOverlay'>
+            <FitsViewer.ViewContext.Provider value={this.instanceContext}>
+
+                <div className='FitsViewOverlayContainer'>
+                    <div className='FitsView' ref={this.el}>
+                        <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
+                    </div>
+                    {this.props.children}
+                    <div className='FitsViewLoading'/>
                     {histogramView}
+                    {visor}
+
+                    <FloatContainer>
+                        {this.state.histogramWindow
+                            ?
+                                <FloatWindow key="fits_view_overlay">
+                                    <FloatWindowMover>
+                                        <Histogram
+                                            path={this.props.path}
+                                            streamId={this.props.streamId}
+                                            streamSerial={this.props.streamSerial}
+                                            />
+                                    </FloatWindowMover>
+                                </FloatWindow>
+                            :
+                                null
+                        }
+
+
+                    </FloatContainer>
+
+                    {contextMenu}
                 </div>
-                {visor}
-
-                <FloatContainer>
-                    {this.state.histogramWindow
-                        ?
-                            <FloatWindow key="fits_view_overlay">
-                                <FloatWindowMover>
-                                    <Histogram
-                                        path={this.props.path}
-                                        streamId={this.props.streamId}
-                                        streamSerial={this.props.streamSerial}
-                                        />
-                                </FloatWindowMover>
-                            </FloatWindow>
-                        :
-                            null
-                    }
-
-
-                </FloatContainer>
-
-                {contextMenu}
-            </div>);
+            </FitsViewer.ViewContext.Provider>);
     }
 
 }

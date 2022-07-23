@@ -29,8 +29,16 @@ export type ProcessorStarFieldRequest = {
     source: ProcessorContentRequest;
 }
 
+export type ProcessorStarFieldOccurence = {
+    fwhm: number;
+    peak:number;
+    sat:boolean;
+    x:number;
+    y:number;
+}
+
 export type ProcessorStarFieldResult = {
-    stars: Array<{fwhm: number, peak:number}>;
+    stars: Array<ProcessorStarFieldOccurence>;
 }
 
 export type ProcessorAstrometryRequest = {

@@ -26,9 +26,13 @@ export function kapaFilteredMean(values: number[], sigma:number, iter:number) {
 }
 
 
+export function starConsideredForFwhm(stars: Array<{fwhm: number, peak:number}>) {
+    return stars = stars.filter(star=>star.peak < 0.9);
+}
+
 // Compute global FWHM for a starfield, excluding saturated stars and outliers
 // Return NaN if impossible (no unsaturated star)
 export function starFieldFwhm(stars: Array<{fwhm: number, peak:number}>) {
-    stars = stars.filter(star=>star.peak < 0.9);
+    stars = starConsideredForFwhm(stars);
     return kapaFilteredMean(stars.map(star=>star.fwhm), 5, 1.5);
 }
