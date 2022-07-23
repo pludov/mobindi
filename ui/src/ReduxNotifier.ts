@@ -33,6 +33,7 @@ function detectScreenStatusByAnimationFrame(cb:(status: boolean)=>(void))
 
 function detectScreenStatusByFocusEvents(cb:(status: boolean)=>(void))
 {
+    // This is not valid for desktop app where blur just mean window switch
     window.addEventListener('blur', ()=> {
         cb(false);
     });
