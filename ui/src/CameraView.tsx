@@ -12,9 +12,11 @@ import './CameraView.css'
 import { StreamSize } from '@bo/BackOfficeStatus';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import * as ImagingSetupStore from './ImagingSetupStore';
+import * as CameraStore from './CameraStore';
 import CameraSettingsPanel from './CameraSettingsPanel';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 import FocuserSettingsPanel from './FocuserSettingsPanel';
+import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
 
 const logger = Log.logger(__filename);
 
@@ -33,11 +35,20 @@ type MappedProps = {
 
 type Props = InputProps & MappedProps;
 
-class CameraView extends React.PureComponent<Props> {
+type State = {
+    loadedImage: string|undefined;
+};
+
+class CameraView extends React.PureComponent<Props, State> {
 
     constructor(props: Props) {
         super(props);
+        this.state = {
+            loadedImage: undefined
+        }
     }
+
+    private readonly defaultImageLoadingPathAccessor = CameraStore.defaultImageLoadingPathAccessor();
 
     startAstrometry = async () => {
         if (this.props.path === null) {
@@ -53,29 +64,47 @@ class CameraView extends React.PureComponent<Props> {
         logger.debug('done astrometry ?');
     };
 
+    loadImage = (path: string)=>{
+        this.setState({loadedImage: path});
+    }
+
     render() {
         return(<div className="CameraView">
             <div className="CameraViewSettings">
                 <div>
-                    <EditableImagingSetupSelector accessor={this.props.imagingSetupIdAccessor}/>
+                    <ImageOrImagingSetupSelector
+                        loadedPath={this.state.loadedImage}
+                        onloadPath={this.loadImage}
+                        accessor={this.props.imagingSetupIdAccessor}
+                        defaultPathAccessor={this.defaultImageLoadingPathAccessor}/>
                 </div>
-                <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
-                <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
-                <FocuserSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                {this.state.loadedImage === undefined
+                    ?
+                        <>
+                            <CameraSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                            <FilterWheelSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                            <FocuserSettingsPanel imagingSetup={this.props.imagingSetup}/>
+                        </>
+                    : null
+                }
             </div>
             <div className="CameraViewDisplay">
                 <FitsViewerWithAstrometry
                     contextKey="default"
-                    path={this.props.path}
+                    path={this.state.loadedImage || this.props.path}
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
                     streamSize={this.props.streamSize}
                     subframe={null}/>
             </div>
-            <ShootButton
-                    cameraDevice={this.props.cameraDevice}
-                    onSuccess={this.setPhoto}
-                    />
+            {this.state.loadedImage === undefined
+                ?
+                    <ShootButton
+                            cameraDevice={this.props.cameraDevice}
+                            onSuccess={this.setPhoto}
+                            />
+                : null
+            }
         </div>);
     }
 

@@ -121,11 +121,19 @@ export type FilterWheelAPI = {
     abortFilterChange: (payload: {filterWheelDeviceId: string})=>void;
 }
 
+export type ImageFileInfo = {
+    name: string;
+    type: "image"|"dir";
+    time: number|null;
+}
+
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     stream: (stream: {loopExposure: boolean})=>void;
     abort: (payload: {})=>void;
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
+    setDefaultImageLoadingPath:(payload: {defaultImageLoadingPath: string|null})=>void;
+    getImageFiles:(payload: {path: string})=>Array<ImageFileInfo>;
 }
 
 export type SequenceAPI = {

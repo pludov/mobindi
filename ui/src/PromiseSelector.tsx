@@ -22,6 +22,11 @@ type StringStored = {
     setValue:(d:string)=>Promise<any>;
 }
 
+type ValueOverride = {
+    id: string;
+    title: string;
+}
+
 export type Props<TYPE> = (NumberStored | StringStored) & {
     nullAlwaysPossible?: boolean;
     placeholder: string;
@@ -31,6 +36,7 @@ export type Props<TYPE> = (NumberStored | StringStored) & {
     controls?: Array<Control>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
+    valueOverride?: ValueOverride;
 };
 type State<TYPE> = {
     forcedValue: string|null;
@@ -83,38 +89,51 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
     }
 
     render() {
-        var active = this.getActiveString();
-        if (active == undefined) active = null;
 
         var availables = this.props.availablesGenerator(this.props);
         if (!availables) availables = [];
         var options = [];
         let disabled: boolean = true;
-        if (this.state.forcedValue !== null) {
-            active = this.state.forcedValue;
-            logger.debug('Using forced value', {active});
-        }
+        let currentValue : string;
+        if (this.state.forcedValue === null && this.props.valueOverride !== undefined) {
+            // Add a specific value
+            const tmpVal = this.props.valueOverride;
+            currentValue = "tmp:" + tmpVal.id;
+            options.push(<option
+                            value={currentValue}
+                            key={currentValue}>
+                        {tmpVal.title}</option>);
 
-        if (active == null || this.props.nullAlwaysPossible) {
-            options.push(<option disabled={!this.props.nullAlwaysPossible} hidden={!this.props.nullAlwaysPossible} value='null' key='null'>{this.props.placeholder}</option>)
-            if (this.props.nullAlwaysPossible) {
-                disabled = false;
+            disabled = false;
+        } else {
+            let active = this.getActiveString();
+            if (active == undefined) active = null;
+            if (this.state.forcedValue !== null) {
+                active = this.state.forcedValue;
+                logger.debug('Using forced value', {active});
             }
-        }
+            currentValue = JSON.stringify(active);
 
-        if (active != null) {
-            var present = false;
-            for(var o of availables) {
-                if (this.props.getId(o, this.props) === active) {
-                    present = true;
+            if (active == null || this.props.nullAlwaysPossible) {
+                options.push(<option disabled={!this.props.nullAlwaysPossible} hidden={!this.props.nullAlwaysPossible} value='null' key='null'>{this.props.placeholder}</option>)
+                if (this.props.nullAlwaysPossible) {
+                    disabled = false;
                 }
             }
-            if (!present) {
-                options.push(<option value={JSON.stringify(active)} key={JSON.stringify(active)}>{typeof active !== "string" ? active : this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
-                disabled = false;
+
+            if (active != null) {
+                var present = false;
+                for(var o of availables) {
+                    if (this.props.getId(o, this.props) === active) {
+                        present = true;
+                    }
+                }
+                if (!present) {
+                    options.push(<option value={currentValue} key={currentValue}>{typeof active !== "string" ? active : this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
+                    disabled = false;
+                }
             }
         }
-
         for(const v of availables) {
             const id = JSON.stringify(this.props.getId(v, this.props));
             options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
@@ -131,7 +150,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
         return <select ref={this.props.focusRef}
                     disabled={(this.state.runningPromise !== undefined) || disabled}
-                    value={JSON.stringify(active)}
+                    value={currentValue}
                     onChange={(e)=>this.clicked(e.target.value)}
                     {...this.props.helpKey?.dom()}
                     >{options}

@@ -320,6 +320,7 @@ export type CameraShoot = {
 export type CameraStatus = {
     status: string;
     currentImagingSetup: string|null;
+    defaultImageLoadingPath: string|null;
     currentStreams: {[deviceId: string]: CameraStream};
     currentShoots: {[deviceId:string]:CameraShoot};
     lastByDevices: {[deviceId:string]:string};

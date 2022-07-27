@@ -9,11 +9,12 @@ import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
 import {IdGenerator} from "./IdGenerator";
 import * as Obj from "./shared/Obj";
+import {Comparator}  from './shared/Comparator';
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import ConfigStore from './ConfigStore';
 import { Pipe } from './SystemPromise';
-
+import * as fs from 'fs';
 
 type ScopeState = "light"|"dark"|"flat";
 
@@ -29,6 +30,17 @@ const coverMessageByFrameType = {
     "dark": "Cover scope",
     "flat": "Switch scope to flat field",
 }
+
+const dirComparator = Comparator.when<BackOfficeAPI.ImageFileInfo>(
+        (e)=>!e.name.startsWith('.'),
+            Comparator.ordering().applyTo<BackOfficeAPI.ImageFileInfo>(e=>e.name)
+);
+
+const fileComparator = Comparator.when<BackOfficeAPI.ImageFileInfo>(
+    (e)=>!e.name.startsWith('.'),
+        Comparator.ordering().applyTo<BackOfficeAPI.ImageFileInfo>(e=>(-(e.time||0)))
+);
+
 
 export default class Camera
         implements RequestHandler.APIAppProvider<BackOfficeAPI.CameraAPI>
@@ -50,6 +62,7 @@ export default class Camera
         this.appStateManager.getTarget().camera = {
             status: "idle",
             currentImagingSetup: null,
+            defaultImageLoadingPath: process.env.HOME || null,
 
             currentStreams: {},
 
@@ -324,6 +337,48 @@ export default class Camera
         }
         this.currentStatus.currentImagingSetup = message.imagingSetup;
     }
+
+    setDefaultImageLoadingPath=async (ct: CancellationToken, message:{defaultImageLoadingPath:null|string})=>{
+        this.currentStatus.defaultImageLoadingPath = message.defaultImageLoadingPath;
+    }
+
+    getImageFiles= async (ct: CancellationToken, payload: { path: string; }) => {
+        const basePath = payload.path + (payload.path.endsWith('/') ? "" : "/");
+
+        const itemsNames = await fs.promises.readdir(basePath, {withFileTypes: false});
+
+        const directories:Array<BackOfficeAPI.ImageFileInfo> = [];
+        const images:Array<BackOfficeAPI.ImageFileInfo> = [];
+        const imageRegex = /\.(fits|fit|cr2|jpeg|jpg)$/i;
+        // Put the directories above
+        for(const p of itemsNames) {
+            ct.throwIfCancelled();
+            try {
+                const stat = await fs.promises.lstat(basePath + p);
+
+                if (stat.isDirectory()) {
+                    directories.push({
+                        name: p,
+                        type: "dir",
+                        time: null,
+                    });
+                } else if (stat.isFile() && imageRegex.test(p)) {
+                    images.push({
+                        name: p,
+                        type: "image",
+                        time: stat.mtimeMs,
+                    });
+                }
+            } catch(e) {
+                logger.warn(`Unable to stat ${p}`, e);
+            }
+        }
+
+        directories.sort(dirComparator.apply);
+        // Sort files by modification time (desc)
+        images.sort(fileComparator.apply);
+        return [...images, ...directories];
+    };
 
     getCropAdjustment(device:any)
     {
@@ -872,6 +927,8 @@ export default class Camera
             stream: this.stream,
             abort: this.abort,
             setCurrentImagingSetup: this.setCurrentImagingSetup,
+            setDefaultImageLoadingPath: this.setDefaultImageLoadingPath,
+            getImageFiles: this.getImageFiles,
         }
     }
 }

@@ -13,9 +13,26 @@ type State = {
     editingUuid: string | undefined;
 };
 
+function arraySwallowEquals(a1:Array<any>, a2:Array<any>|undefined) {
+    if (!(a1 && a2)) {
+        return false;
+    }
+    if (a1.length !== a2.length) {
+        return false;
+    }
+    for(let i = 0 ; i < a1.length; ++i) {
+        if (a1[i] !== a2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
     private static imaginSetupSelectorHelp = Help.key("Imaging setup", "Select your imaging configuration. This includes camera and related equipments like filterwheel, focuser, ... You can use the Edit option to choose/configure devices of this setup");
     private readonly controls : ImagingSetupSelectorProps["controls"];
+    private prevControls : ImagingSetupSelectorProps["controls"] = [];
+
     private readonly imagingSetupSelectorRef = React.createRef<PromiseSelector<ImageSetupSelectorItem>>();
 
     constructor(props: Props) {
@@ -65,6 +82,14 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
 
     render() {
         const { controls, ...props} = this.props;
+
+        let childControls : ImagingSetupSelectorProps["controls"] = [...(this.controls||[]), ...(this.props.controls||[])];
+        if (arraySwallowEquals(childControls, this.prevControls)) {
+            childControls = this.prevControls;
+        } else {
+            this.prevControls = childControls;
+        }
+
         const editingUuid = this.state.editingUuid;
         return (
             <>
@@ -83,7 +108,7 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
                         </div>
                     : null
                 }
-                <ImagingSetupSelector controls={this.controls} ref={this.imagingSetupSelectorRef as any} {...props}></ImagingSetupSelector>
+                <ImagingSetupSelector controls={childControls} ref={this.imagingSetupSelectorRef as any} {...props}></ImagingSetupSelector>
             </>
         );
     }

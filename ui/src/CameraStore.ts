@@ -52,3 +52,23 @@ class CurrentImagingSetupAccessor implements Store.Accessor<string|null> {
 
 export const currentImagingSetupAccessor = defaultMemoize(()=>new CurrentImagingSetupAccessor());
 
+class DefaultImageLoadingPathAccessor implements Store.Accessor<string|null> {
+    fromStore = (store:Store.Content)=> {
+        const ret = store.backend?.camera?.defaultImageLoadingPath;
+        if (ret === undefined) return null;
+        return ret;
+    }
+
+    send = async (defaultImageLoadingPath: string|null) => {
+        await BackendRequest.RootInvoker("camera")("setDefaultImageLoadingPath")(
+            CancellationToken.CONTINUE,
+            {
+                defaultImageLoadingPath
+            }
+        );
+    }
+}
+
+export const defaultImageLoadingPathAccessor = defaultMemoize(()=>new DefaultImageLoadingPathAccessor());
+
+
