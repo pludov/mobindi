@@ -598,7 +598,7 @@ class JQImageDisplay {
         $(newImage).css('pointer-events', 'none');
         $(newImage).css('box-sizing', 'border-box');
         $(newImage).css('border', '0px');
-        logger.info('Loading image: ', {src, debugid: (newImage as any).debugid});
+        logger.info('Loading image: ', {path, src, debugid: (newImage as any).debugid});
         if (this.loadingImg !== null) {
             if (this.loadingImg.parentElement) {
                 this.loadingImg.parentElement.removeChild(this.loadingImg);
@@ -798,7 +798,7 @@ class JQImageDisplay {
         if (this.loadingDetailsPath === null) {
             // No path change. Make sure the path is the latest
             let path, serial, window;
-            if (this.loadingImgPath !== null) {
+            if (this.loadingImg !== null) {
                 path = this.loadingImgPath;
                 serial = this.loadingImgSerial;
                 window = this.loadingImgWindow;
