@@ -74,7 +74,9 @@ class SequenceStepParameterSplitter extends React.PureComponent<Props, State> {
     }
 
     render() {
-        return <Modal forceVisible={true} onClose={this.props.onClose}>
+        return <Modal forceVisible={true} onClose={this.props.onClose}
+                    controlButtons={<input type="button" value="OK" onClick={this.perform}/>}
+                    >
             <div>
                 <div>Creating childs for {this.props.parameter.title}</div>
                 Number of values:
@@ -82,7 +84,6 @@ class SequenceStepParameterSplitter extends React.PureComponent<Props, State> {
                         {values.map(i=> <option key={i} value={i}>{i}</option>)}
                     </select>
             </div>
-            <input type="button" value="OK" onClick={this.perform}/>
         </Modal>
     }
 

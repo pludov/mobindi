@@ -1,0 +1,29 @@
+.FitsSelectorContainer {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    height: 100%;
+}
+
+.FitsSelectorPath {
+    flex-grow: 0;
+    padding-bottom: 0.3em;
+    font-size: 1.3em;
+}
+
+.FitsSelectorContent {
+    flex-basis: 0;
+    flex-grow: 1;
+    overflow: auto;
+}
+
+.currentDirectoryPathPart {
+    margin-right: 0.6em;
+    padding: 0.1em;
+    background-color: #777777;
+    cursor: pointer;
+}
+
+.directoryEntry {
+    cursor: pointer;
+}

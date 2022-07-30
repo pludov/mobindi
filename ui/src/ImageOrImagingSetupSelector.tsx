@@ -72,9 +72,14 @@ class ImageOrImagingSetupSelector extends React.PureComponent<Props, State> {
         (path: string| undefined)=>
             {
                 if (path === undefined) return undefined;
+                let title = path;
+                const lastSlash = path.lastIndexOf('/');
+                if (lastSlash) {
+                    title = `${path.substring(lastSlash + 1)} - ${path.substring(0, lastSlash + 1)}`;
+                }
                 return {
                     id: path,
-                    title: path
+                    title: title
                 }
             }
     );

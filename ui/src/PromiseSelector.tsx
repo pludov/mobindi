@@ -67,7 +67,6 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
     getActiveString() {
         const numberStored = (this.props as NumberStored);
-        console.log('getActiveString', numberStored);
         if (numberStored.activeNumber !== undefined) {
             if (numberStored.activeNumber === null) {
                 return null;

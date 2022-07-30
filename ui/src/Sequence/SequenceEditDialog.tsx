@@ -9,6 +9,7 @@ import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import TextEdit from "../TextEdit";
+import Modal from '../Modal';
 import * as SequenceStepParameter from "./SequenceStepParameter";
 import SequenceStepEdit from "./SequenceStepEdit";
 import CancellationToken from 'cancellationtoken';
@@ -76,8 +77,9 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
             return null;
         }
 
-        return <div className="Modal">
-            <div className="ModalContent">
+        return <Modal onClose={this.props.onClose} closeHelpKey={SequenceEditDialog.closeBtonHelp} forceVisible={true}
+                    title={<div className="Title">Edit sequence {this.props.details.title}</div>}
+            >
                 <div className="IndiProperty">
                         Title:
                         <TextEdit
@@ -106,10 +108,7 @@ class SequenceEditDialog extends React.PureComponent<Props, State> {
                     :
                         null
                 }
-
-                <input type='button' value='Close' onClick={this.props.onClose} {...SequenceEditDialog.closeBtonHelp.dom()}/>
-            </div>
-        </div>;
+            </Modal>;
     }
 
     static mapStateToProps:()=>(store: Store.Content, ownProps: InputProps)=>MappedProps=()=>{

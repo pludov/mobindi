@@ -10,6 +10,9 @@ import CancellationToken from 'cancellationtoken';
 
 import { ImageFileInfo } from '@bo/BackOfficeAPI';
 
+import "./FitsFileChooser.css";
+
+
 const logger = Log.logger(__filename);
 
 type State = {
@@ -157,33 +160,36 @@ class FitsFileChooser extends React.PureComponent<Props, State> {
                 p = c.path + '/';
             }
         }
-        return <div>
-            <div>
+        return <div className="FitsSelectorContainer">
+
+            <div className="FitsSelectorPath">
                 {currentPath.map((c)=>
                     <span className='currentDirectoryPathPart' data-path={c.path} onClick={this.parentClicked}>
                         {c.title}
                     </span>
                 )}
             </div>
-            {this.state.busy
-                ? <div>Loading...</div>
-                : null
-            }
-            {this.state.error
-                ? <div>{this.state.error}</div>
-                : null
-            }
+            <div className="FitsSelectorContent">
+                {this.state.busy
+                    ? <div>Loading...</div>
+                    : null
+                }
+                {this.state.error
+                    ? <div>{this.state.error}</div>
+                    : null
+                }
 
-            {
-                this.state.content.map((e)=>
-                    <div key={e.name} data-path={e.name} onClick={e.type === "dir" ? this.dirClicked : this.fileClicked}>
-                        <span className="FileTypeIndicator">
-                            {e.type === "dir" ? '📁' : '🎞' }
-                        </span>
-                        {e.name}
-                    </div>
-                )
-            }
+                {
+                    this.state.content.map((e)=>
+                        <div className="directoryEntry" key={e.name} data-path={e.name} onClick={e.type === "dir" ? this.dirClicked : this.fileClicked}>
+                            <span className="FileTypeIndicator">
+                                {e.type === "dir" ? '📁' : '🎞' }
+                            </span>
+                            {e.name}
+                        </div>
+                    )
+                }
+            </div>
         </div>
 
     }

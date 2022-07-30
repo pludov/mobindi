@@ -7,6 +7,7 @@ import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as I
 import PromiseSelector, {Props as PromiseSelectorProps} from './PromiseSelector';
 import ImagingSetupEditor from './ImagingSetupEditor';
 import { BackendAccessor } from './utils/BackendAccessor';
+import Modal from './Modal';
 
 type Props = ImagingSetupSelectorProps;
 type State = {
@@ -95,17 +96,10 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
             <>
                 {editingUuid !== undefined
                     ?
-                        <div className="Modal">
-                            <div className="ModalContent">
-                                <p>Imaging setup: <ImagingSetupSelector accessor={this.currentImagingSetupAccessor}/></p>
-
-                                <ImagingSetupEditor
-                                    imagingSetupUid={editingUuid}
-                                    />
-
-                                <input type='button' value='Close' onClick={this.closeEdit}/>
-                            </div>
-                        </div>
+                        <Modal forceVisible={true} onClose={this.closeEdit}>
+                            <p>Imaging setup: <ImagingSetupSelector accessor={this.currentImagingSetupAccessor}/></p>
+                            <ImagingSetupEditor imagingSetupUid={editingUuid}/>
+                        </Modal>
                     : null
                 }
                 <ImagingSetupSelector controls={childControls} ref={this.imagingSetupSelectorRef as any} {...props}></ImagingSetupSelector>

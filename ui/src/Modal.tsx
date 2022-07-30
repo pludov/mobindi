@@ -7,6 +7,8 @@ type Props = {
     onClose?:()=>(void);
     closeHelpKey?: Help.Key;
     closeOnChange?: any;
+    title?: React.ReactElement;
+    controlButtons?: React.ReactElement;
 }
 
 type State = {
@@ -37,9 +39,18 @@ class Modal extends React.PureComponent<Props, State> {
         }
 
         return <div className="Modal">
-                    <div className="ModalContent">
-                        {this.props.children}
-                        <input type='button' value={this.props.closeHelpKey?.title || 'Close'} onClick={this.close} {...this.props.closeHelpKey?.dom()}/>
+                    <div className="ModalContainer">
+                        {this.props.title
+                            ? <div className="ModalTitle">{this.props.title}</div>
+                            : null
+                        }
+                        <div className="ModalContent">
+                            {this.props.children}
+                        </div>
+                        <div className="ModalBar">
+                            {this.props.controlButtons || null}
+                            <input type='button' value={this.props.closeHelpKey?.title || 'Close'} onClick={this.close} {...this.props.closeHelpKey?.dom()}/>
+                        </div>
                     </div>
         </div>;
     }

@@ -167,10 +167,11 @@ export class SequenceControler extends React.PureComponent<Props, State> {
                 <Modal
                         closeOnChange={this.props.uuid}
                         ref={this.deleteConfirm}
-                        closeHelpKey={SequenceControler.abortDropBtonHelp} >
+                        closeHelpKey={SequenceControler.abortDropBtonHelp} 
+                        controlButtons={<input type="button" onClick={(e)=>Utils.promiseToState(this.dropSequence, this)} value={SequenceControler.dropBtonHelp.title} {...SequenceControler.confirmDropBtonHelp.dom()}></input>}
+                        >
                     <div>Confirm removal of sequence {this.props.current?.title} ?
                     </div>
-                    <input type="button" onClick={(e)=>Utils.promiseToState(this.dropSequence, this)} value={SequenceControler.dropBtonHelp.title} {...SequenceControler.confirmDropBtonHelp.dom()}></input>
                 </Modal>
             </div>
         </>);
