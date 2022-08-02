@@ -491,6 +491,21 @@ export default class Camera
                 }
             );
         }
+
+        // Make sure continuous loop is not set (this prevents gathering the photo in deterministic way without timeout)
+        if (this.indiManager.getValidConnection().getDevice(device).getVector('CCD_FAST_TOGGLE').exists()) {
+            await this.indiManager.setParam(task.cancellation, device, 'CCD_FAST_TOGGLE',
+                (vec:Vector) => {
+                    if (vec.getPropertyValueIfExists('INDI_DISABLED') !== 'On') {
+                        logger.debug('want CCD_FAST_TOGGLE', {device});
+                        return {
+                            INDI_DISABLED: 'On'
+                        }
+                    } else {
+                        return ({});
+                    }
+                });
+        }
     }
 
     // Return a promise to shoot at the given camera (where)
