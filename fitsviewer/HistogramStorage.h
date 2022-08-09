@@ -16,7 +16,8 @@ struct HistogramChannelData {
 	}
 
 	void clear() {
-		for(int i = 0; i < max - min + 1; ++i) {
+		uint32_t sc = sampleCount();
+		for(uint32_t i = 0; i < sc; ++i) {
 			data[i] = 0;
 		}
 	}
