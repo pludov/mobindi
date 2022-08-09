@@ -312,7 +312,9 @@ class ImageLoader {
             this.detailsRequest = null;
         }
         if (this.img) {
-            this.img.src = "about:blank"
+            this.img.removeEventListener("load", this.imageElementLoaded);
+            this.img.removeEventListener("error", this.imageElementFailed);
+            this.img.src = imageReleaseUrl;
             if (this.img.parentNode != null) {
                 this.img.parentNode!.removeChild(this.img);
             }
@@ -401,8 +403,12 @@ class ImageLoader {
             } else {
                 // FIXME: we never update the bin
                 this.placeImageElement();
-                this.img.src = this.computeSrc();
-                this.events.emit('rendered');
+                const newSrc = this.computeSrc();
+                if (newSrc != this.img.src) {
+                    this.img.src = this.computeSrc();
+                } else {
+                    this.events.emit('rendered');
+                }
             }
         }
     }
