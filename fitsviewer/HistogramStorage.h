@@ -56,7 +56,7 @@ struct HistogramChannelData {
 		return size;
 	}
 
-	static HistogramChannelData * HistogramChannelData::resample(const HistogramChannelData  *rcs, int shift, std::function<void* (long int)> allocator);
+	static HistogramChannelData * resample(const HistogramChannelData  *rcs, int shift, std::function<void* (long int)> allocator);
 };
 
 struct HistogramStorage {
@@ -90,13 +90,13 @@ struct HistogramStorage {
 		}
 	}
 
-	HistogramChannelData * channel(int ch)
+	HistogramChannelData * channel(int ch) const
 	{
 		if (ch >= channelCount) {
 			ch = channelCount - 1;
 		}
 		int currentId = 0;
-		char * ptr = datas;
+		const char * ptr = datas;
 		HistogramChannelData * current = (HistogramChannelData*)ptr;
 		while(currentId < ch) {
 

@@ -46,6 +46,9 @@ add_library(archive OBJECT
       TempDir.cpp
       ChildProcess.cpp
       FitsFile.cpp
+      FitsRenderer.cpp
+      FitsRendererBayer.cpp
+      FitsRendererGreyscale.cpp
       Astrometry.cpp
       FixedSizeBitSet.cpp
       SharedCache.cpp
