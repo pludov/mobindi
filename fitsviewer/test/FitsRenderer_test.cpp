@@ -233,7 +233,18 @@ TEST_CASE( "FITS rendering", "[FitsRenderer.cpp]" ) {
             256, 256,
             {
                 {0, 0, 256, 8},
+                {33, 33, 23, 23},
                 {0, 248, 256, 8}
+            }
+        },
+        {
+            new TestFrameColor(),
+            new ColorFrameInterpreter(),
+            126, 126,
+            {
+                {0, 0, 127, 8},
+                {33, 33, 23, 23},
+                {0, 119, 127, 7}
             }
         }
     };
@@ -286,7 +297,7 @@ TEST_CASE( "FITS rendering", "[FitsRenderer.cpp]" ) {
                     int sw = x1 - x0 + 1;
                     int sh = y1 - y0 + 1;
                     INFO("Square at " + std::to_string(x0) + "," + std::to_string(y0) + " for " + std::to_string(sw) + "x" + std::to_string(sh))
-                    fprintf(stderr, "%d %d %d %d\n", x0, y0, x1, y1);
+
                     auto result = renderer->render(x0, y0, sw, sh);
                     int outSize = binDiv(sw, binShift) * binDiv(sh, binShift);
                     std::vector<uint16_t> resultVec(result, result + outSize * test.interpreter->channelCount());

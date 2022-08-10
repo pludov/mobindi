@@ -13,10 +13,6 @@ public:
     virtual uint8_t * render(int x0, int y0, int rw, int rh);
 
 private:
-	const uint16_t * getPix(int x, int y) const {
-		return data + x + w * y; 
-	}
-
 	inline void applyScale(int x0, int y0, int sx, int sy, uint8_t * result, int result_stride) {
 		auto src = getPix(x0, y0);
 
@@ -75,7 +71,7 @@ private:
 			int pixsy = shortY ? y0 + sy - ry : binStep;
 
 			int i = 0;
-			fprintf(stderr, "by %d sy %d ry %d pixsy %d\n", by, sy, ry, pixsy);
+
 			for(int bx = 0; bx < sx; bx += binStep)
 			{
 				int rx = bx + x0;

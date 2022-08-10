@@ -36,6 +36,11 @@ protected:
     static FitsRenderer * buildBayer(FitsRendererParam param);
     static FitsRenderer * buildGreyscale(FitsRendererParam param);
     
+    const uint16_t * getPix(int x, int y) const {
+		return data + x + w * y; 
+	}
+
+
 public:
     virtual ~FitsRenderer() = 0;
     virtual void prepare() = 0;
