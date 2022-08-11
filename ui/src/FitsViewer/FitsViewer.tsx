@@ -502,6 +502,7 @@ class ImageLoader {
     }
 
     isLoading() {
+        if ((this.detailsLoaded) && (!this.details)) return false;
         return !this.rendered;
     }
 }
@@ -588,7 +589,7 @@ class JQImageDisplay {
         }
 
         this.crosshairInstance.update(imagePos);
-
+        
     }
 
     onResize = ()=>{
@@ -835,7 +836,9 @@ class JQImageDisplay {
 
     private viewSized =(err:any)=> {
         if (!this.loadingView!.details) {
-            // FIXME: add an error path there ?
+            // Activate the view directly
+            this.loadingView!.events.removeListener('rendered', this.viewRendered);
+            this.viewRendered();
             return;
         }
 
