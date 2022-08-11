@@ -229,6 +229,10 @@ class ImageLoader {
 
     disposed: boolean = false;
 
+    // Updated during lifecycle of the rendering
+    errorFlag: boolean = false;
+    rendered: boolean = false;
+
     insertImg: (e: HTMLElement)=>void;
 
     constructor(param: ImageParameter) {
@@ -383,12 +387,16 @@ class ImageLoader {
         this.detailsRequest = null;
         this.details = details;
         console.log('ImageLoader got details', details)
-        
-        this.events.emit('sized', details)
+        if (details === null) {
+            this.errorFlag = true;
+        }
+        this.events.emit('sized', details);
+        if (details === null && !this.disposed) {
+            this.events.emit('statusChanged');
+        }
     }
 
     expose = (exposure: ImageExposure)=> {
-        console.log('Received exposure', exposure);
         this.exposure = exposure;
 
         if (!this.detailsLoaded) {
@@ -405,7 +413,10 @@ class ImageLoader {
                 this.placeImageElement();
                 const newSrc = this.computeSrc();
                 if (newSrc != this.img.src) {
+                    // FIXME : don't remove the current display, must go into a new image
                     this.img.src = this.computeSrc();
+                    this.rendered = false;
+                    this.events.emit('statusChanged');
                 } else {
                     this.events.emit('rendered');
                 }
@@ -442,16 +453,24 @@ class ImageLoader {
 
     imageElementLoaded=()=> {
         logger.error('imageloader => loading finished');
+        this.rendered = true;
         this.events.emit('rendered')
+        if (!this.disposed) {
+            this.events.emit('statusChanged');
+        }
     }
-
+    
     imageElementFailed=(e: any)=>{
         logger.error('imageloader => loading failed', e);
+        this.errorFlag = true;
+        this.rendered = true;
         this.events.emit('rendered')
+        if (!this.disposed) {
+            this.events.emit('statusChanged');
+        }
     }
 
     loadImageElement() {
-        console.log('Image loader create new image');
         this.img = new Image();
         this.img.addEventListener("load", this.imageElementLoaded);
         this.img.addEventListener("error", this.imageElementFailed);
@@ -476,6 +495,14 @@ class ImageLoader {
 
         this.child.addClass('Loading');
         this.child.removeClass('Error');*/
+    }
+
+    hadLoadingError() {
+        return this.errorFlag;
+    }
+
+    isLoading() {
+        return !this.rendered;
     }
 }
 
@@ -589,21 +616,35 @@ class JQImageDisplay {
         this.setCurrentImagePos(bestFit);
     }
 
-
-
     dispose() {
         this.mouseListener.dispose();
 
         if (this.currentView) {
-            this.currentView.dispose();
+            this.disposeView(this.currentView);
+            this.currentView = null;
         }
         if (this.loadingView) {
-            this.loadingView.dispose();
+            this.disposeView(this.loadingView);
+            this.loadingView = null;
         }
     }
 
-    //FIXME: this.child.removeClass('PreLoading');
-    //FIXME:this.child.removeClass('Loading');
+    updateViewStyle= ()=> {
+        // First the loading flag
+        const loading = this.loadingView || (this.currentView && this.currentView.isLoading());
+        const error = (!loading) && this.currentView && this.currentView.hadLoadingError();
+        if (loading) {
+            this.child.addClass('Loading');
+        } else {
+            this.child.removeClass('Loading');
+        }
+
+        if (error) {
+            this.child.addClass('Error');
+        } else {
+            this.child.removeClass('Error');
+        }
+    }
 
     getFullState(): FullState
     {
@@ -761,11 +802,13 @@ class JQImageDisplay {
         newLoader.insertImg = this.insertImg;
 
         // Discard loading view if it's not relevant
+        let styleUpdateRequired = false;
         if (this.loadingView) {
             if (!this.loadingView.samePath(newLoader)) {
-                this.loadingView.dispose();
+                this.disposeView(this.loadingView);
                 this.loadingView = null;
                 this.nextView = null;
+                styleUpdateRequired = true;
             }
         }
 
@@ -776,40 +819,56 @@ class JQImageDisplay {
             // Try to start from 
             this.loadingView = newLoader;
             this.startLoadingView();
+            styleUpdateRequired = true;
         }
+
+        if (styleUpdateRequired) {
+            this.updateViewStyle();
+        }
+    }
+
+    private viewSized =(err:any)=> {
+        if (!this.loadingView!.details) {
+            // FIXME: add an error path there ?
+            return;
+        }
+
+        if (this.currentView && !this.loadingView!.sameGeometry(this.currentView)) {
+            this.disposeView(this.currentView);
+            this.currentView = null;
+            this.bestFit();
+        } else {
+            // Now it needs an expose at the right size...
+            this.setCurrentImagePos(this.currentImagePos);
+        }
+    }
+
+    private viewRendered=()=>{
+        if (this.currentView) {
+            this.disposeView(this.currentView);
+            this.currentView = null;
+        }
+        this.currentView = this.loadingView;
+        this.loadingView = this.nextView;
+        this.nextView = null;
+        if (this.loadingView) {
+            this.startLoadingView();
+        }
+        this.updateViewStyle();
+    }
+
+    private disposeView(v:ImageLoader) {
+        v.events.removeListener('statusChanged', this.updateViewStyle);
+        v.events.removeListener('sized', this.viewSized);
+        v.events.removeListener('rendered', this.viewRendered);
+        v.dispose();        
     }
 
     // Start this.loadingView
     private startLoadingView() {
-        this.loadingView!.events.once('sized', (err: any)=> {
-            if (!this.loadingView!.details) {
-                // FIXME: add an error path there ?
-                return;
-            }
-
-            if (this.currentView && !this.loadingView!.sameGeometry(this.currentView)) {
-                this.currentView.dispose();
-                this.currentView = null;
-                this.bestFit();
-            } else {
-                // Now it needs an expose at the right size...
-                this.setCurrentImagePos(this.currentImagePos);
-            }
-
-        });
-
-        this.loadingView!.events.once('rendered', ()=> {
-            if (this.currentView) {
-                this.currentView.dispose();
-            }
-            this.currentView = this.loadingView;
-            this.loadingView = this.nextView;
-            this.nextView = null;
-            if (this.loadingView) {
-                this.startLoadingView();
-            }
-        });
-
+        this.loadingView!.events.on('statusChanged', this.updateViewStyle);
+        this.loadingView!.events.once('sized', this.viewSized);
+        this.loadingView!.events.once('rendered', this.viewRendered);
         this.loadingView!.prepare(this.currentView || undefined);
     }
 
@@ -831,7 +890,6 @@ class JQImageDisplay {
     }
 
     private insertImg=(img: HTMLElement)=>{
-        console.log('Appending ', img)
         if (this.crosshairInstance) {
             const elements = this.crosshairInstance.getElements();
             // Find the first child
@@ -848,7 +906,6 @@ class JQImageDisplay {
     private removeImages() {
         let toRemove = this.child.children();
         if (this.crosshairInstance) {
-            console.log('toRemove before', toRemove);
             const toKeep = this.crosshairInstance.getElements();
             const self = this;
             toRemove = toRemove.filter(function () {
@@ -856,7 +913,6 @@ class JQImageDisplay {
                             && this !== self.currentView?.img
                             && this !== self.loadingView?.img);
             });
-            console.log('toRemove after', toRemove);
         } else {
             const self = this;
             toRemove = toRemove.filter(function () {
