@@ -597,8 +597,14 @@ class JQImageDisplay {
         if (newSize.y === undefined) return;
 
         const view = this.loadingView?.details ? this.loadingView : this.currentView;
-        if (!view) return;
-        
+        if (!view) {
+            // Force initalization of the image pos (for proper cross hair display)
+            this.setCurrentImagePos({
+                ...this.currentImagePos
+            });
+            return;
+        }
+
         // const centerX = view.details!.width * this.currentImagePos.x;
         // const centerY = view.details!.height * this.currentImagePos.y;
         const bestFit = this.getBestFitForSize(view.details!);
