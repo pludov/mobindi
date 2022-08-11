@@ -589,7 +589,7 @@ class JQImageDisplay {
         }
 
         this.crosshairInstance.update(imagePos);
-        
+
     }
 
     onResize = ()=>{
@@ -598,7 +598,7 @@ class JQImageDisplay {
         if (newSize.y === undefined) return;
 
         const view = this.loadingView?.details ? this.loadingView : this.currentView;
-        if (!view) {
+        if (!view || !view.details) {
             // Force initalization of the image pos (for proper cross hair display)
             this.setCurrentImagePos({
                 ...this.currentImagePos
@@ -848,7 +848,11 @@ class JQImageDisplay {
             this.bestFit();
         } else {
             // Now it needs an expose at the right size...
-            this.setCurrentImagePos(this.currentImagePos);
+            if (!this.currentView || !this.currentView.details) {
+                this.bestFit();
+            } else {
+                this.setCurrentImagePos(this.currentImagePos);
+            }
         }
     }
 
