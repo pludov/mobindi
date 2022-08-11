@@ -49,6 +49,12 @@ public:
     static FitsRenderer * build(FitsRendererParam param);
 };
 
+// Return the first value under the same been as coord
+// binRound(1, 2) == 0
+inline int binRound(int coord, int bin)
+{
+    return (coord >> bin) << bin;
+}
 
 inline int binDiv(int width, int bin)
 {

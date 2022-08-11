@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <unistd.h>
 #include <cstdint>
 #include <stdio.h>
@@ -419,6 +420,11 @@ class ResponseGenerator {
 	bool streaming;
 	bool firstImage;
 	int bin;
+	// Bounding box for rendering. Default to full image
+	int x0 = -1;
+	int y0 = -1;
+	int x1 = -1;
+	int y1 = -1;
 	long lastSerialStream = 0;
 public:
 
@@ -455,8 +461,6 @@ public:
 			path = std::string(argv[1]);
 		}
 
-	//	path = "/home/ludovic/Astronomie/Photos/Light/Essai_Light_1_secs_2017-05-21T10-02-41_009.fits";
-
 		fi = formData.getElement("bin");
 		if ((!fi->isEmpty()) && (fi != (*formData).end())) {
 			bin = stod(**fi);
@@ -465,6 +469,19 @@ public:
 			}
 			if (bin > 8) {
 				bin = 8;
+			}
+		}
+
+		std::vector<std::string> names = {"x0", "y0", "x1", "y1"};
+		std::vector<int*> vars = {&x0, &y0, &x1, &y1};
+		for(unsigned int i = 0; i < names.size(); ++i) {
+			fi = formData.getElement(names[i]);
+			if ((!fi->isEmpty()) && (fi != (*formData).end())) {
+				auto v = stod(**fi);
+				if (v < 0) {
+					v = 0;
+				}
+				*(vars[i]) = v;
 			}
 		}
 	}
@@ -480,6 +497,24 @@ public:
 			return true;
 		}
 		return !(polls[0].revents & (POLLHUP|POLLERR|POLLRDHUP));
+	}
+
+	// Compute the actual bounding box. Requires bin being set
+	void calcBoundingBox(int w, int h) {
+		// Apply default
+		if (x0 == -1) x0 = 0;
+		if (y0 == -1) y0 = 0;
+		if (x1 == -1) x1 = w - 1;
+		if (y1 == -1) y1 = h - 1;
+
+		x0 = binRound(x0, bin);
+		y0 = binRound(y0, bin);
+		x1 = std::min(binRound(x1, bin) + (1 << bin) - 1, w - 1);
+		y1 = std::min(binRound(y1, bin) + (1 << bin) - 1, h - 1);
+	
+		if (x1 < x0 || y1 < y0) {
+			throw ResponseException("Empty image requested");
+		}
 	}
 
 	void sendJpeg()
@@ -548,6 +583,8 @@ public:
 			}
 		}
 
+		calcBoundingBox(w, h);
+
 		FitsRenderer * renderer;
 		{
 			FitsRendererParam r;
@@ -564,23 +601,26 @@ public:
 
 			renderer = FitsRenderer::build(r);
 		}
-
-		JpegWriter writer(binDiv(w, bin), binDiv(h, bin), color ? 3 : 1);
+		
+		int sx = x1 - x0 + 1;
+		int sy = y1 - y0 + 1;
+		
+		JpegWriter writer(binDiv(sx, bin), binDiv(sy, bin), color ? 3 : 1);
 		writer.start();
 
 		int stripHeight = 32 << bin;
 
 		renderer->prepare();
 
-		int basey = 0;
-		while(basey < h) {
-			int yleft = h - basey;
+		int y = y0;
+		while(y <= y1) {
+			int yleft = y1 + 1 - y;
 			if (yleft > stripHeight) yleft = stripHeight;
 
-			auto buffer = renderer->render(0, basey, w, stripHeight);
+			auto buffer = renderer->render(x0, y, sx, yleft);
 
 			writer.writeLines(buffer, binDiv(yleft, bin));
-			basey += stripHeight;
+			y += yleft;
 		}
 
 		delete renderer;
