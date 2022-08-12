@@ -79,13 +79,6 @@ export type ContextMenuEvent = {
 
 const imageReleaseUrl = "about:blank";
 
-function killImgLoad(img:HTMLImageElement) {
-    if (img.src !== imageReleaseUrl) {
-        img.src = imageReleaseUrl;
-    }
-}
-
-
 type ImageParameter = {
     // Path to the image
     path: string;
@@ -201,6 +194,83 @@ function getBestFitForSize(imageSize:ImageSize, viewSize: { width: number, heigh
     }
 }
 
+type TileStatus = {
+    loading: boolean;
+    error: boolean;
+    rendered: boolean;
+}
+
+class Tile {
+    loader: ImageLoader;
+    img: HTMLImageElement|null = null;
+    
+    bin: number;
+    // x0, y0, x1, y1
+    pos: number[];
+
+    status : TileStatus = { loading: false, error: false, rendered: false};
+    // Reserved for tracking by loader
+    prevStatus: TileStatus | undefined;
+
+    constructor(loader: ImageLoader, bin: number, pos: number[])
+    {
+        this.loader = loader;
+        this.bin = bin;
+        this.pos = pos;
+    }
+
+    startLoading(src: string) {
+        // load the content of the image
+        this.img = new Image();
+        this.img.src = src;
+        this.img.addEventListener("load", this.imageElementLoaded);
+        this.img.addEventListener("error", this.imageElementFailed);
+        this.img.id = "image loader img";
+        $(this.img).css('display', 'block');
+        $(this.img).css('pointer-events', 'none');
+        $(this.img).css('box-sizing', 'border-box');
+        $(this.img).css('border', '0px');
+
+        $(this.img).css('position', 'absolute');
+
+        this.status.loading = true;
+        this.status.rendered = false;
+        this.status.error = false;
+    }
+
+    imageElementLoaded=()=> {
+        logger.error('imageloader => loading finished');
+        this.status.loading = false;
+        this.status.rendered = true;
+        this.status.error = false;
+
+        this.loader.updateStatus(this);
+    }
+    
+    imageElementFailed=(e: any)=>{
+        logger.error('imageloader => loading failed', e);
+        this.status.loading = false;
+        this.status.rendered = true;
+        this.status.error = true;
+
+        this.loader.updateStatus(this);
+    }
+
+    dispose() {
+        // Abort loading
+        // Drop from the tile set
+        if (this.img) {
+            this.img.removeEventListener("load", this.imageElementLoaded);
+            this.img.removeEventListener("error", this.imageElementFailed);
+            this.img.src = imageReleaseUrl;
+            if (this.img.parentNode != null) {
+                this.img.parentNode!.removeChild(this.img);
+            }
+            this.img = null;
+        }
+    }
+}
+
 /* ImageLoader event lifecycle is:
  *    prepare => sized 
  *    expose => rendered
@@ -225,13 +295,11 @@ class ImageLoader {
     events: EventEmitter = new EventEmitter();
 
     // Target img element
-    img: HTMLImageElement;
+    tile: Tile|null = null;
+
+    root: HTMLSpanElement;
 
     disposed: boolean = false;
-
-    // Updated during lifecycle of the rendering
-    errorFlag: boolean = false;
-    rendered: boolean = false;
 
     insertImg: (e: HTMLElement)=>void;
 
@@ -259,6 +327,11 @@ class ImageLoader {
     // FIXME: what if previousLoader is visible ?
     prepare(previousLoader?: ImageLoader)
     {
+        if (!this.root) {
+            this.root = document.createElement("span");
+            this.insertImg(this.root);
+        }
+
         if (previousLoader
             && previousLoader.param.path === this.param.path
             && previousLoader.param.serial === this.param.serial)
@@ -315,13 +388,11 @@ class ImageLoader {
             this.detailsRequest.unregister(this);
             this.detailsRequest = null;
         }
-        if (this.img) {
-            this.img.removeEventListener("load", this.imageElementLoaded);
-            this.img.removeEventListener("error", this.imageElementFailed);
-            this.img.src = imageReleaseUrl;
-            if (this.img.parentNode != null) {
-                this.img.parentNode!.removeChild(this.img);
-            }
+        if (this.tile) {
+            this.tile.dispose();
+        }
+        if (this.root && this.root.parentNode != null) {
+            this.root.parentNode!.removeChild(this.root);
         }
     }
 
@@ -368,7 +439,7 @@ class ImageLoader {
             str += "&serial=" + encodeURIComponent(this.param.serial);
         }
 
-        return str;
+        return {src: str, bin};
     }
 
     private encodePathUrl() {
@@ -387,123 +458,103 @@ class ImageLoader {
         this.detailsRequest = null;
         this.details = details;
         console.log('ImageLoader got details', details)
-        if (details === null) {
-            this.errorFlag = true;
-        }
         this.events.emit('sized', details);
         if (details === null && !this.disposed) {
             this.events.emit('statusChanged');
         }
     }
 
+    // Ensure a rendered is dispatched as soon as all visible tiles get loaded
+    private waitingForRendered: boolean = false;
+
     expose = (exposure: ImageExposure)=> {
+        if (Obj.deepEqual(this.exposure, exposure)) {
+            return;
+        }
+
         this.exposure = exposure;
 
         if (!this.detailsLoaded) {
             return;
         }
         if (!this.details) {
+            this.waitingForRendered = false;
             this.events.emit('rendered');
         } else {
-            if (!this.img) {
-                this.loadImageElement();
-                this.placeImageElement();
+            // TODO for tile rendering:
+            // Compute the target bin
+            // Create plane for the target bin if not exists
+            // Remove any tile that is not covered by the actual exposure:
+            //    totally out of exposure (with % margin )
+            //    totally hidden by current loaded tile
+            // Remark: if not displayed (not implemented), just drop all but the target tile
+            // Start loading tiles in current bin, from center
+            
+            const {bin, src} = this.computeSrc();
+            if (this.tile && this.tile.bin !== bin) {
+                this.tile.dispose();
+                this.tile = null;
+                this.events.emit('statusChanged');
+            }
+
+            if (!this.tile) {
+                this.tile = new Tile(this, bin, [0, 0, this.details!.width - 1, this.details!.height - 1]);
+                this.tile.startLoading(src);
+                this.placeTile(this.tile);
+                this.root.appendChild(this.tile.img!);
+                this.waitingForRendered = true;
+                this.events.emit('statusChanged');
             } else {
-                // FIXME: we never update the bin
-                this.placeImageElement();
-                const newSrc = this.computeSrc();
-                if (newSrc != this.img.src) {
-                    // FIXME : don't remove the current display, must go into a new image
-                    this.img.src = this.computeSrc();
-                    this.rendered = false;
-                    this.events.emit('statusChanged');
-                } else {
-                    this.events.emit('rendered');
-                }
+                this.placeTile(this.tile);
+
+                this.waitingForRendered = false;
+                this.events.emit('rendered');
             }
         }
     }
 
-    placeImageElement=()=>{
+    updateStatus(tile: Tile) {
+        if (this.waitingForRendered) {
+            if (tile.status.rendered) {
+                this.waitingForRendered = false;
+                this.events.emit('rendered');
+            }
+        }
+        // TODO : Only emit for real changes (no more loading, all rendered, ...)
+        if (!this.disposed)
+            this.events.emit('statusChanged');
+    }
+
+    placeTile(tile: Tile)
+    {
+        const img = tile.img;
+        
+        if (!img) return;
+        
         const exposure = this.exposure!;
+        const jqimg = $(img);
 
-        const jqimg = $(this.img);
-
-        jqimg.css("width", exposure.imagePos.w + 'px');
-        jqimg.css("height", exposure.imagePos.h + 'px');
-        jqimg.css('top', exposure.imagePos.y + 'px');
-        jqimg.css('left', exposure.imagePos.x + 'px');
+        const xPixelRatio = exposure.imagePos.w / this.details!.width;
+        const yPixelRatio = exposure.imagePos.h / this.details!.height;
         
         const window = this.param.window;
+
+        jqimg.css('left', (exposure.imagePos.x + ((window?.left|| 0) + tile.pos[0]) * xPixelRatio) + 'px');
+        jqimg.css('top',  (exposure.imagePos.y + ((window?.top || 0) + tile.pos[1]) * yPixelRatio) + 'px');
     
-        if (window) {
-            const h = jqimg.css("height");
-            jqimg.css("padding-top", `calc( ${window.top} * ${h} )`);
-            jqimg.css("padding-bottom", `calc( ${window.bottom} * ${h} )`);
-            const w = jqimg.css("width");
-            jqimg.css("padding-left", `calc( ${window.left} * ${w} )`);
-            jqimg.css("padding-right", `calc( ${window.right} * ${w} )`);
-        } else {
-            jqimg.css("padding-top", "0");
-            jqimg.css("padding-bottom", "0");
-            jqimg.css("padding-left", "0");
-            jqimg.css("padding-right", "0");
-        }
-    }
-
-    imageElementLoaded=()=> {
-        logger.error('imageloader => loading finished');
-        this.rendered = true;
-        this.events.emit('rendered')
-        if (!this.disposed) {
-            this.events.emit('statusChanged');
-        }
-    }
-    
-    imageElementFailed=(e: any)=>{
-        logger.error('imageloader => loading failed', e);
-        this.errorFlag = true;
-        this.rendered = true;
-        this.events.emit('rendered')
-        if (!this.disposed) {
-            this.events.emit('statusChanged');
-        }
-    }
-
-    loadImageElement() {
-        this.img = new Image();
-        this.img.addEventListener("load", this.imageElementLoaded);
-        this.img.addEventListener("error", this.imageElementFailed);
-        this.img.id = "image loader img";
-        $(this.img).css('display', 'block');
-        $(this.img).css('pointer-events', 'none');
-        $(this.img).css('box-sizing', 'border-box');
-        $(this.img).css('border', '0px');
-        this.img.src = this.computeSrc();
-
-        $(this.img).css('position', 'absolute');
-
-        
-        $(this.img).css("width", this.details!.width);
-        $(this.img).css("height", this.details!.height);
-        $(this.img).css('top', 0);
-        $(this.img).css('left', 0);
-        
-        this.insertImg(this.img);
-        
-        /*this.applyWindow(this.loadingImg, this.loadingImgWindow);
-
-        this.child.addClass('Loading');
-        this.child.removeClass('Error');*/
+        jqimg.css("width", ((tile.pos[2] - tile.pos[0] + 1) * xPixelRatio) + 'px');
+        jqimg.css("height", ((tile.pos[3] - tile.pos[1] + 1) * yPixelRatio) + 'px');
     }
 
     hadLoadingError() {
-        return this.errorFlag;
+        if (this.detailsLoaded && !this.details) return true;
+        if (!this.detailsLoaded) return false;
+        return this.tile?.status.error;
     }
 
     isLoading() {
         if ((this.detailsLoaded) && (!this.details)) return false;
-        return !this.rendered;
+        return this.tile?.status.loading;
     }
 }
 
@@ -518,7 +569,7 @@ class JQImageDisplay {
     // View to load once loading view is ready
     nextView: ImageLoader | null = null;
 
-    
+
     // The path (without cgi settings)
     loadingToDisplay?:boolean = false;
     
@@ -589,7 +640,6 @@ class JQImageDisplay {
         }
 
         this.crosshairInstance.update(imagePos);
-
     }
 
     onResize = ()=>{
@@ -676,65 +726,6 @@ class JQImageDisplay {
         }
     }
 
-    // computeSrc(path:string|null, serial: string|null, optionalImageSize?:ImageSize)
-    // {
-    //     const imageSize = optionalImageSize || this.currentImageSize;
-    //     let str;
-    //     if (path !== null) {
-    //         if (path === undefined ){
-    //             throw new Error("Undefined path arrived");
-    //         }
-    //         var bin = 16;
-    //         if (this.currentImagePos.w > 0 && this.currentImagePos.h > 0
-    //              && imageSize.width  > -1 && imageSize.height > -1)
-    //         {
-    //             bin = Math.floor(Math.min(
-    //                 imageSize.width / this.currentImagePos.w,
-    //                 imageSize.height / this.currentImagePos.h
-    //             ));
-    //         } else if (imageSize.width > 0 && imageSize.height > 0) {
-    //             // Prepare for a best fit
-    //             const bestFit = this.getBestFitForSize(imageSize);
-    //             bin = Math.floor(Math.min(
-    //                 imageSize.width / bestFit.w,
-    //                 imageSize.height / bestFit.h
-    //             ));
-    //         }
-
-    //         // lower this to a 2^power
-    //         bin = Math.floor(Math.log2(bin));
-    //         if (bin < 0) {
-    //             bin = 0;
-    //         }
-
-    //         if (JQImageDisplay.allowHttpFallback()) {
-    //             str = "http://" + document.location.hostname + ":" + JQImageDisplay.directPort + (document.location.pathname.replace(/\/[^/]+/, '') || '/');
-    //         } else {
-    //             str = "";
-    //         }
-    //         str += 'fitsviewer/fitsviewer.cgi?bin=' + bin + '&' + this.encodePathUrl(path);
-    //         str += '&low=' + this.levels.low;
-    //         str += '&med=' + this.levels.medium;
-    //         str += '&high=' + this.levels.high;
-    //         if (serial !== null) {
-    //             str += "&serial=" + encodeURIComponent(serial);
-    //         }
-    //     } else {
-    //         str = imageReleaseUrl;
-    //     }
-    //     return str;
-    // }
-
-    // encodePathUrl(path: string) {
-    //     if (path.startsWith("file:")) {
-    //         return 'path=' + encodeURIComponent(path.substring(5));
-    //     } else if (path.startsWith("stream:")) {
-    //         return 'streamid=' + encodeURIComponent(path.substring(7));
-    //     } else {
-    //         throw new Error("invalid path: " + path);
-    //     }
-    // }
-
     private windowEquals(w1 : Window|null, w2: Window|null) {
         if ((w1 === null) != (w2 === null)) {
             return false;
@@ -798,13 +789,31 @@ class JQImageDisplay {
         // same path mean same image or same stream (so stream reload is never aborted, just skipping the serial update)
         // Otherwise, the current loading is aborted. 
 
-        // Create a new loader from the most recent available
-        const newLoader = new ImageLoader({
+        
+        const loaderParam = {
             path: path || "file:void",
             serial: streamSerial,
             levels: params?.levels || {low: 0, medium: 0.5, high: 1},
             window,
-        });
+        };
+
+        if (this.loadingView && Obj.deepEqual(this.loadingView.param, loaderParam)) {
+            this.nextView = null;
+            return;
+        }
+
+        if (this.currentView && Obj.deepEqual(this.currentView.param, loaderParam)) {
+            if (this.loadingView) {
+                this.disposeView(this.loadingView);
+                this.loadingView = null;
+                this.nextView = null;    
+            }
+            this.updateViewStyle();
+            return;
+        }
+
+        // Create a new loader from the most recent available
+        const newLoader = new ImageLoader(loaderParam);
 
         newLoader.insertImg = this.insertImg;
 
@@ -914,157 +923,6 @@ class JQImageDisplay {
             this.child.append(img);
         }
     }
-
-    // Remove all but crosshairs...
-    private removeImages() {
-        let toRemove = this.child.children();
-        if (this.crosshairInstance) {
-            const toKeep = this.crosshairInstance.getElements();
-            const self = this;
-            toRemove = toRemove.filter(function () {
-                return (toKeep.index(this) === -1 
-                            && this !== self.currentView?.img
-                            && this !== self.loadingView?.img);
-            });
-        } else {
-            const self = this;
-            toRemove = toRemove.filter(function () {
-                return (this !== self.currentView?.img
-                            && this !== self.loadingView?.img);
-            });
-        }
-        toRemove.remove();
-    }
-
-    // private setSrc(path:string|null, serial: string|null, src: string, window: Window|null) {
-    //     if (this.currentImgSrc === src) {
-    //         this.abortLoading();
-    //         this.currentImgPath = path;
-    //         this.currentImgSerial = serial;
-    //         if (!this.windowEquals(this.currentImgWindow, window)) {
-    //             this.currentImgWindow = window;
-    //             this.applyWindow(this.currentImg!, this.currentImgWindow);
-    //         }
-    //         return;
-    //     }
-    //     if ((this.loadingImg !== null) && (this.loadingImgSrc === src)) {
-    //         if (!this.windowEquals(this.loadingImgWindow, window)) {
-    //             this.loadingImgWindow = window;
-    //             if (this.loadingToDisplay) {
-    //                 this.applyWindow(this.loadingImg, this.loadingImgWindow);
-    //             }
-    //         }
-    //         return;
-    //     }
-
-    //     this.abortLoading();
-
-    //     const newImage = new Image();
-    //     newImage.addEventListener("load", () => {
-    //             logger.debug('image loaded ok', {src: newImage.src});
-    //             this.loaded(src, newImage, true)
-    //     });
-    //     newImage.addEventListener("error", (e) => {
-    //             logger.error('image loading failed ok', {src: newImage.src}, e);
-    //             this.loaded(src, newImage, false) ;
-    //     });
-    //     newImage.src = src;
-    //     $(newImage).css('display', 'block');
-    //     $(newImage).css('pointer-events', 'none');
-    //     $(newImage).css('box-sizing', 'border-box');
-    //     $(newImage).css('border', '0px');
-    //     logger.info('Loading image: ', {path, src, debugid: (newImage as any).debugid});
-    //     if (this.loadingImg !== null) {
-    //         if (this.loadingImg.parentElement) {
-    //             this.loadingImg.parentElement.removeChild(this.loadingImg);
-    //         }
-    //         killImgLoad(this.loadingImg);
-    //     }
-    //     this.loadingImg = newImage;
-    //     this.loadingImgSrc = src;
-    //     this.loadingImgSerial = serial;
-    //     this.loadingImgPath = path;
-    //     this.loadingImgWindow = window;
-
-    //     // Do exposed loading if possible (display image while it is loading)
-    //     // FIXME: only for image of the same geo ?
-    //     // FIXME: some browser  flickers to black. whitelist browser ?
-    //     if (this.currentImg !== null && this.currentImgPath === this.loadingImgPath) {
-    //         this.loadingToDisplay = true;
-    //         $(this.loadingImg).css('position', 'absolute');
-    //         $(this.loadingImg).css("width", $(this.currentImg).css("width"));
-    //         $(this.loadingImg).css("height", $(this.currentImg).css("height"));
-    //         $(this.loadingImg).css('top', $(this.currentImg).css("top"));
-    //         $(this.loadingImg).css('left', $(this.currentImg).css("left"));
-    //         this.applyWindow(this.loadingImg, this.loadingImgWindow);
-
-    //         this.insertImg(this.loadingImg);
-    //     } else {
-    //         this.loadingToDisplay = false;
-    //     }
-
-    //     this.child.addClass('Loading');
-    //     this.child.removeClass('Error');
-    // }
-
-    // private loaded(newSrc:string, newImage:HTMLImageElement, result: boolean) {
-    //     if (newImage !== this.loadingImg) {
-    //         logger.debug('ignoring loaded for old image: ', {src: newSrc});
-    //         return;
-    //     }
-
-    //     this.child.removeClass('Loading');
-    //     if (result) {
-    //         this.child.addClass('Success');
-    //     } else {
-    //         this.child.addClass('Error');
-    //     }
-
-    //     var previousSize = this.currentImageSize;
-
-    //     var previousImg = this.currentImg;
-    //     var previousImgSrc = this.currentImgSrc;
-
-    //     this.loadingImg = null;
-    //     this.currentImg = result ? newImage : null;
-    //     this.currentImgSrc = newSrc;
-    //     this.currentImgPath = this.loadingImgPath;
-    //     this.currentImgSerial = this.loadingImgSerial;
-    //     this.currentImgWindow = this.loadingImgWindow;
-
-    //     this.removeImages();
-
-    //     if (this.currentImg !== null) {
-    //         this.currentImageSize = this.currentDetails!;
-            
-    //         $(this.currentImg).css('position', 'relative');
-
-    //         this.insertImg(this.currentImg);
-
-    //         if (previousImg === null || previousSize.width != this.currentImageSize.width || previousSize.height != this.currentImageSize.height) {
-    //             this.bestFit();
-    //         } else {
-    //             $(this.currentImg).css('top', $(previousImg).css('top'));
-    //             $(this.currentImg).css('left', $(previousImg).css('left'));
-    //             $(this.currentImg).css('width', $(previousImg).css('width'));
-    //             $(this.currentImg).css('height', $(previousImg).css('height'));
-    //         }
-    //         this.applyWindow(this.currentImg, this.currentImgWindow);
-    //     }
-
-    //     if (this.nextLoadingImgSrc !== null) {
-    //         const todoSrc = this.nextLoadingImgSrc;
-    //         const todoSerial = this.nextLoadingImgSerial;
-    //         const todoWindow = this.nextLoadingImgWindow;
-    //         this.nextLoadingImgSrc = null;
-    //         this.nextLoadingImgSerial = null;
-    //         this.nextLoadingImgWindow = null;
-    //         this.setSrc(this.currentImgPath, todoSerial, todoSrc, todoWindow);
-    //     }
-    //     if (previousImg !== null) {
-    //         killImgLoad(previousImg);
-    //     }
-    // }
 
     closeMenu=()=>{
         this.closeContextMenuCb();
