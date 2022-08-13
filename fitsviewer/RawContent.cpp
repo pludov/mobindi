@@ -113,7 +113,8 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
 			if (readKey(file.fptr, "BAYERPAT", &bayer) && bayer.size() > 0) {
 				fprintf(stderr, "BAYER detected");
 			}
-			fits_movrel_hdu(file.fptr, 1, NULL, &status);  /* try to move to next HDU */
+			// fits_movrel_hdu(file.fptr, 1, NULL, &status);  /* try to move to next HDU */
+			break;
 		}
 
 		status = 0;
@@ -149,12 +150,35 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
 				storage->setBitPix(16);
 		}
 
+
 		long fpixels[2]= {1,1};
-		if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
-			return;
+		if (bitpix < 0) {
+			fprintf(stderr, "Scaling float pixels\n");
+			// Assume float are in the range 0 - 1
+			float * temp = (float*)malloc(w * h * sizeof(float));
+			
+			if (!fits_read_pix(file.fptr, TFLOAT, fpixels, naxes[0] * naxes[1], NULL, temp, NULL, &status)) {
+				for(int i = 0; i < w*h; ++i) {
+					float f = temp[i] * 65535;
+					if (f < 0) f = 0;
+					if (f > 65535) f = 65535;
+					storage->data[i] = f;
+				}
+
+				free(temp);
+				return;
+			}
+
+			free(temp);
 		} else {
-			file.throwFitsIOError("fits_read_pix failed", status);
+			if (!fits_read_pix(file.fptr, TUSHORT, fpixels, naxes[0] * naxes[1], NULL, &storage->data, NULL, &status)) {
+				return;
+			}
 		}
+
+
+		file.throwFitsIOError("fits_read_pix failed", status);
+
 	} else {
 		file.throwFitsIOError("fits_get_img_param", status);
 	}
