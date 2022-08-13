@@ -29,6 +29,22 @@ type ImageSize = {
     height: number;
 }
 
+type Rectangle = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+}
+
+function intersect(r1: Rectangle, r2: Rectangle) {
+    if (r1.x >= r2.x + r2.w) return false;
+    if (r1.y >= r2.y + r2.h) return false;
+    if (r2.x >= r1.x + r1.w) return false;
+    if (r2.y >= r1.y + r1.h) return false;
+    
+    return true;
+}
+
 export type Levels = {
     low: number;
     medium: number;
@@ -204,25 +220,49 @@ class Tile {
     loader: ImageLoader;
     img: HTMLImageElement|null = null;
     
+    // Base url for the content
+    srcBase: string;
+
     bin: number;
-    // x0, y0, x1, y1
+
+    // Position in image x0, y0, x1, y1
     pos: number[];
+
+    // Position relative to display
+    displayRect: Rectangle;
 
     status : TileStatus = { loading: false, error: false, rendered: false};
     // Reserved for tracking by loader
     prevStatus: TileStatus | undefined;
 
-    constructor(loader: ImageLoader, bin: number, pos: number[])
+    // Set by loader, for purpose of ordering load
+    dstToCenter: number = 0;
+
+    constructor(loader: ImageLoader, src: string, bin: number, pos: number[])
     {
         this.loader = loader;
+        this.srcBase = src;
         this.bin = bin;
         this.pos = pos;
     }
 
-    startLoading(src: string) {
+    setDisplayRect(displayRect: Rectangle) {
+        this.displayRect = displayRect;
+
+        const img = this.img;
+        if (!img) return;
+        const jqimg = $(img);
+        jqimg.css('left', this.displayRect.x + 'px');
+        jqimg.css('top',  this.displayRect.y + 'px');
+         
+        jqimg.css("width", (this.displayRect.w + 0.01) + 'px');
+        jqimg.css("height", (this.displayRect.h + 0.01) + 'px');
+    }
+
+    startLoading() {
         // load the content of the image
         this.img = new Image();
-        this.img.src = src + `&x0=${this.pos[0]}&y0=${this.pos[1]}&x1=${this.pos[2]}&y1=${this.pos[3]}`;
+        this.img.src = this.srcBase + `&x0=${this.pos[0]}&y0=${this.pos[1]}&x1=${this.pos[2]}&y1=${this.pos[3]}`;
         this.img.addEventListener("load", this.imageElementLoaded);
         this.img.addEventListener("error", this.imageElementFailed);
         this.img.id = "image loader img";
@@ -232,6 +272,8 @@ class Tile {
         $(this.img).css('border', '0px');
         $(this.img).css('position', 'absolute');
         $(this.img).css('image-rendering',  'pixelated');
+
+        this.setDisplayRect(this.displayRect);
 
         this.status.loading = true;
         this.status.rendered = false;
@@ -313,6 +355,11 @@ class ImageLoader {
 
     // Target img element
     tiles: Array<Tile>|null = null;
+
+    // Tiles to start loading
+    pendingLoad: Array<Tile> = [];
+    // Current number of tiles beeing loaded
+    loadingCount: number = 0;
 
     root: HTMLSpanElement;
 
@@ -439,6 +486,10 @@ class ImageLoader {
             ));
         }
 
+        if (window.devicePixelRatio) {
+            bin *= window.devicePixelRatio;
+        }
+
         // lower this to a 2^power
         bin = Math.floor(Math.log2(bin));
         if (bin < 0) {
@@ -527,35 +578,97 @@ class ImageLoader {
                 for(let ty = 0; ty < nbTileY; ++ty)
                     for(let tx = 0; tx < nbTileX; ++tx)
                     {
-
-
                         const x0 = tx * tileSize;
                         const y0 = ty * tileSize;
                         const x1 = clipToBin(x0 + tileSize - 1, this.details!.width, bin);
                         const y1 = clipToBin(y0 + tileSize - 1, this.details!.height, bin);
 
-                        const tile = new Tile(this, bin, [x0, y0, x1, y1]);
+                        const tile = new Tile(this, src, bin, [x0, y0, x1, y1]);
 
                         this.tiles[tx + ty * nbTileX] = tile;
-                        
-                        tile.startLoading(src);
-                        this.placeTile(tile);
-                        this.root.appendChild(tile.img!);        
                     }
+
                 this.waitingForRendered = true;
                 this.events.emit('statusChanged');
+                
+                for(const tile of this.tiles)
+                    this.placeTile(tile);
+                this.controlTileLoading(src);
+
             } else {
                 for(const tile of this.tiles)
                     this.placeTile(tile);
-
+                this.controlTileLoading(src);
                 this.waitingForRendered = false;
                 this.events.emit('rendered');
             }
         }
     }
 
+    controlTileLoading(src: string) {
+        // Start loading the visible tiles:
+        // those that intersect with [0, 0, displaySize[
+        const displayRect = {
+            x: -50,
+            y: -50,
+            w: 50 + this.exposure!.displaySize.width,
+            h: 50 + this.exposure!.displaySize.height
+        }
+
+        const displayCenterX = this.exposure!.displaySize.width / 2;
+        const displayCenterY = this.exposure!.displaySize.height / 2;
+
+        this.pendingLoad = [];
+        this.loadingCount = 0;
+        
+        for(const tile of this.tiles!) {
+            if (tile.status.rendered) {
+                continue;
+            }
+            if (tile.status.loading) {
+                this.loadingCount++;
+                continue;
+            }
+            const visible = intersect(tile.displayRect, displayRect);
+            if (visible) {
+                const tileCenterX = tile.displayRect.x + tile.displayRect.w / 2;
+                const tileCenterY = tile.displayRect.x + tile.displayRect.w / 2;
+                
+                const tileDstX = Math.abs(tileCenterX - displayCenterX ) / displayCenterX;
+                const tileDstY = Math.abs(tileCenterY - displayCenterY ) / displayCenterY;
+    
+                let dst = tileDstX*tileDstX + tileDstY*tileDstY;
+                tile.dstToCenter = dst;
+                this.pendingLoad.push(tile);
+            }
+        }
+        // Sort according to distance to screen center
+        this.pendingLoad.sort((a, b)=>(a.dstToCenter - b.dstToCenter));
+        this.continueLoading();
+    }
+
+    continueLoading() {
+        while (this.pendingLoad.length > 0 && this.loadingCount < 2) {
+            const tile = this.pendingLoad[0];
+            this.pendingLoad.splice(0, 1);
+            this.loadingCount++;
+
+            tile.startLoading();
+            this.root.appendChild(tile.img!)
+        }
+
+        // FIXME : here we may have loaded all tiles... emit event ?
+    }
+
     updateStatus(tile: Tile) {
+        if (!tile.status.loading) {
+            this.loadingCount--;
+            this.continueLoading();
+        }
+
         if (this.waitingForRendered) {
+            // FIXME This is tooearly !
+            // Need to emit two events: partially rendered + fully rendered
             if (tile.status.rendered) {
                 this.waitingForRendered = false;
                 this.events.emit('rendered');
@@ -568,23 +681,19 @@ class ImageLoader {
 
     placeTile(tile: Tile)
     {
-        const img = tile.img;
-        
-        if (!img) return;
-        
         const exposure = this.exposure!;
-        const jqimg = $(img);
-
+        
         const xPixelRatio = exposure.imagePos.w / this.details!.width;
         const yPixelRatio = exposure.imagePos.h / this.details!.height;
         
         const window = this.param.window;
 
-        jqimg.css('left', (exposure.imagePos.x + ((window?.left|| 0) + tile.pos[0]) * xPixelRatio) + 'px');
-        jqimg.css('top',  (exposure.imagePos.y + ((window?.top || 0) + tile.pos[1]) * yPixelRatio) + 'px');
-    
-        jqimg.css("width", ((tile.pos[2] - tile.pos[0] + 1) * xPixelRatio) + 'px');
-        jqimg.css("height", ((tile.pos[3] - tile.pos[1] + 1) * yPixelRatio) + 'px');
+        tile.setDisplayRect({
+            x: (exposure.imagePos.x + ((window?.left|| 0) + tile.pos[0]) * xPixelRatio),
+            y: (exposure.imagePos.y + ((window?.top || 0) + tile.pos[1]) * yPixelRatio),
+            w: ((tile.pos[2] - tile.pos[0] + 1) * xPixelRatio),
+            h: ((tile.pos[3] - tile.pos[1] + 1) * yPixelRatio),
+        })
     }
 
     hadLoadingError() {
