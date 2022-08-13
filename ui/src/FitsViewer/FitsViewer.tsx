@@ -222,7 +222,7 @@ class Tile {
     startLoading(src: string) {
         // load the content of the image
         this.img = new Image();
-        this.img.src = src;
+        this.img.src = src + `&x0=${this.pos[0]}&y0=${this.pos[1]}&x1=${this.pos[2]}&y1=${this.pos[3]}`;
         this.img.addEventListener("load", this.imageElementLoaded);
         this.img.addEventListener("error", this.imageElementFailed);
         this.img.id = "image loader img";
@@ -230,8 +230,8 @@ class Tile {
         $(this.img).css('pointer-events', 'none');
         $(this.img).css('box-sizing', 'border-box');
         $(this.img).css('border', '0px');
-
         $(this.img).css('position', 'absolute');
+        $(this.img).css('image-rendering',  'pixelated');
 
         this.status.loading = true;
         this.status.rendered = false;
@@ -271,6 +271,23 @@ class Tile {
     }
 }
 
+
+// Clip the last pixel of a tile, so it ends at most at the end of the "bin" of the last pixel
+// end of tile must no go beyond actual image, 
+// but must still stop at a complete bin (so this give a little overflow on the initial image)
+function clipToBin(v:number, vmax:number, bin:number) {
+    if (v >= vmax) {
+        v = vmax - 1;
+    }
+    const binSize =2 ** bin
+    
+    const binLeft = (binSize - 1 ) - (v % binSize);
+    
+    v += binLeft;
+    
+    return v;
+}
+
 /* ImageLoader event lifecycle is:
  *    prepare => sized 
  *    expose => rendered
@@ -295,7 +312,7 @@ class ImageLoader {
     events: EventEmitter = new EventEmitter();
 
     // Target img element
-    tile: Tile|null = null;
+    tiles: Array<Tile>|null = null;
 
     root: HTMLSpanElement;
 
@@ -388,8 +405,10 @@ class ImageLoader {
             this.detailsRequest.unregister(this);
             this.detailsRequest = null;
         }
-        if (this.tile) {
-            this.tile.dispose();
+        if (this.tiles) {
+            for(const tile of this.tiles) {
+                tile.dispose();
+            }
         }
         if (this.root && this.root.parentNode != null) {
             this.root.parentNode!.removeChild(this.root);
@@ -491,21 +510,43 @@ class ImageLoader {
             // Start loading tiles in current bin, from center
             
             const {bin, src} = this.computeSrc();
-            if (this.tile && this.tile.bin !== bin) {
-                this.tile.dispose();
-                this.tile = null;
-                this.events.emit('statusChanged');
+            if (this.tiles && this.tiles[0].bin !== bin) {
+                for(const tile of this.tiles) {
+                    tile.dispose();
+                }
+                this.tiles = null;
             }
 
-            if (!this.tile) {
-                this.tile = new Tile(this, bin, [0, 0, this.details!.width - 1, this.details!.height - 1]);
-                this.tile.startLoading(src);
-                this.placeTile(this.tile);
-                this.root.appendChild(this.tile.img!);
+            if (!this.tiles) {
+                // Construct a full tile plane
+                const tileSize = 256 * (2 ** bin);
+                const nbTileX = Math.ceil(this.details!.width / tileSize);
+                const nbTileY = Math.ceil(this.details!.height / tileSize);
+
+                this.tiles = [];
+                for(let ty = 0; ty < nbTileY; ++ty)
+                    for(let tx = 0; tx < nbTileX; ++tx)
+                    {
+
+
+                        const x0 = tx * tileSize;
+                        const y0 = ty * tileSize;
+                        const x1 = clipToBin(x0 + tileSize - 1, this.details!.width, bin);
+                        const y1 = clipToBin(y0 + tileSize - 1, this.details!.height, bin);
+
+                        const tile = new Tile(this, bin, [x0, y0, x1, y1]);
+
+                        this.tiles[tx + ty * nbTileX] = tile;
+                        
+                        tile.startLoading(src);
+                        this.placeTile(tile);
+                        this.root.appendChild(tile.img!);        
+                    }
                 this.waitingForRendered = true;
                 this.events.emit('statusChanged');
             } else {
-                this.placeTile(this.tile);
+                for(const tile of this.tiles)
+                    this.placeTile(tile);
 
                 this.waitingForRendered = false;
                 this.events.emit('rendered');
@@ -549,12 +590,29 @@ class ImageLoader {
     hadLoadingError() {
         if (this.detailsLoaded && !this.details) return true;
         if (!this.detailsLoaded) return false;
-        return this.tile?.status.error;
+        if (this.tiles) {
+            for(const tile of this.tiles) {
+                if (tile.status.error) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     isLoading() {
         if ((this.detailsLoaded) && (!this.details)) return false;
-        return this.tile?.status.loading;
+        if (!this.detailsLoaded) return true;
+
+        if (this.tiles) {
+            for(const tile of this.tiles) {
+                if (tile.status.loading) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
 
