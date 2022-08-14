@@ -216,6 +216,7 @@ type TileStatus = {
     rendered: boolean;
 }
 
+// Tile are rendered in image coordinate (1px dom = 1 pix in source)
 class Tile {
     loader: ImageLoader;
     img: HTMLImageElement|null = null;
@@ -246,17 +247,9 @@ class Tile {
         this.pos = pos;
     }
 
+    // TODO : not required since tile are in native image coordinates
     setDisplayRect(displayRect: Rectangle) {
         this.displayRect = displayRect;
-
-        const img = this.img;
-        if (!img) return;
-        const jqimg = $(img);
-        jqimg.css('left', this.displayRect.x + 'px');
-        jqimg.css('top',  this.displayRect.y + 'px');
-         
-        jqimg.css("width", (this.displayRect.w + 0.01) + 'px');
-        jqimg.css("height", (this.displayRect.h + 0.01) + 'px');
     }
 
     startLoading() {
@@ -266,12 +259,20 @@ class Tile {
         this.img.addEventListener("load", this.imageElementLoaded);
         this.img.addEventListener("error", this.imageElementFailed);
         this.img.id = "image loader img";
-        $(this.img).css('display', 'block');
-        $(this.img).css('pointer-events', 'none');
-        $(this.img).css('box-sizing', 'border-box');
-        $(this.img).css('border', '0px');
-        $(this.img).css('position', 'absolute');
-        $(this.img).css('image-rendering',  'pixelated');
+        
+        const jqimg = $(this.img);
+        jqimg.css('display', 'block');
+        jqimg.css('pointer-events', 'none');
+        jqimg.css('box-sizing', 'border-box');
+        jqimg.css('border', '0px');
+        jqimg.css('position', 'absolute');
+        jqimg.css('image-rendering',  'pixelated');
+
+        // Put tile in image coordinate
+        jqimg.css('left', this.pos[0] + 'px');
+        jqimg.css('top',  this.pos[1] + 'px');         
+        jqimg.css("width", (this.pos[2] - this.pos[0] + 1) + 'px');
+        jqimg.css("height", (this.pos[3] - this.pos[1] + 1) + 'px');
 
         this.setDisplayRect(this.displayRect);
 
@@ -412,10 +413,9 @@ class ImageLoader {
 
     disposed: boolean = false;
 
-    insertImg: (e: HTMLElement)=>void;
-
     constructor(param: ImageParameter) {
         this.param = param;
+        this.root = document.createElement("span");
     }
 
     samePath(other: ImageLoader) {
@@ -438,11 +438,6 @@ class ImageLoader {
     // FIXME: what if previousLoader is visible ?
     prepare(previousLoader?: ImageLoader)
     {
-        if (!this.root) {
-            this.root = document.createElement("span");
-            this.insertImg(this.root);
-        }
-
         if (previousLoader
             && previousLoader.param.path === this.param.path
             && previousLoader.param.serial === this.param.serial)
@@ -617,7 +612,7 @@ class ImageLoader {
                 this.root.appendChild(this.tiles.root);
                 this.waitingForRendered = true;
                 this.events.emit('statusChanged');
-                
+
                 for(const tile of this.tiles.tiles)
                     this.placeTile(tile);
                 this.controlTileLoading(src);
@@ -642,6 +637,8 @@ class ImageLoader {
             h: 50 + this.exposure!.displaySize.height
         }
 
+        // TODO : convert displayRect into an imageRect
+
         const displayCenterX = this.exposure!.displaySize.width / 2;
         const displayCenterY = this.exposure!.displaySize.height / 2;
 
@@ -659,7 +656,7 @@ class ImageLoader {
             const visible = intersect(tile.displayRect, displayRect);
             if (visible) {
                 const tileCenterX = tile.displayRect.x + tile.displayRect.w / 2;
-                const tileCenterY = tile.displayRect.x + tile.displayRect.w / 2;
+                const tileCenterY = tile.displayRect.y + tile.displayRect.h / 2;
                 
                 const tileDstX = Math.abs(tileCenterX - displayCenterX ) / displayCenterX;
                 const tileDstY = Math.abs(tileCenterY - displayCenterY ) / displayCenterY;
@@ -768,7 +765,8 @@ class JQImageDisplay {
     loadingToDisplay?:boolean = false;
     
     child:JQuery<HTMLDivElement>;
-    
+    root: HTMLSpanElement;
+
     levels: Levels;
     crosshairInstance: Crosshair|null;
 
@@ -793,6 +791,9 @@ class JQImageDisplay {
         elt.css('width', '100%');
         elt.css('height', '100%');
         elt.css('overflow', 'hidden');
+
+        this.root = document.createElement("span");
+        this.child.get(0).appendChild(this.root);
 
         this.mouseListener = new MouseMoveListener(elt, {
             zoom: this.zoom,
@@ -877,6 +878,10 @@ class JQImageDisplay {
         if (this.loadingView) {
             this.disposeView(this.loadingView);
             this.loadingView = null;
+        }
+
+        if (this.root.parentNode != null) {
+            this.root.parentNode!.removeChild(this.root);
         }
     }
 
@@ -1008,8 +1013,8 @@ class JQImageDisplay {
 
         // Create a new loader from the most recent available
         const newLoader = new ImageLoader(loaderParam);
-
-        newLoader.insertImg = this.insertImg;
+        this.root.appendChild(newLoader.root);
+    
 
         // Discard loading view if it's not relevant
         let styleUpdateRequired = false;
@@ -1105,19 +1110,6 @@ class JQImageDisplay {
         return this.currentView?.details || undefined;
     }
 
-    private insertImg=(img: HTMLElement)=>{
-        if (this.crosshairInstance) {
-            const elements = this.crosshairInstance.getElements();
-            // Find the first child
-            const childrens = this.child.children().filter(function(e) {
-                return elements.index(this) > -1;
-            });
-            $(img).insertBefore(childrens.get(0));
-        } else {
-            this.child.append(img);
-        }
-    }
-
     closeMenu=()=>{
         this.closeContextMenuCb();
     }
@@ -1180,6 +1172,25 @@ class JQImageDisplay {
     }
 
     private setRawCurrentImagePos(e:CompleteImagePos, displaySize: ImageSize) {
+        // Update the root transformation
+        const referenceView = this.viewForGeometry();
+
+        this.root.style.transformOrigin = "0 0";
+        this.root.style.position = 'absolute';
+
+        let transform;
+        if (referenceView && referenceView!.details) {
+            const scaleFactorX = e.w / referenceView.details!.width;
+            const scaleFactorY = e.h / referenceView.details!.height;
+            transform = `translate(${e.x}px, ${e.y}px) scale(${scaleFactorX})`;
+
+            // TODO: apply window here - so window is not a parameter of image loader
+        } else {
+            transform = "";
+        }
+
+        this.root.style.transform = transform;
+    
         this.currentImagePos = e;
 
         if (this.currentView) {
@@ -1196,7 +1207,6 @@ class JQImageDisplay {
             });
         }
 
-        const referenceView = this.viewForGeometry();
         if (referenceView) {
             this.dispatchNewPos(e, referenceView.details!);
         }
