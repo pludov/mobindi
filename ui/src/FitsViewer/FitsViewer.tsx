@@ -313,6 +313,53 @@ class Tile {
     }
 }
 
+class TilePlane {
+    tiles: Array<Tile>;
+    bin: number;
+    tileSize: number;
+    nbTileX: number;
+    nbTileY: number;
+    details: ImageSize;
+    root: HTMLSpanElement;
+    baseSrc: string;
+
+    constructor(imageLoader : ImageLoader, details: ImageSize, bin: number, baseSrc:string) {
+        this.details = details;
+        this.bin = bin;
+        this.baseSrc = baseSrc;
+
+        // Construct a full tile plane
+        this.tileSize = 256 * (2 ** bin);
+        this.nbTileX = Math.ceil(this.details!.width / this.tileSize);
+        this.nbTileY = Math.ceil(this.details!.height / this.tileSize);
+
+        this.root = document.createElement("span");
+
+        this.tiles = [];
+        for(let ty = 0; ty < this.nbTileY; ++ty)
+            for(let tx = 0; tx < this.nbTileX; ++tx)
+            {
+                const x0 = tx * this.tileSize;
+                const y0 = ty * this.tileSize;
+                const x1 = clipToBin(x0 + this.tileSize - 1, this.details.width, bin);
+                const y1 = clipToBin(y0 + this.tileSize - 1, this.details.height, bin);
+
+                const tile = new Tile(imageLoader, baseSrc, bin, [x0, y0, x1, y1]);
+
+                this.tiles[tx + ty * this.nbTileX] = tile;
+            }
+    }    
+
+    dispose() {
+        if (this.root && this.root.parentNode != null) {
+            this.root.parentNode!.removeChild(this.root);
+        }
+        for(const tile of this.tiles) {
+            tile.dispose();
+        }
+    }
+}
+
 
 // Clip the last pixel of a tile, so it ends at most at the end of the "bin" of the last pixel
 // end of tile must no go beyond actual image, 
@@ -354,7 +401,7 @@ class ImageLoader {
     events: EventEmitter = new EventEmitter();
 
     // Target img element
-    tiles: Array<Tile>|null = null;
+    tiles: TilePlane|null = null;
 
     // Tiles to start loading
     pendingLoad: Array<Tile> = [];
@@ -453,9 +500,8 @@ class ImageLoader {
             this.detailsRequest = null;
         }
         if (this.tiles) {
-            for(const tile of this.tiles) {
-                tile.dispose();
-            }
+            this.tiles.dispose();
+            this.tiles = null;
         }
         if (this.root && this.root.parentNode != null) {
             this.root.parentNode!.removeChild(this.root);
@@ -561,42 +607,23 @@ class ImageLoader {
             // Start loading tiles in current bin, from center
             
             const {bin, src} = this.computeSrc();
-            if (this.tiles && this.tiles[0].bin !== bin) {
-                for(const tile of this.tiles) {
-                    tile.dispose();
-                }
+            if (this.tiles && this.tiles.bin !== bin) {
+                this.tiles.dispose();
                 this.tiles = null;
             }
 
             if (!this.tiles) {
-                // Construct a full tile plane
-                const tileSize = 256 * (2 ** bin);
-                const nbTileX = Math.ceil(this.details!.width / tileSize);
-                const nbTileY = Math.ceil(this.details!.height / tileSize);
-
-                this.tiles = [];
-                for(let ty = 0; ty < nbTileY; ++ty)
-                    for(let tx = 0; tx < nbTileX; ++tx)
-                    {
-                        const x0 = tx * tileSize;
-                        const y0 = ty * tileSize;
-                        const x1 = clipToBin(x0 + tileSize - 1, this.details!.width, bin);
-                        const y1 = clipToBin(y0 + tileSize - 1, this.details!.height, bin);
-
-                        const tile = new Tile(this, src, bin, [x0, y0, x1, y1]);
-
-                        this.tiles[tx + ty * nbTileX] = tile;
-                    }
-
+                this.tiles = new TilePlane(this, this.details!, bin, src);
+                this.root.appendChild(this.tiles.root);
                 this.waitingForRendered = true;
                 this.events.emit('statusChanged');
                 
-                for(const tile of this.tiles)
+                for(const tile of this.tiles.tiles)
                     this.placeTile(tile);
                 this.controlTileLoading(src);
 
             } else {
-                for(const tile of this.tiles)
+                for(const tile of this.tiles.tiles)
                     this.placeTile(tile);
                 this.controlTileLoading(src);
                 this.waitingForRendered = false;
@@ -621,7 +648,7 @@ class ImageLoader {
         this.pendingLoad = [];
         this.loadingCount = 0;
         
-        for(const tile of this.tiles!) {
+        for(const tile of this.tiles!.tiles) {
             if (tile.status.rendered) {
                 continue;
             }
@@ -700,7 +727,7 @@ class ImageLoader {
         if (this.detailsLoaded && !this.details) return true;
         if (!this.detailsLoaded) return false;
         if (this.tiles) {
-            for(const tile of this.tiles) {
+            for(const tile of this.tiles.tiles) {
                 if (tile.status.error) {
                     return true;
                 }
@@ -714,7 +741,7 @@ class ImageLoader {
         if (!this.detailsLoaded) return true;
 
         if (this.tiles) {
-            for(const tile of this.tiles) {
+            for(const tile of this.tiles.tiles) {
                 if (tile.status.loading) {
                     return true;
                 }
