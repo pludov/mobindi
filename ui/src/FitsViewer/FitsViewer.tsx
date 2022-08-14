@@ -226,11 +226,7 @@ class Tile {
 
     bin: number;
 
-    // Position in image x0, y0, x1, y1
-    pos: number[];
-
-    // Position relative to display
-    displayRect: Rectangle;
+    pos: Rectangle;
 
     status : TileStatus = { loading: false, error: false, rendered: false};
     // Reserved for tracking by loader
@@ -239,7 +235,7 @@ class Tile {
     // Set by loader, for purpose of ordering load
     dstToCenter: number = 0;
 
-    constructor(loader: ImageLoader, src: string, bin: number, pos: number[])
+    constructor(loader: ImageLoader, src: string, bin: number, pos: Rectangle)
     {
         this.loader = loader;
         this.srcBase = src;
@@ -247,15 +243,10 @@ class Tile {
         this.pos = pos;
     }
 
-    // TODO : not required since tile are in native image coordinates
-    setDisplayRect(displayRect: Rectangle) {
-        this.displayRect = displayRect;
-    }
-
     startLoading() {
         // load the content of the image
         this.img = new Image();
-        this.img.src = this.srcBase + `&x0=${this.pos[0]}&y0=${this.pos[1]}&x1=${this.pos[2]}&y1=${this.pos[3]}`;
+        this.img.src = this.srcBase + `&x0=${this.pos.x}&y0=${this.pos.y}&x1=${this.pos.x + this.pos.w - 1}&y1=${this.pos.y + this.pos.h - 1}`;
         this.img.addEventListener("load", this.imageElementLoaded);
         this.img.addEventListener("error", this.imageElementFailed);
         this.img.id = "image loader img";
@@ -269,12 +260,10 @@ class Tile {
         jqimg.css('image-rendering',  'pixelated');
 
         // Put tile in image coordinate
-        jqimg.css('left', this.pos[0] + 'px');
-        jqimg.css('top',  this.pos[1] + 'px');         
-        jqimg.css("width", (this.pos[2] - this.pos[0] + 1) + 'px');
-        jqimg.css("height", (this.pos[3] - this.pos[1] + 1) + 'px');
-
-        this.setDisplayRect(this.displayRect);
+        jqimg.css('left', this.pos.x + 'px');
+        jqimg.css('top',  this.pos.y + 'px');         
+        jqimg.css("width", this.pos.w + 'px');
+        jqimg.css("height", this.pos.h + 'px');
 
         this.status.loading = true;
         this.status.rendered = false;
@@ -345,7 +334,12 @@ class TilePlane {
                 const x1 = clipToBin(x0 + this.tileSize - 1, this.details.width, bin);
                 const y1 = clipToBin(y0 + this.tileSize - 1, this.details.height, bin);
 
-                const tile = new Tile(imageLoader, baseSrc, bin, [x0, y0, x1, y1]);
+                const tile = new Tile(imageLoader, baseSrc, bin, {
+                        x: x0, 
+                        y: y0,
+                        w: x1 - x0 + 1,
+                        h: y1 - y0 + 1,
+                    });
 
                 this.tiles[tx + ty * this.nbTileX] = tile;
             }
@@ -610,37 +604,47 @@ class ImageLoader {
             if (!this.tiles) {
                 this.tiles = new TilePlane(this, this.details!, bin, src);
                 this.root.appendChild(this.tiles.root);
-                this.waitingForRendered = true;
                 this.events.emit('statusChanged');
-
-                for(const tile of this.tiles.tiles)
-                    this.placeTile(tile);
-                this.controlTileLoading(src);
-
-            } else {
-                for(const tile of this.tiles.tiles)
-                    this.placeTile(tile);
-                this.controlTileLoading(src);
-                this.waitingForRendered = false;
-                this.events.emit('rendered');
             }
+
+            this.waitingForRendered = true;
+            this.controlTileLoading(src);
+        }
+    }
+
+    display2Image(d: {x:number, y:number}) {
+        // display                                               -> image 
+        // this.exposure!.imagePos.x                             -> 0
+        // this.exposure!.imagePos.x + this.exposure!.imagePos.w -> this.details!.width
+
+        return {
+            x: (d.x - this.exposure!.imagePos.x)*(this.details!.width) / this.exposure!.imagePos.w,
+            y: (d.y - this.exposure!.imagePos.y)*(this.details!.height) / this.exposure!.imagePos.h,
         }
     }
 
     controlTileLoading(src: string) {
         // Start loading the visible tiles:
         // those that intersect with [0, 0, displaySize[
-        const displayRect = {
-            x: -50,
-            y: -50,
-            w: 50 + this.exposure!.displaySize.width,
-            h: 50 + this.exposure!.displaySize.height
+        const topLeft = this.display2Image({
+            x:-50,
+            y:-50
+        });
+        const bottomRight = this.display2Image({
+            x: 50 + this.exposure!.displaySize.width,
+            y: 50 + this.exposure!.displaySize.height,
+        })
+        // Display in image coordinate
+        const imageVisibleRect = {
+            ...topLeft,
+            w: bottomRight.x - topLeft.x,
+            h: bottomRight.y - topLeft.y,
         }
 
-        // TODO : convert displayRect into an imageRect
-
-        const displayCenterX = this.exposure!.displaySize.width / 2;
-        const displayCenterY = this.exposure!.displaySize.height / 2;
+        const displayCenter = this.display2Image({
+            x: this.exposure!.displaySize.width / 2,
+            y: this.exposure!.displaySize.height / 2,            
+        });
 
         this.pendingLoad = [];
         this.loadingCount = 0;
@@ -653,13 +657,13 @@ class ImageLoader {
                 this.loadingCount++;
                 continue;
             }
-            const visible = intersect(tile.displayRect, displayRect);
+            const visible = intersect(tile.pos, imageVisibleRect);
             if (visible) {
-                const tileCenterX = tile.displayRect.x + tile.displayRect.w / 2;
-                const tileCenterY = tile.displayRect.y + tile.displayRect.h / 2;
+                const tileCenterX = tile.pos.x + tile.pos.w / 2;
+                const tileCenterY = tile.pos.y + tile.pos.h / 2;
                 
-                const tileDstX = Math.abs(tileCenterX - displayCenterX ) / displayCenterX;
-                const tileDstY = Math.abs(tileCenterY - displayCenterY ) / displayCenterY;
+                const tileDstX = Math.abs(tileCenterX - displayCenter.x );
+                const tileDstY = Math.abs(tileCenterY - displayCenter.y );
     
                 let dst = tileDstX*tileDstX + tileDstY*tileDstY;
                 tile.dstToCenter = dst;
@@ -681,7 +685,10 @@ class ImageLoader {
             this.root.appendChild(tile.img!)
         }
 
-        // FIXME : here we may have loaded all tiles... emit event ?
+        if (this.loadingCount === 0 && this.waitingForRendered) {
+            this.waitingForRendered = false;
+            this.events.emit('rendered');
+        }
     }
 
     updateStatus(tile: Tile) {
@@ -689,35 +696,10 @@ class ImageLoader {
             this.loadingCount--;
             this.continueLoading();
         }
-
-        if (this.waitingForRendered) {
-            // FIXME This is tooearly !
-            // Need to emit two events: partially rendered + fully rendered
-            if (tile.status.rendered) {
-                this.waitingForRendered = false;
-                this.events.emit('rendered');
-            }
-        }
+        
         // TODO : Only emit for real changes (no more loading, all rendered, ...)
         if (!this.disposed)
             this.events.emit('statusChanged');
-    }
-
-    placeTile(tile: Tile)
-    {
-        const exposure = this.exposure!;
-        
-        const xPixelRatio = exposure.imagePos.w / this.details!.width;
-        const yPixelRatio = exposure.imagePos.h / this.details!.height;
-        
-        const window = this.param.window;
-
-        tile.setDisplayRect({
-            x: (exposure.imagePos.x + ((window?.left|| 0) + tile.pos[0]) * xPixelRatio),
-            y: (exposure.imagePos.y + ((window?.top || 0) + tile.pos[1]) * yPixelRatio),
-            w: ((tile.pos[2] - tile.pos[0] + 1) * xPixelRatio),
-            h: ((tile.pos[3] - tile.pos[1] + 1) * yPixelRatio),
-        })
     }
 
     hadLoadingError() {
