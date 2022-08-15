@@ -257,7 +257,6 @@ class Tile {
         jqimg.css('box-sizing', 'border-box');
         jqimg.css('border', '0px');
         jqimg.css('position', 'absolute');
-        jqimg.css('image-rendering',  'pixelated');
 
         // Put tile in image coordinate
         jqimg.css('left', this.pos.x + 'px');
@@ -331,15 +330,23 @@ class TilePlane {
         this.nbTileY = Math.ceil(this.details!.height / this.tileSize);
 
         this.root = document.createElement("span");
-
+        
+        // Create overlap in tiles to avoid rendering artefacts (chrome bug 600120)
+        const binMargin = 2 * (2 ** bin);
+        
         this.tiles = [];
         for(let ty = 0; ty < this.nbTileY; ++ty)
             for(let tx = 0; tx < this.nbTileX; ++tx)
             {
-                const x0 = tx * this.tileSize;
-                const y0 = ty * this.tileSize;
-                const x1 = clipToBin(x0 + this.tileSize - 1, this.details.width, bin);
-                const y1 = clipToBin(y0 + this.tileSize - 1, this.details.height, bin);
+                let x0 = tx * this.tileSize;
+                let y0 = ty * this.tileSize;
+                let x1 = clipToBin(x0 + this.tileSize - 1, this.details.width, bin);
+                let y1 = clipToBin(y0 + this.tileSize - 1, this.details.height, bin);
+
+                if (x0 > binMargin) x0 -= binMargin;
+                if (y0 > binMargin) y0 -= binMargin;
+                if (x1 + binMargin < this.details.width) x1 += binMargin;
+                if (y1 + binMargin < this.details.height) y1 += binMargin;
 
                 const tile = new Tile(imageLoader, baseSrc, bin, {
                         x: x0, 
@@ -359,6 +366,12 @@ class TilePlane {
                 tile.reset();
             }
         }
+    }
+
+    // Filtering is not wishable for high zoom level
+    setFiltering(filtering: boolean)
+    {
+        this.root.style.imageRendering = filtering ? 'unset' : 'pixelated';
     }
 
     dispose() {
@@ -531,17 +544,17 @@ class ImageLoader {
         if (exposure.imagePos.w > 0 && exposure.imagePos.h > 0
                 && imageSize.width  > -1 && imageSize.height > -1)
         {
-            bin = Math.floor(Math.min(
+            bin = Math.min(
                 imageSize.width / exposure.imagePos.w,
                 imageSize.height / exposure.imagePos.h
-            ));
+            );
         } else if (imageSize.width > 0 && imageSize.height > 0) {
             // Prepare for a best fit
             const bestFit = getBestFitForSize(imageSize, exposure.displaySize);
-            bin = Math.floor(Math.min(
+            bin = Math.min(
                 imageSize.width / bestFit.w,
                 imageSize.height / bestFit.h
-            ));
+            );
         }
 
         if (window.devicePixelRatio) {
@@ -549,7 +562,11 @@ class ImageLoader {
         }
 
         // lower this to a 2^power
-        bin = Math.floor(Math.log2(bin));
+        const idealBin = Math.log2(bin);
+        // Take an integer bining
+        bin = Math.floor(idealBin);
+
+        // FIXME: color image doesn't support bin0
         if (bin < 0) {
             bin = 0;
         }
@@ -567,7 +584,7 @@ class ImageLoader {
             str += "&serial=" + encodeURIComponent(this.param.serial);
         }
 
-        return {src: str, bin};
+        return {src: str, bin, idealBin};
     }
 
     private encodePathUrl() {
@@ -609,16 +626,11 @@ class ImageLoader {
             this.waitingForRendered = false;
             this.events.emit('rendered');
         } else {
-            // TODO for tile rendering:
-            // Compute the target bin
-            // Create plane for the target bin if not exists
-            // Remove any tile that is not covered by the actual exposure:
+            // TODO : Remove any tile that is not covered by the actual exposure:
             //    totally out of exposure (with % margin )
             //    totally hidden by current loaded tile
-            // Remark: if not displayed (not implemented), just drop all but the target tile
-            // Start loading tiles in current bin, from center
             
-            const {bin, src} = this.computeSrc();
+            const {bin, idealBin, src} = this.computeSrc();
             this.targetPlane = this.tilePlanes[bin];
             this.tilePlaneOrder = [bin];
             for(let i = bin - 1 ; i >= 0; --i)
@@ -638,6 +650,11 @@ class ImageLoader {
                 this.tilePlanes[bin] = this.targetPlane;
                 this.root.appendChild(this.targetPlane.root);
                 this.events.emit('statusChanged');
+            }
+            
+            // Enable filtering unless high zoom
+            for(let i = 0; i < this.tilePlanes.length; ++i) {
+                this.tilePlanes[i]?.setFiltering(idealBin >= 0.33 || this.tilePlanes[i] !== this.targetPlane);
             }
 
             // reorder planes according behind targetPlane, according to tilePlaneOrder
