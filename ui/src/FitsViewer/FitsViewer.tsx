@@ -362,9 +362,7 @@ class TilePlane {
     }
 
     dispose() {
-        if (this.root && this.root.parentNode != null) {
-            this.root.parentNode!.removeChild(this.root);
-        }
+        this.root?.parentNode?.removeChild(this.root);
         for(const tile of this.tiles) {
             tile.dispose();
         }
@@ -498,16 +496,18 @@ class ImageLoader {
         this.detailsRequest.start();
     }
 
+    abortDetailsRequest() {
+        this.detailsRequest?.unregister(this);
+        this.detailsRequest = null;
+    }
+
     dispose()
     {
         if (this.disposed) {
             return;
         }
         this.disposed = true;
-        if (!this.detailsLoaded && this.detailsRequest)  {
-            this.detailsRequest.unregister(this);
-            this.detailsRequest = null;
-        }
+        this.abortDetailsRequest();
         for(let bin = 0; bin < this.tilePlanes.length; ++bin) {
             const tilePlane = this.tilePlanes[bin];
             if (tilePlane) {
@@ -628,15 +628,14 @@ class ImageLoader {
             
             // Abort any unrelated tile plane
             for(let i = 0; i < this.tilePlanes.length; ++i) {
-                const tilePlane = this.tilePlanes[i];
-                if (tilePlane) {
-                    tilePlane.abortLoading();
+                if (i !== bin) {
+                    this.tilePlanes[i]?.abortLoading();
                 }
             }
 
             if (!this.targetPlane) {
                 this.targetPlane = new TilePlane(this, this.details!, bin, src);
-                this.tilePlanes[bin] = this.targetPlane[bin];
+                this.tilePlanes[bin] = this.targetPlane;
                 this.root.appendChild(this.targetPlane.root);
                 this.events.emit('statusChanged');
             }
@@ -727,7 +726,8 @@ class ImageLoader {
             this.loadingCount++;
 
             tile.startLoading();
-            this.root.appendChild(tile.img!)
+            // FIXME: this logic must be move to tileplane
+            this.targetPlane!.root.appendChild(tile.img!)
         }
 
         if (this.loadingCount === 0 && this.waitingForRendered) {
@@ -754,6 +754,12 @@ class ImageLoader {
         // TODO : Only emit for real changes (no more loading, all rendered, ...)
         if (!this.disposed)
             this.events.emit('statusChanged');
+    }
+
+    abortLoading() {
+        this.abortDetailsRequest();
+        this.targetPlane?.abortLoading();
+        this.waitingForRendered = false;
     }
 
     hadLoadingError() {
@@ -1038,11 +1044,7 @@ class JQImageDisplay {
         }
 
         if (this.currentView && Obj.deepEqual(this.currentView.param, loaderParam)) {
-            if (this.loadingView) {
-                this.disposeView(this.loadingView);
-                this.loadingView = null;
-                this.nextView = null;    
-            }
+            this.abortLoadingView();
             this.updateViewStyle();
             return;
         }
@@ -1056,9 +1058,7 @@ class JQImageDisplay {
         let styleUpdateRequired = false;
         if (this.loadingView) {
             if (!this.loadingView.samePath(newLoader)) {
-                this.disposeView(this.loadingView);
-                this.loadingView = null;
-                this.nextView = null;
+                this.abortLoadingView();
                 styleUpdateRequired = true;
             }
         }
@@ -1127,6 +1127,23 @@ class JQImageDisplay {
         this.loadingView!.events.once('sized', this.viewSized);
         this.loadingView!.events.once('rendered', this.viewRendered);
         this.loadingView!.prepare(this.currentView || undefined);
+
+        // Prevent currentView from loading anymore data
+        this.currentView?.abortLoading();
+    }
+
+    private abortLoadingView() {
+        this.nextView = null;
+            
+        if (this.loadingView) {
+            this.disposeView(this.loadingView);
+            this.loadingView = null;
+            
+            this.currentView?.expose({
+                displaySize: this.getDisplaySize(),
+                imagePos: this.currentImagePos,
+            });
+        }
     }
 
     public flushView()
@@ -1139,11 +1156,7 @@ class JQImageDisplay {
     }
 
     public currentImageSize():ImageSize|undefined {
-        // FIXME: this function may lie, during an image loading...
-        if (this.loadingView) {
-            return this.loadingView.details || undefined;
-        }
-        return this.currentView?.details || undefined;
+        return this.viewForGeometry()?.details || undefined;
     }
 
     closeMenu=()=>{
@@ -1207,6 +1220,10 @@ class JQImageDisplay {
         return undefined;
     }
 
+    private getDisplaySize() {
+        return { width: this.child.width()!, height: this.child.height()! }
+    }
+
     private setRawCurrentImagePos(e:CompleteImagePos, displaySize: ImageSize) {
         // Update the root transformation
         const referenceView = this.viewForGeometry();
@@ -1229,7 +1246,7 @@ class JQImageDisplay {
     
         this.currentImagePos = e;
 
-        if (this.currentView) {
+        if (this.currentView && !this.loadingView) {
             this.currentView.expose({
                 displaySize,
                 imagePos: e,
@@ -1250,7 +1267,7 @@ class JQImageDisplay {
 
     setCurrentImagePos(imgPos:ImagePos) {
         const referenceView = this.viewForGeometry();
-        const viewSize = { x: this.child.width()!, y: this.child.height()!};
+        const viewSize = this.getDisplaySize();
         let targetPos: CompleteImagePos;
 
         if (!referenceView) {
@@ -1258,23 +1275,23 @@ class JQImageDisplay {
         } else {
 
             // prevent zoom under 1.
-            if (imgPos.w < viewSize.x && imgPos.h < viewSize.y) {
+            if (imgPos.w < viewSize.width && imgPos.h < viewSize.height) {
                 targetPos = this.getBestFitForSize(referenceView.details!);
             } else {
                 // Prevent black borders
                 targetPos = {...imgPos,
-                    centerx: (viewSize.x / 2 - imgPos.x) / imgPos.w,
-                    centery: (viewSize.y / 2 - imgPos.y) / imgPos.h,
-                    zoomToBestfit: Math.max(imgPos.w/viewSize.x, imgPos.h/viewSize.y)
+                    centerx: (viewSize.width / 2 - imgPos.x) / imgPos.w,
+                    centery: (viewSize.height / 2 - imgPos.y) / imgPos.h,
+                    zoomToBestfit: Math.max(imgPos.w/viewSize.width, imgPos.h/viewSize.height)
                 };
-                const marginX = (targetPos.w < viewSize.x) ? (viewSize.x - targetPos.w) / 2 : 0;
+                const marginX = (targetPos.w < viewSize.width) ? (viewSize.width - targetPos.w) / 2 : 0;
                 const minx = marginX;
-                const maxx = viewSize.x - marginX;
+                const maxx = viewSize.width - marginX;
 
 
-                const marginY = (targetPos.h < viewSize.y) ? (viewSize.y - targetPos.h) / 2 : 0;
+                const marginY = (targetPos.h < viewSize.height) ? (viewSize.height - targetPos.h) / 2 : 0;
                 const miny = marginY;
-                const maxy = viewSize.y - marginY;
+                const maxy = viewSize.height - marginY;
 
                 if (targetPos.x > minx) {
                     targetPos.x = minx;
@@ -1291,7 +1308,7 @@ class JQImageDisplay {
             }
         }
     
-        this.setRawCurrentImagePos(targetPos, {width: viewSize.x, height: viewSize.y});
+        this.setRawCurrentImagePos(targetPos, viewSize);
         this.updateCrossHairPosition();
     }
 
