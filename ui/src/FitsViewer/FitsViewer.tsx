@@ -288,9 +288,7 @@ class Tile {
         this.loader.updateStatus(this);
     }
 
-    dispose() {
-        // Abort loading
-        // Drop from the tile set
+    reset() {
         if (this.img) {
             this.img.removeEventListener("load", this.imageElementLoaded);
             this.img.removeEventListener("error", this.imageElementFailed);
@@ -300,6 +298,15 @@ class Tile {
             }
             this.img = null;
         }
+        this.status.loading = false;
+        this.status.rendered = false;
+        this.status.error = false;
+    }
+
+    // Abort loading
+    // Drop from the tile set
+    dispose() {
+        this.reset();
     }
 }
 
@@ -344,6 +351,15 @@ class TilePlane {
                 this.tiles[tx + ty * this.nbTileX] = tile;
             }
     }    
+
+    // Stop any loading activity here
+    abortLoading() {
+        for(const tile of this.tiles) {
+            if (tile.status.loading) {
+                tile.reset();
+            }
+        }
+    }
 
     dispose() {
         if (this.root && this.root.parentNode != null) {
@@ -396,7 +412,11 @@ class ImageLoader {
     events: EventEmitter = new EventEmitter();
 
     // Target img element
-    tiles: TilePlane|null = null;
+    targetPlane: TilePlane|undefined = undefined;
+    // Tile planes by their tile value (0, 1, 2, 3...)
+    tilePlanes: Array<TilePlane|undefined> = [];
+    // Priority of tiles display (targetPlane is tilePlanes[tilePlaneOrder[0]])
+    tilePlaneOrder: Array<number> = [];
 
     // Tiles to start loading
     pendingLoad: Array<Tile> = [];
@@ -488,9 +508,12 @@ class ImageLoader {
             this.detailsRequest.unregister(this);
             this.detailsRequest = null;
         }
-        if (this.tiles) {
-            this.tiles.dispose();
-            this.tiles = null;
+        for(let bin = 0; bin < this.tilePlanes.length; ++bin) {
+            const tilePlane = this.tilePlanes[bin];
+            if (tilePlane) {
+                tilePlane.dispose();
+                this.tilePlanes[bin] = undefined;
+            }
         }
         if (this.root && this.root.parentNode != null) {
             this.root.parentNode!.removeChild(this.root);
@@ -596,15 +619,37 @@ class ImageLoader {
             // Start loading tiles in current bin, from center
             
             const {bin, src} = this.computeSrc();
-            if (this.tiles && this.tiles.bin !== bin) {
-                this.tiles.dispose();
-                this.tiles = null;
+            this.targetPlane = this.tilePlanes[bin];
+            this.tilePlaneOrder = [bin];
+            for(let i = bin - 1 ; i >= 0; --i)
+                this.tilePlaneOrder.push(i);
+            for(let i = bin + 1; i < this.tilePlanes.length; i++)
+                this.tilePlaneOrder.push(i);
+            
+            // Abort any unrelated tile plane
+            for(let i = 0; i < this.tilePlanes.length; ++i) {
+                const tilePlane = this.tilePlanes[i];
+                if (tilePlane) {
+                    tilePlane.abortLoading();
+                }
             }
 
-            if (!this.tiles) {
-                this.tiles = new TilePlane(this, this.details!, bin, src);
-                this.root.appendChild(this.tiles.root);
+            if (!this.targetPlane) {
+                this.targetPlane = new TilePlane(this, this.details!, bin, src);
+                this.tilePlanes[bin] = this.targetPlane[bin];
+                this.root.appendChild(this.targetPlane.root);
                 this.events.emit('statusChanged');
+            }
+
+            // reorder planes according behind targetPlane, according to tilePlaneOrder
+            let reference = undefined;
+            for(const binId of this.tilePlaneOrder) {
+                const tilePlane = this.tilePlanes[binId];
+                if (!tilePlane) continue;
+                if (reference !== undefined) {
+                    this.root.insertBefore(tilePlane.root, reference);
+                }
+                reference = tilePlane.root;
             }
 
             this.waitingForRendered = true;
@@ -649,7 +694,7 @@ class ImageLoader {
         this.pendingLoad = [];
         this.loadingCount = 0;
         
-        for(const tile of this.tiles!.tiles) {
+        for(const tile of this.targetPlane!.tiles) {
             if (tile.status.rendered) {
                 continue;
             }
@@ -686,6 +731,15 @@ class ImageLoader {
         }
 
         if (this.loadingCount === 0 && this.waitingForRendered) {
+            // Drop all unused planes
+            for(let bin = 0; bin < this.tilePlanes.length; ++bin) {
+                const tilePlane = this.tilePlanes[bin];
+                if (tilePlane !== this.targetPlane && tilePlane) {
+                    tilePlane.dispose();
+                    this.tilePlanes[bin] = undefined;
+                }
+            }
+            this.tilePlanes.splice(this.targetPlane!.bin + 1, this.tilePlanes.length);
             this.waitingForRendered = false;
             this.events.emit('rendered');
         }
@@ -705,8 +759,8 @@ class ImageLoader {
     hadLoadingError() {
         if (this.detailsLoaded && !this.details) return true;
         if (!this.detailsLoaded) return false;
-        if (this.tiles) {
-            for(const tile of this.tiles.tiles) {
+        if (this.targetPlane) {
+            for(const tile of this.targetPlane.tiles) {
                 if (tile.status.error) {
                     return true;
                 }
@@ -719,8 +773,8 @@ class ImageLoader {
         if ((this.detailsLoaded) && (!this.details)) return false;
         if (!this.detailsLoaded) return true;
 
-        if (this.tiles) {
-            for(const tile of this.tiles.tiles) {
+        if (this.targetPlane) {
+            for(const tile of this.targetPlane.tiles) {
                 if (tile.status.loading) {
                     return true;
                 }
