@@ -21,6 +21,7 @@ import { EventEmitter } from 'events';
 
 const logger = Log.logger(__filename);
 
+let curid = 0;
 
 export type LevelId = "low"|"medium"|"high";
 
@@ -43,6 +44,43 @@ function intersect(r1: Rectangle, r2: Rectangle) {
     if (r2.y >= r1.y + r1.h) return false;
     
     return true;
+}
+
+function rectInclude(r: Rectangle, p: {x: number, y:number})
+{
+    return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
+}
+
+function pointMin(p1:{x: number, y: number}, p2:{x: number, y: number})
+{
+    return {
+        x: Math.min(p1.x, p2.x),
+        y: Math.min(p1.y, p2.y),
+    };
+}
+
+function pointMax(p1:{x: number, y: number}, p2:{x: number, y: number})
+{
+    return {
+        x: Math.max(p1.x, p2.x),
+        y: Math.max(p1.y, p2.y),
+    };
+}
+
+function growToBinBoundary(r: Rectangle, bin: number)
+{
+    const binSize = 2 ** bin;
+    let x0 = Math.floor(r.x / binSize) * binSize;
+    let y0 = Math.floor(r.y / binSize) * binSize;
+    
+    let x1 = Math.ceil((r.x + r.w) / binSize) * binSize;
+    let y1 = Math.ceil((r.y + r.h) / binSize) * binSize;
+    return {
+        x: x0,
+        y: y0,
+        w: x1 - x0,
+        h: y1 - y0,
+    };
 }
 
 export type Levels = {
@@ -251,19 +289,6 @@ class Tile {
         this.img.addEventListener("error", this.imageElementFailed);
         this.img.id = "image loader img";
         
-        const jqimg = $(this.img);
-        jqimg.css('display', 'block');
-        jqimg.css('pointer-events', 'none');
-        jqimg.css('box-sizing', 'border-box');
-        jqimg.css('border', '0px');
-        jqimg.css('position', 'absolute');
-
-        // Put tile in image coordinate
-        jqimg.css('left', this.pos.x + 'px');
-        jqimg.css('top',  this.pos.y + 'px');         
-        jqimg.css("width", this.pos.w + 'px');
-        jqimg.css("height", this.pos.h + 'px');
-
         this.status.loading = true;
         this.status.rendered = false;
         this.status.error = false;
@@ -292,9 +317,7 @@ class Tile {
             this.img.removeEventListener("load", this.imageElementLoaded);
             this.img.removeEventListener("error", this.imageElementFailed);
             this.img.src = imageReleaseUrl;
-            if (this.img.parentNode != null) {
-                this.img.parentNode!.removeChild(this.img);
-            }
+            this.img.parentNode?.removeChild(this.img);
             this.img = null;
         }
         this.status.loading = false;
@@ -316,7 +339,6 @@ class TilePlane {
     nbTileX: number;
     nbTileY: number;
     details: ImageSize;
-    root: HTMLSpanElement;
     baseSrc: string;
 
     constructor(imageLoader : ImageLoader, details: ImageSize, bin: number, baseSrc:string) {
@@ -329,31 +351,20 @@ class TilePlane {
         this.nbTileX = Math.ceil(this.details!.width / this.tileSize);
         this.nbTileY = Math.ceil(this.details!.height / this.tileSize);
 
-        this.root = document.createElement("span");
-        
-        // Create overlap in tiles to avoid rendering artefacts (chrome bug 600120)
-        const binMargin = 2 * (2 ** bin);
-        
         this.tiles = [];
         for(let ty = 0; ty < this.nbTileY; ++ty)
             for(let tx = 0; tx < this.nbTileX; ++tx)
             {
-                let x0 = tx * this.tileSize;
-                let y0 = ty * this.tileSize;
-                let x1 = clipToBin(x0 + this.tileSize - 1, this.details.width, bin);
-                let y1 = clipToBin(y0 + this.tileSize - 1, this.details.height, bin);
-
-                if (x0 > binMargin) x0 -= binMargin;
-                if (y0 > binMargin) y0 -= binMargin;
-                if (x1 + binMargin < this.details.width) x1 += binMargin;
-                if (y1 + binMargin < this.details.height) y1 += binMargin;
-
-                const tile = new Tile(imageLoader, baseSrc, bin, {
-                        x: x0, 
-                        y: y0,
-                        w: x1 - x0 + 1,
-                        h: y1 - y0 + 1,
-                    });
+                let x = tx * this.tileSize;
+                let y = ty * this.tileSize;
+                const x1 = Math.min(x + this.tileSize, this.details.width);
+                const y1 = Math.min(y + this.tileSize, this.details.height);
+                const tile = new Tile(imageLoader, baseSrc, bin, growToBinBoundary({
+                        x, 
+                        y,
+                        w: x1 - x,
+                        h: y1 - y,
+                    }, bin));
 
                 this.tiles[tx + ty * this.nbTileX] = tile;
             }
@@ -368,14 +379,7 @@ class TilePlane {
         }
     }
 
-    // Filtering is not wishable for high zoom level
-    setFiltering(filtering: boolean)
-    {
-        this.root.style.imageRendering = filtering ? 'unset' : 'pixelated';
-    }
-
     dispose() {
-        this.root?.parentNode?.removeChild(this.root);
         for(const tile of this.tiles) {
             tile.dispose();
         }
@@ -383,21 +387,7 @@ class TilePlane {
 }
 
 
-// Clip the last pixel of a tile, so it ends at most at the end of the "bin" of the last pixel
-// end of tile must no go beyond actual image, 
-// but must still stop at a complete bin (so this give a little overflow on the initial image)
-function clipToBin(v:number, vmax:number, bin:number) {
-    if (v >= vmax) {
-        v = vmax - 1;
-    }
-    const binSize =2 ** bin
-    
-    const binLeft = (binSize - 1 ) - (v % binSize);
-    
-    v += binLeft;
-    
-    return v;
-}
+type CanvasAsyncUpdateRequest = {full?: boolean, bin?:number, tiles?:Array<Tile>, idealBin?: number};
 
 /* ImageLoader event lifecycle is:
  *    prepare => sized 
@@ -521,6 +511,7 @@ class ImageLoader {
         }
         this.disposed = true;
         this.abortDetailsRequest();
+        this.abortCanvasUpdateRequest();
         for(let bin = 0; bin < this.tilePlanes.length; ++bin) {
             const tilePlane = this.tilePlanes[bin];
             if (tilePlane) {
@@ -628,7 +619,7 @@ class ImageLoader {
         } else {
             // TODO : Remove any tile that is not covered by the actual exposure:
             //    totally out of exposure (with % margin )
-            //    totally hidden by current loaded tile
+            //    totally hidden by current already loaded tile
             
             const {bin, idealBin, src} = this.computeSrc();
             this.targetPlane = this.tilePlanes[bin];
@@ -648,28 +639,13 @@ class ImageLoader {
             if (!this.targetPlane) {
                 this.targetPlane = new TilePlane(this, this.details!, bin, src);
                 this.tilePlanes[bin] = this.targetPlane;
-                this.root.appendChild(this.targetPlane.root);
                 this.events.emit('statusChanged');
             }
             
-            // Enable filtering unless high zoom
-            for(let i = 0; i < this.tilePlanes.length; ++i) {
-                this.tilePlanes[i]?.setFiltering(idealBin >= 0.33 || this.tilePlanes[i] !== this.targetPlane);
-            }
-
-            // reorder planes according behind targetPlane, according to tilePlaneOrder
-            let reference = undefined;
-            for(const binId of this.tilePlaneOrder) {
-                const tilePlane = this.tilePlanes[binId];
-                if (!tilePlane) continue;
-                if (reference !== undefined) {
-                    this.root.insertBefore(tilePlane.root, reference);
-                }
-                reference = tilePlane.root;
-            }
-
             this.waitingForRendered = true;
             this.controlTileLoading(src);
+            this.refreshCanvas(bin, idealBin);
+            this.programCanvasUpdateRequest({idealBin})
         }
     }
 
@@ -682,6 +658,187 @@ class ImageLoader {
             x: (d.x - this.exposure!.imagePos.x)*(this.details!.width) / this.exposure!.imagePos.w,
             y: (d.y - this.exposure!.imagePos.y)*(this.details!.height) / this.exposure!.imagePos.h,
         }
+    }
+
+    canvas: HTMLCanvasElement|undefined;
+    canvasBin: number;
+    canvasPos: ImagePos;
+    canvasUpdateRequest: number|undefined;
+    canvasUpdateRequestParams: CanvasAsyncUpdateRequest|undefined;
+
+
+    invalidateCanvas() {
+        this.abortCanvasUpdateRequest();
+        this.canvas?.parentNode?.removeChild(this.canvas);
+        this.canvas = undefined;
+        this.canvasBin = 0;
+        this.canvasPos = {
+            x: 0, y: 0,
+            w: 0, h: 0,
+        }
+    }
+
+    abortCanvasUpdateRequest() {
+        if (this.canvasUpdateRequest) {
+            window.cancelAnimationFrame(this.canvasUpdateRequest);
+            this.canvasUpdateRequest = undefined;
+            this.canvasUpdateRequestParams = undefined;
+        }
+    }
+
+    renderTile(tile: Tile, context?: CanvasRenderingContext2D|null) {
+        if (tile.status.rendered) {
+            if (context === undefined) {
+                context = this.getCanvasContext();
+            }
+
+            const scale = 1/(2 ** this.canvasBin);    
+            context?.drawImage(tile.img!, 
+                    (tile.pos.x - this.canvasPos.x) * scale,
+                    (tile.pos.y - this.canvasPos.y) * scale,
+                    tile.pos.w * scale,
+                    tile.pos.h * scale);
+        }
+    }
+
+    getCanvasContext() {
+        const context = this.canvas?.getContext('2d');
+        if (context) {
+            context.imageSmoothingEnabled = false;
+        }
+        if (!context) {
+            return null;
+        }
+        return context;
+    }
+
+    // Program an async update of the canvas
+    refreshCanvas(bin:number, idealBin: number) {
+        if (!this.details) {
+            this.invalidateCanvas();
+            return;
+        }        
+
+        // Keep the current canvas if it is ok and not invalidated
+        if (!this.canvasUpdateRequestParams?.full
+            && this.canvasBin === bin
+            && rectInclude(this.canvasPos, 
+                    pointMax(
+                        this.display2Image({x:0, y:0}),
+                        {x: 0, y: 0}))
+            && rectInclude(this.canvasPos,
+                    pointMin(
+                        this.display2Image(
+                            {
+                                x: this.exposure!.displaySize.width - 1,
+                                y: this.exposure!.displaySize.height - 1
+                            }),
+                        {x: this.details!.width - 1, y : this.details!.height - 1})))
+        {
+            return;
+        }
+
+        this.programCanvasUpdateRequest({
+            full: true,
+            bin,
+            idealBin,
+        });
+    }
+
+
+    // Perform an async update of the canvas
+    private asyncCanvasUpdate=()=>{
+        const params = this.canvasUpdateRequestParams!;
+        this.canvasUpdateRequest = undefined;
+        this.canvasUpdateRequestParams = undefined;
+        if (params.full) {
+            this.invalidateCanvas();
+    
+            let topLeft = this.display2Image({
+                x:-50,
+                y:-50
+            });
+            let bottomRight = this.display2Image({
+                x: 50 + this.exposure!.displaySize.width,
+                y: 50 + this.exposure!.displaySize.height,
+            })
+            // Dont go beyond image
+            if (topLeft.x < 0) topLeft.x = 0;
+            if (topLeft.y < 0) topLeft.y = 0;
+            if (bottomRight.x > this.details!.width) bottomRight.x = this.details!.width;
+            if (bottomRight.y > this.details!.height) bottomRight.y = this.details!.height;
+    
+            this.canvasBin = params.bin!;
+            this.canvasPos = growToBinBoundary({
+                x: topLeft.x,
+                y: topLeft.y,
+                w: bottomRight.x - topLeft.x,
+                h: bottomRight.y - topLeft.y,
+            }, params.bin!);
+
+            this.canvas = document.createElement('canvas');
+            this.canvas.width = this.canvasPos.w;
+            this.canvas.height = this.canvasPos.h;
+            
+            this.canvas.style.pointerEvents= 'none';
+            this.canvas.style.boxSizing= 'border-box';
+            this.canvas.style.border= '0px';
+            this.canvas.style.position= 'absolute';
+            this.canvas.style.left = this.canvasPos.x + 'px';
+            this.canvas.style.top = this.canvasPos.y + 'px';
+            this.canvas.style.transformOrigin = '0px 0px';
+            this.canvas.style.transform = `scale(${2 ** this.canvasBin})`;
+            
+            const context = this.getCanvasContext();
+    
+            for(let i = this.tilePlaneOrder.length - 1; i >= 0; --i) {
+                const bin = this.tilePlaneOrder[i];
+                const plane = this.tilePlanes[bin];
+                for(const tile of plane?.tiles || []) {
+                    this.renderTile(tile, context);
+                }
+            }
+            this.root.appendChild(this.canvas);
+        }
+
+        if (params.tiles) {
+            const context = this.getCanvasContext();
+    
+            for(const tile of params.tiles) {
+                this.renderTile(tile, context);
+            }
+        }
+
+        if (params.idealBin !== undefined) {
+            this.updateCanvasFiltering(params.idealBin);
+        }
+    }
+
+    programCanvasUpdateRequest(p: CanvasAsyncUpdateRequest)
+    {
+        if (!this.canvasUpdateRequest) {
+            this.canvasUpdateRequestParams = p;
+            this.canvasUpdateRequest = window.requestAnimationFrame(this.asyncCanvasUpdate);
+        } else {
+            if (p.full) {
+                this.canvasUpdateRequestParams = p;
+            } else if (p.tiles && !this.canvasUpdateRequestParams!.full) {
+                if (!this.canvasUpdateRequestParams!.tiles) {
+                    this.canvasUpdateRequestParams!.tiles = [];
+                }
+                for(const tile of p.tiles) {
+                    this.canvasUpdateRequestParams!.tiles!.push(tile);
+                }
+            }
+            if (p.idealBin !== undefined) {
+                this.canvasUpdateRequestParams!.idealBin = p.idealBin;
+            }
+        }
+    }
+
+    updateCanvasFiltering(idealBin: number) {
+        if (!this.canvas) return;
+        this.canvas.style.imageRendering = idealBin > 0.3 ? 'unset' : 'pixelated';
     }
 
     controlTileLoading(src: string) {
@@ -743,8 +900,6 @@ class ImageLoader {
             this.loadingCount++;
 
             tile.startLoading();
-            // FIXME: this logic must be move to tileplane
-            this.targetPlane!.root.appendChild(tile.img!)
         }
 
         if (this.loadingCount === 0 && this.waitingForRendered) {
@@ -764,6 +919,7 @@ class ImageLoader {
 
     updateStatus(tile: Tile) {
         if (!tile.status.loading) {
+            this.programCanvasUpdateRequest({tiles: [tile]});
             this.loadingCount--;
             this.continueLoading();
         }
