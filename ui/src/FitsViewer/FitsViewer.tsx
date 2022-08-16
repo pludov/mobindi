@@ -387,7 +387,7 @@ class TilePlane {
 }
 
 
-type CanvasAsyncUpdateRequest = {full?: boolean, bin?:number, tiles?:Array<Tile>, idealBin?: number};
+type CanvasAsyncUpdateRequest = {full?: boolean, bin?:number, tiles?:Array<Tile>, idealBin?: number, immediate?:boolean};
 
 /* ImageLoader event lifecycle is:
  *    prepare => sized 
@@ -511,7 +511,7 @@ class ImageLoader {
         }
         this.disposed = true;
         this.abortDetailsRequest();
-        this.abortCanvasUpdateRequest();
+        this.abortCanvasAsyncUpdate();
         for(let bin = 0; bin < this.tilePlanes.length; ++bin) {
             const tilePlane = this.tilePlanes[bin];
             if (tilePlane) {
@@ -549,11 +549,11 @@ class ImageLoader {
         }
 
         if (window.devicePixelRatio) {
-            bin *= window.devicePixelRatio;
+            bin /= window.devicePixelRatio;
         }
 
-        // lower this to a 2^power
-        const idealBin = Math.log2(bin);
+        // lower this to a 2^power. 0.8 is for filtering/speedup
+        const idealBin = Math.log2(bin) + 0.8;
         // Take an integer bining
         bin = Math.floor(idealBin);
 
@@ -645,7 +645,7 @@ class ImageLoader {
             this.waitingForRendered = true;
             this.controlTileLoading(src);
             this.refreshCanvas(bin, idealBin);
-            this.programCanvasUpdateRequest({idealBin})
+            this.queueCanvasAsyncUpdate({idealBin})
         }
     }
 
@@ -663,26 +663,20 @@ class ImageLoader {
     canvas: HTMLCanvasElement|undefined;
     canvasBin: number;
     canvasPos: ImagePos;
-    canvasUpdateRequest: number|undefined;
-    canvasUpdateRequestParams: CanvasAsyncUpdateRequest|undefined;
 
+    // Async update of canvas (to group updates)
+    canvasUpdateAnimationFrame: number|undefined;
+    canvasUpdateTimeout: NodeJS.Timeout|undefined;
+    canvasUpdateParams: CanvasAsyncUpdateRequest|undefined;
 
     invalidateCanvas() {
-        this.abortCanvasUpdateRequest();
+        this.abortCanvasAsyncUpdate();
         this.canvas?.parentNode?.removeChild(this.canvas);
         this.canvas = undefined;
         this.canvasBin = 0;
         this.canvasPos = {
             x: 0, y: 0,
             w: 0, h: 0,
-        }
-    }
-
-    abortCanvasUpdateRequest() {
-        if (this.canvasUpdateRequest) {
-            window.cancelAnimationFrame(this.canvasUpdateRequest);
-            this.canvasUpdateRequest = undefined;
-            this.canvasUpdateRequestParams = undefined;
         }
     }
 
@@ -693,11 +687,15 @@ class ImageLoader {
             }
 
             const scale = 1/(2 ** this.canvasBin);    
-            context?.drawImage(tile.img!, 
+            try {
+                context?.drawImage(tile.img!, 
                     (tile.pos.x - this.canvasPos.x) * scale,
                     (tile.pos.y - this.canvasPos.y) * scale,
                     tile.pos.w * scale,
                     tile.pos.h * scale);
+            } catch(e) {
+                console.warn("rendering image failed", e);
+            }
         }
     }
 
@@ -720,7 +718,7 @@ class ImageLoader {
         }        
 
         // Keep the current canvas if it is ok and not invalidated
-        if (!this.canvasUpdateRequestParams?.full
+        if (!this.canvasUpdateParams?.full
             && this.canvasBin === bin
             && rectInclude(this.canvasPos, 
                     pointMax(
@@ -738,7 +736,7 @@ class ImageLoader {
             return;
         }
 
-        this.programCanvasUpdateRequest({
+        this.queueCanvasAsyncUpdate({
             full: true,
             bin,
             idealBin,
@@ -746,11 +744,12 @@ class ImageLoader {
     }
 
 
-    // Perform an async update of the canvas
+    // Perform an async update of the canvas. always called from the context
     private asyncCanvasUpdate=()=>{
-        const params = this.canvasUpdateRequestParams!;
-        this.canvasUpdateRequest = undefined;
-        this.canvasUpdateRequestParams = undefined;
+        const params = this.canvasUpdateParams!;
+        this.canvasUpdateAnimationFrame = undefined;
+        this.canvasUpdateTimeout = undefined;
+        this.canvasUpdateParams = undefined;
         if (params.full) {
             this.invalidateCanvas();
     
@@ -814,31 +813,66 @@ class ImageLoader {
         }
     }
 
-    programCanvasUpdateRequest(p: CanvasAsyncUpdateRequest)
+    // Create a timeout + an animation frame request
+    // This timeout is skipped if p.immediate
+    queueCanvasAsyncUpdate(p: CanvasAsyncUpdateRequest)
     {
-        if (!this.canvasUpdateRequest) {
-            this.canvasUpdateRequestParams = p;
-            this.canvasUpdateRequest = window.requestAnimationFrame(this.asyncCanvasUpdate);
+        if (!this.canvasUpdateParams) {
+            this.canvasUpdateParams = p;
+            if (!p.immediate) {
+                this.canvasUpdateTimeout = setTimeout(()=> {
+                    this.canvasUpdateTimeout = undefined;
+                    this.canvasUpdateAnimationFrame = window.requestAnimationFrame(this.asyncCanvasUpdate);
+                }, 50);
+            } else {
+                this.canvasUpdateAnimationFrame = window.requestAnimationFrame(this.asyncCanvasUpdate);
+            }
         } else {
+            if (p.immediate && !this.canvasUpdateParams.immediate)
+            {
+                this.canvasUpdateParams.immediate = true;
+                // Hurry up !
+                if (this.canvasUpdateTimeout) {
+                    clearTimeout(this.canvasUpdateTimeout);
+                    this.canvasUpdateTimeout = undefined;
+                    this.canvasUpdateAnimationFrame = window.requestAnimationFrame(this.asyncCanvasUpdate);
+                }
+            }
+
             if (p.full) {
-                this.canvasUpdateRequestParams = p;
-            } else if (p.tiles && !this.canvasUpdateRequestParams!.full) {
-                if (!this.canvasUpdateRequestParams!.tiles) {
-                    this.canvasUpdateRequestParams!.tiles = [];
+                this.canvasUpdateParams = p;
+            } else if (p.tiles && !this.canvasUpdateParams!.full) {
+                if (!this.canvasUpdateParams!.tiles) {
+                    this.canvasUpdateParams!.tiles = [];
                 }
                 for(const tile of p.tiles) {
-                    this.canvasUpdateRequestParams!.tiles!.push(tile);
+                    this.canvasUpdateParams!.tiles!.push(tile);
                 }
             }
             if (p.idealBin !== undefined) {
-                this.canvasUpdateRequestParams!.idealBin = p.idealBin;
+                this.canvasUpdateParams!.idealBin = p.idealBin;
             }
+        }
+    }
+
+    abortCanvasAsyncUpdate() {
+        if (this.canvasUpdateParams) {
+            if (this.canvasUpdateTimeout) {
+                clearTimeout(this.canvasUpdateTimeout);
+                this.canvasUpdateTimeout = undefined;
+            }
+            if (this.canvasUpdateAnimationFrame) {
+                window.cancelAnimationFrame(this.canvasUpdateAnimationFrame);
+                this.canvasUpdateAnimationFrame = undefined;
+            }
+            this.canvasUpdateParams = undefined;
         }
     }
 
     updateCanvasFiltering(idealBin: number) {
         if (!this.canvas) return;
-        this.canvas.style.imageRendering = idealBin > 0.3 ? 'unset' : 'pixelated';
+        // TODO : disabled for now, no good effect on rendering so far
+        this.canvas.style.imageRendering = /*idealBin > 0.3 ? 'unset' :*/ 'pixelated';
     }
 
     controlTileLoading(src: string) {
@@ -894,7 +928,7 @@ class ImageLoader {
     }
 
     continueLoading() {
-        while (this.pendingLoad.length > 0 && this.loadingCount < 2) {
+        while (this.pendingLoad.length > 0 && this.loadingCount < 4) {
             const tile = this.pendingLoad[0];
             this.pendingLoad.splice(0, 1);
             this.loadingCount++;
@@ -919,9 +953,9 @@ class ImageLoader {
 
     updateStatus(tile: Tile) {
         if (!tile.status.loading) {
-            this.programCanvasUpdateRequest({tiles: [tile]});
             this.loadingCount--;
             this.continueLoading();
+            this.queueCanvasAsyncUpdate({tiles: [tile], immediate: this.loadingCount === 0});
         }
         
         // TODO : Only emit for real changes (no more loading, all rendered, ...)
