@@ -425,7 +425,7 @@ export default class Camera
     private resolveImagingSetup(imagingSetup: string|null) {
         const imagingSetupInstance = this.context.imagingSetupManager.getImagingSetupInstance(imagingSetup);
         if (!imagingSetupInstance.exists()) {
-            throw new Error("Invalid imaging setup");
+            throw new Error("Invalid imaging setup: " + imagingSetup);
         }
 
         const device = imagingSetupInstance.config().cameraDevice;

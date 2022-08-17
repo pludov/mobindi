@@ -261,6 +261,13 @@ export default class ImagingSetupManager
         this.currentStatus.configuration.byuuid[payload.imagingSetupUuid] = newImagingSetup;
     }
 
+    getUuids() {
+        const byuuid = this.currentStatus.configuration.byuuid;
+        const ret = Object.keys(byuuid);
+        ret.sort();
+        return ret;
+    }
+
     getImageSetups() {
         const ret = [];
         const byuuid = this.currentStatus.configuration.byuuid;

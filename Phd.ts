@@ -189,7 +189,16 @@ export default class Phd
             this.streamCaptureDevice = device;
             this.currentStatus.streamingCamera = device;
             try {
-                await this.context.camera.doStream(task.cancellation, device, false);
+                const imagingSetups = this.context.imagingSetupManager
+                            .getUuids()
+                            .filter((uuid)=> {
+                                const is = this.context.imagingSetupManager.getImagingSetupInstance(uuid);
+                                return device === is?.config().cameraDevice;
+                            })
+                if (imagingSetups.length === 0) {
+                    throw new Error("No imaging setup found for PHD camera: " + device);
+                }
+                await this.context.camera.doStream(task.cancellation, imagingSetups[0], false);
             } catch(e) {
                 if (!(e instanceof CancellationToken.CancellationError)) {
                     logger.warn('phd capture failed', {device}, e);
@@ -513,7 +522,11 @@ export default class Phd
             const currentProfileId = serverConfiguration.currentprofile.val!;
             const currentProfile = serverConfiguration.profile.props![currentProfileId].props!;
 
-            const camName = currentProfile.camera.props!.lastmenuchoice.val!;
+            const camName = currentProfile.camera.props?.lastmenuchoice?.val;
+            if (!camName) {
+                // May occur during phd initial config
+                return;
+            }
             logger.debug('Found camName', {camName});
 
             const up2date = currentProfile.indi && currentProfile.indi.props!.indicam_forceexposure;
