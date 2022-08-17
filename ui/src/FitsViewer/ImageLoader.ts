@@ -374,7 +374,7 @@ export class ImageLoader {
                 width: this.param.window.maxW,
                 height: this.param.window.maxH,
             };
-        console.log('ImageLoader got details', details)
+        console.log('ImageLoader got details', details, this.frameDetails)
         this.events.emit('sized', details);
         if (details === null && !this.disposed) {
             this.events.emit('statusChanged');
@@ -385,6 +385,21 @@ export class ImageLoader {
     private waitingForRendered: boolean = false;
 
     expose = (exposure: ImageExposure)=> {
+        // Change exposure for subframe
+        if (this.param.window) {
+            const newPos = {...exposure.imagePos};
+
+            newPos.x += newPos.w * this.param.window.x / this.param.window.maxW;
+            newPos.y += newPos.h * this.param.window.y / this.param.window.maxH;
+            newPos.w = newPos.w * this.param.window.w / this.param.window.maxW
+            newPos.h = newPos.h * this.param.window.h / this.param.window.maxH
+
+            exposure = {
+                ...exposure,
+                imagePos: newPos
+            }
+        }
+
         if (Obj.deepEqual(this.exposure, exposure)) {
             return;
         }
@@ -564,8 +579,8 @@ export class ImageLoader {
             this.canvas.style.boxSizing= 'border-box';
             this.canvas.style.border= '0px';
             this.canvas.style.position= 'absolute';
-            this.canvas.style.left = this.canvasPos.x + 'px';
-            this.canvas.style.top = this.canvasPos.y + 'px';
+            this.canvas.style.left = (this.param.window?.x || 0) + this.canvasPos.x + 'px';
+            this.canvas.style.top = (this.param.window?.y || 0) + this.canvasPos.y + 'px';
             this.canvas.style.transformOrigin = '0px 0px';
             this.canvas.style.transform = `scale(${2 ** this.canvasBin})`;
             

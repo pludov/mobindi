@@ -111,8 +111,8 @@ export class ImageDisplay {
         if (newSize.x === undefined) return;
         if (newSize.y === undefined) return;
 
-        const view = this.loadingView?.details ? this.loadingView : this.currentView;
-        if (!view || !view.details) {
+        const view = this.loadingView?.frameDetails ? this.loadingView : this.currentView;
+        if (!view || !view.frameDetails) {
             // Force initalization of the image pos (for proper cross hair display)
             this.setCurrentImagePos({
                 ...this.currentImagePos
@@ -120,9 +120,7 @@ export class ImageDisplay {
             return;
         }
 
-        // const centerX = view.details!.width * this.currentImagePos.x;
-        // const centerY = view.details!.height * this.currentImagePos.y;
-        const bestFit = this.getBestFitForSize(view.details!);
+        const bestFit = this.getBestFitForSize(view.frameDetails!);
 
         bestFit.w *= this.currentImagePos.zoomToBestfit;
         bestFit.h *= this.currentImagePos.zoomToBestfit;
@@ -307,7 +305,7 @@ export class ImageDisplay {
     }
 
     private viewSized =(err:any)=> {
-        if (!this.loadingView!.details) {
+        if (!this.loadingView!.frameDetails) {
             // Activate the view directly
             this.loadingView!.events.removeListener('rendered', this.viewRendered);
             this.viewRendered();
@@ -320,7 +318,7 @@ export class ImageDisplay {
             this.bestFit();
         } else {
             // Now it needs an expose at the right size...
-            if (!this.currentView || !this.currentView.details) {
+            if (!this.currentView || !this.currentView.frameDetails) {
                 this.bestFit();
             } else {
                 this.setCurrentImagePos(this.currentImagePos);
@@ -384,7 +382,7 @@ export class ImageDisplay {
     }
 
     public currentImageSize():ImageSize|undefined {
-        return this.viewForGeometry()?.details || undefined;
+        return this.viewForGeometry()?.frameDetails || undefined;
     }
 
     closeMenu=()=>{
@@ -406,7 +404,7 @@ export class ImageDisplay {
     {       
         const view = this.viewForGeometry();
 
-        logger.debug('Translate', {x ,y, currentImagePos: this.currentImagePos, currentImageSize: view?.details});
+        logger.debug('Translate', {x ,y, currentImagePos: this.currentImagePos, currentImageSize: view?.frameDetails});
         
         if (!view) {
             return null;
@@ -416,8 +414,8 @@ export class ImageDisplay {
         }
 
         return {
-            imageX: (x - this.currentImagePos.x) * view.details!.width / this.currentImagePos.w,
-            imageY: (y - this.currentImagePos.y) * view.details!.height / this.currentImagePos.h,
+            imageX: (x - this.currentImagePos.x) * view.frameDetails!.width / this.currentImagePos.w,
+            imageY: (y - this.currentImagePos.y) * view.frameDetails!.height / this.currentImagePos.h,
         }
     }
 
@@ -449,10 +447,10 @@ export class ImageDisplay {
     }
 
     private viewForGeometry() {
-        if (this.currentView && this.currentView.details) {
+        if (this.currentView && this.currentView.frameDetails) {
             return this.currentView;
         }
-        if (this.loadingView && this.loadingView.details) {
+        if (this.loadingView && this.loadingView.frameDetails) {
             return this.loadingView;
         }
 
@@ -471,9 +469,9 @@ export class ImageDisplay {
         this.root.style.position = 'absolute';
 
         let transform;
-        if (referenceView && referenceView!.details) {
-            const scaleFactorX = e.w / referenceView.details!.width;
-            const scaleFactorY = e.h / referenceView.details!.height;
+        if (referenceView && referenceView!.frameDetails) {
+            const scaleFactorX = e.w / referenceView.frameDetails!.width;
+            const scaleFactorY = e.h / referenceView.frameDetails!.height;
             transform = `translate(${e.x}px, ${e.y}px) scale(${scaleFactorX})`;
 
             // TODO: apply window here - so window is not a parameter of image loader
@@ -500,7 +498,7 @@ export class ImageDisplay {
         }
 
         if (referenceView) {
-            this.dispatchNewPos(e, referenceView.details!);
+            this.dispatchNewPos(e, referenceView.frameDetails!);
         }
     }
 
@@ -515,7 +513,7 @@ export class ImageDisplay {
 
             // prevent zoom under 1.
             if (imgPos.w < viewSize.width && imgPos.h < viewSize.height) {
-                targetPos = this.getBestFitForSize(referenceView.details!);
+                targetPos = this.getBestFitForSize(referenceView.frameDetails!);
             } else {
                 // Prevent black borders
                 targetPos = {...imgPos,
@@ -555,7 +553,7 @@ export class ImageDisplay {
         const referenceView = this.viewForGeometry();
         
         return {
-            ...this.getBestFitForSize(referenceView?.details || {width: 0, height: 0})
+            ...this.getBestFitForSize(referenceView?.frameDetails || {width: 0, height: 0})
         };
     }
 
