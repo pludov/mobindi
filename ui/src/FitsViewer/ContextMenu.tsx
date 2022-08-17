@@ -1,7 +1,8 @@
 import React, { Component, PureComponent, CSSProperties, RefObject} from 'react';
 import Log from '../shared/Log';
 import * as Help from '../Help';
-import { ContextMenuEntry, LevelId } from './FitsViewer';
+import { ContextMenuEntry } from './FitsViewer';
+import { LevelId } from './Types';
 
 const logger = Log.logger(__filename);
 

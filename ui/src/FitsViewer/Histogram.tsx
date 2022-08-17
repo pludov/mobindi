@@ -3,10 +3,9 @@ import CancellationToken from 'cancellationtoken';
 import Log from '../shared/Log';
 import * as BackendRequest from "../BackendRequest";
 
-import Konva from 'konva';
 import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
 
-import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer';
+import {Props as FitsViewerProps} from './FitsViewer';
 import { ProcessorHistogramResult, ProcessorHistogramChannel } from '@bo/ProcessorTypes';
 import ReactResizeDetector from 'react-resize-detector';
 

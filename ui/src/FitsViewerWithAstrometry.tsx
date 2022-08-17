@@ -80,7 +80,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
             throw new Error("No astrometry result");
         }
 
-        const currentImageSize = this.fitsViewer.current?.fitsViewer.current?.ImageDisplay?.currentImageSize();
+        const currentImageSize = this.fitsViewer.current?.fitsViewer.current?.imageDisplay?.currentImageSize();
         if (!currentImageSize || currentImageSize.width < 1 || currentImageSize.height < 1) {
             throw new Error("Invalid image");
         }
