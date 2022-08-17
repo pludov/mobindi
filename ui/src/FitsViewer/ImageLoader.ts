@@ -4,7 +4,7 @@ import './FitsViewer.css'
 import { EventEmitter } from 'events';
 import { getBestFitForSize, growToBinBoundary, intersect, pointMax, pointMin, rectInclude } from './ImageUtils';
 import ImageInfoQuery from './ImageInfoQuery';
-import { ImageSize, Levels, Rectangle, Window } from './Types';
+import { ImageDetails, ImageSize, Levels, Rectangle, SubFrame } from './Types';
 
 const logger = Log.logger(__filename);
 
@@ -21,7 +21,10 @@ type ImageParameter = {
     // levels
     levels: Levels;
     // Position of the actual data in the image
-    window: Window|null;
+    window: SubFrame|null;
+
+    // Bypass getting image size
+    imageDetails: ImageDetails|undefined;
 }
 
 type ImageExposure = {
@@ -180,7 +183,8 @@ export class ImageLoader {
     loadingToDisplay: boolean;
 
     // Will be set during loading
-    details: ImageSize | null;
+    details: ImageDetails | null;
+    frameDetails: ImageDetails | null;
 
     detailsRequest: ImageInfoQuery|null = null;
     detailsLoaded: boolean = false;
@@ -218,22 +222,23 @@ export class ImageLoader {
     }
 
     sameGeometry(other: ImageLoader) {
-        if (!this.details) {
+        if (!this.frameDetails) {
             return false;
         }
-        if (!other.details) {
+        if (!other.frameDetails) {
             return false;
         }
 
-        return (this.details.width === other.details.width
-                && this.details.height === other.details.height)
+        return (this.frameDetails.width === other.frameDetails.width
+                && this.frameDetails.height === other.frameDetails.height)
     }
 
     // Prepare a new rending. Take from previousLoader what can be taken
     // FIXME: what if previousLoader is visible ?
     prepare(previousLoader?: ImageLoader)
     {
-        if (previousLoader
+        if (!this.param.imageDetails
+            && previousLoader
             && previousLoader.param.path === this.param.path
             && previousLoader.param.serial === this.param.serial)
         {
@@ -274,9 +279,14 @@ export class ImageLoader {
     }
 
     startDetailsRequest() {
-        this.detailsRequest = new ImageInfoQuery(this.encodePathUrl());
-        this.detailsRequest.register(this, this.onDetailsLoaded);
-        this.detailsRequest.start();
+        console.log('startDetailsRequest', this.param)
+        if (this.param.imageDetails) {
+            this.onDetailsLoaded(this.param.imageDetails);
+        } else {
+            this.detailsRequest = new ImageInfoQuery(this.encodePathUrl());
+            this.detailsRequest.register(this, this.onDetailsLoaded);
+            this.detailsRequest.start();
+        }
     }
 
     abortDetailsRequest() {
@@ -312,21 +322,10 @@ export class ImageLoader {
 
         let bin = 16;
 
-        if (exposure.imagePos.w > 0 && exposure.imagePos.h > 0
-                && imageSize.width  > -1 && imageSize.height > -1)
-        {
-            bin = Math.min(
-                imageSize.width / exposure.imagePos.w,
-                imageSize.height / exposure.imagePos.h
-            );
-        } else if (imageSize.width > 0 && imageSize.height > 0) {
-            // Prepare for a best fit
-            const bestFit = getBestFitForSize(imageSize, exposure.displaySize);
-            bin = Math.min(
-                imageSize.width / bestFit.w,
-                imageSize.height / bestFit.h
-            );
-        }
+        bin = Math.min(
+            imageSize.width / exposure.imagePos.w,
+            imageSize.height / exposure.imagePos.h
+        );
 
         if (window.devicePixelRatio) {
             bin /= window.devicePixelRatio;
@@ -365,10 +364,16 @@ export class ImageLoader {
         }
     }
 
-    onDetailsLoaded = (details: ImageSize|null)=>{
+    onDetailsLoaded = (details: ImageDetails|null)=>{
         this.detailsLoaded = true;
         this.detailsRequest = null;
         this.details = details;
+        this.frameDetails = !details ? null : !this.param.window ? details :
+            {
+                ...details,
+                width: this.param.window.maxW,
+                height: this.param.window.maxH,
+            };
         console.log('ImageLoader got details', details)
         this.events.emit('sized', details);
         if (details === null && !this.disposed) {

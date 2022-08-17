@@ -103,7 +103,7 @@ class PhdStream extends React.PureComponent<Props, State> {
                         streamId={this.props.streamId || null}
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
                         subframe={this.props.subframe}
-                        streamSize={this.props.frameSize || this.props.streamSize || null}>
+                        streamDetails={this.props.streamDetails || null}>
                     <div className='FitsViewMarkers'>
                         {lockActive
                             ?

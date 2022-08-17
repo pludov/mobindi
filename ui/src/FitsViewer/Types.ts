@@ -15,6 +15,16 @@ export type Rectangle = {
     h: number;
 }
 
+export type SubFrame = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+
+    maxW: number;
+    maxH: number;
+}
+
 export type LevelId = "low"|"medium"|"high";
 
 export type Levels = {
@@ -23,16 +33,14 @@ export type Levels = {
     high: number;
 }
 
-// When content is actually a subframe
-// Gives actual margin in 0-1 range
-export type Window = {
-    top: number;
-    left: number;
-    bottom: number;
-    right: number;
-};
-
 export type FullState = {
     levels: Levels;
     crosshair?: boolean;
+}
+
+// Info returned by size CGI
+export type ImageDetails = {
+    width: number;
+    height: number;
+    color: boolean;
 }

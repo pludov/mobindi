@@ -22,7 +22,7 @@ type InputProps = {
     streamId: string|null;
     streamSerial: string|null;
     subframe: FitsViewerInContextInputProps["subframe"],
-    streamSize: BackOfficeStatus.StreamSize|null;
+    streamDetails: BackOfficeStatus.StreamDetails|null;
     contextKey: string;
 };
 
@@ -254,7 +254,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         path={this.props.path}
                         streamId={this.props.streamId}
                         streamSerial={this.props.streamSerial}
-                        streamSize={this.props.streamSize}
+                        streamDetails={this.props.streamDetails}
                         subframe={this.props.subframe}
                         ref={this.fitsViewer}
                         contextMenu={this.contextMenuSelector(this.props)}

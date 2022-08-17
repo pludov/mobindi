@@ -9,7 +9,7 @@ export type InputProps = {
     path: FitsViewerProps["path"];
     streamId: FitsViewerProps["streamId"];
     streamSerial: FitsViewerProps["streamSerial"];
-    streamSize: FitsViewerProps["streamSize"];
+    streamDetails: FitsViewerProps["streamDetails"];
     subframe: FitsViewerProps["subframe"];
     contextKey: string;
     contextMenu : FitsViewerProps["contextMenu"];
@@ -40,7 +40,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
                             path={this.props.path}
                             directPort={this.props.directPort}
                             streamId={this.props.streamId}
-                            streamSize={this.props.streamSize}
+                            streamDetails={this.props.streamDetails}
                             streamSerial={this.props.streamSerial}
                             subframe={this.props.subframe}
                             viewSettings={this.props.viewSettings}

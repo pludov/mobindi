@@ -793,7 +793,7 @@ export default class Camera
             try {
                 this.currentStatus.currentStreams[device] = {
                     streamId: null,
-                    streamSize: null,
+                    streamDetails: null,
                     serial: null,
                     autoexp: null,
                     subframe: null,
@@ -855,8 +855,8 @@ export default class Camera
                             if (val.streamId) {
                                 target.streamId = val.streamId;
                             }
-                            if (val.streamSize) {
-                                target.streamSize = val.streamSize;
+                            if (val.streamDetails) {
+                                target.streamDetails = val.streamDetails;
                             }
                             if (val.frameSize) {
                                 target.frameSize = val.frameSize;

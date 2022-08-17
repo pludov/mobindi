@@ -13,7 +13,7 @@ import Histogram from './Histogram';
 import FloatContainer from '../FloatContainer';
 import FloatWindow from '../FloatWindow';
 import FloatWindowMover from '../FloatWindowMover';
-import { FullState as TypesFullState, ImageSize, LevelId, Levels, Rectangle, Window } from './Types';
+import { FullState as TypesFullState, ImageDetails, ImageSize, LevelId, Levels, Rectangle, SubFrame } from './Types';
 import { ImageDisplay } from './ImageDisplay';
 
 const logger = Log.logger(__filename);
@@ -43,8 +43,8 @@ export type Props = {
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
-    subframe?: Window|null;
-    streamSize: ImageSize|null;
+    subframe?: SubFrame|null;
+    streamDetails: ImageDetails|null;
     viewSettings?: Partial<FullState>;
     contextMenu?: ContextMenuEntry[];
     directPort: number;
@@ -147,7 +147,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     static readonly ViewContext = React.createContext<FitsViewerContext>({declareChild:()=>undefined});
 
     componentDidUpdate(prevProps: Props) {
-        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
     }
 
     componentDidMount() {
@@ -156,7 +156,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
             this.onViewMoved);
-        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamSize || undefined);
+        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
     }
 
     private markers: {[uid:string]: MarkerToken} = {};

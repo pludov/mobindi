@@ -9,7 +9,7 @@ import CancellationToken from 'cancellationtoken';
 import { ShootResult } from '@bo/BackOfficeAPI';
 
 import './CameraView.css'
-import { StreamSize } from '@bo/BackOfficeStatus';
+import { StreamDetails } from '@bo/BackOfficeStatus';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import * as ImagingSetupStore from './ImagingSetupStore';
 import * as CameraStore from './CameraStore';
@@ -29,7 +29,7 @@ type MappedProps = {
     imagingSetup: string|null;
     streamId: string|null;
     streamSerial: string|null;
-    streamSize: StreamSize|null;
+    streamDetails: StreamDetails|null;
     cameraDevice: string|null;
 }
 
@@ -94,7 +94,7 @@ class CameraView extends React.PureComponent<Props, State> {
                     path={this.state.loadedImage || this.props.path}
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
-                    streamSize={this.props.streamSize}
+                    streamDetails={this.props.streamDetails}
                     subframe={null}/>
             </div>
             {this.state.loadedImage === undefined
@@ -126,7 +126,7 @@ class CameraView extends React.PureComponent<Props, State> {
                         path: null,
                         streamId: stream.streamId,
                         streamSerial: stream.serial === null ? null : "" + stream.serial,
-                        streamSize: stream.streamSize,
+                        streamDetails: stream.streamDetails,
                         cameraDevice,
                     };
                 }
@@ -138,7 +138,7 @@ class CameraView extends React.PureComponent<Props, State> {
                     path: store.backend.camera!.lastByDevices[cameraDevice],
                     streamId: null,
                     streamSerial: null,
-                    streamSize: null,
+                    streamDetails: null,
                     cameraDevice,
                 };
             }
@@ -147,7 +147,7 @@ class CameraView extends React.PureComponent<Props, State> {
                 path: null,
                 streamId: null,
                 streamSerial: null,
-                streamSize: null,
+                streamDetails: null,
                 cameraDevice,
             };
         }

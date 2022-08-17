@@ -287,27 +287,38 @@ export type CameraConfiguration = {
     preferedImagingSetup: string | null;
 };
 
-export type StreamSize = {
+export type StreamDetails = {
+    width: number;
+    height: number;
+    color: boolean;
+};
+
+export type FrameSize = {
     width: number;
     height: number;
 };
 
 // When content is actually a subframe
 // Gives actual margin in 0-1 range
-export type Window = {
-    top: number;
-    left: number;
-    bottom: number;
-    right: number;
+export type SubFrame = {
+    // Actual region that was shot
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+
+    // total region
+    maxW: number;
+    maxH: number;
 };
 
 export type CameraStream = {
     streamId: string|null;
-    streamSize: StreamSize|null;
+    streamDetails: StreamDetails|null;
     serial: number|null;            // Really usefull ?
     autoexp: number|null;           // Trigger events or just wait
-    frameSize: StreamSize|null;
-    subframe: Window|null;
+    frameSize: FrameSize|null;
+    subframe: SubFrame|null;
 };
 
 export type CameraShoot = {

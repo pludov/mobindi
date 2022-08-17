@@ -5,7 +5,7 @@ import MouseMoveListener from '../MouseMoveListener';
 import Crosshair from './Crosshair';
 import { getBestFitForSize } from './ImageUtils';
 import { ImageLoader } from './ImageLoader';
-import { FullState, ImageSize, Levels, Rectangle, Window } from './Types';
+import { FullState, ImageDetails, ImageSize, Levels, Rectangle, SubFrame } from './Types';
 
 const logger = Log.logger(__filename);
 
@@ -194,29 +194,29 @@ export class ImageDisplay {
         }
     }
 
-    private windowEquals(w1 : Window|null, w2: Window|null) {
+    private windowEquals(w1 : Rectangle|null, w2: Rectangle|null) {
         if ((w1 === null) != (w2 === null)) {
             return false;
         }
         if (w1 === null || w2 === null) {
             return true;
         }
-        return (w1.top === w2.top)
-            && (w1.bottom === w2.bottom)
-            && (w1.left === w2.left)
-            && (w1.right === w2.right);
+        return (w1.x === w2.x)
+            && (w1.y === w2.y)
+            && (w1.w === w2.w)
+            && (w1.h === w2.h);
     }
 
-    private applyWindow(img: HTMLImageElement, window: Window|null) {
+    private applyWindow(img: HTMLImageElement, window: Rectangle|null) {
         const jqimg = $(img);
 
         if (window !== null) {
             const h = jqimg.css("height");
-            jqimg.css("padding-top", `calc( ${window.top} * ${h} )`);
-            jqimg.css("padding-bottom", `calc( ${window.bottom} * ${h} )`);
+            jqimg.css("padding-top", `calc( ${window.x} * ${h} )`);
+            jqimg.css("padding-bottom", `calc( ${window.y} * ${h} )`);
             const w = jqimg.css("width");
-            jqimg.css("padding-left", `calc( ${window.left} * ${w} )`);
-            jqimg.css("padding-right", `calc( ${window.right} * ${w} )`);
+            jqimg.css("padding-left", `calc( ${window.w} * ${w} )`);
+            jqimg.css("padding-right", `calc( ${window.h} * ${w} )`);
         } else {
             jqimg.css("padding-top", "0");
             jqimg.css("padding-bottom", "0");
@@ -226,9 +226,9 @@ export class ImageDisplay {
     }
 
     // imageSize is expected only for streams
-    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: Window|null, directPort: number, params?:FullState, imageSize?: ImageSize) {
+    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: SubFrame|null, directPort: number, params?:FullState, imageDetails?: ImageDetails) {
         // Don't display stream until ready
-        if (streamId !== null && !imageSize) {
+        if (streamId !== null && !imageDetails) {
             streamId = null;
         }
 
@@ -263,6 +263,7 @@ export class ImageDisplay {
             serial: streamSerial,
             levels: params?.levels || {low: 0, medium: 0.5, high: 1},
             window,
+            imageDetails
         };
 
         if (this.loadingView && Obj.deepEqual(this.loadingView.param, loaderParam)) {

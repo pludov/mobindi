@@ -302,31 +302,30 @@ int main (int argc, char ** argv) {
         RawDataStorage * storage = (RawDataStorage*)nextEntry->data();
         int w = storage->w;
         int h = storage->h;
+        bool color = storage->hasColors();
         storage = nullptr;
 
         SharedCache::Messages::StreamPublishResult res = nextEntry->streamPublish();
         delete nextEntry;
         nextEntry = nullptr;
 
-        auto streamSize = nlohmann::json::object();
-        streamSize["width"] = w;
-        streamSize["height"] = h;
+        auto streamDetails = nlohmann::json::object();
+        streamDetails["width"] = w;
+        streamDetails["height"] = h;
+        streamDetails["colors"] = color;
 
         auto j = nlohmann::json::object();
         j["serial"] = res.serial;
-        j["streamSize"] = streamSize;
+        j["streamDetails"] = streamDetails;
         if (nextEntryFrame.maxHeight > 0 && nextEntryFrame.maxWidth > 0) {
-            auto frameSize = nlohmann::json::object();
-            frameSize["width"] = nextEntryFrame.maxWidth / nextEntryFrame.hbin;
-            frameSize["height"] = nextEntryFrame.maxHeight / nextEntryFrame.vbin;
-            j["frameSize"] = frameSize;
-
             if (nextEntryFrame.W > 0 && nextEntryFrame.H > 0) {
                 auto window = nlohmann::json::object();
-                window["left"] = nextEntryFrame.X / nextEntryFrame.maxWidth;
-                window["top"] = nextEntryFrame.Y / nextEntryFrame.maxHeight;
-                window["right"] = (nextEntryFrame.maxWidth - (nextEntryFrame.X + nextEntryFrame.W)) / nextEntryFrame.maxWidth;
-                window["bottom"] = (nextEntryFrame.maxHeight - (nextEntryFrame.Y + nextEntryFrame.H)) / nextEntryFrame.maxHeight;
+                window["x"] = nextEntryFrame.X;
+                window["y"] = nextEntryFrame.Y;
+                window["w"] = nextEntryFrame.W;
+                window["h"] = nextEntryFrame.H;
+                window["maxW"] = nextEntryFrame.maxWidth;
+                window["maxH"] = nextEntryFrame.maxHeight;
                 j["subframe"] = window;
             }
         }
