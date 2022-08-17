@@ -63,7 +63,7 @@ protected:
     virtual void newProperty(INDI::Property *property) {
         // std::cerr << "new property\n";
         if (dev == property->getDeviceName() && prop == property->getName()) {
-            setBLOBMode(BLOBHandling::B_ONLY, dev.c_str(), prop.c_str());
+            setBLOBMode(BLOBHandling::B_ALSO, dev.c_str(), prop.c_str());
 #ifdef INDI_SHARED_BLOB_SUPPORT
             enableDirectBlobAccess(dev.c_str(), prop.c_str());
 #endif
