@@ -171,6 +171,7 @@ export type NotificationAPI = {
 
 export type AstrometryWizards = {
     startPolarAlignmentWizard: (payload:{})=>void;
+    startMeridianFlipWizard: (payload:{})=>void;
 }
 
 export type AstrometryAPI = AstrometryWizards & {

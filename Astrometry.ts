@@ -12,6 +12,7 @@ import SkyProjection from './SkyAlgorithms/SkyProjection';
 import {Task, createTask} from "./Task";
 import Wizard from "./Wizard";
 import PolarAlignmentWizard from "./PolarAlignmentWizard";
+import MeridianFlipWizard from './MeridianFlipWizard';
 
 const logger = Log.logger(__filename);
 
@@ -162,6 +163,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             goto: this.wizardProtectedApi(this.goto),
             sync: this.wizardProtectedApi(this.sync),
             startPolarAlignmentWizard: this.startPolarAlignmentWizard,
+            startMeridianFlipWizard: this.startMeridianFlipWizard,
             wizardNext: this.wizardNext,
             wizardInterrupt: this.wizardInterrupt,
             wizardQuit: this.wizardQuit,
@@ -468,8 +470,9 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             interruptible: false,
             hasNext: null,
         };
+        let wizardInstance: Wizard;
         try {
-            this.runningWizard = wizardBuilder();
+            this.runningWizard = (wizardInstance = wizardBuilder());
         } catch(e) {
             this.currentStatus.runningWizard = null;
             throw e;
@@ -479,6 +482,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 return;
             }
             throw e;
+        }).finally(()=> {
+            if (this.runningWizard === wizardInstance) {
+                wizardInstance.killed();
+            }
         });
     }
 
@@ -523,6 +530,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
 
     startPolarAlignmentWizard = async (ct: CancellationToken, message: {}) => {
         this.setWizard("polarAlignment", ()=>new PolarAlignmentWizard(this));
+    }
+
+    startMeridianFlipWizard = async (ct:CancellationToken, message: {}) => {
+        this.setWizard("meridianFlip", ()=>new MeridianFlipWizard(this));
     }
 }
 

@@ -66,6 +66,11 @@ export default abstract class Wizard {
         this.wizardStatus.paused = paused;
     }
 
+    // called when start promise resolves/reject. Make sure user can take control back
+    killed() {
+        this.wizardStatus.paused = true;
+    }
+
     async waitNext(nextTitle:string = "next") {
         this.setPaused(true);
         this.wizardStatus.hasNext = nextTitle;

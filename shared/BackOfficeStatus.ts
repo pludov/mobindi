@@ -499,6 +499,10 @@ export type PolarAlignStatus = {
     adjustPositionError: null|string;
 }
 
+export type MeridianFlipWizardStatus = {
+    status: "initialConfirm"|"acquireInitialPosition"|"flip"|"sync"|"goto"|"done";
+}
+
 export type AstrometryWizard = {
     id: string;
     title: string;
@@ -510,6 +514,8 @@ export type AstrometryWizard = {
     hasNext: null|string;
 
     polarAlignment?: PolarAlignStatus;
+
+    meridianFlip?: MeridianFlipWizardStatus;
 }
 
 export type AstrometryStatus = {

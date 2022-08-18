@@ -89,7 +89,11 @@ class AstrometryView extends React.PureComponent<Props, State> {
         {
             title: "Polar alignment",
             start: AstrometryView.startWizard("startPolarAlignmentWizard")
-        }
+        },
+        {
+            title: "Meridian flip",
+            start: AstrometryView.startWizard("startMeridianFlipWizard")
+        },
     ];
 
     wizardUi(id: string) {
