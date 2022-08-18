@@ -12,14 +12,16 @@ It will typically run on a Raspberry PI or equivalent, using the Indi drivers, a
 It provides a fully responsive user interface to control and monitor various aspects of a astrophotograpy session.
 
 Currently the following features are supported:
-  * Interface to indi drivers (display connected, connect/disconnect devices, configure)
-  * Take anb display single shot for Indi cameras (tested for Simulator on GPhoto)
+  * Autostart phd2 and indiserver
+  * Interface to indi drivers (display connected, connect/disconnect devices, configure, ...)
+  * Take and display single shot and loop exposure for Indi cameras
+  * Complex astrophoto sequence execution incl. dithering, filter change, pause/resume, monitoring, ...   
+  * Efficient image visualisation (incl zoom, levels) even over low quality wifi 
   * Control and monitor PHD2 guiding :
     * connect devices to PHD2, start and stop PHD2 guiding
     * Display current RMS/Star Mass
+    * Display current PHD2 frame (indi camera only)
     * show a graph of drift (RA/Dec)
-  * Autostart phd2 and indiserver
-
 
 The UI is designed to be fit a mobile screen and will adapt to the resolution (even below 640x480) and orientation (landscape vs portrait).
 
@@ -32,17 +34,15 @@ Only events are sent between server to UI (unlike VNC which transfer bitmaps), s
 
 The UI can also be displayed on a dedicated LCD display, using a browser in kiosk mode.
 
-This software is still in early development stage; if it proves useful, lots of features will be added, to cover most aspects of a DSLR setup. (alignment, image sequences, astrometry, manual/auto focus, ...)
+This software is still in beta stage; if it proves useful, lots of features will be added, to cover most aspects of a deep sky astrophoto setup. (alignment, image sequences, astrometry, manual/auto focus, ...)
 
-Remark: this is not a full solution for astronomy on raspberry pi. It is just a user interface over 
-existing softwares. You can find full software stack for astro/PI in the following projects :
-  * iAstroHub : https://github.com/aruangra/iAstroHub
-  * NAFABox : http://www.webastro.net/forum/showthread.php?t=148388
-  * ...
+Remark: this is a light solution for astrophotography on raspberry pi and the likes, designed to be used for driving a mobile setup - not a full observatory solution. You can check ekos/kstar for this purpose. 
 
 ## What's new
 
 ### Next release
+  * Improved image display quality & speed using tiling and INDI's shared memory blobs
+  * Reworked PHD screen, including live display of frame, lock position and easier controls
   * Auto adjustment of focuser according to temp & filters
   * Audio alerts to wake up the user when some sequence parameters thresolds are crossed
   * Metrics endpoint for monitoring using Prometheus.
