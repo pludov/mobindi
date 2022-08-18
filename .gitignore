@@ -4,3 +4,7 @@ node_modules
 local/
 dist/
 .latestbuild
+build/
+DEADJOE
+*.fits
+*.log
