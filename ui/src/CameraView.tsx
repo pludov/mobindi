@@ -120,12 +120,12 @@ class CameraView extends React.PureComponent<Props, State> {
 
             if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.currentStreams, cameraDevice)) {
                 const stream= store.backend.camera!.currentStreams[cameraDevice];
-                if (stream.streamId) {
+                if (stream.streamId && stream.serial !== null) {
                     return {
                         imagingSetup,
                         path: null,
                         streamId: stream.streamId,
-                        streamSerial: stream.serial === null ? null : "" + stream.serial,
+                        streamSerial: "" + stream.serial,
                         streamDetails: stream.streamDetails,
                         cameraDevice,
                     };
