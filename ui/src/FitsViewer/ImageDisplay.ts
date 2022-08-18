@@ -192,37 +192,6 @@ export class ImageDisplay {
         }
     }
 
-    private windowEquals(w1 : Rectangle|null, w2: Rectangle|null) {
-        if ((w1 === null) != (w2 === null)) {
-            return false;
-        }
-        if (w1 === null || w2 === null) {
-            return true;
-        }
-        return (w1.x === w2.x)
-            && (w1.y === w2.y)
-            && (w1.w === w2.w)
-            && (w1.h === w2.h);
-    }
-
-    private applyWindow(img: HTMLImageElement, window: Rectangle|null) {
-        const jqimg = $(img);
-
-        if (window !== null) {
-            const h = jqimg.css("height");
-            jqimg.css("padding-top", `calc( ${window.x} * ${h} )`);
-            jqimg.css("padding-bottom", `calc( ${window.y} * ${h} )`);
-            const w = jqimg.css("width");
-            jqimg.css("padding-left", `calc( ${window.w} * ${w} )`);
-            jqimg.css("padding-right", `calc( ${window.h} * ${w} )`);
-        } else {
-            jqimg.css("padding-top", "0");
-            jqimg.css("padding-bottom", "0");
-            jqimg.css("padding-left", "0");
-            jqimg.css("padding-right", "0");
-        }
-    }
-
     // imageSize is expected only for streams
     setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: SubFrame|null, directPort: number, params?:FullState, imageDetails?: ImageDetails) {
         // Don't display stream until ready
