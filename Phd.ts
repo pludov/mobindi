@@ -174,6 +174,7 @@ export default class Phd
                     [   'indiManager', 'availableCameras'],
                     [   'phd', 'currentEquipment', 'camera' ],
                     [   'phd', 'streamingCamera' ],
+                    [   'phd', 'AppState' ],
                 ]
             ], this.updateCaptureStatus, true);
         this.appStateManager.addSynchronizer(
@@ -227,7 +228,15 @@ export default class Phd
                     this.context.camera.currentStatus.dynStateByDevices[name].spyRecommanded = true;
                 }
                 if (camEq.connected) {
-                    wantCaptureDevice = name;
+                    switch(this.currentStatus.AppState) {
+                        case "Paused":
+                        case "Stopped":
+                        case "NotConnected":
+                            logger.debug('PHD not capturing');
+                            break;
+                        default:
+                            wantCaptureDevice = name;
+                    }
                 } else {
                     logger.debug('PHD camera not connected');
                 }
