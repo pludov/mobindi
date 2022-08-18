@@ -474,7 +474,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             this.currentStatus.runningWizard = null;
             throw e;
         }
-        this.runningWizard.start();
+        this.runningWizard.start().catch((e)=>{
+            if (e instanceof CancellationToken.CancellationError) {
+                return;
+            }
+            throw e;
+        });
     }
 
     wizardQuit = async (ct:CancellationToken, message: {})=> {
