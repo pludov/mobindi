@@ -16,6 +16,14 @@ import ConfigStore from './ConfigStore';
 
 const logger = Log.logger(__filename);
 
+async function promiseOutcome(promise: Promise<any>) {
+    try {
+        return { rejected: false, value: await promise }
+    } catch (error) {
+        return { rejected: true, value: error }
+    }
+}
+
 export default class Notification
         implements RequestHandler.APIAppProvider<BackOfficeAPI.NotificationAPI>
 {
@@ -36,6 +44,19 @@ export default class Notification
         this.currentStatus = this.appStateManager.getTarget().notification;
         this.context = context;
         this.serverUuid = serverUuid;
+
+        // Report unhandled rejection (instead of killing the whole process)
+        process.on('unhandledRejection', async (reason: {} | null | undefined, promise: Promise<any>) => {
+            const { rejected, value } = await promiseOutcome(promise);
+            logger.error('unhandledRejection', promise);
+            this.error('Internal error (async)', value);
+        });
+
+        process.on('uncaughtException', (error: Error) => {
+            logger.error('uncaughtException', error);
+            this.error('Internal error', error);
+        });
+        process.on('rejectionHandled', ()=>{});
     }
 
     // Early draft...
