@@ -320,12 +320,12 @@ int main (int argc, char ** argv) {
         if (nextEntryFrame.maxHeight > 0 && nextEntryFrame.maxWidth > 0) {
             if (nextEntryFrame.W > 0 && nextEntryFrame.H > 0) {
                 auto window = nlohmann::json::object();
-                window["x"] = nextEntryFrame.X;
-                window["y"] = nextEntryFrame.Y;
-                window["w"] = nextEntryFrame.W;
-                window["h"] = nextEntryFrame.H;
-                window["maxW"] = nextEntryFrame.maxWidth;
-                window["maxH"] = nextEntryFrame.maxHeight;
+                window["x"] = floor(nextEntryFrame.X / nextEntryFrame.hbin);
+                window["y"] = floor(nextEntryFrame.Y / nextEntryFrame.vbin);
+                window["w"] = ceil(nextEntryFrame.W / nextEntryFrame.hbin);
+                window["h"] = ceil(nextEntryFrame.H / nextEntryFrame.vbin);
+                window["maxW"] = ceil(nextEntryFrame.maxWidth / nextEntryFrame.hbin);
+                window["maxH"] = ceil(nextEntryFrame.maxHeight / nextEntryFrame.vbin);
                 j["subframe"] = window;
             }
         }
