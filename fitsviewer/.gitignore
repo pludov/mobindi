@@ -7,6 +7,7 @@ CMakeFiles
 cmake_install.cmake
 Makefile
 fitsviewer.cgi
+fits-server
 processor
 streamer
 unittests
