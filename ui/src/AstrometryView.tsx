@@ -9,6 +9,7 @@ import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
+import {default as MeridianFlipView} from "./Wizard/MeridianFlip/View";
 
 const logger = Log.logger(__filename);
 
@@ -100,6 +101,8 @@ class AstrometryView extends React.PureComponent<Props, State> {
         switch(id) {
             case "polarAlignment":
                 return <PolarAlignementView/>;
+            case "meridianFlip":
+                return <MeridianFlipView/>;
             default:
                 logger.warn('unknown wizard', {id});
                 return null;

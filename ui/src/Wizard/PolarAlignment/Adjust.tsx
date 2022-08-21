@@ -6,7 +6,7 @@ import * as AccessPath from '../../shared/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
-import ImageControl from './ImageControl';
+import ImageControl from '../ImageControl';
 
 type InputProps = {};
 type MappedProps = {

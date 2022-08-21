@@ -1,16 +1,16 @@
 import React from 'react';
-import '../../AstrometryView.css';
-import * as Store from "../../Store";
-import * as CameraStore from "../../CameraStore";
-import Panel from "../../Panel";
-import * as FilterWheelStore from "../../FilterWheelStore";
-import DeviceConnectBton from '../../DeviceConnectBton';
-import CameraSettingsView from '../../CameraSettingsView';
-import EditableImagingSetupSelector from '../../EditableImagingSetupSelector';
-import * as ImagingSetupStore from '../../ImagingSetupStore';
-import CameraViewDevicePanel from '../../CameraViewDevicePanel';
-import DeviceSettingsBton from '../../DeviceSettingsBton';
-import FilterSelector from '../../FilterSelector';
+import '../AstrometryView.css';
+import * as Store from "../Store";
+import * as CameraStore from "../CameraStore";
+import Panel from "../Panel";
+import * as FilterWheelStore from "../FilterWheelStore";
+import DeviceConnectBton from '../DeviceConnectBton';
+import CameraSettingsView from '../CameraSettingsView';
+import EditableImagingSetupSelector from '../EditableImagingSetupSelector';
+import * as ImagingSetupStore from '../ImagingSetupStore';
+import CameraViewDevicePanel from '../CameraViewDevicePanel';
+import DeviceSettingsBton from '../DeviceSettingsBton';
+import FilterSelector from '../FilterSelector';
 import { defaultMemoize } from 'reselect';
 
 type InputProps = {

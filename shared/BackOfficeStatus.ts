@@ -444,6 +444,7 @@ export type AstrometrySettings = {
     narrowedFieldPercent: number;
 
     polarAlign: PolarAlignSettings;
+    meridianFlip: MeridianFlipSettings;
     preferedScope: string|null;
     preferedImagingSetup: string|null;
 }
@@ -454,6 +455,10 @@ export type PolarAlignSettings = {
     angle: number;
     minAltitude: number;
     dyn_nextFrameIsReferenceFrame?: boolean;
+}
+
+export type MeridianFlipSettings = {
+    clearPhdCalibration: boolean;
 }
 
 export type PolarAlignAxisResult = {
@@ -499,8 +504,11 @@ export type PolarAlignStatus = {
     adjustPositionError: null|string;
 }
 
-export type MeridianFlipWizardStatus = {
+export type MeridianFlipStatus = {
     status: "initialConfirm"|"acquireInitialPosition"|"flip"|"sync"|"goto"|"done";
+    shootRunning: boolean;
+    scopeMoving: boolean;
+    astrometryRunning: boolean;
 }
 
 export type AstrometryWizard = {
@@ -515,7 +523,7 @@ export type AstrometryWizard = {
 
     polarAlignment?: PolarAlignStatus;
 
-    meridianFlip?: MeridianFlipWizardStatus;
+    meridianFlip?: MeridianFlipStatus;
 }
 
 export type AstrometryStatus = {

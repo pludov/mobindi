@@ -29,6 +29,9 @@ const defaultSettings = ():AstrometrySettings=> ({
         angle: 60,
         minAltitude: 10,
     },
+    meridianFlip: {
+        clearPhdCalibration: false,
+    },
     preferedScope: null,
     preferedImagingSetup: null,
 });
@@ -310,6 +313,35 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         this.currentStatus.selectedScope = message.deviceId;
     }
 
+    doGoto = async(ct: CancellationToken, targetScope: string, target: {ra: number, dec:number}) => {
+        // check no motion is in progress
+        await this.context.indiManager.setParam(
+                ct,
+                targetScope,
+                'ON_COORD_SET',
+                {'TRACK': 'On'},
+                true,
+                true);
+
+        await this.context.indiManager.setParam(
+                ct,
+                targetScope,
+                'EQUATORIAL_EOD_COORD',
+                {
+                    'RA': ''+ target.ra * 24 / 360,
+                    'DEC': '' + target.dec,
+                },
+                true,
+                true,
+                // Aborter...
+                (connection:IndiConnection, devId:string)=>{
+                    logger.info('Cancel requested');
+                    const dev = connection.getDevice(devId);
+                    const vec = dev.getVector("TELESCOPE_ABORT_MOTION")
+                    vec.setValues([{name:"ABORT", value:"On"}]);
+                });
+    }
+
     goto = async (ct: CancellationToken, message:BackOfficeAPI.AstrometryGotoScopeRequest)=>{
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
@@ -335,33 +367,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.lastOperationError = null;
                 this.currentStatus.target = {ra:message.ra, dec:message.dec};
 
-                // check no motion is in progress
-                await this.context.indiManager.setParam(
-                        task.cancellation,
-                        targetScope,
-                        'ON_COORD_SET',
-                        {'TRACK': 'On'},
-                        true,
-                        true);
-
-                await this.context.indiManager.setParam(
-                        task.cancellation,
-                        targetScope,
-                        'EQUATORIAL_EOD_COORD',
-                        {
-                            'RA': ''+ message.ra * 24 / 360,
-                            'DEC': '' + message.dec,
-                        },
-                        true,
-                        true,
-                        // Aborter...
-                        (connection:IndiConnection, devId:string)=>{
-                            logger.info('Cancel requested');
-                            const dev = connection.getDevice(devId);
-                            const vec = dev.getVector("TELESCOPE_ABORT_MOTION")
-                            vec.setValues([{name:"ABORT", value:"On"}]);
-                        });
-
+                await this.doGoto(task.cancellation, targetScope, message);
             } catch(e) {
                 if (e instanceof CancellationToken) {
                     finish('idle', null);
