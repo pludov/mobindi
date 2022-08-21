@@ -380,6 +380,35 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         });
     }
 
+    // Target is expected in degree
+    doSync = async(ct: CancellationToken, targetScope: string, target: {ra: number, dec:number}) => {
+
+        // Check that scope is connected
+        this.context.indiManager.checkDeviceConnected(targetScope);
+
+        // true,true=> check no motion is in progress
+        logger.info('Setting ON_COORD_SET', {targetScope});
+        await this.context.indiManager.setParam(
+                ct,
+                targetScope,
+                'ON_COORD_SET',
+                {'SYNC': 'On'},
+                true,
+                true);
+        logger.info('Setting EQUATORIAL_EOD_COORD', {targetScope, ...target});
+        await this.context.indiManager.setParam(
+                ct,
+                targetScope,
+                'EQUATORIAL_EOD_COORD',
+                {
+                    'RA': ''+ target.ra * 24 / 360,
+                    'DEC': '' + target.dec,
+                },
+                true,
+                true);
+        this.currentStatus.useNarrowedSearchRadius = true;
+    }
+
     sync = async (ct: CancellationToken, message: {})=>{
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
@@ -422,29 +451,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 // compute JNOW center for last image.
                 const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
 
-                // Check that scope is connected
-                this.context.indiManager.checkDeviceConnected(targetScope);
-
-                // true,true=> check no motion is in progress
-                logger.info('Setting ON_COORD_SET', {targetScope});
-                await this.context.indiManager.setParam(
-                        task.cancellation,
-                        targetScope,
-                        'ON_COORD_SET',
-                        {'SYNC': 'On'},
-                        true,
-                        true);
-                logger.info('Setting EQUATORIAL_EOD_COORD', {targetScope, ranow, decnow});
-                await this.context.indiManager.setParam(
-                        task.cancellation,
-                        targetScope,
-                        'EQUATORIAL_EOD_COORD',
-                        {
-                            'RA': ''+ ranow * 24 / 360,
-                            'DEC': '' + decnow,
-                        },
-                        true,
-                        true);
+                await this.doSync(task.cancellation, targetScope, {ra: ranow, dec:decnow});
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('idle', null)
@@ -453,7 +460,6 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
                 throw e;
             }
-            this.currentStatus.useNarrowedSearchRadius = true;
             finish('idle', null);
         });
     }

@@ -551,6 +551,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     // Return a promise that will set the value of the
     // device and value can be function
     // valFn returns a map to set at the vector, may be a function receiving the current state
+    // noWait: don't wait for the vector to be ready before pushing new value
     async setParam(ct: CancellationToken,
                     devId: string,
                     vectorId: string,

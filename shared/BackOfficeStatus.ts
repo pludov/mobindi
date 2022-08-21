@@ -504,11 +504,65 @@ export type PolarAlignStatus = {
     adjustPositionError: null|string;
 }
 
+export type MeridianFlipStepBase = {
+    id: string;
+    title: string;
+    status: "pending"|"running"|"done"|"failed"|"skipped";
+}
+
+export type MeridianFlipGenericShootStep = MeridianFlipStepBase & {
+    exposing?: boolean;
+    resolving?: boolean;
+    photo?: string;
+    photoTime?: number;
+    center?: {ra: number, dec: number};
+}
+
+export type MeridianFlipSuspendPhdStep = MeridianFlipStepBase & {
+    kind: "suspendPhd";
+};
+
+export type MeridianFlipResumePhdStep = MeridianFlipStepBase & {
+    kind: "resumePhd";
+};
+
+export type MeridianFlipSuspendSequenceStep = MeridianFlipStepBase & {
+    kind: "suspendSequence";
+};
+
+export type MeridianFlipResumeSequenceStep = MeridianFlipStepBase & {
+    kind: "resumeSequence";
+};
+
+export type MeridianFlipAcquireStep = MeridianFlipStepBase & MeridianFlipGenericShootStep & {
+    kind: "presync";
+};
+
+export type MeridianFlipFlipMountStep = MeridianFlipStepBase & {
+    kind: "flip";
+};
+
+export type MeridianFlipSyncStep = MeridianFlipStepBase & MeridianFlipGenericShootStep & {
+    kind: "sync";
+    retry: number;
+};
+
+
+export type MeridianFlipCorrectMountStep = MeridianFlipStepBase & {
+    kind: "correct";
+    retry: number;
+};
+
+export type MeridianFlipStep = MeridianFlipSuspendPhdStep | MeridianFlipResumePhdStep | MeridianFlipSuspendSequenceStep | MeridianFlipResumeSequenceStep | MeridianFlipAcquireStep | MeridianFlipFlipMountStep | MeridianFlipCorrectMountStep | MeridianFlipSyncStep;
+
 export type MeridianFlipStatus = {
-    status: "initialConfirm"|"acquireInitialPosition"|"flip"|"sync"|"goto"|"done";
-    shootRunning: boolean;
-    scopeMoving: boolean;
-    astrometryRunning: boolean;
+    activeStep: string|null;
+    steps: {
+        list: string[];
+        byuuid: {[id:string]:MeridianFlipStep};
+    }
+
+    targetPosition?: {ra: number, dec: number};
 }
 
 export type AstrometryWizard = {
