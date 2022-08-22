@@ -507,7 +507,7 @@ export type PolarAlignStatus = {
 export type MeridianFlipStepBase = {
     id: string;
     title: string;
-    status: "pending"|"running"|"done"|"failed"|"skipped";
+    status: "pending"|"running"|"interrupted"|"done"|"failed"|"skipped";
 }
 
 export type MeridianFlipGenericShootStep = MeridianFlipStepBase & {

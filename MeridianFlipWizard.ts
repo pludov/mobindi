@@ -5,22 +5,10 @@ import Wizard from "./Wizard";
 import Sleep from './Sleep';
 import { ShootResult } from './shared/BackOfficeAPI';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
-import { AstrometryResult } from './shared/ProcessorTypes';
 import { MeridianFlipAcquireStep, MeridianFlipCorrectMountStep, MeridianFlipFlipMountStep, MeridianFlipGenericShootStep, MeridianFlipStep, MeridianFlipStepBase, MeridianFlipSyncStep } from './shared/BackOfficeStatus';
 
 
 const logger = Log.logger(__filename);
-
-type Step= {
-    photo: ShootResult;
-    photoTime: number;
-    // FIXME: stats like number of stars, fwhm, ...
-
-    // Full astrometry result
-    astrometry?: AstrometryResult;
-    // Center in JNOW coordinates
-    center?: {ra: number, dec:number};
-}
 
 function radecToDeg(coords: {ra: number, dec:number})
 {
@@ -44,11 +32,10 @@ export default class MeridianFlipWizard extends Wizard {
         const vec = this.astrometry.indiManager.getValidConnection().getDevice(this.getScope()).getVector("EQUATORIAL_EOD_COORD");
         const ra = parseFloat(vec.getPropertyValue("RA"));
         const dec = parseFloat(vec.getPropertyValue("DEC"));
-        
+
         logger.debug('current scope pos (jnow)', {ra, dec});
         return {ra, dec};
     }
-    
 
     shoot = async (token: CancellationToken, frameid: number, frametype:string)=> {
         let photoTime = Date.now();
@@ -73,8 +60,6 @@ export default class MeridianFlipWizard extends Wizard {
 
     // Solve plate in JNOW (degree)
     solve = async(token: CancellationToken, photo: ShootResult, photoTime: number) => {
-        const wizardReport = this.wizardStatus.meridianFlip!;
-
         const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: true});
 
         logger.info('Done astrometry', {astrometry, photoTime});
@@ -126,7 +111,7 @@ export default class MeridianFlipWizard extends Wizard {
         const wizardReport = this.wizardStatus.meridianFlip!;
         for(const id of wizardReport.steps.list) {
             const step = wizardReport.steps.byuuid[id];
-            if (step.status === "pending" || step.status === "failed") {
+            if (step.status === "pending" || step.status === "failed" || step.status === "interrupted") {
                 return step;
             }
         }
@@ -154,6 +139,7 @@ export default class MeridianFlipWizard extends Wizard {
     runStep= async (step: MeridianFlipStep) => {
         const wizardReport = this.wizardStatus.meridianFlip!;
         wizardReport.activeStep = step.id;
+        step.status = "running";
 
         // FIXME: a specific token is to be used for each operation. Cancelling should not stop the wizard (only suspend the current operation)
         // And the wizard should be able to restart accordingly
@@ -168,6 +154,7 @@ export default class MeridianFlipWizard extends Wizard {
             return true;
         } catch(e) {
             if (e instanceof CancellationToken.CancellationError) {
+                step.status = "interrupted";
                 logger.info(`Meridian flip step ${step.id} - ${step.title} paused`);
                 return false;
             }
