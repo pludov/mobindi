@@ -380,6 +380,26 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         });
     }
 
+    clearSync = async(ct: CancellationToken, targetScope: string) => {
+        // Check that scope is connected
+        this.context.indiManager.checkDeviceConnected(targetScope);
+
+        const target = { vec: 'ALIGNLIST', prop: 'ALIGNLISTCLEAR'};
+
+        const curValue = this.context.indiManager.getValidConnection().getDevice(targetScope).getVector(target.vec).getPropertyValueIfExists(target.prop);
+
+        if (curValue !== null) {
+            logger.info(`Clearing alignment the eqmod way for ${targetScope}`);
+            await this.context.indiManager.setParam(
+                ct,
+                targetScope,
+                target.vec,
+                {[target.prop]: 'On'},
+                true,
+                true);
+        }
+    }
+
     // Target is expected in degree
     doSync = async(ct: CancellationToken, targetScope: string, target: {ra: number, dec:number}) => {
 

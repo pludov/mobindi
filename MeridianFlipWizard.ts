@@ -215,7 +215,11 @@ export default class MeridianFlipWizard extends Wizard {
         if (!previousSync || previousSync.status !== "done") {
             throw new Error(`Previous acquisition step ${previousSync?.status || "missing"}`);
         }
-        // FIXME: Clear the calibration if this is the first correction attempt
+        // Clear the calibration if this is the first correction attempt
+        if (status.retry === 0) {
+            logger.info(`Clearing previous alignment`, previousSync.center);
+            await this.astrometry.clearSync(ct, this.getScope());
+        }
 
         logger.info(`Syncing mount`, previousSync.center);
 
