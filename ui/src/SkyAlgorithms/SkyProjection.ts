@@ -1,3 +1,4 @@
+import { IndiDevice } from '@bo/BackOfficeStatus';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 //@ts-ignore
 const Quaternion = require("quaternion");
@@ -1332,5 +1333,75 @@ export default class SkyProjection {
         const rawAltAz = SkyProjection.lstRelRaDecToAltAz(lstRelRaDec, geoCoords);
         const correctedAltAz = SkyProjection.altAzCancelRefraction(rawAltAz, meteo);
         return SkyProjection.altAzToLstRelRaDec(correctedAltAz, geoCoords);
+    }
+
+    public static getMountPierSide(mount: IndiDevice) {
+        const getProperty = (vec: string, prop:string)=> {
+            if (!Object.prototype.hasOwnProperty.call(mount, vec)) {
+                return null;
+            }
+            const vecInstance = mount[vec];
+            if (!Object.prototype.hasOwnProperty.call(vecInstance.childs, prop)) {
+                return null;
+            }
+
+            const propInstance = vecInstance.childs[prop];
+
+            return propInstance.$_;
+        }
+
+        const getPropertyNumber = (vec: string, prop:string)=> {
+            const v = getProperty(vec, prop);
+            return v === null ? null : parseFloat(v);
+        }
+
+        const getPropertyBool = (vec: string, prop:string)=> {
+            const v = getProperty(vec, prop);
+            return v === null ? null : v === 'On';
+        }
+
+        let lst = getPropertyNumber('TIME_LST', 'LST');
+
+        // ra in hour
+        const ra = getPropertyNumber('EQUATORIAL_EOD_COORD', 'RA');
+        const dec = getPropertyNumber('EQUATORIAL_EOD_COORD', 'DEC');
+
+        if (lst === null) {
+            const lat = getPropertyNumber('GEOGRAPHIC_COORD', 'LAT');
+            const long = getPropertyNumber('GEOGRAPHIC_COORD', 'LONG');
+
+
+            if (long !== null) {
+                // FIXME: use mount time ? - not provided at least for simulator :-/
+                const zenithRa = SkyProjection.getLocalSideralTime(new Date().getTime(), long);
+                lst = Map24(24 * zenithRa / 360);
+            }
+        }
+
+        let sideralHourToMeridian = null;
+        let recommandedPierSide;
+        if (lst !== null && ra !== null) {
+            sideralHourToMeridian =  Map24(ra - lst);
+
+            if (sideralHourToMeridian >= 12) {
+                recommandedPierSide = "east";
+            } else {
+                recommandedPierSide = "west";
+            }
+        }
+
+        let reportedPierSide;
+        let v = getPropertyBool('TELESCOPE_PIER_SIDE', 'PIER_WEST');
+        if (v !== null && v) {
+            reportedPierSide = "west";
+        }
+
+        v = getPropertyBool('TELESCOPE_PIER_SIDE', 'PIER_EAST');
+        if (v !== null && v) {
+            reportedPierSide = "east";
+        }
+
+        return {lst, sideralHourToMeridian, recommandedPierSide, reportedPierSide};
+
     }
 }
