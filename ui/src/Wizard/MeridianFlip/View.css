@@ -1,0 +1,70 @@
+.MeridianFlipStepError {
+    display: block;
+    color: red
+}
+
+.MeridianFlipCollapsible.Collapsible__trigger {
+    display: none;
+}
+
+.MeridianFlipStepItem {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+}
+
+.MeridianFlipStepItemFirstRow {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.MeridianFlipStepTitle {
+    flex-grow: 1;
+    margin-bottom: 0.3em;
+}
+
+.MeridianFlipStepSeeMore.Hidden {
+    visibility: hidden;
+}
+
+.MeridianFlipStepSeeMore {
+    cursor: pointer;
+    min-width: 2vw;
+    min-height: 2vw;
+    border: 1px solid white;
+    padding: 0.3em;
+    background: #00ac9d;
+}
+.MeridianFlipStepSeeMore::after {
+    content: ">";
+    display: block;
+    transition: transform 100ms, -webkit-transform 100ms;
+}
+
+.MeridianFlipStepSeeMore.Open::after {
+    transform: rotateZ(90deg);
+}
+
+.MeridianFlipStepSeeMore.Open {
+    border-bottom: 0px solid white;
+}
+
+.MeridianFlipStepSeeMore.Closed {
+    border-bottom: 1px solid white;
+    transition-property: border;
+    transition-delay: 200ms;
+}
+
+
+.MeridianFlipCollapsible.Collapsible__contentInner {
+    border: 0px;
+}
+
+.MeridianFlipCollapsible.Collapsible.ExtOpen {
+    border: 1px solid white;
+}
+
+.MeridianFlipCollapsible.Collapsible.ExtClosed {
+    border: 0px solid white;
+    transition-delay: 200ms;
+    transition-property: border;
+}

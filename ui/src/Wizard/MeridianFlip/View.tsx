@@ -9,6 +9,7 @@ import ArrayReselect from '../../utils/ArrayReselect';
 import StepDetails from './StepDetails';
 import AstrometryBackendAccessor from '@src/AstrometryStore';
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
+import "./View.css";
 
 const logger = Log.logger(__filename);
 
@@ -31,7 +32,7 @@ class View extends React.PureComponent<Props> {
         return <>
             
             <div className="MeridianFlipStepTable">
-                <pre>TOTO: {JSON.stringify(this.props.pierSide, null, 2)}</pre>
+                <pre>{JSON.stringify(this.props.pierSide, null, 2)}</pre>
                 {this.props.stepList.map(
                     (id)=>
                         <StepDetails key={id} id={id}/>
