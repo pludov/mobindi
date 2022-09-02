@@ -1,13 +1,12 @@
-.AstrometryWizardSelectButton {
+input.AstrometryWizardSelectButton {
     text-overflow: ellipsis;
     overflow: hidden;
-    margin-left: 2em;
-    margin-right: 2em;
+    padding-left: 2em;
+    padding-right: 2em;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
+    min-width: calc(50% - 4em);
     white-space: nowrap;
-    width: calc(100% - 4em);
-
 }
 
 .AstrometryWizardSelectTitle {
@@ -23,8 +22,17 @@
     width: calc(100% - 1em);
 }
 
+.AstrometryWelcomePage {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .AstrometryWizardRootView {
     height: 100%;
+    width: 100%;
     display: flex;
     flex-direction: column;
 }

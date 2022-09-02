@@ -116,7 +116,7 @@ class AstrometryView extends React.PureComponent<Props, State> {
                 : this.props.currentWizard === null
                     ?
                         /* Welcome screen */
-                        <div>
+                        <div className="AstrometryWelcomePage">
                             <div className="AstrometryWizardSelectTitle">Astrometry</div>
 
                             <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
