@@ -508,6 +508,7 @@ export type MeridianFlipStepBase = {
     id: string;
     title: string;
     status: "pending"|"running"|"interrupted"|"done"|"failed"|"skipped";
+    error?: string;
 }
 
 export type MeridianFlipGenericShootStep = MeridianFlipStepBase & {

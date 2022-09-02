@@ -140,7 +140,7 @@ export default class MeridianFlipWizard extends Wizard {
         const wizardReport = this.wizardStatus.meridianFlip!;
         wizardReport.activeStep = step.id;
         step.status = "running";
-
+        delete step.error;
         // FIXME: a specific token is to be used for each operation. Cancelling should not stop the wizard (only suspend the current operation)
         // And the wizard should be able to restart accordingly
         const {token, cancel} = CancellationToken.create();
@@ -159,6 +159,7 @@ export default class MeridianFlipWizard extends Wizard {
                 return false;
             }
             logger.warn(`Meridian flip step ${step.id} - ${step.title} failed`, e);
+            step.error = (e instanceof Error) ? e.message : "" + e;
             step.status = "failed";
             return false;
         } finally {
@@ -168,6 +169,7 @@ export default class MeridianFlipWizard extends Wizard {
 
     acquirePosition=async (ct : CancellationToken, imageType: string, status: MeridianFlipStepBase & MeridianFlipGenericShootStep)=>{
         status.exposing = true;
+
         let shoot;
         try {
             shoot = await this.shoot(ct, 1, "reference");
