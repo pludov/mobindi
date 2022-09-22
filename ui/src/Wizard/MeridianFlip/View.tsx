@@ -6,7 +6,7 @@ import InitialConfirm from "./InitialConfirm";
 import "../PolarAlignment/PolarAlignment.css";
 import { createSelector, defaultMemoize } from 'reselect';
 import ArrayReselect from '../../utils/ArrayReselect';
-import StepDetails from './StepDetails';
+import StepListItem from './StepListItem';
 import AstrometryBackendAccessor from '@src/AstrometryStore';
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import "./View.css";
@@ -35,7 +35,7 @@ class View extends React.PureComponent<Props> {
                 <pre>{JSON.stringify(this.props.pierSide, null, 2)}</pre>
                 {this.props.stepList.map(
                     (id)=>
-                        <StepDetails key={id} id={id}/>
+                        <StepListItem key={id} id={id}/>
                 )}
             </div>
             <InitialConfirm/>
