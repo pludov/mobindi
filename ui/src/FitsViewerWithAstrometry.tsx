@@ -14,6 +14,7 @@ import * as Store from './Store';
 import * as Help from "./Help";
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';
+import ContextMenuItem from './FitsViewer/ContextMenuItem';
 
 const logger = Log.logger(__filename);
 
@@ -152,6 +153,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         );
     }
 
+    private readonly startNonWide = () => {
+        return this.start(false);
+    }
+
     private readonly startWide = () => {
         return this.start(true);
     }
@@ -159,62 +164,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     private readonly toggleFs = () => {
         this.setState({fs: !this.state.fs});
     }
-
-    private readonly contextMenuSelector = createSelector(
-            [
-                (m:MappedProps)=>m.start,
-                (m:MappedProps)=>m.narrowable,
-                (m:MappedProps)=>m.move
-            ],
-            (start, narrowable, move)=> {
-                const ret:ContextMenuEntry[] = [{
-                    title: 'Toggle fullscreen',
-                    key: 'fullscreen',
-                    helpKey: FitsViewerWithAstrometry.fullScreenMenuHelp,
-                    cb: this.toggleFs,
-                }];
-                if (start) {
-                    if (narrowable) {
-                        ret.push({
-                            title: 'Astrometry',
-                            key: 'astrometry',
-                            helpKey: FitsViewerWithAstrometry.astrometryMenuHelp,
-                            cb: ()=>this.start()
-                        });
-                        ret.push({
-                            title: 'Astrometry (Wide)',
-                            key: 'astrometry',
-                            helpKey: FitsViewerWithAstrometry.astrometryWideMenuHelp,
-                            cb: this.startWide
-                        });
-                    } else {
-                        ret.push({
-                            title: 'Astrometry (Wide)',
-                            key: 'astrometry',
-                            helpKey: FitsViewerWithAstrometry.astrometryWideMenuHelp,
-                            cb: this.startWide
-                        });
-                    }
-                }
-                if (move) {
-                    ret.push({
-                        title: 'Goto here',
-                        key: 'goto',
-                        helpKey: FitsViewerWithAstrometry.gotoMenuHelp,
-                        cb: this.move,
-                        positional: true,
-                    });
-                    ret.push({
-                        title: 'Goto center',
-                        key: 'center',
-                        helpKey: FitsViewerWithAstrometry.gotoCenterMenuHelp,
-                        cb: this.center,
-                        positional: false,
-                    });
-                }
-                return ret;
-            }
-    );
 
     titleForStatus(status:BackOfficeStatus.AstrometryStatus["status"]|BackOfficeStatus.AstrometryStatus["scopeStatus"])
     {
@@ -256,10 +205,58 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         streamSerial={this.props.streamSerial}
                         streamDetails={this.props.streamDetails}
                         subframe={this.props.subframe}
-                        ref={this.fitsViewer}
-                        contextMenu={this.contextMenuSelector(this.props)}
-                        children={this.props.children}
-                />
+                        ref={this.fitsViewer}>
+
+                <ContextMenuItem
+                        title='Toggle fullscreen'
+                        uid='Astrometry/0001/fullscreen'
+                        helpKey={FitsViewerWithAstrometry.fullScreenMenuHelp}
+                        cb={this.toggleFs} />
+
+                {!this.props.start ? null :
+                    this.props.narrowable
+                        ?
+                        <>
+                            <ContextMenuItem
+                                title='Astrometry'
+                                uid='Astrometry/0002/astrometry'
+                                helpKey={FitsViewerWithAstrometry.astrometryMenuHelp}
+                                cb={this.startNonWide}/>
+                            <ContextMenuItem
+                                title='Astrometry (Wide)'
+                                uid='Astrometry/0003/astrometry-wide'
+                                helpKey={FitsViewerWithAstrometry.astrometryWideMenuHelp}
+                                cb={this.startWide} />
+                        </>
+                        :
+                            <ContextMenuItem
+                                title='Astrometry (Wide)'
+                                uid='Astrometry/0003/astrometry-wide'
+                                helpKey={FitsViewerWithAstrometry.astrometryWideMenuHelp}
+                                cb={this.startWide} />
+                }
+                {!this.props.move ? null :
+
+                    <>
+                        <ContextMenuItem
+                            title='Goto here'
+                            uid='Astrometry/0004/goto'
+                            helpKey={FitsViewerWithAstrometry.gotoMenuHelp}
+                            cb={this.move}
+                            positional={true}/>
+                        <ContextMenuItem
+                            title='Goto center'
+                            uid='Astrometry/0005/center'
+                            helpKey={FitsViewerWithAstrometry.gotoCenterMenuHelp}
+                            cb={this.center}
+                            positional={false}/>
+
+                    </>
+                }
+
+                {this.props.children}
+            </FitsViewerInContext>
+
             <span className="AstrometryImageInfoRoot">
                 {this.props.scopeDeltaRa !== null ? "Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)  : null}
                 {this.props.visible && this.props.scopeDeltaRa === null ? this.titleForStatus(this.props.status) : null}

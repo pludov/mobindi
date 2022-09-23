@@ -12,7 +12,6 @@ export type InputProps = {
     streamDetails: FitsViewerProps["streamDetails"];
     subframe: FitsViewerProps["subframe"];
     contextKey: string;
-    contextMenu : FitsViewerProps["contextMenu"];
 };
 
 type MappedProps = {
@@ -45,7 +44,6 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
                             subframe={this.props.subframe}
                             viewSettings={this.props.viewSettings}
                             onViewSettingsChange={this.saveViewSettings}
-                            contextMenu={this.props.contextMenu}
                             children={this.props.children}/>
     }
 

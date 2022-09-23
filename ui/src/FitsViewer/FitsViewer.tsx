@@ -13,8 +13,11 @@ import Histogram from './Histogram';
 import FloatContainer from '../FloatContainer';
 import FloatWindow from '../FloatWindow';
 import FloatWindowMover from '../FloatWindowMover';
-import { FullState as TypesFullState, ImageDetails, ImageSize, LevelId, Levels, Rectangle, SubFrame } from './Types';
+import { FullState as TypesFullState, ImageDetails, ImageSize, LevelId, Rectangle, SubFrame } from './Types';
 import { ImageDisplay } from './ImageDisplay';
+import ContextMenuContext, { OpenTrigger } from './ContextMenuContext';
+import ContextMenuDisplayer from './ContextMenuDisplayer';
+import ContextMenuItem from './ContextMenuItem';
 
 const logger = Log.logger(__filename);
 
@@ -23,7 +26,7 @@ export type FullState = TypesFullState;
 
 export type ContextMenuEntry = {
     title: string;
-    key: string;
+    uid: string;
     cb: (e:ContextMenuEvent)=>(void);
     positional?: boolean;
     helpKey: Help.Key;
@@ -46,7 +49,6 @@ export type Props = {
     subframe?: SubFrame|null;
     streamDetails: ImageDetails|null;
     viewSettings?: Partial<FullState>;
-    contextMenu?: ContextMenuEntry[];
     directPort: number;
     onViewSettingsChange: (state: FullState)=>(void);
 };
@@ -221,6 +223,22 @@ class FitsViewer extends React.PureComponent<Props, State> {
         }
     }
 
+    static readonly lowHelp= Help.key('Low level', "Define the low bound for the image rendering curve (relative to histogram, 50% is the mean value)");
+    static readonly mediumHelp= Help.key('Median level', "Define the medium value for the image rendering curve (relative to histogram, 50% is the mean value)");
+    static readonly highHelp= Help.key('High level', "Define the high bound for the image rendering curve (relative to histogram, 50% is the mean value)");
+    static readonly fwhmHelp= Help.key('FWHM', "Locate stars and display the mean FWHM");
+    static readonly histogramHelp =Help.key('Histogram', "Display histogram for the image");
+    static readonly crosshairHelp =Help.key('Crosshair', "Display crosshair over the image");
+
+
+    showLow= ()=>this.displaySetting('low');
+    showMedium= () => this.displaySetting('medium');
+    showHigh= () => this.displaySetting('high');
+    showFwhm= () => this.displaySetting('fwhm');
+    showHistogram = () => this.displaySetting('histogram');
+    showCrosshair = () => this.displaySetting('crosshair');
+
+
     getViewSettingsCopy(): FullState
     {
         let propValue:any = this.props.viewSettings;
@@ -270,29 +288,16 @@ class FitsViewer extends React.PureComponent<Props, State> {
         }
     }
 
+    closeMenu = ()=> {
+        this.setState({contextmenu: null});
+    }
+
     declareChild=()=>{
         logger.debug('declareChild called');
         return undefined;
     }
 
     render() {
-        var contextMenu, visor;
-        if (this.state.contextmenu !== null) {
-            contextMenu = <ContextMenu
-                            contextMenu={this.props.contextMenu}
-                            x={this.state.contextmenu.x} y={this.state.contextmenu.y}
-                            xlateCoords={this.xlateCoords}
-                            displaySetting={this.displaySetting}
-            />
-            if (this.props.contextMenu && this.props.contextMenu.filter(e=>e.positional).length) {
-                visor = <ContextMenuCross
-                            x={this.state.contextmenu.x}
-                            y={this.state.contextmenu.y}/>
-            }
-        } else {
-            contextMenu = null;
-            visor = null;
-        }
         var histogramView;
         if (this.state.histogramView !== null) {
             var viewSettings = this.getViewSettingsCopy();
@@ -309,37 +314,85 @@ class FitsViewer extends React.PureComponent<Props, State> {
 
         return(
             <FitsViewer.ViewContext.Provider value={this.instanceContext}>
+                <ContextMenuContext open={this.state.contextmenu} close={this.closeMenu}>
+                    <div className='FitsViewOverlayContainer'>
+                        <div className='FitsView' ref={this.el}>
+                            <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
+                        </div>
+                        {this.props.children}
+                        <div className='FitsViewLoading'/>
+                        {histogramView}
+                        <ContextMenuDisplayer>
+                            {
+                                (trigger: OpenTrigger, entries: ContextMenuEntry[]) =>
+                                    entries.filter(e=>e.positional).length === 0
+                                        ? null
+                                        : <ContextMenuCross
+                                                x={trigger.x}
+                                                y={trigger.y}/>
+                            }
+                        </ContextMenuDisplayer>
 
-                <div className='FitsViewOverlayContainer'>
-                    <div className='FitsView' ref={this.el}>
-                        <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
+                        <FloatContainer>
+                            {this.state.histogramWindow
+                                ?
+                                    <FloatWindow key="fits_view_overlay">
+                                        <FloatWindowMover>
+                                            <Histogram
+                                                path={this.props.path}
+                                                streamId={this.props.streamId}
+                                                streamSerial={this.props.streamSerial}
+                                                />
+                                        </FloatWindowMover>
+                                    </FloatWindow>
+                                :
+                                    null
+                            }
+                        </FloatContainer>
+                        <ContextMenuDisplayer>
+                            {
+                                (trigger: OpenTrigger, entries: ContextMenuEntry[]) =>
+                                    <ContextMenu
+                                            contextMenu={entries}
+                                            x={trigger.x} y={trigger.y}
+                                            xlateCoords={this.xlateCoords}
+                                            displaySetting={this.displaySetting}
+                                    />
+                            }
+                        </ContextMenuDisplayer>
+
+                        <ContextMenuItem
+                            title='Low level'
+                            uid='ViewSetting/0001'
+                            helpKey={FitsViewer.lowHelp}
+                            cb={this.showLow} />
+                        <ContextMenuItem
+                            title='Median'
+                            uid='ViewSetting/0002'
+                            helpKey={FitsViewer.mediumHelp}
+                            cb={this.showMedium} />
+                        <ContextMenuItem
+                            title='High level'
+                            uid='ViewSetting/0003'
+                            helpKey={FitsViewer.highHelp}
+                            cb={this.showHigh} />
+                        <ContextMenuItem
+                            title='Histogram'
+                            uid='ViewSetting/0004'
+                            helpKey={FitsViewer.histogramHelp}
+                            cb={this.showHistogram} />
+                        <ContextMenuItem
+                            title='FWHM'
+                            uid='ViewSetting/0005'
+                            helpKey={FitsViewer.fwhmHelp}
+                            cb={this.showFwhm} />
+                        <ContextMenuItem
+                            title='Crosshair'
+                            uid='ViewSetting/0006'
+                            helpKey={FitsViewer.crosshairHelp}
+                            cb={this.showCrosshair} />
                     </div>
-                    {this.props.children}
-                    <div className='FitsViewLoading'/>
-                    {histogramView}
-                    {visor}
-
-                    <FloatContainer>
-                        {this.state.histogramWindow
-                            ?
-                                <FloatWindow key="fits_view_overlay">
-                                    <FloatWindowMover>
-                                        <Histogram
-                                            path={this.props.path}
-                                            streamId={this.props.streamId}
-                                            streamSerial={this.props.streamSerial}
-                                            />
-                                    </FloatWindowMover>
-                                </FloatWindow>
-                            :
-                                null
-                        }
-
-
-                    </FloatContainer>
-
-                    {contextMenu}
-                </div>
+                </ContextMenuContext>
             </FitsViewer.ViewContext.Provider>);
     }
 

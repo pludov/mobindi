@@ -17,23 +17,9 @@ export type Props = {
 export default class ContextMenu extends PureComponent<Props> {
     private readonly itemRef: RefObject<HTMLDivElement> = React.createRef();
 
-    static readonly lowHelp= Help.key('Low level', "Define the low bound for the image rendering curve (relative to histogram, 50% is the mean value)");
-    static readonly mediumHelp= Help.key('Median level', "Define the medium value for the image rendering curve (relative to histogram, 50% is the mean value)");
-    static readonly highHelp= Help.key('High level', "Define the high bound for the image rendering curve (relative to histogram, 50% is the mean value)");
-    static readonly fwhmHelp= Help.key('FWHM', "Locate stars and display the mean FWHM");
-    static readonly histogramHelp =Help.key('Histogram', "Display histogram for the image");
-    static readonly crosshairHelp =Help.key('Crosshair', "Display crosshair over the image");
-
     constructor(props:Props) {
         super(props);
     }
-
-    showLow= ()=>this.props.displaySetting('low');
-    showMedium= () => this.props.displaySetting('medium');
-    showHigh= () => this.props.displaySetting('high');
-    showFwhm= () => this.props.displaySetting('fwhm');
-    showHistogram = () => this.props.displaySetting('histogram');
-    showCrosshair = () => this.props.displaySetting('crosshair');
 
     adjust() {
         // ensure that the menu does not go outside the container
@@ -90,16 +76,10 @@ export default class ContextMenu extends PureComponent<Props> {
                                     e.cb(event);
                                 }}
                                 {...e.helpKey?.dom()}
-                                key={e.key}>
+                                key={e.uid}>
                             {e.title}
                         </div>)
                 }
-                <div className="Item" {...ContextMenu.lowHelp.dom()} onClick={this.showLow}>Low level</div>
-                <div className="Item" {...ContextMenu.mediumHelp.dom()} onClick={this.showMedium}>Median</div>
-                <div className="Item" {...ContextMenu.highHelp.dom()} onClick={this.showHigh}>High level</div>
-                <div className="Item" {...ContextMenu.histogramHelp.dom()} onClick={this.showHistogram}>Histogram</div>
-                <div className="Item" {...ContextMenu.fwhmHelp.dom()} onClick={this.showFwhm}>FWHM</div>
-                <div className="Item" {...ContextMenu.crosshairHelp.dom()} onClick={this.showCrosshair}>Crosshair</div>
             </div>);
     }
 }

@@ -12,6 +12,7 @@ import FitsViewerInContext from './FitsViewerInContext';
 import { hasKey } from './shared/Obj';
 import FitsMarker from './FitsViewer/FitsMarker';
 import CancellationToken from 'cancellationtoken';
+import ContextMenuItem from './FitsViewer/ContextMenuItem';
 
 
 type InputProps = {}
@@ -63,30 +64,6 @@ class PhdStream extends React.PureComponent<Props, State> {
         });
     }
 
-    private readonly contextMenu = [
-        {
-            title: 'Sel. star',
-            helpKey: PhdStream.selStarHelp,
-            key: 'lock',
-            cb: this.findStarHere,
-            positional: false,
-        },
-        {
-            title: 'Auto-find',
-            helpKey: PhdStream.autoFindHelp,
-            key: 'lock',
-            cb: this.findStar,
-            positional: false,
-        },
-        {
-            title: 'Lock here',
-            helpKey: PhdStream.lockHereHelp,
-            key: 'lock',
-            cb: this.setLockPos,
-            positional: true,
-        }
-    ];
-
     render() {
         let lockActive =
             this.props.lockPosition && this.props.AppState !== "LostLock"
@@ -98,7 +75,6 @@ class PhdStream extends React.PureComponent<Props, State> {
             <div className={"FitsViewer FitsViewContainer"}>
                 <FitsViewerInContext
                         contextKey="phdview"
-                        contextMenu={this.contextMenu}
                         path={null}
                         streamId={this.props.streamId || null}
                         streamSerial={this.props.serial === null || this.props.serial === undefined ? null : "" + this.props.serial}
@@ -124,6 +100,29 @@ class PhdStream extends React.PureComponent<Props, State> {
                                 null
                         }
                     </div>
+
+
+                    <ContextMenuItem
+                        title='Sel. star'
+                        helpKey={PhdStream.selStarHelp}
+                        uid='Phd/0001/sel'
+                        cb={this.findStarHere}
+                        positional={false}
+                        />
+                    <ContextMenuItem
+                        title='Auto-find'
+                        helpKey={PhdStream.autoFindHelp}
+                        uid='Phd/0002/find'
+                        cb={this.findStar}
+                        positional={false}
+                        />
+                    <ContextMenuItem
+                        title='Lock here'
+                        helpKey={PhdStream.lockHereHelp}
+                        uid='Phd/0003/lock'
+                        cb={this.setLockPos}
+                        positional={true}
+                        />
                 </FitsViewerInContext>
         </div>);
     }
