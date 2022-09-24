@@ -116,11 +116,15 @@ export default class ReduxNotifier extends Notifier {
         if (!screenVisible) {
             logger.info('Websocket: Became hidden');
             this.cancelHidingTimeout();
-            this.hidingTimeout = window.setTimeout(()=>{
-                logger.info('Websocket: Hiding timeout expired');
-                this.hidingTimeout = undefined;
-                this.updateState();
-            }, 60000);
+
+            // Detect hidden only on mobile (desktop report hidden of visible UI)
+            if ((navigator as any).userAgentData?.mobile) {
+                this.hidingTimeout = window.setTimeout(()=>{
+                    logger.info('Websocket: Hiding timeout expired');
+                    this.hidingTimeout = undefined;
+                    this.updateState();
+                }, 120000);
+            }
         } else {
             logger.info('Websocket: Became visible');
             this.cancelHidingTimeout();
