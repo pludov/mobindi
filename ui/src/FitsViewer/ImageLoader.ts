@@ -79,7 +79,7 @@ class Tile {
     }
 
     imageElementLoaded=()=> {
-        logger.error('imageloader => loading finished');
+        logger.debug('imageloader => loading finished');
         this.status.loading = false;
         this.status.rendered = true;
         this.status.error = false;
@@ -279,7 +279,7 @@ export class ImageLoader {
     }
 
     startDetailsRequest() {
-        console.log('startDetailsRequest', this.param)
+        logger.debug('startDetailsRequest', this.param)
         if (this.param.imageDetails) {
             this.onDetailsLoaded(this.param.imageDetails);
         } else {
@@ -374,7 +374,7 @@ export class ImageLoader {
                 width: this.param.window.maxW,
                 height: this.param.window.maxH,
             };
-        console.log('ImageLoader got details', details, this.frameDetails)
+        logger.debug('ImageLoader got details', details, this.frameDetails)
         this.events.emit('sized', details);
         if (details === null && !this.disposed) {
             this.events.emit('statusChanged');
@@ -490,7 +490,7 @@ export class ImageLoader {
                     tile.pos.w * scale,
                     tile.pos.h * scale);
             } catch(e) {
-                console.warn("rendering image failed", e);
+                logger.warn("rendering image failed", e);
             }
         }
     }
