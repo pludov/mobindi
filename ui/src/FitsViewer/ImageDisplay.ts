@@ -388,6 +388,16 @@ export class ImageDisplay {
         }
     }
 
+    readonly getCurrentImageDetails= () => {
+        const view = this.viewForGeometry();
+
+        if (!view) {
+            return null;
+        }
+
+        return view.frameDetails;
+    }
+
     public readonly zoom=(cx:number, cy:number, z:number)=>{
         var corners = [
             [this.currentImagePos.x, this.currentImagePos.y],

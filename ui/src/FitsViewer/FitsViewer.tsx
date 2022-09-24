@@ -37,6 +37,8 @@ export type ContextMenuEvent = {
     y: number;
     imageX?: number;
     imageY?: number;
+    imageWidth?: number;
+    imageHeight?: number;
 }
 
 
@@ -277,7 +279,15 @@ class FitsViewer extends React.PureComponent<Props, State> {
 
     xlateCoords=(x:number, y:number)=> {
         if (this.imageDisplay !== undefined) {
-            return this.imageDisplay.getImagePosFromParent(x, y);
+            const imagePos = this.imageDisplay.getImagePosFromParent(x, y);
+            const imageSize = this.imageDisplay.getCurrentImageDetails();
+            if (imagePos && imageSize) {
+                return {
+                    ...imagePos,
+                    imageWidth: imageSize.width,
+                    imageHeight: imageSize.height,
+                }
+            }
         }
         return null;
     }

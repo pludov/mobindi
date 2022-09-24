@@ -17,6 +17,7 @@ import CameraSettingsPanel from './CameraSettingsPanel';
 import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 import FocuserSettingsPanel from './FocuserSettingsPanel';
 import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
+import FitsViewerFineSlewUI from './FitsViewerFineSlewUI';
 
 const logger = Log.logger(__filename);
 
@@ -95,7 +96,9 @@ class CameraView extends React.PureComponent<Props, State> {
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
                     streamDetails={this.props.streamDetails}
-                    subframe={null}/>
+                    subframe={null}>
+                        <FitsViewerFineSlewUI imagingSetup={this.props.imagingSetup} isLooping={this.props.streamId !== null}/>
+                </FitsViewerWithAstrometry>
             </div>
             {this.state.loadedImage === undefined
                 ?

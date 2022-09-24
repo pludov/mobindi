@@ -11,7 +11,7 @@ export type Props = {
     contextMenu?: ContextMenuEntry[];
     x: number;
     y: number;
-    xlateCoords: (x:number, y:number)=>{imageX: number, imageY:number}|null;
+    xlateCoords: (x:number, y:number)=>{imageX: number, imageY:number, imageWidth: number, imageHeight: number}|null;
 }
 
 export default class ContextMenu extends PureComponent<Props> {

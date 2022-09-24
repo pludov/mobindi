@@ -174,6 +174,35 @@ export type AstrometryWizards = {
     startMeridianFlipWizard: (payload:{})=>void;
 }
 
+export type FineSlewLearnRequest = {
+    imagingSetup: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+export type FineSlewLearnContinueRequest = {
+    imagingSetup: string;
+}
+
+export type FineSlewSendToRequest = {
+    imagingSetup: string;
+    x: number;
+    y: number;
+    targetX: number;
+    targetY: number;
+    width: number;
+    height: number;
+}
+
+export type SlewDirection = "north"|"south"|"east"|"west";
+
+export type SlewSwitchRequest = {
+    direction : "north"|"south"|"east"|"west";
+    release: boolean;
+}
+
 export type AstrometryAPI = AstrometryWizards & {
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     updateCurrentSettings: (payload: {diff: any})=>void;
@@ -185,6 +214,13 @@ export type AstrometryAPI = AstrometryWizards & {
     wizardQuit: (payload:{})=>void;
     wizardInterrupt: (payload:{})=>void;
     wizardNext: (payload:{})=>void;
+
+    fineSlewStartLearning: (payload: FineSlewLearnRequest)=>void;
+    fineSlewContinueLearning: (payload: FineSlewLearnContinueRequest)=>void;
+    fineSlewSendTo: (payload: FineSlewSendToRequest)=>void;
+    fineSlewAbortLearning: ()=>void;
+    slew: (payload: SlewSwitchRequest) => void;
+    abortSlew: ()=>void;
 }
 
 export type FocuserAPI = {

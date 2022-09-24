@@ -1,10 +1,11 @@
 import CancellationToken from 'cancellationtoken';
 import Log from './Log';
+import Sleep from './Sleep';
 import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import ConfigStore from './ConfigStore';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings } from './shared/BackOfficeStatus';
+import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings, FineSlewLearning, SlewCalibrationVector } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './shared/JsonProxy';
 import { IndiConnection } from './Indi';
@@ -34,7 +35,179 @@ const defaultSettings = ():AstrometrySettings=> ({
     },
     preferedScope: null,
     preferedImagingSetup: null,
+    fineSlew: {
+        slewRate: ""
+    }
 });
+
+class SlewAxisStatus {
+    direction: BackOfficeAPI.SlewDirection;
+    astrometry: Astrometry;
+    expiration: number;
+    task?: Task<void>;
+    taskInterrupted?: boolean;
+    watchTimeout?: NodeJS.Timeout;
+    indiVector: string;
+    indiProperty: string;
+
+    elapsed: number;
+    lastStart: number|undefined;
+
+    constructor(astrometry: Astrometry, direction: BackOfficeAPI.SlewDirection, indiVector: string, indiProperty: string)
+    {
+        this.astrometry = astrometry;
+        this.direction = direction;
+        this.expiration = 0;
+        this.indiVector = indiVector;
+        this.indiProperty = indiProperty;
+        this.elapsed = 0;
+    }
+
+    flushElapsed = () => {
+        if (this.lastStart === undefined) {
+            return;
+        }
+
+        const now = Date.now();
+        const duration = now - this.lastStart;
+        if (duration > 0) {
+            this.elapsed += duration;
+            this.lastStart = now;
+        }
+    }
+
+    directSlew = async (ct: CancellationToken, duration: number) => {
+        const start = Date.now();
+
+        const scope = this.astrometry.currentStatus.selectedScope;
+        if (!scope) {
+            throw new Error("No scope selected");
+        }
+
+        // TODO: set slewRate ? Would conflict. Responsability of caller
+        // const slewRate = this.astrometry.currentStatus.settings.fineSlew.slewRate;
+
+        const motion = createTask<void>(ct, async (task)=> {
+            await this.astrometry.indiManager.pulseParam(task.cancellation, scope, this.indiVector, this.indiProperty);
+        });
+        const pilot = createTask<void>(ct, async (task)=> {
+            logger.debug('Pilot task started', this.direction);
+            await Sleep(task.cancellation, duration);
+            logger.info('Pilot task finished', this.direction);
+        });
+
+        // FIXME: if parent token was interrupted...
+        let error = undefined;
+        try {
+            motion.catch((e)=>pilot.cancel());
+            pilot.catch((e)=>motion.cancel());
+            await pilot;
+            logger.info('Done with pilot task', this.direction);
+        } catch(e) {
+            logger.debug('Catched pilot task catched', this.direction, e);
+            if (!(e instanceof CancellationToken.CancellationError)) {
+                logger.error("Pulse pilot failed", this.direction, e);
+                error = e;
+            } else {
+                logger.debug("Pilot task interrupted", this.direction);
+            }
+        } finally {
+            try {
+                logger.info('Stoping motion task', this.direction);
+                motion.cancel();
+                await motion
+                logger.warn('Motion task done (?)', this.direction);
+            } catch(e) {
+                logger.debug('Motion task catched', this.direction, e);
+                if (!(e instanceof CancellationToken.CancellationError)) {
+                    logger.error("Motion failed", this.direction, e);
+                    error = e;
+                }
+            }
+        };
+        if (error) {
+            throw error;
+        }
+    }
+
+    awake = (newExpiration: number) => {
+        const scope = this.astrometry.currentStatus.selectedScope;
+        const slewRate = this.astrometry.currentStatus.settings.fineSlew.slewRate;
+        if (!scope) {
+            throw new Error("No scope selected");
+        }
+
+        if (this.expiration >= newExpiration) {
+            return;
+        }
+
+        this.expiration = newExpiration;
+
+        if (newExpiration < Date.now()) {
+            return;
+        }
+
+        if (this.task === undefined) {
+            this.task = createTask<void>(undefined, async (task)=> {
+                try {
+                    if (!scope) {
+                        throw new Error("No scope selected");
+                    }
+                    logger.info('Setting TELESCOPE_SLEW_RATE');
+                    // FIXME: to much slew rate...
+                    await this.astrometry.indiManager.setParam(task.cancellation, scope, 'TELESCOPE_SLEW_RATE', {
+                        [slewRate]: 'On'
+                    });
+                    this.lastStart = Date.now();
+                    await this.astrometry.indiManager.pulseParam(task.cancellation, scope, this.indiVector, this.indiProperty);
+
+                } finally {
+                    if (this.task === task) {
+                        this.task = undefined;
+                        this.flushElapsed();
+                        this.lastStart = undefined;
+                    }
+                }
+            });
+        }
+        this.updateTimeout();
+    }
+
+    getTotalDurationAndResetStat = ()=> {
+        this.flushElapsed();
+        const ret = this.elapsed;
+        this.elapsed = 0;
+        return ret;
+    }
+
+    cancelTimeout = ()=> {
+        if (this.watchTimeout) {
+            clearTimeout(this.watchTimeout);
+            this.watchTimeout = undefined;
+        }
+    }
+
+    updateTimeout = ()=> {
+        this.cancelTimeout();
+        const duration = Math.max(0, this.expiration - Date.now());
+        this.watchTimeout = setTimeout(()=> {
+            this.interrupt();
+        }, duration);
+    }
+
+    interrupt = async () => {
+        this.expiration = 0;
+        if (this.task) {
+            const t = this.task;
+            this.taskInterrupted = true;
+            t.cancel();
+            try {
+                await t;
+            } catch(e) {
+            }
+        }
+    }
+};
 
 // Astrometry requires: a camera, a mount
 export default class Astrometry implements RequestHandler.APIAppProvider<BackOfficeAPI.AstrometryAPI>{
@@ -67,6 +240,11 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             useNarrowedSearchRadius: false,
             runningWizard: null,
             currentImagingSetup: null,
+            fineSlew: {
+                slewing: false,
+                learning: null,
+                learned: null
+            }
         };
 
         this.appStateManager.getTarget().astrometry = initialStatus;
@@ -156,6 +334,208 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         }
     }
 
+    public readonly fineSlewStartLearning = async (ct : CancellationToken, payload: BackOfficeAPI.FineSlewLearnRequest)=> {
+        if (this.currentStatus.currentImagingSetup !== payload.imagingSetup) {
+            throw new Error("Please use same imaging setup than astrometry");
+        }
+        if (payload.x === undefined || payload.y === undefined || payload.width === undefined || payload.height === undefined) {
+            throw new Error("Starting point is not set");
+        }
+        const learning:FineSlewLearning = {
+            acquiredCount: 0,
+            imagingSetup: payload.imagingSetup,
+            start: [ payload.x, payload.y ],
+            end: [ payload.x + 100, payload.y ],
+            vectors: [],
+        }
+        this.currentStatus.fineSlew.learning = learning;
+        logger.info("Slew calibration starting", learning);
+
+        this.slewStatus.north.getTotalDurationAndResetStat();
+        this.slewStatus.south.getTotalDurationAndResetStat();
+        this.slewStatus.east.getTotalDurationAndResetStat();
+        this.slewStatus.west.getTotalDurationAndResetStat();
+
+        this.currentStatus.fineSlew.learned = null;
+    };
+
+    public readonly fineSlewContinueLearning = async(ct: CancellationToken, payload: BackOfficeAPI.FineSlewLearnContinueRequest) => {
+        if (!this.currentStatus.fineSlew.learning) {
+            throw new Error("No learning in progress");
+        }
+        if (this.currentStatus.currentImagingSetup !== payload.imagingSetup) {
+            throw new Error("Please use same imaging setup than astrometry");
+        }
+
+        const learning = this.currentStatus.fineSlew.learning;
+
+        const vector = [ learning.end[0] - learning.start[0] , learning.end[1] - learning.start[1] ];
+        const vectorId = learning.acquiredCount;
+
+        let northDuration = this.slewStatus.north.getTotalDurationAndResetStat()
+                            - this.slewStatus.south.getTotalDurationAndResetStat();
+        northDuration /= vector[vectorId];
+        let westDuration = this.slewStatus.west.getTotalDurationAndResetStat()
+                            - this.slewStatus.east.getTotalDurationAndResetStat();
+        westDuration /= vector[vectorId];
+
+        logger.info("Slew calibration progress", {
+            vectorId,
+            northDuration,
+            westDuration
+        });
+
+        learning.vectors.push({northDuration, westDuration});
+
+        this.currentStatus.fineSlew.learning.acquiredCount++;
+
+        if (learning.acquiredCount < 2) {
+            learning.start = [...learning.end];
+            learning.end = [learning.start[0], learning.start[1] + 100];
+        } else {
+            this.currentStatus.fineSlew.learned = {
+                imagingSetup: learning.imagingSetup,
+                vectors: learning.vectors,
+            }
+            this.currentStatus.fineSlew.learning = null;
+        }
+    }
+
+    public readonly fineSlewAbortLearning = async (ct : CancellationToken)=> {
+        this.currentStatus.fineSlew.learning = null;
+    };
+
+    private readonly twoAxisSlew = async(ct: CancellationToken, amount: SlewCalibrationVector) => {
+        // Check all axis are idle
+        await Promise.all(
+            [
+                this.slewStatus.east.interrupt(),
+                this.slewStatus.west.interrupt(),
+                this.slewStatus.north.interrupt(),
+                this.slewStatus.south.interrupt(),
+            ]);
+
+        const axisNS = amount.northDuration > 0 ? this.slewStatus.north : this.slewStatus.south;
+        const axisNSDuration = Math.abs(amount.northDuration);
+
+        const axisWE = amount.westDuration > 0 ? this.slewStatus.west : this.slewStatus.east;
+        const axisWEDuration = Math.abs(amount.westDuration);
+
+        const result = await Promise.allSettled(
+            [
+                axisNS.directSlew(ct, axisNSDuration),
+                axisWE.directSlew(ct, axisWEDuration),
+            ]);
+        for(const r of result) {
+            if (r.status === 'rejected') {
+                throw r.reason;
+            }
+        }
+    }
+
+    currentSlewTask?: Task<void> = undefined;
+
+    public readonly fineSlewSendTo = async(ct: CancellationToken, payload: BackOfficeAPI.FineSlewSendToRequest) => {
+        await createTask<void>(ct, async(t: Task<void>)=> {
+            if (this.currentSlewTask !== undefined) {
+                throw new Error("Slew already running");
+            }
+            const learned = this.currentStatus.fineSlew.learned;
+            if (learned === null) {
+                throw new Error("Fine slew was not learned");
+            }
+            if (learned.imagingSetup !== payload.imagingSetup) {
+                throw new Error("Please use same imaging setup than astrometry");
+            }
+            if (this.currentStatus.currentImagingSetup !== payload.imagingSetup) {
+                throw new Error("Please use same imaging setup than astrometry");
+            }
+
+            this.currentSlewTask = t;
+            try {
+                this.currentStatus.fineSlew.slewing = true;
+                const delta = {
+                    x: payload.targetX - payload.x,
+                    y: payload.targetY - payload.y,
+                }
+
+                const slew: SlewCalibrationVector = {
+                    northDuration: delta.x * learned.vectors[0].northDuration
+                                 + delta.y * learned.vectors[1].northDuration,
+                    westDuration:  delta.x * learned.vectors[0].westDuration
+                                 + delta.y * learned.vectors[1].westDuration,
+                }
+
+                await(this.twoAxisSlew(t.cancellation, slew));
+            } finally {
+                this.currentSlewTask = undefined;
+                this.currentStatus.fineSlew.slewing = false;
+            }
+        });
+    };
+
+    public readonly abortSlew = async(ct: CancellationToken) => {
+        const currentSlew = this.currentSlewTask;
+        if (currentSlew) {
+            currentSlew.cancel();
+        } else {
+            await Promise.all(
+                [
+                    this.slewStatus.east.interrupt(),
+                    this.slewStatus.west.interrupt(),
+                    this.slewStatus.north.interrupt(),
+                    this.slewStatus.south.interrupt(),
+                ]);
+        }
+    }
+
+    private slewStatus = {
+        north: new SlewAxisStatus(this, "north", "TELESCOPE_MOTION_NS", "MOTION_NORTH"),
+        south: new SlewAxisStatus(this, "south", "TELESCOPE_MOTION_NS", "MOTION_SOUTH"),
+        west: new SlewAxisStatus(this, "west", "TELESCOPE_MOTION_WE", "MOTION_WEST"),
+        east: new SlewAxisStatus(this, "east", "TELESCOPE_MOTION_WE", "MOTION_EAST"),
+    };
+
+    private oppositeDirections: {[id: string]: BackOfficeAPI.SlewDirection} = {
+        north : "south",
+        south : "north",
+        west  : "east",
+        east  : "west",
+    };
+
+    public readonly slew = async (ct: CancellationToken, payload: BackOfficeAPI.SlewSwitchRequest)=> {
+        const direction = payload.direction;
+        const opposite:BackOfficeAPI.SlewDirection = this.oppositeDirections[direction];
+
+        if (!payload.release) {
+            const newExpiration = Date.now() + 1000;
+
+            // FIXME: handle the unlikely events that current scope change (stop motions)
+            while (this.slewStatus[opposite].task !== undefined) {
+                try {
+                    ct.throwIfCancelled();
+                    if (this.currentSlewTask !== undefined) {
+                        throw new Error("Slew busy");
+                    }
+
+                    await this.slewStatus[opposite].task;
+                } catch(e) {}
+            }
+            ct.throwIfCancelled();
+            if (this.currentSlewTask !== undefined) {
+                throw new Error("Slew busy");
+            }
+
+            this.slewStatus[direction].awake(newExpiration);
+        } else {
+            if (this.currentSlewTask !== undefined) {
+                throw new Error("Slew busy");
+            }
+
+            await this.slewStatus[direction].interrupt();
+        }
+    }
+
     getAPI(): RequestHandler.APIAppImplementor<BackOfficeAPI.AstrometryAPI> {
         return {
             updateCurrentSettings: this.updateCurrentSettings,
@@ -170,6 +550,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             wizardNext: this.wizardNext,
             wizardInterrupt: this.wizardInterrupt,
             wizardQuit: this.wizardQuit,
+            fineSlewStartLearning: this.fineSlewStartLearning,
+            fineSlewContinueLearning: this.fineSlewContinueLearning,
+            fineSlewAbortLearning: this.fineSlewAbortLearning,
+            fineSlewSendTo: this.fineSlewSendTo,
+            slew: this.slew,
+            abortSlew: this.abortSlew,
         }
     }
 

@@ -16,24 +16,31 @@ import * as AccessPath from './shared/AccessPath';
 import * as BackendRequest from "./BackendRequest";
 import * as AstrometryStore from "./AstrometryStore";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
+import IndiSelectorEditor from './IndiSelectorEditor';
 
 const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
     availables: store.backend?.indiManager?.availableScopes || []
 }))(PromiseSelector);
 
-
-type Props = {
+type InputProps = {
     close: ()=>(void);
 }
 
-export default class AstrometrySettingsView extends PureComponent<Props> {
+type MappedProps = {
+    currentScope: string|null|undefined;
+}
+
+type Props = InputProps & MappedProps;
+
+class AstrometrySettingsView extends PureComponent<Props> {
     static scopeSelectorHelp = Help.key("INDI mount device", "The coordinates of this INDI mount device will be used/adjusted during astrometry process.");
     static initialSearchRadiusHelp = Help.key("Initial Search Radius", "Max distance (°) from the current mount coordinates to search on \"wide\" astrometry. This is used on \"wide\" astrometry search (first one, and after important moves).");
     static narrowedSearchRadiusHelp = Help.key("Synced search radius", "Max distance (°) from the current mount coordinates to search on \"narrow\" astrometry (after successfull one, if no important moves occured in between");
     static initialFieldHelp = Help.key("Initial field range", "Min an max value (°) for the initial estimation of field size of the images. This is used on \"wide\" astrometry search (first one, and after important moves)");
     static narrowedFieldPercentHelp = Help.key("Max field variation", "Tolerance in % from the previous field estimation. This is used on \"narrow\" astrometry search (after successfull one, if no important moves occured in between");
     static useMountPositionHelp = Help.key("Use mount position", "Use the mount coordinates to fasten astrometry search. The first astrometry will use \"wide\" settings, then use narrower settings, unless the mount is moved substantially");
+    static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
 
     accessor: RecursiveBackendAccessor<AstrometrySettings>;
     
@@ -92,6 +99,20 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
                         </div>
                         </Conditional>
                     </div>
+                    <div>
+                        Unsynced slew :
+                        <div>
+                            <IndiSelectorEditor
+                                device={this.props.currentScope || ""}
+                                // FIXME: use accessor here
+                                valuePath="$.backend.astrometry.settings.fineSlew.slewRate"
+                                setValue={this.accessor.child(AccessPath.For((e)=>e.fineSlew.slewRate)).send}
+                                vecName="TELESCOPE_SLEW_RATE"
+                                helpKey={AstrometrySettingsView.slewRateHelp}
+                            />
+
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="AstrometryWizardControls">
@@ -101,4 +122,12 @@ export default class AstrometrySettingsView extends PureComponent<Props> {
             </div>
         </div>);
     }
+
+    static mapStateToProps = (store: Store.Content, props: InputProps):MappedProps=> {
+        return {
+            currentScope: store.backend?.astrometry?.selectedScope
+        }
+    }
 }
+
+export default Store.Connect(AstrometrySettingsView);

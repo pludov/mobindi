@@ -445,6 +445,7 @@ export type AstrometrySettings = {
 
     polarAlign: PolarAlignSettings;
     meridianFlip: MeridianFlipSettings;
+    fineSlew: FineSlewSettings;
     preferedScope: string|null;
     preferedImagingSetup: string|null;
 }
@@ -581,6 +582,45 @@ export type AstrometryWizard = {
     meridianFlip?: MeridianFlipStatus;
 }
 
+export type SlewCalibrationVector = {
+    northDuration: number;
+    westDuration: number;
+}
+
+export type FineSlewLearning = {
+    imagingSetup: string;
+    // Unbinned coordinates of the current learning
+    // TODO : make it relative
+    //   - Store duration for whole image traversal (instead of pixel)
+    //   - Display marks is bad only if bin is changed during calibration
+    start: [number, number];
+    end: [number, number];
+    acquiredCount: number;
+
+    // MS slew duration (n, w) for one pixel (x or y dir)
+    vectors: Array<SlewCalibrationVector>;
+}
+
+export type FineSlewLearned = {
+    imagingSetup: string;
+
+    // MS slew duration (n, w) for one pixel (x or y dir)
+    vectors: Array<SlewCalibrationVector>;
+}
+
+// Refer to the capability to point using slew without any GOTO
+// Typically usefull during collimation, or daytime, on moon, ...
+export type FineSlewStatus = {
+    slewing: boolean;
+
+    learning: null|FineSlewLearning;
+    learned: null|FineSlewLearned;
+}
+
+export type FineSlewSettings = {
+    slewRate: string;
+}
+
 export type AstrometryStatus = {
     status: "empty"|"error"|"computing"|"ready";
     scopeStatus: "idle"|"moving"|"syncing";
@@ -602,6 +642,8 @@ export type AstrometryStatus = {
 
     runningWizard: null|AstrometryWizard;
     currentImagingSetup: string|null;
+
+    fineSlew: FineSlewStatus;
 }
 
 export type ProcessConfiguration = {
