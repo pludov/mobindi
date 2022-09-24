@@ -17,6 +17,7 @@ class Crosshair {
 
     remove() {
         this.hbar.remove();
+        this.vbar.remove();
     }
 
     private newDiv(): JQuery<HTMLDivElement> {
