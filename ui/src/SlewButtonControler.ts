@@ -64,6 +64,11 @@ export default class SlewButtonController {
         return {
             onMouseDown: this.start,
             onMouseUp: this.stop,
+
+            onTouchStart: this.start,
+            onTouchEnd: this.stop,
+            onTouchEndCapture: this.stop,
+            onTouchCancel: this.stop,
         }
     }
 };
