@@ -220,6 +220,7 @@ class ScreenMouseMoveListener {
                 this.flushActions();
                 this.contextMenuAt(where.x, where.y);
             }, longPressDelay);
+            this.options.closeContextMenu();
         } else {
             this.flushActions();
             this.options.closeContextMenu();
