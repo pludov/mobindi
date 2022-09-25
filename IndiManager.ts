@@ -797,4 +797,14 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         }
         return {warning, value};
     }
+
+    public getSwitchPropertyValue(dev: string, vec: string, prop: string): boolean|null {
+        if (this.connection !== undefined) {
+            const value = this.connection.getDevice(dev).getVector(vec).getPropertyValueIfExists(prop);
+            if (value === null) return null;
+
+            return (value === 'On');
+        }
+        return null;
+    }
 }

@@ -158,6 +158,7 @@ class SlewAxisStatus {
                     await this.astrometry.indiManager.setParam(task.cancellation, scope, 'TELESCOPE_SLEW_RATE', {
                         [slewRate]: 'On'
                     });
+                    // await this.astrometry.setSlewRate(scope, slewRate);
                     this.lastStart = Date.now();
                     await this.astrometry.indiManager.pulseParam(task.cancellation, scope, this.indiVector, this.indiProperty);
 
@@ -332,6 +333,27 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             this.currentStatus.scopeReady = false;
             this.currentStatus.scopeDetails = e.message || (""+e);
         }
+    }
+
+    private ongoingSlewRateChange : boolean = false;
+
+    public setSlewRate = async(ct: CancellationToken, scope: string, slewRate: string) => {
+        if (!this.indiManager.getSwitchPropertyValue(scope, 'TELESCOPE_SLEW_RATE', slewRate)) {
+            if (this.ongoingSlewRateChange) {
+                // Conflict ? Await ?
+            }
+            logger.info('Setting slew rate', {scope, slewRate});
+            this.ongoingSlewRateChange = true;
+            try {
+                // FIXME: to much slew rate...
+                await this.indiManager.setParam(ct, scope, 'TELESCOPE_SLEW_RATE', {
+                    [slewRate]: 'On'
+                });
+            } finally {
+                this.ongoingSlewRateChange = false;
+            }
+        }
+
     }
 
     public readonly fineSlewStartLearning = async (ct : CancellationToken, payload: BackOfficeAPI.FineSlewLearnRequest)=> {
