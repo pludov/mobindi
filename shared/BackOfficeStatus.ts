@@ -597,12 +597,16 @@ export type FineSlewLearning = {
     end: [number, number];
     acquiredCount: number;
 
+    frameSize: FrameSize;
+
     // MS slew duration (n, w) for one pixel (x or y dir)
     vectors: Array<SlewCalibrationVector>;
 }
 
 export type FineSlewLearned = {
     imagingSetup: string;
+
+    frameSize: FrameSize;
 
     // MS slew duration (n, w) for one pixel (x or y dir)
     vectors: Array<SlewCalibrationVector>;

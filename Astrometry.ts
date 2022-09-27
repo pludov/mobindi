@@ -356,6 +356,25 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
 
     }
 
+    private moveAxis(start: {x: number; y: number}, imageSize: {width: number, height: number}, step: number) : [number, number]
+    {
+        let st : [number, number] = [start.x, start.y];
+        let sze = [imageSize.width, imageSize.height];
+
+        let current = st[step];
+        let max = sze[step];
+        const delta = max * 0.4;
+        if (current > max / 2) {
+            current -= delta;
+        } else {
+            current += delta;
+        }
+
+        st[step] = current;
+
+        return st;
+    }
+
     public readonly fineSlewStartLearning = async (ct : CancellationToken, payload: BackOfficeAPI.FineSlewLearnRequest)=> {
         if (this.currentStatus.currentImagingSetup !== payload.imagingSetup) {
             throw new Error("Please use same imaging setup than astrometry");
@@ -367,7 +386,8 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             acquiredCount: 0,
             imagingSetup: payload.imagingSetup,
             start: [ payload.x, payload.y ],
-            end: [ payload.x + 100, payload.y ],
+            end: this.moveAxis(payload, payload, 0),
+            frameSize: {width: payload.width, height: payload.height},
             vectors: [],
         }
         this.currentStatus.fineSlew.learning = learning;
@@ -413,11 +433,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
 
         if (learning.acquiredCount < 2) {
             learning.start = [...learning.end];
-            learning.end = [learning.start[0], learning.start[1] + 100];
+            learning.end = this.moveAxis({x: learning.start[0], y: learning.start[1]}, learning.frameSize, 1);
         } else {
             this.currentStatus.fineSlew.learned = {
                 imagingSetup: learning.imagingSetup,
                 vectors: learning.vectors,
+                frameSize: learning.frameSize,
             }
             this.currentStatus.fineSlew.learning = null;
         }
