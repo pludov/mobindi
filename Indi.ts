@@ -151,7 +151,7 @@ export class Vector {
     // affectation is an array of {name:key, value:value}
     // Vector is switched to busy immediately
     setValues(affectations:{name:string, value:string}[]) {
-        logger.info('Pushing indi values', {affectations});
+        logger.info('Pushing indi values', {device:this.device, vector:this.vectorId, affectations});
         var vecDef = this.getExistingVectorInTree();
         if (vecDef.$type === "Number" || vecDef.$type === "Text") {
             affectations = [...affectations];
