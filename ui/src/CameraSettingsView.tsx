@@ -9,6 +9,7 @@ import './CameraView.css'
 import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import { CameraDeviceSettings } from '@bo/BackOfficeStatus';
 import * as ImagingSetupStore from './ImagingSetupStore';
+import CameraTempSelector from './CameraTempSelector';
 
 type InputProps = {
     imagingSetup: string | null;
@@ -53,6 +54,16 @@ class CameraSettingsView extends React.PureComponent<Props> {
                             device={this.props.current}
                             valuePath={devicePath + '.iso'}
                             setValue={this.setValue('iso')} />
+                    </span>
+            </StatePropCond>
+
+            <StatePropCond device={this.props.current} property="CCD_COOLER">
+                    <span className='cameraSetting'>
+                        <CameraTempSelector
+                            live={true}
+                            device={this.props.current}
+                            valuePath={devicePath + '.ccdtemp'}
+                            setValue={this.setValue('ccdtemp')}/>
                     </span>
             </StatePropCond>
 

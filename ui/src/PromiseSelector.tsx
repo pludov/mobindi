@@ -122,13 +122,13 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
             if (active != null) {
                 var present = false;
-                for(var o of availables) {
+                for(const o of availables) {
                     if (this.props.getId(o, this.props) === active) {
                         present = true;
                     }
                 }
                 if (!present) {
-                    options.push(<option value={currentValue} key={currentValue}>{typeof active !== "string" ? active : this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
+                    options.push(<option value={currentValue} key={currentValue}>{this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
                     disabled = false;
                 }
             }

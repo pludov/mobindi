@@ -1,6 +1,9 @@
 import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
 import * as Store from "./Store";
 import { hasKey } from './shared/Obj';
+import * as BackendRequest from "./BackendRequest";
+import { UpdateIndiVectorRequest } from '@bo/BackOfficeAPI';
+import CancellationToken from 'cancellationtoken';
 
 export function getDevice(state:Store.Content, deviceId: string): IndiDevice|null {
     const indi = state.backend.indiManager;
@@ -22,4 +25,20 @@ export function getVector(state:Store.Content, deviceId: string, vectorId: strin
         return null;
     }
     return dev[vectorId];
+}
+
+export async function updateVectorProp(dev: string, vec: string, propertyId: string, value: string) {
+    const req:UpdateIndiVectorRequest = {
+        dev: dev,
+        vec: vec,
+        children: [{
+            name: propertyId,
+            value
+        }]
+    };
+
+    await BackendRequest.RootInvoker("indi")("updateVector")(
+        CancellationToken.CONTINUE,
+        req
+    );
 }
