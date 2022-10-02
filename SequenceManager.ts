@@ -4,6 +4,7 @@ const TraceError = require('trace-error');
 import CancellationToken from 'cancellationtoken';
 import * as jsonpatch from 'json-patch';
 import Log from './Log';
+import Sleep from './Sleep';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import { CameraDeviceSettings, BackofficeStatus, SequenceStatus, Sequence, SequenceStep, SequenceStepStatus, SequenceStepParameters, PhdGuideStep, PhdGuideStats, ImageStats, ImageStatus, SequenceValueMonitoring, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus} from './shared/BackOfficeStatus';
 import JsonProxy from './shared/JsonProxy';
@@ -580,7 +581,7 @@ export default class SequenceManager
 
         const sequenceLogic = async (ct: CancellationToken) => {
             let scopeState: ScopeState = "light";
-
+            let lastAwaiterCcdTemp: number|null|undefined;
 
             const sequenceActivityWatchdog = new SequenceActivityWatchdog(this.appStateManager, this.context, uuid);
             const sequenceFwhmWatcher = new SequenceStatisticWatcher(this.appStateManager, this.context, uuid, "fwhm", "fwhmMonitoring");
@@ -687,6 +688,23 @@ export default class SequenceManager
                     // Copy because it could change concurrently in case of removal/reorder
                     const currentExecutionUuid = currentExecutionStatus.status.execUuid;
 
+                    // Adjust the cooler control now... we'll await it later...
+                    if (param.ccdTemp !== undefined) {
+                        // Force the setting on first call (workaround posible bugs in driver...)
+                        if (this.context.camera.getCcdTempStatus(cameraDevice()).target !== param.ccdTemp
+                            || lastAwaiterCcdTemp === undefined) {
+                            logger.info('Adjusting ccdTemp', {ccdTemp: param.ccdTemp});
+                            // Clear the previous temperature awaited
+                            lastAwaiterCcdTemp = undefined;
+                            if (param.ccdTemp !== null) {
+                                sequence.progress = "Switching temperature";
+                            } else {
+                                sequence.progress = "Turning off CCD Cooler";
+                            }
+                            await this.context.camera.setCcdTempTarget(ct, { deviceId: cameraDevice(), targetCcdTemp: param.ccdTemp});
+                        }
+                    }
+
                     if (param.dithering
                         && nextStep[nextStep.length - 1].status.lastDitheredExecUuid != nextStep[nextStep.length - 1].status.execUuid) {
 
@@ -779,6 +797,38 @@ export default class SequenceManager
                         await guiderInhibiter.end(ct);
                     }
                     // FIXME : wait end of guiding to settle ?
+
+                    // Verify cooler has settled down...
+                    if (param.ccdTemp !== undefined) {
+                        if (lastAwaiterCcdTemp !== param.ccdTemp) {
+                            if (param.ccdTemp !== null) {
+                                logger.info("Waiting for temperature");
+                                sequence.progress = "CCD Cooler " + shootTitle;
+
+                                let cpt = 0;
+                                do {
+                                    const status = this.context.camera.getCcdTempStatus(cameraDevice());
+                                    if (status.target !== param.ccdTemp) {
+                                        logger.warn("CCD target temperature drifted", status);
+                                        throw new Error("CCD target temperature changed");
+                                    }
+                                    // Assume the temperature is generally going down.
+                                    if (status.current <= param.ccdTemp && status.current >= param.ccdTemp - 0.5) {
+                                        logger.info("CCD reached target temperature", status);
+                                        break;
+                                    }
+                                    cpt++;
+                                    if (cpt > 300) {
+                                        logger.info("Giving up waiting for cooler");
+                                        throw new Error("Failed to reach target CCD temperature");
+                                    }
+                                    await Sleep(ct, 1000);
+                                } while(true);
+                            }
+                            lastAwaiterCcdTemp = param.ccdTemp;
+                        }
+                    }
+
 
                     sequence.progress = (stepTypeLabel) + " " + shootTitle;
                     ct.throwIfCancelled();

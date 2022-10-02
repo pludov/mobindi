@@ -662,6 +662,40 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         await connection.wait(ct, () => (getVec().getPropertyValue(propId) === "On"));
     }
 
+
+    // Set to on a property that keeps its vector busy.
+    // FIXME: cannot really detect errors here (busy can be set due to lost request)
+    async setValue(ct: CancellationToken,
+                    devId: string,
+                    vectorId: string,
+                    propId: string,
+                    value: number)
+                :Promise<void>
+    {
+        const connection = this.getValidConnection();
+
+        function getVec() {
+            const dev = connection.getDevice(devId);
+
+            if (dev === undefined || ((vectorId != 'CONNECTION') && dev.getVector('CONNECTION').getPropertyValueIfExists('CONNECT') !== 'On')) {
+                throw new Error("Device is not connected : " + devId);
+            }
+
+            const vecInstance = dev.getVector(vectorId);
+            return vecInstance;
+        }
+
+        getVec();
+
+        await this.waitForVectors(ct, devId, [vectorId]);
+
+        const vec = getVec();
+
+        vec.setValues([{name: propId, value: '' + value}]);
+        // Wait for the busy status to appear
+        await connection.wait(ct, () => (getVec().getState() === "Busy"));
+    }
+
     // Return a promise that activate a property (set to on) and wait while it is busy.
     // The promise never ends unless it gets cancelled
     async pulseParam(ct: CancellationToken,

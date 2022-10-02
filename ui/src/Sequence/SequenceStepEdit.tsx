@@ -23,6 +23,7 @@ import { UpdateSequenceStepRequest, UpdateSequenceStepDitheringRequest, PatchSeq
 import CameraExpEditor from '../CameraExpEditor';
 import CameraIsoEditor from '../CameraIsoEditor';
 import CameraBinEditor from '../CameraBinEditor';
+import CameraCCDTempEditor from '../CameraTempSelector';
 import SequenceStepParameterSplitter from './SequenceStepParameterSplitter';
 import { parameters, ParamDesc, ImagingSetupCapacity } from "./SequenceStepParameter";
 import DitheringSettingEdit from './DitheringSettingEdit';
@@ -538,6 +539,16 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                         focusRef={focusRef}
                         valuePath={settingsPath + '.iso'}
                         setValue={(e:string)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('iso', e, foreachUuid), this)}
+                        />
+    }
+
+    renderCcdTemp=(p:ParamDesc, settingsPath: string, foreachUuid: string|null, focusRef?: React.RefObject<any>)=> {
+        return <CameraCCDTempEditor
+                        device={this.props.imagingSetup.cameraDevice || undefined}
+                        live={false}
+                        focusRef={focusRef}
+                        valuePath={settingsPath + '.ccdTemp'}
+                        setValue={(e:number|null)=>Utils.promiseToState(()=>this.updateIterableSequenceStepParam('ccdTemp', e, foreachUuid), this)}
                         />
     }
 

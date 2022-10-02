@@ -96,7 +96,7 @@ class FocuserDeltaView extends React.PureComponent<Props, State> {
                     null
             }
             <select value="" onChange={(e)=>this.clicked(e.target.value)}
-                        className={(this.state.runningPromise ? " BusyInfinite ": "") + deltaWeightClass }>
+                        className={"FocuserDeltaView " + (this.state.runningPromise ? " BusyInfinite ": "") + deltaWeightClass }>
                     <option value="">{currentTitle}</option>
                     <option disabled={this.props.delta === undefined || this.props.delta === 0} value="move">Adjust</option>
                     <option disabled={this.props.delta === 0} value="sync">Sync</option>

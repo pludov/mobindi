@@ -1,3 +1,6 @@
+.FocuserDeltaView {
+    min-width: 6em;
+}
 .FocuserDeltaGood {
     color: darkgreen;
 }

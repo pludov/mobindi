@@ -134,6 +134,7 @@ export type CameraAPI = {
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     setDefaultImageLoadingPath:(payload: {defaultImageLoadingPath: string|null})=>void;
     getImageFiles:(payload: {path: string})=>Array<ImageFileInfo>;
+    setCcdTempTarget: (payload: {deviceId: string, targetCcdTemp: number|null})=>void;
 }
 
 export type SequenceAPI = {

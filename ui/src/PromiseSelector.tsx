@@ -37,6 +37,7 @@ export type Props<TYPE> = (NumberStored | StringStored) & {
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
     valueOverride?: ValueOverride;
+    className?: string;
 };
 type State<TYPE> = {
     forcedValue: string|null;
@@ -151,6 +152,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
                     disabled={(this.state.runningPromise !== undefined) || disabled}
                     value={currentValue}
                     onChange={(e)=>this.clicked(e.target.value)}
+                    className={this.props.className}
                     {...this.props.helpKey?.dom()}
                     >{options}
             </select>;

@@ -62,8 +62,8 @@ class CameraSettingsView extends React.PureComponent<Props> {
                         <CameraTempSelector
                             live={true}
                             device={this.props.current}
-                            valuePath={devicePath + '.ccdtemp'}
-                            setValue={this.setValue('ccdtemp')}/>
+                            valuePath={devicePath + '.ccdTemp'}
+                            setValue={this.setValue('ccdTemp')}/>
                     </span>
             </StatePropCond>
 

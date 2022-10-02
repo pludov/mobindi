@@ -35,11 +35,13 @@ export type CameraDeviceSettings = {
     bin?: number;
     exposure: number;
     iso?: null|string;
+    ccdTemp?: null|number;
     path?: string;
 }
 
 export type CameraDeviceDynState = {
     spyRecommanded?: boolean;
+    targetCcdTemp?: number|null;
 };
 
 export type DitheringSettings = {
@@ -65,6 +67,7 @@ export type SequenceImageParameters = {
     type?: string;
     bin?: number;
     filter?: string|null;
+    ccdTemp?: number|null;
 }
 
 export type SequenceStepParameters = SequenceImageParameters & {

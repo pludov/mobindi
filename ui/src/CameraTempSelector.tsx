@@ -1,5 +1,7 @@
+import CancellationToken from 'cancellationtoken';
 import * as React from 'react';
 import { connect } from 'react-redux';
+import * as BackendRequest from "./BackendRequest";
 import * as Help from './Help';
 import { atPath } from './shared/JsonPath';
 import * as PromiseSelector from './PromiseSelector';
@@ -7,7 +9,7 @@ import * as Utils from './Utils';
 import * as Store from './Store';
 import * as IndiUtils from './IndiUtils';
 import { updateVectorProp } from './IndiStore';
-
+import "./CameraTempSelector.css";
 
 type InputProps = {
     // name of the device (indi id)
@@ -64,11 +66,14 @@ const CameraCCDTempEditor = connect((store: Store.Content, ownProps: InputProps)
             if (ownProps.device === undefined) {
                 throw new Error("invalid device");
             }
-            if (v === null) {
-                await updateVectorProp(ownProps.device, 'CCD_COOLER', 'COOLER_OFF', 'On');
-            } else {
-                await updateVectorProp(ownProps.device, 'CCD_TEMPERATURE', 'CCD_TEMPERATURE_VALUE', '' + v);
-            }
+
+            await BackendRequest.RootInvoker("camera")("setCcdTempTarget")(
+                CancellationToken.CONTINUE,
+                {
+                    deviceId: ownProps.device,
+                    targetCcdTemp: v
+                }
+            );
         }
     } else {
         active = atPath(store, ownProps.valuePath);
@@ -90,6 +95,7 @@ const CameraCCDTempEditor = connect((store: Store.Content, ownProps: InputProps)
                 return await doSetValue(parseFloat(v));
             }
         },
+        className: "CameraTempSelector"
 
     } as Partial<MappedProps>);
 })(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>);

@@ -3,7 +3,7 @@ import MemoryStreams from 'memory-streams';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus, CameraShoot} from './shared/BackOfficeStatus';
-import JsonProxy from './shared/JsonProxy';
+import JsonProxy, { TriggeredWildcard } from './shared/JsonProxy';
 import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
 import {timestampToEpoch} from "./Indi";
@@ -40,7 +40,6 @@ const fileComparator = Comparator.when<BackOfficeAPI.ImageFileInfo>(
     (e)=>!e.name.startsWith('.'),
         Comparator.ordering().applyTo<BackOfficeAPI.ImageFileInfo>(e=>(-(e.time||0)))
 );
-
 
 export default class Camera
         implements RequestHandler.APIAppProvider<BackOfficeAPI.CameraAPI>
@@ -172,6 +171,16 @@ export default class Camera
                 ]
             ], this.updateDoneImages.bind(this), true
         );
+
+        this.appStateManager.addSynchronizer(
+            [
+                [
+                    [   'indiManager', 'deviceTree', null, 'CCD_COOLER', '$rev' ],
+                ]
+            ], this.updateTargetCcdTemp, true, true
+        );
+
+
         this.updateDoneImages();
     }
 
@@ -180,6 +189,24 @@ export default class Camera
             return this.currentStatus.images.byuuid[uuid];
         }
         return undefined;
+    }
+
+    updateTargetCcdTemp = (where: TriggeredWildcard)=> {
+        // Just reset target when disconnect or if cooler disappear
+        for(const ccdId of Object.keys(where)) {
+            const dState = Obj.getOwnProp(this.currentStatus.dynStateByDevices, ccdId);
+            if (dState) {
+                const indiManager = this.appStateManager.getTarget().indiManager;
+
+                const device = Obj.getOwnProp(indiManager.deviceTree, ccdId);
+                const vector = device !== undefined ? Obj.getOwnProp(device!, 'CCD_COOLER') : undefined;
+
+                if (vector?.$state === undefined) {
+                    logger.info("Resetting target ccd temp", {ccdId});
+                    delete dState.targetCcdTemp;
+                }
+            }
+        }
     }
 
     updateDoneImages()
@@ -340,6 +367,44 @@ export default class Camera
 
     setDefaultImageLoadingPath=async (ct: CancellationToken, message:{defaultImageLoadingPath:null|string})=>{
         this.currentStatus.defaultImageLoadingPath = message.defaultImageLoadingPath;
+    }
+
+    getCcdTempStatus(deviceId: string): { target: number|null|undefined, current: number} {
+        const device = this.indiManager.getValidConnection().getDevice(deviceId);
+
+        const current = parseFloat(device.getVector('CCD_TEMPERATURE').getPropertyValue('CCD_TEMPERATURE_VALUE'));
+        let target: number|null|undefined;
+
+        const activated = device.getVector('CCD_COOLER').getPropertyValueIfExists('COOLER_ON');
+        if (activated === null) {
+            target = undefined;
+        } else {
+            target=Obj.getOwnProp(this.currentStatus.dynStateByDevices, deviceId)?.targetCcdTemp;
+        }
+
+        return {current, target};
+    }
+
+    setCcdTempTarget = async(ct: CancellationToken, payload: {deviceId: string, targetCcdTemp: number|null}) => {
+        // FIXME: by device mutex ?
+
+        if (payload.targetCcdTemp !== null) {
+            await this.indiManager.setValue(ct,
+                payload.deviceId,
+                'CCD_TEMPERATURE',
+                'CCD_TEMPERATURE_VALUE',
+                payload.targetCcdTemp
+            );
+        } else {
+            await this.indiManager.activate(ct,
+                payload.deviceId,
+                'CCD_COOLER',
+                'COOLER_OFF'
+            );
+        }
+
+        const dState = Obj.getOwnProp(this.currentStatus.dynStateByDevices, payload.deviceId);
+        if (dState) dState.targetCcdTemp = payload.targetCcdTemp;
     }
 
     getImageFiles= async (ct: CancellationToken, payload: { path: string; }) => {
@@ -944,6 +1009,7 @@ export default class Camera
             setCurrentImagingSetup: this.setCurrentImagingSetup,
             setDefaultImageLoadingPath: this.setDefaultImageLoadingPath,
             getImageFiles: this.getImageFiles,
+            setCcdTempTarget: this.setCcdTempTarget,
         }
     }
 }

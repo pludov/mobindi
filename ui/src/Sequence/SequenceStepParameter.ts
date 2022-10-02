@@ -11,6 +11,7 @@ export type ImagingSetupCapacity = {
     bin?: boolean;
     filter?: boolean;
     focuser?: boolean;
+    ccdTemp?: boolean;
     canAdjustFocuser?: boolean;
 };
 
@@ -71,6 +72,13 @@ export const parameters:GroupDesc[] = [
                 title: "Frame type",
                 splittable: true,
                 render: (s)=>s.renderType,
+            },
+            {
+                id: "ccdTemp",
+                title: "CCD Cooler",
+                splittable: true,
+                render: (s)=>s.renderCcdTemp,
+                capacity: cameraIndiVectorCapacity('CCD_COOLER', 'ccdTemp'),
             },
             {
                 id: "exposure",
