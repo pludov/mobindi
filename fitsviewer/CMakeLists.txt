@@ -57,6 +57,7 @@ add_library(archive OBJECT
       Stream.cpp
       ChannelMode.cpp
       StarFinder.cpp
+      MultiStarFinder.cpp
       StarField.cpp
       Messages.cpp
       RawContent.cpp
