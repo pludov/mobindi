@@ -11,6 +11,7 @@ export type InputProps = {
     streamSerial: FitsViewerProps["streamSerial"];
     streamDetails: FitsViewerProps["streamDetails"];
     subframe: FitsViewerProps["subframe"];
+    autoCropCb?: FitsViewerProps["autoCropCb"],
     contextKey: string;
 };
 
@@ -42,6 +43,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
                             streamDetails={this.props.streamDetails}
                             streamSerial={this.props.streamSerial}
                             subframe={this.props.subframe}
+                            autoCropCb={this.props.autoCropCb}
                             viewSettings={this.props.viewSettings}
                             onViewSettingsChange={this.saveViewSettings}
                             children={this.props.children}/>

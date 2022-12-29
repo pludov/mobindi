@@ -53,6 +53,7 @@ export type Props = {
     viewSettings?: Partial<FullState>;
     directPort: number;
     onViewSettingsChange: (state: FullState)=>(void);
+    autoCropCb?: (view: Rectangle | null)=>(void);
 };
 
 export type State = {
@@ -152,6 +153,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
 
     componentDidUpdate(prevProps: Props) {
         this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
+        this.fireAutoCropCb();
     }
 
     componentDidMount() {
@@ -175,6 +177,8 @@ class FitsViewer extends React.PureComponent<Props, State> {
             const marker = this.markers[o];
             marker.updatePos(this.lastPos, this.lastSize);
         }
+
+        this.fireAutoCropCb();
     }
 
     createMarkerToken=(e:React.RefObject<HTMLDivElement>)=>{
@@ -231,6 +235,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     static readonly fwhmHelp= Help.key('FWHM', "Locate stars and display the mean FWHM");
     static readonly histogramHelp =Help.key('Histogram', "Display histogram for the image");
     static readonly crosshairHelp =Help.key('Crosshair', "Display crosshair over the image");
+    static readonly cropToZoomHelp =Help.key('Crop to zoom', "Crop the image acquisition to the current image zoom position");
 
 
     showLow= ()=>this.displaySetting('low');
@@ -271,6 +276,12 @@ class FitsViewer extends React.PureComponent<Props, State> {
         this.props.onViewSettingsChange(newViewSettings);
     }
 
+    switchAutoCrop = ()=> {
+        const newViewSettings = this.getViewSettingsCopy();
+        newViewSettings.autoCrop = !newViewSettings.autoCrop;
+        this.props.onViewSettingsChange(newViewSettings);
+    }
+
     flushView() {
         if (this.imageDisplay !== undefined) {
             this.imageDisplay.flushView();
@@ -306,6 +317,34 @@ class FitsViewer extends React.PureComponent<Props, State> {
         logger.debug('declareChild called');
         return undefined;
     }
+
+    fireAutoCropCb=()=>{
+        if (!this.props.autoCropCb) {
+            return;
+        }
+
+        let payload: Rectangle | null = null;
+
+        if (this.props.viewSettings?.autoCrop) {
+            const view = this.imageDisplay.getCurrentDisplaySize();
+            if (view) {
+                const topLeft = this.imageDisplay.getImagePosFromParent(0, 0);
+                const bottomRight = this.imageDisplay.getImagePosFromParent(view.width, view.height);
+
+                if (topLeft && bottomRight) {
+                    payload = {
+                        x: Math.floor(topLeft.imageX),
+                        y: Math.floor(topLeft.imageY),
+                        w: Math.ceil(bottomRight.imageX) - Math.floor(topLeft.imageX) + 1,
+                        h: Math.ceil(bottomRight.imageY) - Math.floor(topLeft.imageY) + 1,
+                    };
+                }
+            }
+        }
+
+        this.props.autoCropCb(payload);
+    }
+
 
     render() {
         var histogramView;
@@ -401,6 +440,15 @@ class FitsViewer extends React.PureComponent<Props, State> {
                             uid='ViewSetting/0006'
                             helpKey={FitsViewer.crosshairHelp}
                             cb={this.showCrosshair} />
+
+                        { this.props.autoCropCb ?
+                            <ContextMenuItem
+                                title={(this.props.viewSettings?.autoCrop ? '☑ ' : '☐ ') +  FitsViewer.cropToZoomHelp.title}
+                                uid='Astrometry/0001b/crop'
+                                helpKey={FitsViewer.cropToZoomHelp}
+                                cb={this.switchAutoCrop} />
+                            : null
+                        }
                     </div>
                 </ContextMenuContext>
             </FitsViewer.ViewContext.Provider>);

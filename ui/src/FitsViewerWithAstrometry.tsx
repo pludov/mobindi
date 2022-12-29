@@ -24,6 +24,7 @@ type InputProps = {
     streamSerial: string|null;
     subframe: FitsViewerInContextInputProps["subframe"],
     streamDetails: BackOfficeStatus.StreamDetails|null;
+    autoCropCb?: FitsViewerInContextInputProps["autoCropCb"],
     contextKey: string;
 };
 
@@ -205,6 +206,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         streamSerial={this.props.streamSerial}
                         streamDetails={this.props.streamDetails}
                         subframe={this.props.subframe}
+                        autoCropCb={this.props.autoCropCb}
                         ref={this.fitsViewer}>
 
                 <ContextMenuItem

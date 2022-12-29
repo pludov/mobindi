@@ -2,7 +2,7 @@ import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import {CameraStatus, CameraDeviceSettings, BackofficeStatus, Sequence, ImageStatus, CameraShoot} from './shared/BackOfficeStatus';
+import {CameraStatus, CameraDeviceSettings, BackofficeStatus, ImageStatus, Rectangle} from './shared/BackOfficeStatus';
 import JsonProxy, { TriggeredWildcard } from './shared/JsonProxy';
 import { Vector } from './Indi';
 import {Task, createTask} from "./Task.js";
@@ -445,7 +445,8 @@ export default class Camera
         return [...images, ...directories];
     };
 
-    getCropAdjustment(device:any)
+    // Return the required crop adjustment for a device.
+    getCropAdjustment(device:any, requestedCrop: Rectangle|null)
     {
         const frameVec = device.getVector('CCD_FRAME');
         if (!frameVec.exists()) {
@@ -474,13 +475,54 @@ export default class Camera
                 y:parseFloat(binningVec.getPropertyValue('VER_BIN'))
             }
             : {x: 1, y: 1};
-        logger.debug('Crop status', {crop, max, bin});
-        if (crop.x || crop.y || crop.w != max.w || crop.h  != max.h) {
+
+        let wantedCrop = {
+            x: 0,
+            y: 0,
+            w: max.w,
+            h: max.h,
+        }
+
+        // Round the requestedCrop to the closest %32
+        if (requestedCrop) {
+            requestedCrop = {...requestedCrop};
+            requestedCrop.x *= bin.x
+            requestedCrop.y *= bin.y
+            requestedCrop.w *= bin.x
+            requestedCrop.h *= bin.y
+            const factor = 32;
+            let adjX0 = Math.floor(requestedCrop.x/factor) * factor;
+            let adjY0 = Math.floor(requestedCrop.y/factor) * factor;
+            let adjX1 = Math.ceil((requestedCrop.x + requestedCrop.w) / factor) * factor;
+            let adjY1 = Math.ceil((requestedCrop.y + requestedCrop.h) / factor) * factor;
+
+            if (adjX0 < 0) adjX0 = 0;
+            if (adjY0 < 0) adjY0 = 0;
+            if (adjX1 > max.w) adjX1 = max.w;
+            if (adjY1 > max.h) adjY1 = max.h;
+
+            // Make sure this makes
+            if ((adjX0 < adjX1) && (adjY0 < adjY1)) {
+                wantedCrop.x = adjX0;
+                wantedCrop.y = adjY0;
+                wantedCrop.w = adjX1 - adjX0;
+                wantedCrop.h = adjY1 - adjY0;
+            }
+        }
+
+        logger.debug('Crop status', {requestedCrop, crop, max, bin});
+
+        if(
+            (crop.x !== wantedCrop.x) ||
+            (crop.y !== wantedCrop.y) ||
+            (crop.w !== wantedCrop.w) ||
+            (crop.h !== wantedCrop.h)
+        ){
             return {
-                X: "0",
-                Y: "0",
-                WIDTH: "" + Math.floor(max.w),
-                HEIGHT: "" + Math.floor(max.h)
+                X: "" + wantedCrop.x,
+                Y: "" + wantedCrop.y,
+                WIDTH: "" + wantedCrop.w,
+                HEIGHT: "" + wantedCrop.h
             };
         }
 
@@ -504,7 +546,7 @@ export default class Camera
         return {imagingSetupInstance, device};
     }
 
-    private async applyShootSettings(task: Task<any>, device: string, currentShootSettings: CameraDeviceSettings) {
+    private async applyShootSettings(task: Task<any>, device: string, currentShootSettings: CameraDeviceSettings, requestedCrop: Rectangle|null) {
         var exposure = currentShootSettings.exposure;
         if (exposure === null || exposure === undefined) {
             exposure = 0.1;
@@ -524,10 +566,11 @@ export default class Camera
                     });
         }
         // Reset the frame size - if prop is present only
-        if (Object.keys(this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device))).length != 0) {
+        const cropAdjustment = this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device), requestedCrop);
+        if (Object.keys(cropAdjustment).length != 0) {
             task.cancellation.throwIfCancelled();
-            logger.debug('set crop', {device});
-            await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', this.getCropAdjustment(this.indiManager.getValidConnection().getDevice(device)), true);
+            logger.debug('set crop', {device, cropAdjustment});
+            await this.indiManager.setParam(task.cancellation, device, 'CCD_FRAME', cropAdjustment, true);
         }
 
         // Set the iso
@@ -609,7 +652,7 @@ export default class Camera
                 const currentShootSettings = this.currentStatus.currentShoots[device];
                 logger.info('Starting shoot', {device, settings: currentShootSettings});
                 
-                await this.applyShootSettings(task, device, currentShootSettings);
+                await this.applyShootSettings(task, device, currentShootSettings, null);
 
                 task.cancellation.throwIfCancelled();
                 await this.indiManager.setParam(task.cancellation, device, 'UPLOAD_SETTINGS',
@@ -769,9 +812,9 @@ export default class Camera
                 }, settings);
 
                 const currentShootSettings = this.currentStatus.currentShoots[device];
+                const currentStreamSettings = this.currentStatus.currentStreams[device];
 
-
-                await this.applyShootSettings(task, device, settings);
+                await this.applyShootSettings(task, device, settings, currentStreamSettings.requestedCrop);
 
                 task.cancellation.throwIfCancelled();
 
@@ -863,6 +906,7 @@ export default class Camera
                     autoexp: null,
                     subframe: null,
                     frameSize: null,
+                    requestedCrop: null,
                 };
 
 
@@ -1001,11 +1045,25 @@ export default class Camera
         }
     }
 
+    setStreamCrop = async(ct: CancellationToken, payload: {crop: Rectangle|null}) => {
+        if (this.currentStatus.currentImagingSetup === null) {
+            throw new Error("No imaging setup selected");
+        }
+        const {imagingSetupInstance, device} = this.resolveImagingSetup(this.currentStatus.currentImagingSetup);
+
+        if (!Object.prototype.hasOwnProperty.call(this.currentStatus.currentStreams, device)) {
+            throw new Error("Stream not started for " + device);
+        }
+        const streamStatus = this.currentStatus.currentStreams[device];
+        streamStatus.requestedCrop = payload.crop;
+    }
+
     getAPI() {
         return {
             shoot: this.shoot,
             stream: this.stream,
             abort: this.abort,
+            setStreamCrop: this.setStreamCrop,
             setCurrentImagingSetup: this.setCurrentImagingSetup,
             setDefaultImageLoadingPath: this.setDefaultImageLoadingPath,
             getImageFiles: this.getImageFiles,

@@ -36,6 +36,7 @@ export type Levels = {
 export type FullState = {
     levels: Levels;
     crosshair?: boolean;
+    autoCrop?: boolean;
 }
 
 // Info returned by size CGI

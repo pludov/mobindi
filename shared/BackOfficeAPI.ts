@@ -1,7 +1,7 @@
 import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
-import { CameraDeviceSettings, SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings } from './BackOfficeStatus';
+import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle } from './BackOfficeStatus';
 import { Json } from './Json';
 import { Diff } from '@src/shared/JsonProxy';
 
@@ -130,6 +130,7 @@ export type ImageFileInfo = {
 export type CameraAPI = {
     shoot: (payload: {})=>ShootResult;
     stream: (stream: {loopExposure: boolean})=>void;
+    setStreamCrop: (payload: {crop: null|Rectangle})=>void;
     abort: (payload: {})=>void;
     setCurrentImagingSetup:(payload: {imagingSetup: string|null})=>void;
     setDefaultImageLoadingPath:(payload: {defaultImageLoadingPath: string|null})=>void;

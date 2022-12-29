@@ -301,6 +301,13 @@ export type FrameSize = {
     height: number;
 };
 
+export type Rectangle = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+};
+
 // When content is actually a subframe
 // Gives actual margin in 0-1 range
 export type SubFrame = {
@@ -322,6 +329,7 @@ export type CameraStream = {
     autoexp: number|null;           // Trigger events or just wait
     frameSize: FrameSize|null;
     subframe: SubFrame|null;
+    requestedCrop: Rectangle|null;
 };
 
 export type CameraShoot = {

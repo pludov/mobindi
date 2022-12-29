@@ -18,6 +18,7 @@ import FilterWheelSettingsPanel from './FilterWheelSettingsPanel';
 import FocuserSettingsPanel from './FocuserSettingsPanel';
 import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
 import FitsViewerFineSlewUI from './FitsViewerFineSlewUI';
+import { Rectangle, SubFrame } from './FitsViewer/Types';
 
 const logger = Log.logger(__filename);
 
@@ -32,6 +33,7 @@ type MappedProps = {
     streamSerial: string|null;
     streamDetails: StreamDetails|null;
     cameraDevice: string|null;
+    subframe: SubFrame|null;
 }
 
 type Props = InputProps & MappedProps;
@@ -65,6 +67,37 @@ class CameraView extends React.PureComponent<Props, State> {
         logger.debug('done astrometry ?');
     };
 
+    lastAutoCropPayload?: null|Rectangle;
+    lastAutoCropStreamId?: null|string;
+
+    updateAutoCrop = async (crop: null|Rectangle) => {
+        if (this.props.streamId !== this.lastAutoCropStreamId) {
+            this.lastAutoCropStreamId = null;
+            this.lastAutoCropPayload = null;
+        }
+
+
+        if (this.lastAutoCropPayload === null && crop === null) return;
+
+        if (crop && this.lastAutoCropPayload) {
+            if ((this.lastAutoCropPayload.x === crop.x) &&
+                (this.lastAutoCropPayload.y === crop.y) &&
+                (this.lastAutoCropPayload.w === crop.w) &&
+                (this.lastAutoCropPayload.h === crop.h))
+            {
+                return;
+            }
+        }
+
+        this.lastAutoCropPayload = crop;
+        this.lastAutoCropStreamId = this.props.streamId;
+
+        console.log('update auto crop', crop);
+
+        const rslt = await BackendRequest.RootInvoker("camera")("setStreamCrop")(CancellationToken.CONTINUE, {crop});
+        logger.debug('crop result', {rslt});
+    };
+
     loadImage = (path: string)=>{
         this.setState({loadedImage: path});
     }
@@ -96,7 +129,8 @@ class CameraView extends React.PureComponent<Props, State> {
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
                     streamDetails={this.props.streamDetails}
-                    subframe={null}>
+                    autoCropCb={this.props.streamSerial ? this.updateAutoCrop : undefined}
+                    subframe={this.props.subframe}>
                         <FitsViewerFineSlewUI imagingSetup={this.props.imagingSetup} isLooping={this.props.streamId !== null}/>
                 </FitsViewerWithAstrometry>
             </div>
@@ -131,6 +165,7 @@ class CameraView extends React.PureComponent<Props, State> {
                         streamSerial: "" + stream.serial,
                         streamDetails: stream.streamDetails,
                         cameraDevice,
+                        subframe: stream.subframe,
                     };
                 }
             }
@@ -143,6 +178,7 @@ class CameraView extends React.PureComponent<Props, State> {
                     streamSerial: null,
                     streamDetails: null,
                     cameraDevice,
+                    subframe: null,
                 };
             }
             return {
@@ -152,6 +188,7 @@ class CameraView extends React.PureComponent<Props, State> {
                 streamSerial: null,
                 streamDetails: null,
                 cameraDevice,
+                subframe: null,
             };
         }
     }

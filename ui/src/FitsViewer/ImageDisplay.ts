@@ -388,6 +388,16 @@ export class ImageDisplay {
         }
     }
 
+    readonly getCurrentDisplaySize= ()=> {
+        const view = this.viewForGeometry();
+
+        if (!view) {
+            return undefined;
+        }
+
+        return view.exposure?.displaySize;
+    }
+
     readonly getCurrentImageDetails= () => {
         const view = this.viewForGeometry();
 
