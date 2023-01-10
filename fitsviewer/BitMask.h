@@ -67,6 +67,11 @@ public:
 
 	BitMask & operator=(const BitMask & other);
 
+	int getX0() const { return x0; }
+	int getY0() const { return y0; }
+	int getX1() const { return x1; }
+	int getY1() const { return y1; }
+
 	void fill(bool v)
 	{
 		content.set(v);
@@ -81,6 +86,10 @@ public:
 
 
 	BitMaskIterator iterator() const;
+
+	bool cover(int x, int y) const  {
+		return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+	}
 
 	bool get(int x, int y) const {
 		return content.get(offset(x, y));
@@ -128,6 +137,26 @@ public:
 		orMask.content |= content.shift(-sx);
 		orMask.content |= content.shift(sx);
 		content |= orMask.content;
+	}
+
+	void add(const BitMask & from) {
+		// calculer le recouvrement
+		// faire un nand
+		int tx0 = x0;
+		int tx1 = x1;
+		int ty0 = y0;
+		int ty1 = y1;
+		if (tx0 < from.x0) tx0 = from.x0;
+		if (ty0 < from.y0) ty0 = from.y0;
+		if (tx1 > from.x1) tx1 = from.x1;
+		if (ty1 > from.y1) ty1 = from.y1;
+
+		for(int y = ty0; y <= ty1; ++y)
+			for(int x = tx0; x <= tx1; ++x) {
+				if (from.get(x, y)) {
+					set(x, y, true);
+				}
+			}
 	}
 
 	void substract(const BitMask & from)

@@ -27,13 +27,17 @@ public:
 
 class MultiStarFinder {
 	friend class StarFinder;
-	RawDataStorage * content;
-	HistogramStorage * histogram;
+	const RawDataStorage * content;
+	const HistogramStorage * histogram;
 	const ChannelMode channelMode;
+protected:
+    virtual void onStarmaskComputed(const BitMask & starMask);
+
 public:
 	using StarOccurence=SharedCache::Messages::StarOccurence;
 
-	MultiStarFinder(RawDataStorage * content, HistogramStorage * histogram);
+	MultiStarFinder(const RawDataStorage * content, const HistogramStorage * histogram);
+    virtual ~MultiStarFinder();
 
 	std::vector<StarOccurence> proceed(int maxCount);
 };

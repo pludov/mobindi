@@ -13,11 +13,17 @@ StarCandidate::StarCandidate(const std::shared_ptr<std::vector<int>> & area,
 {
 }
 
-MultiStarFinder::MultiStarFinder(RawDataStorage * content, HistogramStorage * histogram)
+MultiStarFinder::MultiStarFinder(const RawDataStorage * content, const HistogramStorage * histogram)
 		: channelMode(content->hasColors() ? 4 : 1)
 {
     this->content = content;
     this->histogram = histogram;
+}
+
+MultiStarFinder::~MultiStarFinder() {
+}
+
+void MultiStarFinder::onStarmaskComputed(const BitMask & starMask) {
 }
 
 
@@ -54,6 +60,8 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
     notBlack.erode();
     notBlack.grow();
     notBlack.grow();
+
+    onStarmaskComputed(notBlack);
 
     // Ensuite, chaque zone de connexité représente une étoile potentielle.
     //  - on les trie par energie
@@ -148,6 +156,7 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
         sf.setExcludeMask(&checkedArea);
         StarOccurence result;
         if (sf.perform(result)) {
+            checkedArea.add(sf.getStarMask());
             if (result.sat && satLeft <= 0) {
                 if (satLeft == 0) {
                     cout << "too many saturated\n";

@@ -134,6 +134,18 @@ bool StarFinder::perform(StarOccurence & result) {
     double picX = xSum * 1.0 / aduSum;
     double picY = ySum * 1.0 / aduSum;
 
+    if (excludeMask != nullptr) {
+        int x0 = (int)floor(picX);
+        int y0 = (int)floor(picY);
+        int x1 = (int)ceil(picX);
+        int y1 = (int)ceil(picY);
+
+        if (excludeMask->cover(x0, y0) && excludeMask->get(x0, y0)) return false;
+        if (excludeMask->cover(x0, y1) && excludeMask->get(x0, y1)) return false;
+        if (excludeMask->cover(x1, y0) && excludeMask->get(x1, y0)) return false;
+        if (excludeMask->cover(x1, y1) && excludeMask->get(x1, y1)) return false;
+    }
+
     double maxAngle = 0, minAngle = 0;
     double maxFwhm = 0, minFwhm = 0;
     double fwhmSum = 0;

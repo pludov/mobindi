@@ -17,6 +17,7 @@ class FitsFile;
 namespace SharedCache {
 	const int MAX_MESSAGE_SIZE = 32768;
 	class Entry;
+	class WriteableEntry;
 
 	template<class M> class ChildPtr {
 		M*ptr;
@@ -79,8 +80,8 @@ namespace SharedCache {
 			// Need exactly this serial - fixme: this must not enter the key
 			bool exactSerial;
 
-			void produce(Entry * entry);
-			static void readFits(FitsFile & fitsFile, Entry * entry);
+			void produce(WriteableEntry * entry);
+			static void readFits(FitsFile & fitsFile, WriteableEntry * entry);
 		};
 
 		void to_json(nlohmann::json&j, const RawContent & i);
@@ -307,8 +308,15 @@ namespace SharedCache {
 		void operator=(const EntryRef & other) = delete;
 	};
 
+	class WriteableEntry {
+	public:
+		virtual void allocate(unsigned long int size) = 0;
+		virtual void * data() = 0;
+		virtual unsigned long int size() = 0;
+	};
+
 	class Cache;
-	class Entry {
+	class Entry : public WriteableEntry {
 		friend class Cache;
 		friend class EntryRef;
 		friend class SharedCacheServer;
@@ -343,9 +351,9 @@ namespace SharedCache {
 		void failed(const std::string & str);
 		void release();
 
-		void allocate(unsigned long int size);
-		void * data();
-		unsigned long int size();
+		virtual void allocate(unsigned long int size);
+		virtual void * data();
+		virtual unsigned long int size();
 
 		bool hasError() const { return error; };
 		std::string getErrorDetails() const { return errorDetails; };

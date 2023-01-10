@@ -71,7 +71,7 @@ int RawDataStorage::getRGBIndex(char c)
 	return -1;
 }
 
-void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
+void SharedCache::Messages::RawContent::readFits(FitsFile & file, WriteableEntry * entry)
 {
 	int status = 0;
 	int bitpix, naxis;
@@ -185,7 +185,7 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, Entry * entry)
 
 }
 
-void SharedCache::Messages::RawContent::produce(Entry * entry)
+void SharedCache::Messages::RawContent::produce(WriteableEntry * entry)
 {
 	FitsFile file;
 	file.open(path.c_str());
