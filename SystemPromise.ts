@@ -71,7 +71,17 @@ export function Exec(ct: CancellationToken, p : ExecParams):Promise<number> {
     });
 }
 
-export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.Readable, lineCb?: (e:string)=>(void)): Promise<string> {
+export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.Readable | undefined, lineCb?: (e:string)=>(void)): Promise<string> {
+    const result = await UncheckedPipe(ct, p, input, lineCb);
+
+    if (result.exitCode !== 0) {
+        throw new Error("Pipe failed " + JSON.stringify(p.command) + " with exit code: " + result.exitCode);
+    }
+
+    return result.stdout;
+}
+
+export async function UncheckedPipe(ct: CancellationToken, p: ExecParams, input?: Stream.Readable, lineCb?: (e:string)=>(void)): Promise<{exitCode: number, stdout: string}> {
     let result: string = "";
 
     let writableStream: Stream.Writable;
@@ -178,23 +188,22 @@ export async function Pipe(ct: CancellationToken, p: ExecParams, input: Stream.R
         writableStreamCb = undefined;
     };
 
-    if (ret !== 0) {
-        throw new Error("Pipe failed " + JSON.stringify(p.command) + " with exit code: " + ret);
+    return {
+        exitCode: ret,
+        stdout: result
     }
-
-    return result;
 }
 
 // Returns true if process exists, false otherwise
-export async function PidOf(ct: CancellationToken, exe: string):Promise<boolean> {
-    const exitCode = await Exec(ct, {
+export async function PidOf(ct: CancellationToken, exe: string):Promise<number|undefined> {
+    const r = await UncheckedPipe(ct, {
         command: ["pidof", exe, exe + ".bin"]
     });
-    if (exitCode === 0) {
-        return true;
-    } else if (exitCode === 1) {
-        return false;
+    if (r.exitCode === 0) {
+        return parseInt(r.stdout);
+    } else if (r.exitCode === 1) {
+        return undefined;
     }
-    throw new Error("Bad exitcode for pidof: " + exitCode);
+    throw new Error("Bad exitcode for pidof: " + r.exitCode);
 }
 

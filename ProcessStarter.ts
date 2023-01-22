@@ -47,9 +47,9 @@ export default class ProcessStarter {
 
     private lifeCycle=async (ct:CancellationToken)=>{
         while(true) {
-            const exists = await SystemPromise.PidOf(ct, this.exe);
+            const pid = await SystemPromise.PidOf(ct, this.exe);
 
-            if (!exists) {
+            if (pid === undefined) {
                 this.startExe();
             }
 

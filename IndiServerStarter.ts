@@ -97,26 +97,6 @@ export default class IndiServerStarter {
         return ret;
     }
 
-    // check if a valid indiserver process exists
-    private findIndiServer= async (ct: CancellationToken, resetConf:boolean)=>{
-        const exists = await SystemPromise.PidOf(ct, 'indiserver');
-        
-        if (resetConf) {
-            if (exists) {
-                this.currentConfiguration = {
-                    ...Obj.deepCopy(this.wantedConfiguration),
-                    restartList: [],
-                    startDelay: {},
-                };
-                logger.warn('Indiserver process found. Assuming it already has the right configuration.');
-            } else {
-                logger.info('Indiserver process not found.');
-            }
-        };
-        this.currentConfiguration.restartList = [];
-        return exists;
-    }
-
     private startIndiServer=async (ct: CancellationToken)=>{
         this.indiServerStartAttempt++;
 
@@ -155,6 +135,7 @@ export default class IndiServerStarter {
         });
         logger.info('Started indiserver', {pid: child.pid});
         this.currentConfiguration.devices = {};
+        return child.pid;
     }
 
     public restartDevice=async (ct:CancellationToken, dev:string)=>
@@ -162,6 +143,7 @@ export default class IndiServerStarter {
         if (this.currentConfiguration.restartList.indexOf(dev) != -1) {
             return;
         }
+        logger.info("Pushing driver restart", {dev});
         this.currentConfiguration.restartList.push(dev);
 
     }
@@ -378,24 +360,42 @@ export default class IndiServerStarter {
     startLifeCycle=()=>{
         createTask<void>(CancellationToken.CONTINUE, async (task:Task<void>)=> {
             let ranSuccessfully = false;
-            let firstStart = true;
             if (this.lifeCycle !== null) {
                 return;
             }
             this.lifeCycle = task;
+            let indiServerPid:number|undefined = undefined;
             try {
                 let status;
                 do {
-                    const exists = await this.findIndiServer(task.cancellation, firstStart);
-                    firstStart = false;
+                    const newServerPid = await SystemPromise.PidOf(task.cancellation, 'indiserver');
 
-                    if (!exists) {
+                    if (newServerPid !== indiServerPid && indiServerPid !== undefined) {
                         if (ranSuccessfully) {
-                            logger.error('IndiServer stopped existing');
+                            logger.error('indiserver disappeared', {indiServerPid});
                             this.context.notification.error('Indiserver was stopped/crashed');
+                            this.context.notification.notify('Indiserver was stopped/crashed');
+                        } else {
+                            // Some notification if indi server is not starting ? beware this could forever
                         }
-                        await this.startIndiServer(task.cancellation);
+                    }
+
+                    if (newServerPid === undefined) {
+                        indiServerPid = await this.startIndiServer(task.cancellation);
+                        this.currentConfiguration.restartList = [];
                         ranSuccessfully = false;
+                    } else if (newServerPid !== indiServerPid) {
+                        indiServerPid = newServerPid
+                        logger.warn('Existing indiserver process found. Assuming it already has the right configuration.', {indiServerPid});
+                        this.currentConfiguration = {
+                            ...Obj.deepCopy(this.wantedConfiguration),
+                            restartList: [],
+                            startDelay: {},
+                        };
+                        ranSuccessfully = false;
+
+                    } else {
+                        // indi is up & running... no change to notify
                     }
 
                     status = await this.pushOneDriverChange(task.cancellation);
