@@ -194,15 +194,38 @@ export async function UncheckedPipe(ct: CancellationToken, p: ExecParams, input?
     }
 }
 
-// Returns true if process exists, false otherwise
-export async function PidOf(ct: CancellationToken, exe: string):Promise<number|undefined> {
+// Returns the list of PIDs of a process (by name).
+// Childs get excluded (they appear during fork/exec, like driver startup)
+export async function PidOf(ct: CancellationToken, exe: string):Promise<Array<number>> {
     const r = await UncheckedPipe(ct, {
         command: ["pidof", exe, exe + ".bin"]
     });
     if (r.exitCode === 0) {
-        return parseInt(r.stdout);
+        const pidlist = r.stdout.trim().split(/ /).map((e)=>parseInt(e)).sort((a, b) => a - b);
+        if (pidlist.length > 1) {
+            // Use ps to filter those which don't have father in the list
+            const psList = await UncheckedPipe(ct, {
+                command: ["ps", "-o", "pid,ppid", "-p", pidlist.join(',')]
+            });
+
+            const filteredList = [];
+            for(let line of psList.stdout.split(/\n/)) {
+                line = line.trim();
+                const [pidStr, ppidStr] = line.split(/ +/);
+                const pid = parseInt(pidStr);
+                const ppid = parseInt(ppidStr);
+                if (pidlist.indexOf(pid) !== -1) {
+                    if (ppid === pid || pidlist.indexOf(ppid) === -1) {
+                        filteredList.push(pid);
+                    }
+                }
+            }
+            filteredList.sort();
+            return filteredList;
+        }
+        return pidlist;
     } else if (r.exitCode === 1) {
-        return undefined;
+        return [];
     }
     throw new Error("Bad exitcode for pidof: " + r.exitCode);
 }

@@ -49,7 +49,7 @@ export default class ProcessStarter {
         while(true) {
             const pid = await SystemPromise.PidOf(ct, this.exe);
 
-            if (pid === undefined) {
+            if (!pid.length) {
                 this.startExe();
             }
 

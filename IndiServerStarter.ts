@@ -125,7 +125,7 @@ export default class IndiServerStarter {
         }
 
         logger.debug('Starting indiserver');
-        var child = child_process.spawn('indiserver', ['-v', '-f', fifopath], {
+        const child = child_process.spawn('indiserver', ['-v', '-f', fifopath], {
                 env: env,
                 detached: true,
                 stdio: ['ignore', process.stdout, process.stderr],
@@ -133,6 +133,9 @@ export default class IndiServerStarter {
         child.on('error', (err:any)=> {
             logger.warn("Process indiserver error", err);
         });
+        if (child.pid === undefined) {
+            throw new Error("Unable to start indiserver (error will follow)");
+        }
         logger.info('Started indiserver', {pid: child.pid});
         this.currentConfiguration.devices = {};
         return child.pid;
@@ -368,7 +371,19 @@ export default class IndiServerStarter {
             try {
                 let status;
                 do {
-                    const newServerPid = await SystemPromise.PidOf(task.cancellation, 'indiserver');
+                    const serverPids = await SystemPromise.PidOf(task.cancellation, 'indiserver');
+                    let newServerPid;
+                    if (serverPids.length > 0) {
+                        if (indiServerPid !== undefined && serverPids.indexOf(indiServerPid) !== -1) {
+                            // Continue with the previously choosen one
+                            newServerPid = indiServerPid;
+                        } else {
+                            logger.warn('multiple indiserver are running. Choosing the first', {serverPids});
+                            indiServerPid = serverPids[0];
+                        }
+                    } else {
+                        indiServerPid = undefined;
+                    }
 
                     if (newServerPid !== indiServerPid && indiServerPid !== undefined) {
                         if (ranSuccessfully) {
