@@ -29,10 +29,10 @@ type ValueOverride = {
 
 export type Props<TYPE> = (NumberStored | StringStored) & {
     nullAlwaysPossible?: boolean;
-    placeholder: string;
-    availablesGenerator: (props: Props<TYPE>)=>Array<TYPE>;
-    getId: (o: TYPE, props: Props<TYPE>)=>string;
-    getTitle: (o: TYPE, props: Props<TYPE>)=>string;
+    placeholder?: string;
+    availablesGenerator?: (props: Props<TYPE>)=>Array<TYPE>;
+    getId?: (o: TYPE, props: Props<TYPE>)=>string;
+    getTitle?: (o: TYPE, props: Props<TYPE>)=>string;
     controls?: Array<Control>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
@@ -90,7 +90,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
     render() {
 
-        var availables = this.props.availablesGenerator(this.props);
+        var availables = this.props.availablesGenerator!(this.props);
         if (!availables) availables = [];
         var options = [];
         let disabled: boolean = true;
@@ -124,19 +124,19 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             if (active != null) {
                 var present = false;
                 for(const o of availables) {
-                    if (this.props.getId(o, this.props) === active) {
+                    if (this.props.getId!(o, this.props) === active) {
                         present = true;
                     }
                 }
                 if (!present) {
-                    options.push(<option value={currentValue} key={currentValue}>{this.props.getTitle((""+active) as any as TYPE, this.props)}</option>);
+                    options.push(<option value={currentValue} key={currentValue}>{this.props.getTitle!((""+active) as any as TYPE, this.props)}</option>);
                     disabled = false;
                 }
             }
         }
         for(const v of availables) {
-            const id = JSON.stringify(this.props.getId(v, this.props));
-            options.push(<option value={id} key={id}>{this.props.getTitle(v, this.props)}</option>);
+            const id = JSON.stringify(this.props.getId!(v, this.props));
+            options.push(<option value={id} key={id}>{this.props.getTitle!(v, this.props)}</option>);
             disabled = false;
         }
 

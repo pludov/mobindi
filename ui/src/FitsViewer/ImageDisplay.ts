@@ -62,7 +62,7 @@ export class ImageDisplay {
         elt.css('overflow', 'hidden');
 
         this.root = document.createElement("span");
-        this.child.get(0).appendChild(this.root);
+        this.child.get(0)!.appendChild(this.root);
 
         this.mouseListener = new MouseMoveListener(elt, {
             zoom: this.zoom,
