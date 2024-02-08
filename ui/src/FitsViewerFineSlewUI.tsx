@@ -159,6 +159,10 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
     }
 
     private readonly abortLearning = async () => {
+        // Make sure all slew button are released
+        for(const e of Object.keys(this.slewControls)) {
+            this.slewControls[e].stop();
+        }
         return await BackendRequest.RootInvoker("astrometry")("fineSlewAbortLearning")(CancellationToken.CONTINUE, {});
     }
 
