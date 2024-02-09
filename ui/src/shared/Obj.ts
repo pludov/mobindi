@@ -56,7 +56,7 @@ function deepCopy<T>(object:T):T
 {
     if (isObject(object)) {
         const result : any = {};
-        for(const k of Object.keys(object)) {
+        for(const k of Object.keys(object as Object)) {
             result[k] = deepCopy((object as any)[k]);
         }
         return result;
@@ -133,7 +133,7 @@ export function getOwnProp(o: any, s: any) {
     return undefined;
 }
 
-function noUndef<T> (obj: T): T {
+function noUndef<T extends Object> (obj: T): T {
     for(const k of Object.keys(obj)) {
         if ((obj as any)[k] === undefined) {
             delete (obj as any)[k];

@@ -3,7 +3,7 @@ import * as jsonpatch from 'json-patch';
 import * as ProcessorTypes from "./ProcessorTypes";
 import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle } from './BackOfficeStatus';
 import { Json } from './Json';
-import { Diff } from '@src/shared/JsonProxy';
+import { Diff } from '../shared/JsonProxy';
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;

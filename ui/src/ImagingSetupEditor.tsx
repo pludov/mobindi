@@ -120,7 +120,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
 
     updateSetting=async(setting: keyof FocuserSettings, e: string) => {
         try {
-            this.setState((s)=>{busy: s.busy+1});
+            this.setState((s)=>({busy: s.busy+1}));
 
             let value = e.trim() ? parseFloat(e.trim()) : null;
 
@@ -128,7 +128,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                 await FocuserStore.focuserSettingsAccessor(this.props.imagingSetupUid).prop(setting).send(value);
             }
         } finally {
-            this.setState((s)=>{busy: s.busy-1});
+            this.setState((s)=>({busy: s.busy-1}));
         }
 
     }

@@ -3,7 +3,6 @@ import * as Store from "./Store";
 import * as Utils from "./Utils";
 import * as Actions from "./Actions";
 import * as NotificationStore from './NotificationStore';
-import Worker from 'shared-worker-loader!./BackgroundWorker/Worker';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 const logger = Log.logger(__filename);
@@ -189,9 +188,9 @@ export type MessageActions = typeof actions;
 
 Actions.register<MessageActions>(actions);
 
-let worker: Worker;
+let worker: SharedWorker;
 try {
-    worker = new Worker("background");
+    worker = new SharedWorker("background");
     worker.port.start();
     worker.port.postMessage({ a: 1 });
     worker.port.onmessage = function (event) {logger.debug('worker event', {event});};

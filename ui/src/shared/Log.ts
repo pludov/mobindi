@@ -33,7 +33,7 @@ function consoleLogWrap(where: string|undefined, info:(message?: any, ...optiona
 let uiDebugStatus: boolean = false;
 
 function switchDebug(value?: boolean) {
-    uiDebugStatus == value !== undefined ? !!value: !uiDebugStatus;
+    uiDebugStatus = value !== undefined ? !!value: !uiDebugStatus;
 }
 
 function uiConditional(info:(message?: any, ...optionalParams: any[])=> void) {

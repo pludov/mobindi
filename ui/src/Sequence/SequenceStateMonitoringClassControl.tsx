@@ -10,13 +10,13 @@ import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
 import * as BackendRequest from '../BackendRequest';
 import CancellationToken from 'cancellationtoken';
-import Bool from '@src/primitives/Bool';
-import Float from '@src/primitives/Float';
-import QuickBton from '@src/primitives/QuickBton';
-import { SequenceLogic } from '@src/shared/SequenceLogic';
-import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
-import ToggleBton from '@src/primitives/ToggleBton';
-import ProgressMeter from '@src/primitives/ProgressMeter';
+import Bool from '../primitives/Bool';
+import Float from '../primitives/Float';
+import QuickBton from '../primitives/QuickBton';
+import { SequenceLogic } from '../shared/SequenceLogic';
+import { SequenceParamClassifier } from '../shared/SequenceParamClassifier';
+import ToggleBton from '../primitives/ToggleBton';
+import ProgressMeter from '../primitives/ProgressMeter';
 import "./SequenceStateMonitoringClassControl.css";
 
 type Scaler = {

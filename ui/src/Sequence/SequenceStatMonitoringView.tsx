@@ -9,14 +9,14 @@ import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
-import Float from '@src/primitives/Float';
-import Int from '@src/primitives/Int';
-import { SequenceLogic } from '@src/shared/SequenceLogic';
-import { SequenceParamClassifier } from '@src/shared/SequenceParamClassifier';
+import Float from '../primitives/Float';
+import Int from '../primitives/Int';
+import { SequenceLogic } from '../shared/SequenceLogic';
+import { SequenceParamClassifier } from '../shared/SequenceParamClassifier';
 import SequenceStateMonitoringClassControl from './SequenceStateMonitoringClassControl';
 
 import "./SequenceStatMonitoringView.css";
-import Conditional from '@src/primitives/Conditional';
+import Conditional from '../primitives/Conditional';
 
 
 type ParamSettings = {

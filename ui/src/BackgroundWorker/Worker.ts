@@ -19,9 +19,9 @@
 
 import Log from '../shared/Log';
 import Notifier from "../Notifier";
-import { BackendStatusValue, BackendStatus } from '@src/BackendStore';
+import { BackendStatusValue, BackendStatus } from '../BackendStore';
 import { BackofficeStatus } from '@bo/BackOfficeStatus';
-import JsonProxy, { has } from '@src/shared/JsonProxy';
+import JsonProxy, { has } from '../shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 

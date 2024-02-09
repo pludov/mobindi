@@ -7,7 +7,7 @@ import "../PolarAlignment/PolarAlignment.css";
 import { createSelector, defaultMemoize } from 'reselect';
 import ArrayReselect from '../../utils/ArrayReselect';
 import StepListItem from './StepListItem';
-import AstrometryBackendAccessor from '@src/AstrometryStore';
+import AstrometryBackendAccessor from '../../AstrometryStore';
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import "./View.css";
 

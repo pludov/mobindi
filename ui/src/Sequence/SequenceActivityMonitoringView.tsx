@@ -9,8 +9,8 @@ import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
 import CancellationToken from 'cancellationtoken';
-import Bool from '@src/primitives/Bool';
-import Float from '@src/primitives/Float';
+import Bool from '../primitives/Bool';
+import Float from '../primitives/Float';
 
 
 type InputProps = {

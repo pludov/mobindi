@@ -1,7 +1,7 @@
 import * as Store from "../Store";
 import {AccessPath, For} from "../shared/AccessPath";
 import { RecursiveStoreAccessor } from "./StoreAccessor";
-import JsonProxy, { Diff} from "@src/shared/JsonProxy";
+import JsonProxy, { Diff} from "../shared/JsonProxy";
 
 
 /**

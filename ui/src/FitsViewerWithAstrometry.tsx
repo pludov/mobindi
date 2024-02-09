@@ -338,7 +338,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     calcTrackScope();
                 } else if (computeStatus === "computing") {
                     result.cancel = true;
-                    result.status
                 } else {
                     if (astrometry.image !== null && astrometry.image === path)
                     {

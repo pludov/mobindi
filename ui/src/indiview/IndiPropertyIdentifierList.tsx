@@ -12,7 +12,7 @@ import * as IndiManagerStore from "../IndiManagerStore";
 
 import "./IndiManagerView.css";
 import { IndiPropertyIdentifier } from '@bo/BackOfficeStatus';
-import PromiseSelector, {Props as PromiseSelectorInputProps} from '@src/PromiseSelector';
+import PromiseSelector, {Props as PromiseSelectorInputProps} from '../PromiseSelector';
 import { defaultMemoize } from 'reselect';
 
 const logger = Log.logger(__filename);

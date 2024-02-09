@@ -6,7 +6,7 @@ import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
-import Bool from '@src/primitives/Bool';
+import Bool from '../primitives/Bool';
 import SequenceStatMonitoringView from './SequenceStatMonitoringView';
 
 

@@ -16,8 +16,8 @@ export type Content = {
 }
 
 
-let geolocWorker : undefined | Promise<Position> = undefined;
-let geoloc: Position|undefined = undefined;
+let geolocWorker : undefined | Promise<GeolocationPosition> = undefined;
+let geoloc: GeolocationPosition|undefined = undefined;
 
 function getGeolocWorker() {
     if (!geolocWorker) {
@@ -46,7 +46,7 @@ function getGeolocWorker() {
     return geolocWorker;
 }
 
-export async function getGeoloc():Promise<Position> {
+export async function getGeoloc():Promise<GeolocationPosition> {
     return await getGeolocWorker();
 }
 
@@ -91,12 +91,12 @@ export const initialState:Content = {
     }
 }
 
-export function onImport(t:Content) {
+export function onImport(t:Partial<Content>) {
     delete t.geoloc;
 }
 
 // Swallow copy of the store. Do not inplace modify childs
-export function onExport(t:Content) {
+export function onExport(t:Partial<Content>) {
     delete t.geoloc;
 }
 
