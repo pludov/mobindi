@@ -17,7 +17,7 @@ export function createTask<T>(
     let resolve: (value?: T | PromiseLike<T> | undefined) => void;
     let reject: (reason?: any) => void;
 
-    const ret:any = new Promise<T>((tresolve, treject) => {
+    const ret:any = new Promise<T | PromiseLike<T> | undefined>((tresolve, treject) => {
         resolve = tresolve;
         reject = treject;
     });

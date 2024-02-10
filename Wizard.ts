@@ -74,7 +74,7 @@ export default abstract class Wizard {
     async waitNext(nextTitle:string = "next") {
         this.setPaused(true);
         this.wizardStatus.hasNext = nextTitle;
-        await new Promise((resolve, reject)=> {
+        await new Promise<void>((resolve, reject)=> {
             this.onNext.push(resolve);
             this.onDiscard.push(()=> {
                 reject(new CancellationToken.CancellationError("User abort"));

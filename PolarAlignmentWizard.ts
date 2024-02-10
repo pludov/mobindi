@@ -6,13 +6,13 @@ import sleep from "./Sleep";
 import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionWarning } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
-import { default as SkyProjection, Map360, Map180, Quaternion } from './SkyAlgorithms/SkyProjection';
+import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
 import ScopeTrackCounter from './ScopeTrackCounter';
 import Astrometry from './Astrometry';
 import { SynchronizerTriggerCallback } from './shared/JsonProxy';
-const Quaternion = require("quaternion");
+import * as Quaternion from 'quaternion';
 
 const logger = Log.logger(__filename);
 
@@ -49,7 +49,7 @@ class ImpreciseDirectionChecker {
             this.wizard.wizardStatus.polarAlignment!.adjustPositionError = null;
         } catch(e) {
             this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = null;
-            this.wizard.wizardStatus.polarAlignment!.adjustPositionError = e.message || "" + e;
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionError = (e as any).message || "" + e;
         }
     }
 
@@ -607,7 +607,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     if (e instanceof CancellationToken.CancellationError) {
                         this.wizardStatus.polarAlignment!.status = "paused";
                     } else {
-                        this.wizardStatus.polarAlignment!.fatalError = e.message || "" + e;
+                        this.wizardStatus.polarAlignment!.fatalError = (e as any).message || "" + e;
                         throw e;
                     }
                 }
@@ -695,7 +695,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 } catch(e) {
                     if (!(e instanceof CancellationToken.CancellationError)) {
                         logger.error("failure", e);
-                        wizardReport.adjustError = e.message || ''+e;
+                        wizardReport.adjustError = (e as any).message || ''+e;
                         await this.waitNext("Resume");
                     } else {
                         wizardReport.adjustError = "Interrupted";

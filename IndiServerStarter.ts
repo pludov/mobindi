@@ -347,7 +347,7 @@ export default class IndiServerStarter {
             return todo!.cmd === 'ping' ? 0 : 1;
         } catch(e) {
             logger.error('IndiServer error', e);
-            if (!e.isFifoTimeout) {
+            if (!(e as any).isFifoTimeout) {
                 this.currentConfiguration.devices = {};
             } else {
                 logger.error('Assuming unchanged configuration', e);

@@ -41,7 +41,7 @@ describe("Task", ()=> {
             error = e;
         }
         assert.notStrictEqual(error, undefined, "Error must be catched");
-        assert.strictEqual(error.message, msg, "Right error must be catched");
+        assert.strictEqual((error as any).message, msg, "Right error must be catched");
     });
 
     it("Returns immediate success", async()=>{
@@ -81,7 +81,7 @@ describe("Task", ()=> {
             error = e;
         }
         assert.notStrictEqual(error, undefined, "Error must be catched");
-        assert.strictEqual(error.message, msg, "Right error must be catched");
+        assert.strictEqual((error as any).message, msg, "Right error must be catched");
     });
 
     it("Handle parallel task", async()=> {
@@ -152,6 +152,6 @@ describe("Task", ()=> {
             }
         }
         assert.notStrictEqual(error, undefined, "Error must be catched");
-        assert.strictEqual(error.message, msg, "Right error must be catched");
+        assert.strictEqual((error as any).message, msg, "Right error must be catched");
     });
 });

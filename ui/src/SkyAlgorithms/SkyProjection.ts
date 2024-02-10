@@ -272,7 +272,7 @@ export default class SkyProjection {
     /**
 	 * Project to a point of the sphere in ATLAZ3D space
      */
-    public static convertAltAzToALTAZ3D(i : {alt: number, az:number}) : number[] {
+    public static convertAltAzToALTAZ3D(i : {alt: number, az:number}) : [number,number,number] {
         let x = Math.sin(i.alt * degToRad);
         const cs = Math.cos(i.alt * degToRad)
         let z = cs * Math.cos(degToRad * i.az);

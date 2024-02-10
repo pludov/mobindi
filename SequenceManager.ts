@@ -106,7 +106,8 @@ export default class SequenceManager
                 byuuid: {}
             },
             // read callback
-            (content:SequenceStatus["sequences"])=> {
+            (input:Partial<SequenceStatus["sequences"]>)=> {
+                const content : SequenceStatus["sequences"] = {list: [], byuuid: {}, ...input};
                 // Renumber sequences
                 this.sequenceIdGenerator.renumber(content.list, content.byuuid);
 
@@ -136,11 +137,11 @@ export default class SequenceManager
                 return content;
             },
             // write callback (add new images)
-            (content:SequenceStatus["sequences"])=>{
-                content = deepCopy(content);
+            (input:SequenceStatus["sequences"])=>{
+                const content: Partial<SequenceStatus["sequences"]> = deepCopy(input);
                 const arrivalTime = new Date().getTime();
-                for(const sid of Object.keys(content.byuuid)) {
-                    const seq = content.byuuid[sid];
+                for(const sid of Object.keys(content.byuuid!)) {
+                    const seq: Partial<Sequence> = content.byuuid![sid];
                     seq.storedImages = [];
                     for(const uuid of seq.images || []) {
                         if (hasKey(this.context.camera.currentStatus.images.byuuid, uuid)) {

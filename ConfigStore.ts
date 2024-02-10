@@ -13,7 +13,7 @@ if (!fs.existsSync(configDir)){
     fs.mkdirSync(configDir);
 }
 
-export default class ConfigStore<T, STORED=T> {
+export default class ConfigStore<T extends object, STORED=T> {
     readonly appStateManager: JsonProxy<BackofficeStatus>;
     private saveRunning: boolean;
     private saveMustRestart: boolean;

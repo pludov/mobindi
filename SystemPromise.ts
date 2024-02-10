@@ -183,7 +183,7 @@ export async function UncheckedPipe(ct: CancellationToken, p: ExecParams, input?
 
     if (!writableStreamDone) {
         await new Promise((resolve, reject)=> {
-            writableStreamCb = resolve;
+            writableStreamCb = ()=>{resolve(undefined)};
         });
         writableStreamCb = undefined;
     };

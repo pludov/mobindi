@@ -331,7 +331,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             this.currentStatus.scopeDetails = null;
         } catch(e) {
             this.currentStatus.scopeReady = false;
-            this.currentStatus.scopeDetails = e.message || (""+e);
+            this.currentStatus.scopeDetails = (e as any).message || (""+e);
         }
     }
 
@@ -720,7 +720,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('empty', null, null);
                 } else {
-                    finish('error', e.message || '' + e, null);
+                    finish('error', (e as any).message || '' + e, null);
                 }
                 throw e;
             }
@@ -801,7 +801,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 if (e instanceof CancellationToken) {
                     finish('idle', null);
                 } else {
-                    finish('idle', e.message || ('' + e));
+                    finish('idle', (e as any).message || ('' + e));
                 }
                 throw e;
             }
@@ -905,7 +905,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('idle', null)
                 } else {
-                    finish('idle', e.message || ('' + e));
+                    finish('idle', (e as any).message || ('' + e));
                 }
                 throw e;
             }
