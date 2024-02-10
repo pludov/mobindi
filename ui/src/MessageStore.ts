@@ -190,7 +190,7 @@ Actions.register<MessageActions>(actions);
 
 let worker: SharedWorker;
 try {
-    worker = new SharedWorker("background");
+    worker = new SharedWorker(new URL('BackgroundWorker/Worker.ts', import.meta.url));
     worker.port.start();
     worker.port.postMessage({ a: 1 });
     worker.port.onmessage = function (event) {logger.debug('worker event', {event});};
