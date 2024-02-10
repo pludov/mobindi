@@ -47,6 +47,13 @@ function uiConditional(info:(message?: any, ...optionalParams: any[])=> void) {
 
 function initClientSide(opts: {source?: string|undefined}):RootLogger {
     const source = opts.source;
+    try {
+        if (window.location.port === "3000") {
+            console.log('Debug mode detected');
+            switchDebug(true);
+        }
+    } catch(e) {
+    }
     (global as any).debug = switchDebug;
     return {
         error: consoleLogWrap(source, console.error),
