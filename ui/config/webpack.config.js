@@ -198,17 +198,6 @@ module.exports = function (webpackEnv) {
         ? 'source-map'
         : false
       : isEnvDevelopment && 'cheap-module-source-map',
-    devServer: {
-        proxy: {
-          "/notification": {
-            "target": "ws://127.0.0.1:8080/",
-            "ws": true
-          },
-          "/fitsviewer": {
-            "target": "http://127.0.0.1:8080/"
-          }
-        }
-    },
 
     // These are the "entry points" to our application.
     // This means they will be the "root" imports that are included in JS bundle.
