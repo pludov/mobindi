@@ -13,6 +13,7 @@ const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const InterpolateHtmlPlugin = require('react-dev-utils/InterpolateHtmlPlugin');
 const WorkboxWebpackPlugin = require('workbox-webpack-plugin');
+const { ServiceWorkerPlugin } = require('service-worker-webpack');
 const ModuleScopePlugin = require('react-dev-utils/ModuleScopePlugin');
 const getCSSModuleLocalIdent = require('react-dev-utils/getCSSModuleLocalIdent');
 const ESLintPlugin = require('eslint-webpack-plugin');
@@ -774,6 +775,18 @@ module.exports = function (webpackEnv) {
             },
           },
         }),
+
+        // Cache resources
+        // https://www.npmjs.com/package/service-worker-webpack
+        new ServiceWorkerPlugin({
+          // // these options encourage the ServiceWorkers to get in there fast
+          // // and not allow any straggling "old" SWs to hang around
+          workbox: {
+            clientsClaim: true,
+            skipWaiting: true,
+          },
+        }),
+
     ].filter(Boolean),
     // Turn off performance processing because we utilize
     // our own hints via the FileSizeReporter
