@@ -20,17 +20,17 @@ fi
 
 ./cert.sh
 
+CONF=nginx.conf
+if [ "${PORT:-}" != 8080 ] || [ "${PUBLIC_PORT}" != 8443 ]; then
+	sed -e "s/:8080/:$PORT/g" -e "s/:8443/:$PUBLIC_PORT/g" nginx.conf > actual-nginx.conf
+	CONF=actual-nginx.conf
+fi
+
 if [ -f "nginx.pid" ]; then
     if kill -HUP "`cat nginx.pid`" ; then
         echo "Nginx reloaded" >&2
         exit 0
     fi
-fi
-
-CONF=nginx.conf
-if [ "${PORT:-}" != 8080 ] || [ "${PUBLIC_PORT}" != 8443 ]; then
-	sed -e "s/:8080/:$PORT/g" -e "s/:8443/:$PUBLIC_PORT/g" nginx.conf > actual-nginx.conf
-	CONF=actual-nginx.conf
 fi
 
 
