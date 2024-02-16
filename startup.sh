@@ -36,4 +36,6 @@ if ! ./nginx/nginx.sh; then
        echo "Failed to start nginx: $?" >&2
 fi
 
+export CA_CERTS="$PWD/nginx/certs/ca.crt"
+
 exec npm start "$@"
