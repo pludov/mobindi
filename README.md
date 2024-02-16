@@ -57,6 +57,7 @@ PORT=8081
 
 ![Inline Help](docs/inline_help.gif?raw=true "Inline help example")
   * Optional storage of fits-server data into ramdisk
+  * Run under the .local domain with appropriate certificate (usefull for shared wifi network)
 
 
 ### Release 1.2.0 (July 2019):
