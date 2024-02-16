@@ -4,6 +4,7 @@ import "source-map-support/register";
 import express, { Response } from 'express';
 import {Application as ExpressApplication} from "express-serve-static-core";
 
+import fs from 'fs';
 import http from 'http';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -263,6 +264,22 @@ function init() {
             next(e);
         }
     });
+
+    const ca_certs = process.env.CA_CERTS;
+    if (ca_certs) {
+        app.get('/cacerts', async (req, res, next) => {
+            try {
+                const data = await fs.promises.readFile(ca_certs, 'utf-8');
+                res.header('Content-Type', 'application/octet-stream');
+                res.header('Content-Disposition', 'attachment; filename="mobindi-ca-certs.pem');
+                res.status(200);
+                res.send(data);
+            } catch(e) {
+                logger.error('Error reading CA_CERTS', e);
+                next(e);
+            }
+        });
+    };
 
     const server = http.createServer(app);
     server.on('error', (err)=>{

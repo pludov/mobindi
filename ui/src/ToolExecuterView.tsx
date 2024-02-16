@@ -8,6 +8,7 @@ import * as Store from "./Store";
 
 import './ToolExecuterView.css'
 import { InputProps } from './AppIcon';
+import CertLink from './CertLink';
 
 type ToolDisplayInputProps = {
     uid:string;
@@ -123,8 +124,7 @@ const ToolsList = Store.Connect<UnmappedToolsList, ToolsListInputProps, {}, Tool
 
 export class ToolExecuterView extends React.PureComponent<{}> {
     render() {
-        //var self = this;
-        return(<div className="ToolView"><ToolsList/></div>);
+        return(<div className="ToolView"><div><CertLink/></div><ToolsList/></div>);
     }
 }
 

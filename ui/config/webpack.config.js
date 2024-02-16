@@ -778,6 +778,7 @@ module.exports = function (webpackEnv) {
 
         // Cache resources
         // https://www.npmjs.com/package/service-worker-webpack
+      isEnvProduction &&
         new ServiceWorkerPlugin({
           // // these options encourage the ServiceWorkers to get in there fast
           // // and not allow any straggling "old" SWs to hang around
