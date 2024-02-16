@@ -13,8 +13,6 @@ import uuid from 'node-uuid';
 
 //@ts-ignore
 import cgi = require('cgi');
-import session from 'express-session';
-import SessionFileStore from 'session-file-store';
 
 import Client from './Client';
 import Phd from './Phd';
@@ -80,7 +78,6 @@ function initWss(server: http.Server) {
     wss.on('error', (err)=>{
         logger.warn('websocket server error', err);
     });
-    //wss.use(sharedsession(session));
 
 
     let clientId = 1;
@@ -174,8 +171,7 @@ function initWss(server: http.Server) {
 function init() {
 
     const app:ExpressApplication = express();
-    const FileStore = SessionFileStore(session);
-
+    
     app.use(express.static('ui/build'));
 
     // Log every non static http requests
@@ -184,18 +180,6 @@ function init() {
         logger.debug("Request", method, url);
         next();
     });
-
-    app.use(session({
-        store: new FileStore({}),
-        cookie: {
-            maxAge: 31 * 24 * 3600000,
-            secure: false
-        },
-        saveUninitialized: true,
-        resave: false,
-        unset: 'destroy',
-        secret: 'where this secret should be stored?'
-    }));
 
     // parse application/x-www-form-urlencoded
     app.use(bodyParser.urlencoded({ extended: false }))
