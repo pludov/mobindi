@@ -15,7 +15,15 @@
             {
                 "type": "console",
                 "level": "debug"
+            },
+            {
+                "type": "rotated",
+                "level": "debug",
+                "filename": "mobindi-%DATE%.log",
+                "zippedArchive": false,
+                "dirname": "/tmp/"
             }
+
         ]
     }
 }
