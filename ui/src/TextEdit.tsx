@@ -2,45 +2,6 @@ import * as React from 'react';
 import * as Help from "./Help"
 import "./TextEdit.css"
 
-type FullScreenEditProps = {
-    value: string;
-    onDone: (s:string|null)=>(void);
-}
-
-class FullScreenEdit extends React.PureComponent<FullScreenEditProps> {
-    // props: value, onDone
-    readonly textArea = React.createRef<HTMLTextAreaElement>();
-
-    constructor(props:FullScreenEditProps) {
-        super(props);
-    }
-
-    stopEvent=(e:React.MouseEvent<HTMLDivElement>)=>{
-        e.stopPropagation();
-    }
-
-    componentDidMount() {
-        this.textArea.current!.focus();
-    }
-
-    render() {
-        return <div className="Dialog WithVirtualKeyboard" onClick={this.stopEvent}>
-            <textarea ref={this.textArea} defaultValue={this.props.value}/>
-            <br/>
-            <input type="button" value="Ok" onClick={this.done}/>
-            <input type="button" value="Cancel" onClick={this.close}/>
-        </div>
-    }
-
-    done=()=>{
-        this.props.onDone(this.textArea.current!.value);
-    }
-
-    close=()=>{
-        this.props.onDone(null);
-    }
-
-}
 
 type Props = {
     value: string;
@@ -52,37 +13,100 @@ type Props = {
 
 type State = {
     editor: number;
+    editorValue: string;
 }
 // Render text with edit possibility
 // props: value
 // props: onChange
 export default class TextEdit extends React.PureComponent<Props, State> {
+    // props: value, onDone
+    readonly textArea = React.createRef<HTMLInputElement>();
+    readonly okButton = React.createRef<HTMLInputElement>();
+    readonly cancelButton = React.createRef<HTMLInputElement>();
+
     constructor(props:Props) {
         super(props);
-        this.state = {editor: 0};
+        this.state = {editor: 0, editorValue: ""};
     }
 
-
     render() {
-        var editor = null;
-        if (this.state.editor != 0) {
-            editor = <FullScreenEdit value={this.props.value} onDone={this.updateValue}/>;
+        const lines = this.props.value.split(/\r\n|\r|\n/);
+        const rows = lines.length;
+        const cols = lines.map(v=>Math.min(Math.max(v.length+3, 5), 16)).reduce((a,b)=>Math.max(a,b), 0);
+
+        return <span >
+                <input type="text" ref={this.textArea}
+                            style={{clear: this.state.editor === 0 ? "none" : "right"}}
+                            onFocus={this.openEditor}
+                            onBlur={this.blur}
+                            size={cols}
+                            value={this.state.editor === 0
+                                    ? this.props.value
+                                    : this.state.editorValue}
+                            onChange={(e)=>this.setState({editorValue: e.target.value})}
+                            />
+                {/* <textarea ref={this.textArea}
+                            style={{clear: this.state.editor === 0 ? "none" : "right"}}
+                            onFocus={this.openEditor}
+                            onBlur={this.blur}
+                            rows={rows}
+                            cols={cols}
+                            wrap='off'
+                            value={this.state.editor === 0
+                                    ? this.props.value
+                                    : this.state.editorValue}
+                            onChange={(e)=>this.setState({editorValue: e.target.value})}
+                            /> */}
+                {this.state.editor !== 0 ?
+                    <div style={{float: "right"}}>
+                        <input
+                            type="button"
+                            value="Ok"
+                            ref={this.okButton}
+                            onBlur={this.blur}
+                            onClick={this.updateValue}/>
+                        <input
+                            type="button"
+                            value="Cancel"
+                            ref={this.cancelButton}
+                            onBlur={this.blur}
+                            onClick={()=>this.setState({editor: 0})}/>
+                    </div>
+                    : null
+                }
+
+            </span>
+    }
+
+    blur=(e:React.FocusEvent<Element>)=>{
+        const target = e.relatedTarget;
+        const ours = [this.okButton, this.cancelButton, this.textArea].map(e=>e.current as Element);
+        if (ours.includes(target as Element)) {
+            return;
         }
-        let v = this.props.value;
-        if (v === undefined || v === "") {
-            v = " ";
+        console.log('Blur', target, ours);
+        if (this.state.editor !== 0) {
+            this.updateValue();
+        } else {
+            this.setState({editor: 0});
         }
-        return <span className={"TextEdit"+ (this.props.busy ? " BusyInfinite" : "")} ref={this.props.focusRef} tabIndex={0} onClick={this.openEditor} {...this.props.helpKey?.dom()}>{v}{editor}</span>
+    }
+
+    done=()=>{
+        this.setState({editor: 0});
     }
 
     openEditor=()=>{
-        this.setState({editor: 1});
+        this.setState({editor: 1, editorValue: this.props.value});
     }
 
-    updateValue=(e:string|null)=>{
-        this.setState({editor: 0});
-        if (e != null && this.props.onChange) {
-            this.props.onChange(e);
+    updateValue=()=>{
+        if (this.textArea.current) {
+            const v = this.textArea.current.value;
+            this.setState({editor: 0});
+            this.props.onChange(v);
+        } else {
+            this.setState({editor: 0});
         }
     }
 }
