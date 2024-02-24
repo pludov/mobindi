@@ -21,6 +21,7 @@ import Led from '../Led';
 import IndiDriverControlPanel from './IndiDriverControlPanel';
 import IndiDriverSelector from './IndiDriverSelector';
 import IndiVectorView from './IndiVectorView';
+import IndiProfileSelector from './IndiProfileSelector';
 
 type InputProps = {
 }
@@ -91,12 +92,13 @@ class IndiManagerView extends React.PureComponent<Props> {
         }
 
 
-
-
-
         return (
             <div className="Page">
                 <div className={'IndiAppState IndiAppState_' + bs.status}>Server: {bs.status}
+                </div>
+
+                <div className="IndiProfileSelector">
+                    <IndiProfileSelector/>
                 </div>
 
                 <div className="IndiDriverSelector">

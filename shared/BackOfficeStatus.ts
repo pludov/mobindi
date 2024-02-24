@@ -212,6 +212,24 @@ export type IndiServerConfiguration = {
     autorun: boolean;
 }
 
+export type IndiProfilePropertyConfiguration = {
+    value: string;
+}
+
+export type IndiProfileConfiguration = {
+    uid: string;
+    name: string;
+    active: boolean;
+
+    // Keys are Stringified of { dev, vec, prop }
+    keys: {[id: string]: IndiProfilePropertyConfiguration};
+}
+
+export type IndiProfilesConfiguration = {
+    list: string[];
+    byUid: {[uid:string]:IndiProfileConfiguration};
+}
+
 export type IndiServerState = IndiServerConfiguration & {
     restartList: string[];
     startDelay: {[id:string] : number};
@@ -257,6 +275,7 @@ export type IndiManagerStatus = {
     configuration: {
         indiServer: IndiServerConfiguration;
         driverPath: string;
+        profiles : IndiProfilesConfiguration;
     };
     driverToGroup: {[driver: string]: string};
     deviceTree: {[deviceId:string]:IndiDevice};

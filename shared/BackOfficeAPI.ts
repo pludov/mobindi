@@ -33,7 +33,13 @@ export type UpdateIndiVectorRequest = {
     children: {name:string, value:string}[]
 }
 
-export type IndiAPI = {
+export type IndiProfileAPI = {
+    createProfile: (payload: {name: string})=>void;
+    deleteProfile: (payload: {uid:string})=>void;
+    updateProfile: (payload: {uid:string, name: string})=>void;
+}
+
+export type IndiAPI = IndiProfileAPI & {
     connectDevice: (payload: {device: string})=>void;
     disconnectDevice: (payload: {device: string})=>void;
     restartDriver: (payload: {driver: string})=>void;

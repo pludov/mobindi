@@ -19,6 +19,7 @@ import IndiAutoGphotoSensorSize from './IndiAutoGphotoSensorSize';
 import * as Metrics from "./Metrics";
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
+import IndiProfileManager from './IndiProfileManager';
 
 const logger = Log.logger(__filename);
 
@@ -52,8 +53,9 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     indiServerStarter: IndiServerStarter | null;
     connection: undefined|IndiConnection;
 
+    readonly profileManager : IndiProfileManager;
+
     constructor(app:ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
-        var self = this;
         this.appStateManager = appStateManager;
         this.appStateManager.getTarget().indiManager = {
             // connecting, connected, error
@@ -78,6 +80,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                     devices: {},
                     autorun: true,
                 },
+                profiles: {
+                    list: [],
+                    byUid: {},
+                }
             }
         }
 
@@ -110,7 +116,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         });
 
         // List configuration settings
-        this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {self.readDrivers();}, true);
+        this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'driverPath'], () => {this.readDrivers();}, true);
 
         // Update available camera
         this.createDeviceListSynchronizer((devs:string[])=> {
@@ -141,6 +147,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
 
         new IndiAutoConnect(this);
         new IndiAutoGphotoSensorSize(this);
+        this.profileManager = new IndiProfileManager(app, appStateManager, context);
     }
 
     public getIndiServerAddr() : {host: string, port: number} {
@@ -157,8 +164,22 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             restartDriver: this.restartDriver,
             updateDriverParam: this.updateDriverParam,
             updateVector: this.updateVector,
+            ...this.profileManager.getAPI()
         }
     }
+
+    createProfile= (ct: CancellationToken, payload: { name: string; }) => {
+        return this.profileManager.createProfile(ct, payload);
+    }
+
+    updateProfile= (ct: CancellationToken, payload: { uid: string; name: string; }) => {
+        return this.profileManager.updateProfile(ct, payload);
+    }
+
+    deleteProfile= (ct: CancellationToken, payload: { uid: string; }) => {
+        return this.profileManager.deleteProfile(ct, payload);
+    }
+
 
     public async metrics():Promise<Array<Metrics.Definition>> {
         let ret : Array<Metrics.Definition> = [];

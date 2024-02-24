@@ -1,6 +1,7 @@
 
 
 // Generate id that are alphabetically sorted
+// Character used : 0-9A-Z
 export class IdGenerator {
     private value: string;
 
@@ -40,6 +41,26 @@ export class IdGenerator {
 
         this.value = inc(this.value, this.value.length - 1);
         return this.value;
+    }
+
+    // Ensure next id will not collide with any of the given list
+    used(list: Array<string>)
+    {
+        let changed = false;
+        // Reverse list to have the last used first
+        for(let i = list.length - 1; i >= 0; --i) {
+            const uid = list[i];
+            if (uid.length < this.value.length) {
+                continue;
+            }
+            if (uid.length > this.value.length || this.value <= uid) {
+                this.value = uid;
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.next();
+        }
     }
 
     // Regenerate ids of the given list (order preserved)
