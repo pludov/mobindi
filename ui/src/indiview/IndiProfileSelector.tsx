@@ -4,9 +4,8 @@
 import React, { } from 'react';
 import * as Store from "../Store";
 import { IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
-import "./IndiManagerView.css";
-import "../Collapsible.css";
 import Modal from '../Modal';
+import IndiProfileDialog from './IndiProfileDialog';
 
 type InputProps = {
 }
@@ -26,14 +25,16 @@ class IndiProfileSelector extends React.PureComponent<Props> {
     }
 
     render() {
-        const activeProfiles = ["alpa", "beta", ...this.props.indiManagerProfiles.list];
+        const activeProfiles = this.props.indiManagerProfiles.list
+                    .filter((e)=>this.props.indiManagerProfiles.byUid[e]?.active);
 
         return <>
             <select value={"current"} onChange={this.openDialog} className={activeProfiles.length == 0 ? "IndiNoPropfileSelector" : ""}>
                 <option value="current">
                     {activeProfiles.length > 0 ?
-                        "Profile: " +  activeProfiles.map(
-                            (e)=>(this.props.indiManagerProfiles.byUid[e]?.name || e)
+                        (activeProfiles.length === 1 ? "Profile: " : "Profiles: ")
+                         +  activeProfiles.map(
+                                (e)=>(this.props.indiManagerProfiles.byUid[e]?.name || e)
                             ).join(", ")
                         : "No profile selected"
                     }
@@ -41,7 +42,7 @@ class IndiProfileSelector extends React.PureComponent<Props> {
                 <option value="switch">✏️ Choose...</option>
             </select>
             <Modal ref={this.dialog} closeOnChange={""}>
-                To be continued...
+                <IndiProfileDialog/>
             </Modal>
         </>
     }

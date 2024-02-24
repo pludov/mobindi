@@ -1,7 +1,7 @@
 import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
-import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle } from './BackOfficeStatus';
+import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle, IndiProfileConfiguration } from './BackOfficeStatus';
 import { Json } from './Json';
 import { Diff } from '../shared/JsonProxy';
 
@@ -34,9 +34,9 @@ export type UpdateIndiVectorRequest = {
 }
 
 export type IndiProfileAPI = {
-    createProfile: (payload: {name: string})=>void;
+    createProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>)=>void;
+    updateProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string})=>void;
     deleteProfile: (payload: {uid:string})=>void;
-    updateProfile: (payload: {uid:string, name: string})=>void;
 }
 
 export type IndiAPI = IndiProfileAPI & {

@@ -3,7 +3,7 @@
  */
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { IndiManagerStatus, BackofficeStatus } from './shared/BackOfficeStatus';
+import { IndiManagerStatus, BackofficeStatus, IndiProfileConfiguration } from './shared/BackOfficeStatus';
 import JsonProxy, {  } from './shared/JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import * as RequestHandler from "./RequestHandler";
@@ -33,13 +33,14 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         this.profileIdGenerator.used(this.indiManager.configuration.profiles.list);
     }
 
-    readonly createProfile = async (ct: CancellationToken, payload: { name: string; }) => {
+    readonly createProfile = async (ct: CancellationToken, payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>) => {
         const uid = this.profileIdGenerator.next();
         this.indiManager.configuration.profiles.list.push(uid);
         this.indiManager.configuration.profiles.byUid[uid] = {
             uid,
-            name: payload.name,
+            name: "New profile",
             active: false,
+            ...payload,
             keys: {},
         };
     };
@@ -52,9 +53,15 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         }
     };
 
-    readonly updateProfile = async (ct: CancellationToken, payload: { uid: string; name: string; }) => {
+    readonly updateProfile = async (ct: CancellationToken, payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string}) => {
         const profile = this.indiManager.configuration.profiles.byUid[payload.uid];
-        if (profile) {
+        if (!profile) {
+            throw new Error("Profile not found");
+        }
+        if (payload.active !== undefined) {
+            profile.active = payload.active;
+        }
+        if (payload.name !== undefined) {
             profile.name = payload.name;
         }
     }
