@@ -19,18 +19,26 @@ type MappedProps = {
 
 type Props = InputProps & MappedProps;
 
+type State = {
+    confirmDropProfile?: string;
+}
 
-class IndiProfileDialog extends React.PureComponent<Props> {
+class IndiProfileDialog extends React.PureComponent<Props, State> {
     private static dropProfileBtonHelp = Help.key("Delete", "Delete a profile. Undo is not possible");
 
     private static cancelNewBtonHelp = Help.key("Cancel", "Cancel the creation of a new profile");
     private static saveNewConfirmBtonHelp = Help.key("Save", "Save the new profile");
 
+    private static cancelDropBtonHelp = Help.key("Cancel", "Cancel the deletion of the profile");
+    private static confirmDropBtonHelp = Help.key("Delete", "Delete the profile");
+
+    private dropProfileConfirmDialog = React.createRef<Modal>();
     private newProfileDialogModal = React.createRef<Modal>();
     private newProfileDialog = React.createRef<IndiProfileNewDialog>();
 
     constructor(props:Props) {
         super(props);
+        this.state = {};
     }
 
     switchProfile = async (uid: string)=>{
@@ -43,10 +51,24 @@ class IndiProfileDialog extends React.PureComponent<Props> {
     };
 
     confirmDropProfile = (t: string)=> {
+        console.log('Going to drop', t);
+        this.setState({confirmDropProfile: t},
+            ()=>this.dropProfileConfirmDialog.current!.open());
     };
 
     onNewProfileClick = ()=> {
         this.newProfileDialogModal.current!.open();
+    }
+
+    dropProfile = async ()=>{
+        const uid = this.state.confirmDropProfile!;
+        await BackendRequest.RootInvoker("indi")("deleteProfile")(
+            CancellationToken.CONTINUE,
+            {
+                uid
+            });
+        this.setState({confirmDropProfile: undefined});
+        this.dropProfileConfirmDialog.current!.close();
     }
 
     render() {
@@ -65,13 +87,36 @@ class IndiProfileDialog extends React.PureComponent<Props> {
                                     checked={this.props.indiManagerProfiles.byUid[profile]?.active}
                                     onChange={()=>this.switchProfile(profile)}/>
                                 {this.props.indiManagerProfiles.byUid[profile]?.name || profile}
-                                <input className="GlyphBton" {...IndiProfileDialog.dropProfileBtonHelp.dom()}
-                                        type='button' value='❌' onClick={()=>this.confirmDropProfile(profile)}/>
+                                <input className="GlyphBton"
+                                    type='button' value='❌'
+                                    onClick={()=>this.confirmDropProfile(profile)}
+                                    {...IndiProfileDialog.dropProfileBtonHelp.dom()}
+                                    />
                             </li>)
                         }
                     </ul>
                 </>
             }
+
+            <Modal ref={this.dropProfileConfirmDialog}
+                closeHelpKey={IndiProfileDialog.cancelDropBtonHelp}
+                closeOnChange={this.state.confirmDropProfile}
+                controlButtons={
+                    <input type="button"
+                        onClick={(e)=>this.dropProfile()}
+                        value={IndiProfileDialog.confirmDropBtonHelp.title}
+                        {...IndiProfileDialog.confirmDropBtonHelp.dom()}>
+                    </input>
+                }>
+                <div>
+                    Do you really want to delete the profile
+                    &nbsp;
+
+                    <i>
+                        {this.props.indiManagerProfiles.byUid[this.state.confirmDropProfile!]?.name || this.state.confirmDropProfile}
+                    </i> ?
+                </div>
+            </Modal>
 
             <Modal ref={this.newProfileDialogModal} closeOnChange={""}
                 closeHelpKey={IndiProfileDialog.cancelNewBtonHelp}
