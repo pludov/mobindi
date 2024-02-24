@@ -37,6 +37,7 @@ export type IndiProfileAPI = {
     createProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>)=>void;
     updateProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string})=>void;
     deleteProfile: (payload: {uid:string})=>void;
+    addToProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
 }
 
 export type IndiAPI = IndiProfileAPI & {

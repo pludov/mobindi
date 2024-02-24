@@ -180,6 +180,9 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return this.profileManager.deleteProfile(ct, payload);
     }
 
+    addToProfile= (ct: CancellationToken, payload: { uid: string; dev: string; vec: string; prop: string|null }) => {
+        return this.profileManager.addToProfile(ct, payload);
+    }
 
     public async metrics():Promise<Array<Metrics.Definition>> {
         let ret : Array<Metrics.Definition> = [];

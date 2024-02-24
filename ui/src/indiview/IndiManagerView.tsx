@@ -1,27 +1,19 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
+import React, { } from 'react';
 import Collapsible from 'react-collapsible';
-import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
 import * as Actions from "../Actions";
-import * as BackendRequest from "../BackendRequest";
 import * as IndiManagerStore from "../IndiManagerStore";
-import * as Utils from "../Utils";
-import { IndiVector, IndiProperty, IndiManagerStatus } from '@bo/BackOfficeStatus';
-import * as BackOfficeAPI from '@bo/BackOfficeAPI';
-import IndiSelectorPropertyView from "./IndiSelectorPropertyView";
-import IndiPropertyView from "./IndiPropertyView";
+import { IndiManagerStatus } from '@bo/BackOfficeStatus';
 import "./IndiManagerView.css";
 import "../Collapsible.css";
-import IconButton from '../IconButton';
-import Icons from '../Icons';
-import Led from '../Led';
 import IndiDriverControlPanel from './IndiDriverControlPanel';
 import IndiDriverSelector from './IndiDriverSelector';
 import IndiVectorView from './IndiVectorView';
 import IndiProfileSelector from './IndiProfileSelector';
+import IndiPropertyProfileStatus from './IndiPropertyProfileStatus';
 
 type InputProps = {
 }
@@ -46,37 +38,67 @@ class IndiManagerView extends React.PureComponent<Props> {
         await Actions.dispatch<IndiManagerStore.IndiManagerActions>()("setGroupState", {dev, group, newState});
     }
 
+    hasActiveProfile() {
+        const profile = this.props.indiManager.configuration.profiles;
+        return profile.list.filter((e)=>profile.byUid[e]?.active).length > 0;
+    }
+
+    decorateVectorWithProfile(props: {
+        dev: string;
+        vec: string;
+        type: string;
+        rule: string;
+        perm: string;
+        prop: string|null;
+        changeCallback?: (id:string, immediate:boolean, value:string)=>void;
+    }) {
+        if (props.perm === "ro") {
+            return null;
+        }
+
+        if (props.type === 'Switch' && props.rule === 'AtMostOne') {
+            return null;
+        }
+        return <IndiPropertyProfileStatus
+                        dev={props.dev}
+                        vec={props.vec}
+                        prop={props.prop}
+                        />;
+    }
+
     render() {
         var bs = this.props.indiManager;
         if (bs == undefined || bs == null) {
             return null;
         }
 
-        var vectors = [];
+        const decorator = !this.hasActiveProfile() ? undefined : this.decorateVectorWithProfile;
+
+        const vectors = [];
         const currentDevice = this.props.uiState.selectedDevice || "";
         if (currentDevice !== "") {
             if (Object.prototype.hasOwnProperty.call(this.props.indiManager.deviceTree, currentDevice)) {
-                var deviceProps = this.props.indiManager.deviceTree[currentDevice];
+                const deviceProps = this.props.indiManager.deviceTree[currentDevice];
 
                 // Les groupes ouverts
-                var opens = this.props.uiState.expandedGroups[currentDevice];
+                const opens = this.props.uiState.expandedGroups[currentDevice];
 
-                var groups = {};
-                for(var key in deviceProps) {
-                    var grpId = deviceProps[key].$group;
+                const groups = {};
+                for(const key of Object.keys(deviceProps)) {
+                    const grpId = deviceProps[key].$group;
                     groups[grpId] = {
                         opened: Object.prototype.hasOwnProperty.call(opens, grpId) && opens[grpId],
                         vectors: []
                     };
                 }
-                var groupIds = Object.keys(groups).sort();
+                const groupIds = Object.keys(groups).sort();
                 for(let group of groupIds) {
-                    var groupDesc = groups[group];
+                    const groupDesc = groups[group];
                     let childs = [];
-                    for(var key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
-                        childs.push(<IndiVectorView key={currentDevice +':vector:' +key} dev={currentDevice} vec={key}/>);
+                    for(const key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
+                        childs.push(<IndiVectorView key={currentDevice +':vector:' +key} decorator={decorator} dev={currentDevice} vec={key}/>);
                     }
-                    // use panel here... 
+                    // use panel here...
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
                         open={groupDesc.opened}

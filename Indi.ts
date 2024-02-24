@@ -195,6 +195,17 @@ export class Vector {
         return prop.$_;
     }
 
+    getFirstActiveProperty():string|null {
+        const vecDef = this.getExistingVectorInTree();
+
+        for(const key of vecDef.childNames) {
+            if (vecDef.childs[key].$_ === "On") {
+                return key;
+            }
+        }
+        return null;
+    }
+
     getPropertyValueIfExists(name:string):string|null {
         var vecDef = this.getVectorInTree();
         if (vecDef === null) return null;

@@ -20,6 +20,15 @@ import Led from '../Led';
 type InputProps = {
     dev: string;
     vec: string;
+    decorator?: (props: {
+        dev: string;
+        vec: string;
+        type: string;
+        rule: string;
+        perm: string;
+        prop: string|null;
+        changeCallback?: (id:string, immediate:boolean, value:string)=>void;
+    })=>React.ReactNode;
 }
 
 type MappedProps = {
@@ -137,18 +146,39 @@ class IndiVectorView extends React.PureComponent<Props, State> {
     public render() {
         const ledColor = VectorStateToColor[this.props.state] || VectorStateToColor['Alert'];
 
+        const decorate = (prop:string|null)=>{
+            if (!this.props.decorator) {
+                return null;
+            }
+            return this.props.decorator({
+                dev: this.props.dev,
+                vec: this.props.vec,
+                type: this.props.type,
+                rule: this.props.rule,
+                perm: this.props.perm,
+                prop: prop,
+                // FIXME: this don't work for OneOfMany...
+                // changeCallback: this.changeCallback,
+            });
+        };
+        
         let content;
         if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany' && this.props.perm != "ro") {
             content = <div className="IndiProperty">{this.props.label}:
                 <IndiSelectorPropertyView dev={this.props.dev} vec={this.props.vec}/>
+                {decorate(null)}
             </div>;
         } else if (this.props.childs.length > 0) {
             content = this.props.childs.map(
-                (id) => <IndiPropertyView dev={this.props.dev}
+                (id) =>
+                    <IndiPropertyView dev={this.props.dev}
                                 showVecLabel={this.props.childs.length == 1}
                                 onChange={this.changeCallback}
                                 vec={this.props.vec} prop={id} key={'child_' + id}
-                                forcedValue={this.state["forced_" + id]}/>);
+                                forcedValue={this.state["forced_" + id]}>
+                        {decorate(id)}
+                    </IndiPropertyView>
+                );
             if (this.props.childs.length > 1) {
                 content.splice(0, 0,
                         <div

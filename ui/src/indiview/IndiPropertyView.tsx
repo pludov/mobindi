@@ -205,17 +205,20 @@ class IndiPropertyView extends PureComponent<Props> {
 */
         if (this.props.vecType == 'Switch' && this.props.vecPerm != 'ro') {
             if (this.props.vecRule == 'AtMostOne') {
-                return <input
-                    type="button"
-                    className={busyClassName + "IndiSwitchButton IndiSwitchButton" + this.props.value}
-                    value={label}
-                    onClick={(e) => {
-                        this.props.onChange(
-                            this.props.prop,
-                            true,
-                            this.props.value == 'On' ? 'Off' : 'On')
-                    }}
-                />
+                return <>
+                    <input
+                        type="button"
+                        className={busyClassName + "IndiSwitchButton IndiSwitchButton" + this.props.value}
+                        value={label}
+                        onClick={(e) => {
+                            this.props.onChange(
+                                this.props.prop,
+                                true,
+                                this.props.value == 'On' ? 'Off' : 'On')
+                            }}
+                            />
+                    {this.props.children}
+                </>
 
             } else {
                 return <div className={className}>
@@ -230,7 +233,7 @@ class IndiPropertyView extends PureComponent<Props> {
                                 e.target.checked ? 'On' : 'Off');
                         }}
                     ></input>
-                    {label}</div>
+                    {label}{this.props.children}</div>
             }
         } else if (this.props.vecPerm != 'ro') {
             return <div className={className}>
@@ -239,9 +242,10 @@ class IndiPropertyView extends PureComponent<Props> {
                             value={this.renderValue(this.props.value)}
                             busy={this.props.busy}
                             onChange={(e)=> {this.props.onChange(this.props.prop, false, this.parseValue(e))}}/>
+                        {this.props.children}
                     </div>;
         } else {
-            return <div className={className}>{label}: {this.renderValue(this.props.value)}</div>
+            return <div className={className}>{label}: {this.renderValue(this.props.value)}{this.props.children}</div>
         }
     }
 
@@ -273,7 +277,7 @@ class IndiPropertyView extends PureComponent<Props> {
                 vecType: vec.$type,
                 vecRule: vec.$rule,
                 vecPerm: vec.$perm,
-                propLabel : prop.$label,
+                propLabel : ownProps.showVecLabel ? vec.$label : prop.$label,
                 value: ownProps.forcedValue != undefined ? ownProps.forcedValue: prop.$_,
                 format: prop.$format
             } as MappedProps;

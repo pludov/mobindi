@@ -66,11 +66,35 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         }
     }
 
+    readonly addToProfile = async (ct: CancellationToken, payload: { uid: string; dev: string; vec: string; prop: string|null }) => {
+        const profile = this.indiManager.configuration.profiles.byUid[payload.uid];
+        if (!profile) {
+            throw new Error("Profile not found");
+        }
+        const key = payload.dev + "." + payload.vec + "." + payload.prop;
+
+        // Get the current value
+        const vec = this.context.indiManager.getValidConnection().getDevice(payload.dev).getVector(payload.vec);
+        let value;
+        if (payload.prop) {
+            value = vec.getPropertyValue(payload.prop);
+        } else {
+            value = vec.getFirstActiveProperty();
+        }
+        if (value === null) {
+            throw new Error("Property has no active value");
+        }
+        profile.keys[key] = {
+            value
+        };
+    }
+
     readonly getAPI: () => RequestHandler.APIAppImplementor<BackOfficeAPI.IndiProfileAPI> =() => {
         return {
             createProfile: this.createProfile,
             deleteProfile: this.deleteProfile,
-            updateProfile: this.updateProfile
+            updateProfile: this.updateProfile,
+            addToProfile: this.addToProfile,
         }
     }
 }
