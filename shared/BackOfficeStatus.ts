@@ -216,13 +216,23 @@ export type IndiProfilePropertyConfiguration = {
     value: string;
 }
 
+export type ProfilePropertyAssociation<T> ={
+    [dev: string]: {
+        [vec: string]: {
+            // "...whole_vector..." is used for vector wide constraint
+            [prop: string]: T
+        }
+    }
+};
+
+
 export type IndiProfileConfiguration = {
     uid: string;
     name: string;
     active: boolean;
 
     // Keys are Stringified of { dev, vec, prop }
-    keys: {[id: string]: IndiProfilePropertyConfiguration};
+    keys: ProfilePropertyAssociation<IndiProfilePropertyConfiguration>;
 }
 
 export type IndiProfilesConfiguration = {
@@ -283,6 +293,9 @@ export type IndiManagerStatus = {
     availableScopes: string [];
     availableFocusers: string[];
     availableFilterWheels: string[];
+    profileStatus: {
+        mismatches: ProfilePropertyAssociation<{wanted: string, profile: string}>
+    }
     messages: {
         byUid: {[uuid:string]:IndiMessageWithUid}
     };

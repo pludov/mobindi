@@ -71,6 +71,9 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             availableFocusers: [],
             availableCameras: [],
             availableFilterWheels: [],
+            profileStatus: {
+                mismatches: {}
+            },
             configuration: {
                 driverPath: "none",
                 indiServer: {

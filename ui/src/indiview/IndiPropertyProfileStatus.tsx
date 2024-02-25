@@ -5,8 +5,10 @@ import React, { } from 'react';
 import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
 import * as BackendRequest from "../BackendRequest";
-import { IndiProfilePropertyConfiguration } from '@bo/BackOfficeStatus';
+import { IndiProfilePropertyConfiguration, IndiProfilesConfiguration, ProfilePropertyAssociation } from '@bo/BackOfficeStatus';
 import "./IndiManagerView.css";
+import { get3D } from '../shared/Obj';
+import { defaultMemoize } from 'reselect';
 
 type InputProps = {
     dev: string;
@@ -17,6 +19,7 @@ type InputProps = {
 type MappedProps = {
     lockGoTo: string|undefined;
     restriction: undefined|IndiProfilePropertyConfiguration;
+    mismatch?: boolean;
 }
 
 type Props = InputProps & MappedProps;
@@ -46,35 +49,52 @@ class IndiPropertyProfileStatus extends React.PureComponent<Props> {
         return <div style={{float: "right", clear: "left"}}>
                 <input className="GlyphBton"
                             type='button' value='🔒'
-                            style={{filter: this.props.restriction ? undefined : 'grayscale(80%)'}}
+                            style={{
+                                    filter: this.props.restriction ? undefined : 'grayscale(80%)',
+                                    backgroundColor: this.props.mismatch ? 'red' : undefined,
+                            }}
                             onClick={this.lockProperty}
                             />
             </div>;
     }
 
-    public static mapStateToProps(store: Store.Content, ownProps: InputProps) {
-        const p = store.backend.indiManager?.configuration.profiles;
-        if (!p) {
-            return {};
-        }
-        let lockGoTo: string|undefined = undefined;
-        for(const id of p.list) {
-            const profile = p.byUid[id];
-            if (!profile.active) {
-                continue;
+    public static mapStateToProps = ()=>{
+        const statusGenerator = defaultMemoize((
+                        dev:string, vec:string, prop:string|null,
+                        profiles: IndiProfilesConfiguration|undefined,
+                        status: ProfilePropertyAssociation<{wanted: string, profile: string}>|undefined)=>{
+            if (!profiles) {
+                return {};
             }
-            lockGoTo = id;
+            let lockGoTo: string|undefined = undefined;
+            const propStr = prop === null ? "...whole_vector..." : prop;
+            for(const id of [...profiles.list].reverse()) {
+                const profile = profiles.byUid[id];
+                if (!profile.active) {
+                    continue;
+                }
+                lockGoTo = id;
 
-            const prop = profile.keys[ownProps.dev + "." + ownProps.vec + "." + ownProps.prop];
-            if (prop) {
-                return {
-                    restriction: prop,
-                    lockGoTo
-                };
+                const prop = get3D(profile.keys, dev, vec, propStr);
+                if (prop) {
+                    let r = status ? get3D(status, dev, vec, propStr) : undefined;
+                    return {
+                        restriction: prop,
+                        mismatch: r !== undefined,
+                        lockGoTo
+                    };
+                }
             }
+
+            return {lockGoTo};
+        });
+
+        return (store:Store.Content, ownProps: InputProps) => {
+            return statusGenerator(ownProps.dev, ownProps.vec, ownProps.prop,
+                store.backend.indiManager?.configuration.profiles,
+                store.backend.indiManager?.profileStatus.mismatches);
         }
 
-        return {lockGoTo};
     }
 }
 

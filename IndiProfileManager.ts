@@ -3,14 +3,27 @@
  */
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { IndiManagerStatus, BackofficeStatus, IndiProfileConfiguration } from './shared/BackOfficeStatus';
-import JsonProxy, {  } from './shared/JsonProxy';
+import { IndiManagerStatus, BackofficeStatus, IndiProfileConfiguration, ProfilePropertyAssociation } from './shared/BackOfficeStatus';
+import JsonProxy, { NoWildcard, TriggeredWildcard } from './shared/JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import { IdGenerator } from './IdGenerator';
 
+import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D } from './shared/Obj';
+
 const logger = Log.logger(__filename);
+
+type PropertyRuntimeInfo = {
+    dev: string;
+    vec: string;
+    prop: string|null;
+    profiles: string[];
+    // The value from the last controlling property
+    wanted: string;
+    value: string|null;
+}
+
 
 export default class IndiProfileManager implements RequestHandler.APIAppProvider<BackOfficeAPI.IndiProfileAPI>{
     app: ExpressApplication;
@@ -18,6 +31,14 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
     context: AppContext;
     indiManager: IndiManagerStatus;
     profileIdGenerator = new IdGenerator();
+
+    // Dynamic status for all watched properties
+    // This is kept out of the main status to avoid flooding the client with intermediate data
+    watchedProps: ProfilePropertyAssociation<PropertyRuntimeInfo> = {};
+
+    // Properties that needs checking
+    dirtyProps: ProfilePropertyAssociation<boolean> = {};
+    dirtyTimer: NodeJS.Timeout|undefined;
 
     constructor(app: ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.app = app;
@@ -27,6 +48,181 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         this.indiManager = appStateManager.getTarget().indiManager;
 
         this.appStateManager.addSynchronizer(['indiManager', 'configuration', 'profiles', 'list'], this.updateIdGenerator, true);
+
+        // This synchronizer listen for all value change
+        this.appStateManager.addSynchronizer(
+            ['indiManager', 'configuration', 'profiles'],
+            this.fullRefreshProfileStatus, true);
+
+
+        this.appStateManager.addSynchronizer(
+            [   'indiManager',
+                'deviceTree',
+                null,
+                null,
+                'childs',
+                null,
+                '$_'
+            ],
+            this.verifyPropertyWildcard, false, true);
+    }
+
+    private readonly fullRefreshProfileStatus = () => {
+        // List all active profiles
+
+        this.watchedProps = {};
+        this.dirtyProps = {};
+
+        const activeProfiles = this.indiManager.configuration.profiles.list.filter((uid)=>this.indiManager.configuration.profiles.byUid[uid]?.active);
+        for(const profileId of activeProfiles) {
+            const profile = this.indiManager.configuration.profiles.byUid[profileId];
+            if (!profile.active) {
+                continue;
+            }
+            for(const dev of Object.keys(profile.keys)) {
+                const devKeys = profile.keys[dev];
+                const watchedDev = getOrCreateOwnProp(this.watchedProps, dev);
+                const dirtyDev = getOrCreateOwnProp(this.dirtyProps, dev);
+
+                for(const vec of Object.keys(devKeys)) {
+                    const vecKeys = devKeys[vec];
+                    const watchedVec = getOrCreateOwnProp(watchedDev, vec);
+                    const dirtyVec = getOrCreateOwnProp(dirtyDev, vec);
+
+                    for(const prop of Object.keys(vecKeys)) {
+                        const watchedProp = getOrCreateOwnProp(watchedVec, prop, () => ({
+                            dev,
+                            vec,
+                            prop: prop === "." ? null : prop,
+                            value: null,
+                            wanted: "",
+                            profiles: []
+                        }));
+                        watchedProp.profiles.push(profileId);
+                        watchedProp.wanted = vecKeys[prop].value;
+                        dirtyVec[prop] = true;
+                    }
+                }
+            }
+        }
+        this.checkDirtyProperties();
+    }
+
+    private readonly checkDirtyProperties = () => {
+        if (this.dirtyTimer !== undefined) {
+            clearTimeout(this.dirtyTimer);
+            this.dirtyTimer = undefined;
+        }
+
+        logger.debug("Checking dirty properties");
+        const indiConnection = this.context.indiManager.connection;
+        // What to do if indi connection went down ?
+        for(const dev of Object.keys(this.dirtyProps).sort()) {
+            const dirtyDev = this.dirtyProps[dev];
+            const watchedDev = getOwnProp(this.watchedProps, dev);
+            if (!watchedDev) {
+                // Ignore if not watched
+                continue;
+            }
+            logger.debug("Checking dirty properties for device", dev);
+            const indiDevice = indiConnection?.getDevice(dev);
+
+            for(const vec of Object.keys(dirtyDev).sort()) {
+                const dirtyVec = dirtyDev[vec];
+                const watchedVec = getOwnProp(watchedDev, vec);
+                if (!watchedVec) {
+                    // Ignore if not watched
+                    continue;
+                }
+                logger.debug("Checking dirty properties for vector", vec);
+                const indiVec = indiDevice?.getVector(vec);
+
+                for(const prop of Object.keys(dirtyVec).sort()) {
+                    const watchedProp = getOwnProp(watchedVec, prop);
+                    if (!watchedProp) {
+                        // Ignore if not watched
+                        logger.info("Property not watched", {dev, vec, prop});
+                        continue;
+                    }
+
+                    logger.debug("Checking dirty properties for property", prop);
+
+                    let newValue;
+                    if (indiVec === undefined) {
+                        // Unknown
+                        newValue = null;
+                    } else {
+                        if (prop !== '...whole_vector...') {
+                            newValue = indiVec.getPropertyValueIfExists(prop);
+                        } else {
+                            newValue = indiVec.getFirstActivePropertyIfExists();
+                        }
+                    }
+
+
+                    if (newValue !== null && newValue !== watchedProp.wanted) {
+                        const existingMismatch = get3D(this.indiManager.profileStatus.mismatches, dev, vec, prop);
+
+                        if ((!existingMismatch)
+                            || (existingMismatch.wanted !== watchedProp.wanted)
+                            || (existingMismatch.profile !== watchedProp.profiles[watchedProp.profiles.length-1]))
+                        {
+                            if (!existingMismatch) {
+                                logger.debug("Mismatch appear", {dev, vec, prop, newValue, wanted: watchedProp.wanted});
+                            }
+                            set3D(this.indiManager.profileStatus.mismatches, dev, vec, prop, {
+                                wanted: watchedProp.wanted,
+                                profile: watchedProp.profiles[watchedProp.profiles.length-1]
+                            });
+                        }
+                    } else {
+                        if (delete3D(this.indiManager.profileStatus.mismatches, dev, vec, prop)) {
+                            logger.debug("Mismatch disappear", {dev, vec, prop, wanted: watchedProp.wanted});
+                        }
+                    }
+                }
+            }
+        }
+        this.dirtyProps = {};
+    }
+
+    private readonly verifyPropertyWildcard = (id: TriggeredWildcard) => {
+        logger.debug("Verify property wildcard", id);
+
+        // Apply the wildcard to the hierarchy of watched properties
+        const devWildcards = id;
+        let sthDone = false;
+        for(const dev of (devWildcards[NoWildcard] ? Object.keys(this.watchedProps) : Object.keys(devWildcards))) {
+            const watchedDev = getOwnProp(this.watchedProps, dev);
+            if (!watchedDev) {
+                continue;
+            }
+            const vecWildcard = devWildcards[NoWildcard] ? undefined : devWildcards[dev];
+            // vecWildcard may be undefined (means id stopped at all devices)
+            // or contains NoWildcard (means all vectors for this device)
+            for(const vec of ((!vecWildcard) || vecWildcard[NoWildcard]) ? Object.keys(watchedDev) : Object.keys(vecWildcard)) {
+                const watchedVec = getOwnProp(watchedDev, vec);
+                if (!watchedVec) {
+                    continue;
+                }
+
+                const propWildcard = ((!vecWildcard) || vecWildcard[NoWildcard]) ? undefined : vecWildcard[vec];
+
+                // Consider the whole vector as well
+                for(const prop of ((!propWildcard) || propWildcard[NoWildcard]) ? Object.keys(watchedVec) : [...Object.keys(propWildcard), "...whole_vector..."]) {
+                    if (!getOwnProp(watchedVec, prop)) {
+                        continue;
+                    }
+                    if (add3D(this.dirtyProps, dev, vec, prop, true)) {
+                        sthDone = true;
+                    }
+                }
+            }
+        }
+
+        if (sthDone && !this.dirtyTimer) {
+            this.dirtyTimer = setTimeout(this.checkDirtyProperties, 100);
+        }
     }
 
     private readonly updateIdGenerator = () => {
@@ -84,9 +280,9 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         if (value === null) {
             throw new Error("Property has no active value");
         }
-        profile.keys[key] = {
+        set3D(profile.keys, payload.dev, payload.vec, payload.prop === null ? "...whole_vector..." : payload.prop, {
             value
-        };
+        });
     }
 
     readonly getAPI: () => RequestHandler.APIAppImplementor<BackOfficeAPI.IndiProfileAPI> =() => {

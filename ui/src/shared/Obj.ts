@@ -142,4 +142,66 @@ function noUndef<T extends Object> (obj: T): T {
     return obj;
 }
 
+
+export function getOrCreateOwnProp<T>(obj: {[id:string]:T}, key: string, create?: ()=>T): T {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+        obj[key] = create ? create() : {} as T;
+    }
+    return obj[key];
+}
+
+export function get3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string): T|undefined {
+    const objA = getOwnProp(obj, a);
+    if (!objA) {
+        return undefined;
+    }
+    const objB = getOwnProp(objA, b);
+    if (!objB) {
+        return undefined;
+    }
+    return getOwnProp(objB, c);
+}
+
+export function add3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string, value: T): boolean {
+    const objA = getOrCreateOwnProp(obj, a);
+    const objB = getOrCreateOwnProp(objA, b);
+    if (Object.prototype.hasOwnProperty.call(objB, c)) {
+        return false;
+    }
+    objB[c] = value;
+    return true;
+}
+
+export function set3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string, value: T) {
+    const objA = getOrCreateOwnProp(obj, a);
+    const objB = getOrCreateOwnProp(objA, b);
+    objB[c] = value;
+}
+
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string) {
+    const objA = getOwnProp(obj, a);
+    if (!objA) {
+        return false;
+    }
+    const objB = getOwnProp(objA, b);
+    if (!objB) {
+        return false;
+    }
+    if (!Object.prototype.hasOwnProperty.call(objB, c)) {
+        return false;
+    }
+    delete(objB[c]);
+    if (Object.keys(objB).length !== 0) {
+        return true;
+    }
+    delete objA[b];
+    if (Object.keys(objA).length !== 0) {
+        return true;
+    }
+    delete obj[a];
+    return true;
+}
+
+
+
 export { hasKey, mergeDeep, update, deepCopy, deepEqual, isObject, noUndef };
