@@ -513,6 +513,64 @@ describe("JsonProxySynchronizers", ()=>{
     });
 
 
+    it("gives recursive wildcard values on trigger",  ()=> {
+        var changeTracker = new JsonProxy<any>();
+        var root = changeTracker.getTarget();
+        let triggered : TriggeredWildcard | undefined;
+
+        changeTracker.addSynchronizer([ [ ['devs', null, null, 'value' ] ] ],
+            (where:TriggeredWildcard)=> {
+                if (where === undefined) {
+                    throw new Error("Triggered without wildcard !");
+                }
+                console.log(where);
+                triggered = where;
+            },
+            false,
+            true
+        );
+
+        triggered = undefined;
+        root.devs = {};
+        changeTracker.flushSynchronizers();
+        assert.isUndefined(triggered);
+
+        triggered = undefined;
+        root.devs['a']= {};
+        changeTracker.flushSynchronizers();
+        assert.isUndefined(triggered);
+
+        triggered = undefined;
+        root.devs['a']['b'] = {};
+        changeTracker.flushSynchronizers();
+        assert.isUndefined(triggered);
+
+        triggered = undefined;
+        root.devs['a']['b'].value = "coucou";
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['a']);
+        assert.hasAllKeys(triggered!.a, ['b']);
+
+        // Create a new device then add two properties
+        triggered = undefined;
+        root.devs['2'] = {c: {value: "c_value"} };
+        root.devs['2']['d'] = {value: "d_value"};
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['2']);
+        assert.hasAllKeys(triggered!['2'], ['c', 'd']);
+
+        // Delete all values
+        triggered = undefined;
+        delete root.devs['a']['b'].value;
+        delete root.devs['2']['c'].value;
+        changeTracker.flushSynchronizers();
+        assert.hasAllKeys(triggered, ['2', 'a']);
+        assert.hasAllKeys(triggered!['a'], ['b']);
+        assert.hasAllKeys(triggered!['2'], ['c']);
+    });
+
+
+
     it("remove synchronizer", () => {
         var changeTracker = new JsonProxy<any>();
         var root = changeTracker.getTarget();

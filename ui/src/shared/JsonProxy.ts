@@ -214,6 +214,7 @@ class SynchronizerTrigger {
             var wildcardCopy = new SynchronizerTrigger(undefined);
             wildcardCopy.wildcardOrigin = wildcard;
             wildcardCopy.wildcardAppliedToChilds = {};
+            wildcardCopy.callbackWildcardPath = wildcardPath;
             target.wildcardChilds!.push(wildcardCopy);
 
             wildcard.cloneInto(wildcardCopy, undefined, wildcardOrigin, false, wildcardPath);
@@ -285,7 +286,7 @@ class SynchronizerTrigger {
             wildcardChild.wildcardCallback = cb;
             wildcardChild.wildcardAppliedToChilds = {};
             wildcardChild.callbackWildcardPath = callbackWildcardPath;
-            wildcardChild.addToPath(undefined, cb, path, startAt + 1, false);
+            wildcardChild.addToPath(undefined, cb, path, startAt + 1, false, callbackWildcardPath);
 
             for(let o of this.getContentChilds(parentContent)) {
                 // Create triggers that must trigger depending on forceInitialTrigger
