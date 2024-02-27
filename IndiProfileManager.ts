@@ -267,7 +267,6 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         if (!profile) {
             throw new Error("Profile not found");
         }
-        const key = payload.dev + "." + payload.vec + "." + payload.prop;
 
         // Get the current value
         const vec = this.context.indiManager.getValidConnection().getDevice(payload.dev).getVector(payload.vec);
@@ -285,12 +284,22 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         });
     }
 
+    readonly removeFromProfile = async (ct: CancellationToken, payload: { uid: string; dev: string; vec: string; prop: string|null }) => {
+        const profile = this.indiManager.configuration.profiles.byUid[payload.uid];
+        if (!profile) {
+            throw new Error("Profile not found");
+        }
+
+        delete3D(profile.keys, payload.dev, payload.vec, payload.prop === null ? "...whole_vector..." : payload.prop);
+    }
+
     readonly getAPI: () => RequestHandler.APIAppImplementor<BackOfficeAPI.IndiProfileAPI> =() => {
         return {
             createProfile: this.createProfile,
             deleteProfile: this.deleteProfile,
             updateProfile: this.updateProfile,
             addToProfile: this.addToProfile,
+            removeFromProfile: this.removeFromProfile,
         }
     }
 }

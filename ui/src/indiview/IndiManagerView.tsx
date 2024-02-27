@@ -50,7 +50,7 @@ class IndiManagerView extends React.PureComponent<Props> {
         rule: string;
         perm: string;
         prop: string|null;
-        changeCallback?: (id:string, immediate:boolean, value:string)=>void;
+        changeCallback: (value:string)=>void;
     }) {
         if (props.perm === "ro") {
             return null;
@@ -59,10 +59,12 @@ class IndiManagerView extends React.PureComponent<Props> {
         if (props.type === 'Switch' && props.rule === 'AtMostOne') {
             return null;
         }
+
         return <IndiPropertyProfileStatus
                         dev={props.dev}
                         vec={props.vec}
                         prop={props.prop}
+                        updateValue={props.changeCallback}
                         />;
     }
 
@@ -109,8 +111,6 @@ class IndiManagerView extends React.PureComponent<Props> {
                         lazyRender={true}>{childs}</Collapsible>);
                 }
             }
-
-
         }
 
 

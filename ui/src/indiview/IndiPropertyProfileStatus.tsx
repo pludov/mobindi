@@ -9,11 +9,14 @@ import { IndiProfilePropertyConfiguration, IndiProfilesConfiguration, ProfilePro
 import "./IndiManagerView.css";
 import { get3D } from '../shared/Obj';
 import { defaultMemoize } from 'reselect';
+import Modal from '../Modal';
+import IndiPropertyProfileDialog from './IndiPropertyProfileDialog';
 
 type InputProps = {
     dev: string;
     vec: string;
     prop: string|null;
+    updateValue: (value:string)=>void;
 }
 
 type MappedProps = {
@@ -27,11 +30,17 @@ type Props = InputProps & MappedProps;
 
 /** Render a vector, depending on its type and access rules */
 class IndiPropertyProfileStatus extends React.PureComponent<Props> {
+    private advancedEditDialog = React.createRef<Modal>();
+
     constructor(props:Props) {
         super(props);
     }
 
     lockProperty = async ()=>{
+        if (this.props.restriction !== undefined) {
+            this.advancedEditDialog.current!.open();
+            return;
+        }
         if (!this.props.lockGoTo) {
             return;
         }
@@ -45,8 +54,22 @@ class IndiPropertyProfileStatus extends React.PureComponent<Props> {
             });
     }
 
+    closeDialogWithValue = (value?:string)=>{
+        this.advancedEditDialog.current!.close();
+        if (value !== undefined) {
+            this.props.updateValue(value);
+        }
+    }
+
     public render() {
         return <div style={{float: "right", clear: "left"}}>
+                <Modal ref={this.advancedEditDialog} closeOnChange={""}>
+                    <IndiPropertyProfileDialog
+                        dev={this.props.dev}
+                        vec={this.props.vec}
+                        prop={this.props.prop}
+                        close={this.closeDialogWithValue}/>
+                </Modal>
                 <input className="GlyphBton"
                             type='button' value='🔒'
                             style={{

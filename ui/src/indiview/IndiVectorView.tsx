@@ -27,7 +27,7 @@ type InputProps = {
         rule: string;
         perm: string;
         prop: string|null;
-        changeCallback?: (id:string, immediate:boolean, value:string)=>void;
+        changeCallback: (value:string)=>void;
     })=>React.ReactNode;
 }
 
@@ -116,7 +116,18 @@ class IndiVectorView extends React.PureComponent<Props, State> {
         this.doneRequest(req);
     }
 
-    private changeCallback = async(id:string, immediate:boolean, value:string)=>{
+    private changeCallback = async(id:string | null, immediate:boolean, value:string)=>{
+        if (id === null) {
+            await BackendRequest.RootInvoker("indi")("updateVector")(CancellationToken.CONTINUE, {
+                dev: this.props.dev,
+                vec: this.props.vec,
+                children: [
+                    {name: value, value: 'On'}
+                ]
+            });
+            return;
+        }
+
         if ((!immediate) && this.props.childs.length > 1) {
             // Do nothing for now
             this.setState({
@@ -157,11 +168,10 @@ class IndiVectorView extends React.PureComponent<Props, State> {
                 rule: this.props.rule,
                 perm: this.props.perm,
                 prop: prop,
-                // FIXME: this don't work for OneOfMany...
-                // changeCallback: this.changeCallback,
+                changeCallback: (value)=>this.changeCallback(prop, false, value)
             });
         };
-        
+
         let content;
         if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany' && this.props.perm != "ro") {
             content = <div className="IndiProperty">{this.props.label}:
