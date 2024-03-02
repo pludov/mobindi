@@ -72,6 +72,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             availableCameras: [],
             availableFilterWheels: [],
             profileStatus: {
+                totalMismatchCount: 0,
                 mismatches: {}
             },
             configuration: {

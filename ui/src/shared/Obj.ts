@@ -178,30 +178,70 @@ export function set3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: s
     objB[c] = value;
 }
 
-export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string) {
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}): boolean;
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string): boolean;
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string): boolean;
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string): boolean;
+export function delete3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a?: string, b?: string, c?: string) {
+    if (a === undefined) {
+        for(const k of Object.keys(obj)) {
+            delete obj[k];
+        }
+        return;
+    }
     const objA = getOwnProp(obj, a);
     if (!objA) {
         return false;
     }
-    const objB = getOwnProp(objA, b);
-    if (!objB) {
-        return false;
-    }
-    if (!Object.prototype.hasOwnProperty.call(objB, c)) {
-        return false;
-    }
-    delete(objB[c]);
-    if (Object.keys(objB).length !== 0) {
-        return true;
-    }
-    delete objA[b];
-    if (Object.keys(objA).length !== 0) {
-        return true;
+    if (b !== undefined) {
+        const objB = getOwnProp(objA, b);
+        if (!objB) {
+            return false;
+        }
+        if (c !== undefined) {
+            if (!Object.prototype.hasOwnProperty.call(objB, c)) {
+                return false;
+            }
+            delete(objB[c]);
+            if (Object.keys(objB).length !== 0) {
+                return true;
+            }
+        }
+        delete objA[b];
+        if (Object.keys(objA).length !== 0) {
+            return true;
+        }
     }
     delete obj[a];
     return true;
 }
 
-
+export function count3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}): number;
+export function count3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string): number;
+export function count3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string): number;
+export function count3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a: string, b: string, c: string): number;
+export function count3D<T>(obj: {[id:string]:{[id:string]:{[id:string]: T}}}, a?: string, b?: string, c?: string) {
+    let result = 0;
+    for(const k1 of a === undefined ? Object.keys(obj): [a]) {
+        const objA = getOwnProp(obj, k1);
+        if (objA === undefined) {
+            continue;
+        }
+        for(const k2 of b === undefined ? Object.keys(objA): [b]) {
+            const objB = getOwnProp(objA, k2);
+            if (objB === undefined) {
+                continue;
+            }
+            if (c === undefined) {
+                result += Object.keys(objB).length;
+            } else {
+                if (Object.prototype.hasOwnProperty.call(objB, c)) {
+                    result++;
+                }
+            }
+        }
+    }
+    return result;
+}
 
 export { hasKey, mergeDeep, update, deepCopy, deepEqual, isObject, noUndef };

@@ -294,6 +294,7 @@ export type IndiManagerStatus = {
     availableFocusers: string[];
     availableFilterWheels: string[];
     profileStatus: {
+        totalMismatchCount: number;
         mismatches: ProfilePropertyAssociation<{wanted: string, profile: string}>
     }
     messages: {

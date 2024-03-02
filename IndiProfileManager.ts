@@ -10,7 +10,7 @@ import * as RequestHandler from "./RequestHandler";
 import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import { IdGenerator } from './IdGenerator';
 
-import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D } from './shared/Obj';
+import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D, count3D } from './shared/Obj';
 
 const logger = Log.logger(__filename);
 
@@ -39,6 +39,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
     // Properties that needs checking
     dirtyProps: ProfilePropertyAssociation<boolean> = {};
     dirtyTimer: NodeJS.Timeout|undefined;
+
+    notificationId: string|undefined;
 
     constructor(app: ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.app = app;
@@ -105,14 +107,16 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                 }
             }
         }
-        this.checkDirtyProperties();
+        this.checkDirtyProperties(true);
     }
 
-    private readonly checkDirtyProperties = () => {
+    private readonly checkDirtyProperties = (forceCounterRefresh: boolean) => {
         if (this.dirtyTimer !== undefined) {
             clearTimeout(this.dirtyTimer);
             this.dirtyTimer = undefined;
         }
+
+        let sthDone = !!forceCounterRefresh;
 
         logger.debug("Checking dirty properties");
         const indiConnection = this.context.indiManager.connection;
@@ -122,6 +126,9 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             const watchedDev = getOwnProp(this.watchedProps, dev);
             if (!watchedDev) {
                 // Ignore if not watched
+                if (delete3D(this.dirtyProps, dev)) {
+                    sthDone = true;
+                }
                 continue;
             }
             logger.debug("Checking dirty properties for device", dev);
@@ -132,6 +139,9 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                 const watchedVec = getOwnProp(watchedDev, vec);
                 if (!watchedVec) {
                     // Ignore if not watched
+                    if (delete3D(this.dirtyProps, dev, vec)) {
+                        sthDone = true;
+                    }
                     continue;
                 }
                 logger.debug("Checking dirty properties for vector", vec);
@@ -141,6 +151,10 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                     const watchedProp = getOwnProp(watchedVec, prop);
                     if (!watchedProp) {
                         // Ignore if not watched
+                        if (delete3D(this.dirtyProps, dev, vec, prop)) {
+                            sthDone = true;
+                        }
+
                         logger.info("Property not watched", {dev, vec, prop});
                         continue;
                     }
@@ -159,7 +173,6 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                         }
                     }
 
-
                     if (newValue !== null && newValue !== watchedProp.wanted) {
                         const existingMismatch = get3D(this.indiManager.profileStatus.mismatches, dev, vec, prop);
 
@@ -174,9 +187,11 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                                 wanted: watchedProp.wanted,
                                 profile: watchedProp.profiles[watchedProp.profiles.length-1]
                             });
+                            sthDone = true;
                         }
                     } else {
                         if (delete3D(this.indiManager.profileStatus.mismatches, dev, vec, prop)) {
+                            sthDone = true;
                             logger.debug("Mismatch disappear", {dev, vec, prop, wanted: watchedProp.wanted});
                         }
                     }
@@ -184,6 +199,21 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             }
         }
         this.dirtyProps = {};
+
+        if (sthDone) {
+            let currentCount = this.indiManager.profileStatus.totalMismatchCount;
+            let newCount = count3D(this.indiManager.profileStatus.mismatches);
+            if (newCount != currentCount) {
+                this.indiManager.profileStatus.totalMismatchCount = newCount;
+
+                if (currentCount === 0 && newCount > 0) {
+                    this.notificationId = this.context.notification.notify("INDI properties diverge from profile");
+                } else if (newCount === 0 && this.notificationId !== undefined) {
+                    this.context.notification.unnotify(this.notificationId);
+                    this.notificationId = undefined;
+                }
+            }
+        }
     }
 
     private readonly verifyPropertyWildcard = (id: TriggeredWildcard) => {

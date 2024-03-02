@@ -73,7 +73,7 @@ export default class Notification
     }
 
     notify(title: string) {
-        this.doNotify(title, "oneshot", null);
+        return this.doNotify(title, "oneshot", null);
     }
 
     unnotify(uid: string) {

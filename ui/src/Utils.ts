@@ -71,6 +71,31 @@ export function getOwnProp(o: any, s: any) {
     return undefined;
 }
 
+export function shallowEqual<T>(a: null | undefined | {[id: string]: T}, b: null | undefined | {[id: string]: T}): boolean {
+    if (a === b) return true;
+    if (a === null) return false;
+    if (b === null) return false;
+    if (a === undefined) return false;
+    if (b === undefined) return false;
+
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) {
+        return false;
+    }
+    aKeys.sort();
+    bKeys.sort();
+    if (!isArrayEqual(aKeys, bKeys)) {
+        return false;
+    }
+    for(const key of aKeys) {
+        if (a[key] !== b[key]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 export function isArrayEqual<U>(a : U, b: U): boolean
 {
     if (a === b) {
