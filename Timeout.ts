@@ -6,7 +6,7 @@ export default async function Timeout<T>(ct: CancellationToken, code: (ct:Cancel
 {
     ct.throwIfCancelled();
 
-    return await createTask(ct, async (task)=> {
+    return await createTask<T>(ct, async (task)=> {
         let expired : boolean = false;
         let timeObj:NodeJS.Timeout|undefined = setTimeout(()=> {
             timeObj = undefined;

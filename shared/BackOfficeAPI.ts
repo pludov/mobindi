@@ -39,6 +39,7 @@ export type IndiProfileAPI = {
     deleteProfile: (payload: {uid:string})=>void;
     addToProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
     removeFromProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
+    applyActiveProfiles: (payload: {})=>void;
 }
 
 export type IndiAPI = IndiProfileAPI & {

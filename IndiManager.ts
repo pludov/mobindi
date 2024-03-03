@@ -192,6 +192,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return this.profileManager.removeFromProfile(ct, payload);
     }
 
+    applyActiveProfiles= (ct: CancellationToken, payload: {}) => {
+        return this.profileManager.applyActiveProfiles(ct, payload);
+    }
+
     public async metrics():Promise<Array<Metrics.Definition>> {
         let ret : Array<Metrics.Definition> = [];
 

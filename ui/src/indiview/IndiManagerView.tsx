@@ -14,6 +14,7 @@ import IndiDriverSelector from './IndiDriverSelector';
 import IndiVectorView from './IndiVectorView';
 import IndiProfileSelector from './IndiProfileSelector';
 import IndiPropertyProfileStatus from './IndiPropertyProfileStatus';
+import IndiProfileGlobalStatus from './IndiProfileGlobalStatus';
 
 type InputProps = {
 }
@@ -121,6 +122,7 @@ class IndiManagerView extends React.PureComponent<Props> {
 
                 <div className="IndiProfileSelector">
                     <IndiProfileSelector/>
+                    <IndiProfileGlobalStatus/>
                 </div>
 
                 <div className="IndiDriverSelector">

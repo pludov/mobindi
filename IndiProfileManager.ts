@@ -11,6 +11,7 @@ import * as BackOfficeAPI from "./shared/BackOfficeAPI";
 import { IdGenerator } from './IdGenerator';
 
 import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D, count3D } from './shared/Obj';
+import Timeout from './Timeout';
 
 const logger = Log.logger(__filename);
 
@@ -19,11 +20,20 @@ type PropertyRuntimeInfo = {
     vec: string;
     prop: string|null;
     profiles: string[];
-    // The value from the last controlling property
+    // The value from the last controlling profile
     wanted: string;
-    value: string|null;
 }
 
+type ApplyResult = {
+    success: boolean;
+}
+
+type ApplyNeeded = {
+    dev: string;
+    vec: string;
+    prop: string|null;
+    wanted: string;
+}
 
 export default class IndiProfileManager implements RequestHandler.APIAppProvider<BackOfficeAPI.IndiProfileAPI>{
     app: ExpressApplication;
@@ -217,8 +227,6 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
     }
 
     private readonly verifyPropertyWildcard = (id: TriggeredWildcard) => {
-        logger.debug("Verify property wildcard", id);
-
         // Apply the wildcard to the hierarchy of watched properties
         const devWildcards = id;
         let sthDone = false;
@@ -323,6 +331,182 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         delete3D(profile.keys, payload.dev, payload.vec, payload.prop === null ? "...whole_vector..." : payload.prop);
     }
 
+    computeProfileTodoList: () => Array<ApplyNeeded> = () => {
+        const todo:Array<ApplyNeeded> = [];
+        const done:ProfilePropertyAssociation<boolean> = {};
+
+        // Find active profiles
+        const activeProfiles = this.indiManager.configuration.profiles.list.filter((uid)=>this.indiManager.configuration.profiles.byUid[uid]?.active);
+
+        for(const profileId of activeProfiles) {
+            const profile = this.indiManager.configuration.profiles.byUid[profileId];
+            for(const dev of Object.keys(profile.keys)) {
+                const devKeys = profile.keys[dev];
+                for(const vec of Object.keys(devKeys)) {
+                    const vecKeys = devKeys[vec];
+                    for(const prop of Object.keys(vecKeys)) {
+                        const wanted = vecKeys[prop].value;
+                        if (get3D(done, dev, vec, prop)) {
+                            continue;
+                        }
+                        set3D(done, dev, vec, prop, true);
+                        todo.push({
+                            dev,
+                            vec,
+                            prop: prop === "...whole_vector..." ? null : prop,
+                            wanted
+                        });
+                    }
+                }
+            }
+        }
+
+        // Lots of vector appears depending on other ones
+        // Sort according to dependencies (settings first, then connect, then others)
+        // This is totally hacky, but INDI has no estblished way to know which property depends on which
+        const propertiesFilters = [
+            /CONFIG_PROCESS/,
+            /SIMULATOR|DEBUG|POLLING_PERIOD|LOGGING_LEVEL|LOG_OUTPUT/,
+            /DEVICE_AUTO_SEARCH/,
+            /DEVICE_BAUD_RATE|DEVICE_PORT/,
+            /CONNECTION/,
+            // Catch all.
+            null
+        ];
+
+        // Split todo according to the filters
+        const filtered:Array<Array<ApplyNeeded>> = propertiesFilters.map((filter)=>[]);
+        for(const t of todo) {
+            for(let i = 0; i < propertiesFilters.length; ++i) {
+                const re = propertiesFilters[i];
+                if (re === null || re.test(t.vec)) {
+                    filtered[i].push(t);
+                    break;
+                }
+            }
+        }
+        return filtered.reduce((acc, cur)=>acc.concat(cur), []);
+    }
+
+    readonly applyActiveProfiles = async(ct: CancellationToken, payload: {}) => {
+
+        const done:ProfilePropertyAssociation<ApplyResult> = {};
+
+        const todo:Array<ApplyNeeded> = this.computeProfileTodoList();
+
+        logger.info("Applying profiles", todo);
+
+        while(todo.length > 0) {
+            // Find the first in todo that exists
+
+            const indiCnx = this.context.indiManager.getValidConnection();
+
+            const getFirstProp:()=>number|false = ()=>{
+                let firstPropId = -1;
+                for(let i = 0; i < todo.length; ++i) {
+                    const t = todo[i];
+                    const indivec = indiCnx.getDevice(t.dev).getVector(t.vec);
+                    if (!indivec.exists()) {
+                        continue;
+                    }
+                    firstPropId = i;
+                    break;
+                }
+                return firstPropId === -1 ? false : firstPropId;
+            }
+
+            const firstPropId = await Timeout(ct,
+                    async(ct:CancellationToken)=>{
+                        return (await indiCnx.wait(ct, getFirstProp));
+                    },
+                    5000,
+                    ()=>new Error("Not found: " + todo[0].dev + " " + todo[0].vec)
+                );
+
+            const dev = todo[firstPropId].dev;
+            const vec = todo[firstPropId].vec;
+
+            let lastPropId = firstPropId;
+            while(lastPropId + 1 < todo.length
+                    && todo[lastPropId + 1].dev === dev
+                    && todo[lastPropId + 1].vec === vec)
+            {
+                lastPropId++;
+            }
+
+            // Update a vector at once.
+            const props = todo.splice(firstPropId, lastPropId - firstPropId + 1);
+            logger.debug("Applying vector", {firstPropId, lastPropId, props});
+
+            const getVec = () => indiCnx.getDevice(dev).getVector(vec);
+
+            try {
+                await Timeout(ct,
+                    async(ct:CancellationToken)=>{
+                        return await indiCnx.wait(ct, () => (getVec().getState() != "Busy"));
+                    },
+                    10000,
+                    ()=>new Error("Vector not becoming ready: " + dev + " " + vec)
+                );
+
+                const updateVecMessage: BackOfficeAPI.UpdateIndiVectorRequest = {
+                    dev,
+                    vec,
+                    children: []
+                };
+
+                for(const prop of props) {
+                    if (prop.prop === null) {
+                        // Don't set a value that's already there
+                        if (getVec().getFirstActivePropertyIfExists() === prop.wanted) {
+                            continue;
+                        }
+
+                        // We want all vectors
+                        updateVecMessage.children.push({
+                            name: prop.wanted,
+                            value: 'On'
+                        });
+                    } else {
+                        if (getVec().getPropertyValueIfExists(prop.prop) === prop.wanted) {
+                            continue;
+                        }
+
+                        updateVecMessage.children.push({
+                            name: prop.prop,
+                            value: prop.wanted
+                        });
+                    }
+                }
+
+                if (updateVecMessage.children.length) {
+                    // Wait until the vector is ready
+                    await this.context.indiManager.updateVector(ct, updateVecMessage);
+
+                    await Timeout(ct,
+                        async(ct:CancellationToken)=>{
+                            return await indiCnx.wait(ct, () => (getVec().getState() != "Busy"));
+                        },
+                        20000,
+                        ()=>new Error("Vector stays Busy: " + dev + " " + vec)
+                    );
+                }
+
+                for(const prop of props) {
+                    set3D(done, prop.dev, prop.vec, prop.prop === null ? "...whole_vector...": prop.prop, {success: true});
+                }
+            } catch(e) {
+                if (e instanceof CancellationToken.CancellationError) {
+                    throw e;
+                }
+                logger.error(`Error while updating vector: ${dev}.${vec}`, e);
+                for(const prop of props) {
+                    set3D(done, prop.dev, prop.vec, prop.prop === null ? "...whole_vector...": prop.prop, {success: false});
+                }
+            }
+        }
+    }
+
     readonly getAPI: () => RequestHandler.APIAppImplementor<BackOfficeAPI.IndiProfileAPI> =() => {
         return {
             createProfile: this.createProfile,
@@ -330,6 +514,7 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             updateProfile: this.updateProfile,
             addToProfile: this.addToProfile,
             removeFromProfile: this.removeFromProfile,
+            applyActiveProfiles: this.applyActiveProfiles,
         }
     }
 }

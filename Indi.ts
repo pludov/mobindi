@@ -414,7 +414,7 @@ export class IndiConnection {
     // Wait until the predicate is true
     // will be checked after every indi event
     // allowDisconnectionState: if true, predicate will be checked event after disconnection (reject otherwise)
-    async wait<OUTPUT>(ct: CancellationToken, predicate:IndiPredicate<OUTPUT>, allowDisconnectionState?:boolean):Promise<OUTPUT> {
+    async wait<OUTPUT>(ct: CancellationToken, predicate:IndiPredicate<OUTPUT>, allowDisconnectionState?:boolean):Promise<Exclude<OUTPUT, false>> {
         while(true) {
             if (this.dead && !allowDisconnectionState) {
                 throw new Error('Indi server disconnected');
@@ -422,7 +422,7 @@ export class IndiConnection {
 
             const result = predicate();
             if (result !== false) {
-                return result;
+                return result as Exclude<OUTPUT, false>;
             }
 
             await this.yield(ct);
