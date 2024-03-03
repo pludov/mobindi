@@ -30,7 +30,7 @@ export default class TextEdit extends React.PureComponent<Props, State> {
     }
 
     render() {
-        const lines = this.props.value.split(/\r\n|\r|\n/);
+        const lines = (this.props.value || "").split(/\r\n|\r|\n/);
         const rows = lines.length;
         const cols = lines.map(v=>Math.min(Math.max(v.length+3, 5), 16)).reduce((a,b)=>Math.max(a,b), 0);
 
