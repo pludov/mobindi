@@ -269,6 +269,30 @@ export default class SkyProjection {
         this.invertedTransform = af.invert();
     }
 
+    // RA is supposed to be in the range 0 to 360
+    public static raToString(ra:number) {
+        let v = ra / 15;
+        const h = Math.floor(v);
+        v = (v - h) * 60;
+        const m = Math.floor(v);
+        v = (v - m) * 60;
+
+        return `${h}h ${m}m ${v.toFixed(2)}s`;
+    }
+
+    // DEC is supposed to be in the range -90 to 90
+    public static decToString(dec:number) {
+        let sign = dec < 0 ? "-" : "+";
+        let v = Math.abs(dec);
+        const deg = Math.floor(v);
+        v = (v - deg) * 60;
+        const m = Math.floor(v);
+        v = (v - m) * 60;
+        const s = v;
+
+        return `${sign}${deg}° ${m}' ${s.toFixed(2)}''`;
+    }
+
     /**
 	 * Project to a point of the sphere in ATLAZ3D space
      */

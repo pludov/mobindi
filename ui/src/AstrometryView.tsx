@@ -10,6 +10,7 @@ import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
 import {default as MeridianFlipView} from "./Wizard/MeridianFlip/View";
+import AstrometryStatusView from './AstrometryStatusView';
 
 const logger = Log.logger(__filename);
 
@@ -26,12 +27,13 @@ type Props = InputProps & MappedProps;
 type State = {
     showPropsRequired: boolean;
     showProps: boolean;
+    showLastStatus: boolean;
 }
 
 class AstrometryView extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
-        this.state = {showPropsRequired: false, showProps: false}
+        this.state = {showPropsRequired: false, showProps: false, showLastStatus: false};
     }
 
     /** Force opening settings when no scope is connected */
@@ -42,6 +44,7 @@ class AstrometryView extends React.PureComponent<Props, State> {
 
             return {
                 showProps: state.showProps || showPropsRequired,
+                showLastStatus: state.showLastStatus && !showPropsRequired,
                 showPropsRequired
             }
         }
@@ -74,10 +77,14 @@ class AstrometryView extends React.PureComponent<Props, State> {
     }
 
     showSettings=()=> {
-        this.setState({showProps: true});
+        this.setState({showProps: true, showLastStatus: false});
     }
     closeSettings=()=>{
         this.setState({showProps: false});
+    }
+
+    closeLastStatus=()=>{
+        this.setState({showLastStatus: false});
     }
 
     static startWizard(id:keyof AstrometryWizards) {
@@ -115,20 +122,26 @@ class AstrometryView extends React.PureComponent<Props, State> {
                 ? <AstrometrySettingsView close={this.closeSettings} />
                 : this.props.currentWizard === null
                     ?
-                        /* Welcome screen */
-                        <div className="AstrometryWelcomePage">
-                            <div className="AstrometryWizardSelectTitle">Astrometry</div>
+                        (
+                            this.state.showLastStatus
+                                ?   <AstrometryStatusView close={this.closeLastStatus}/>
+                                :
+                                    /* Welcome screen */
+                                    <div className="AstrometryWelcomePage">
+                                        <div className="AstrometryWizardSelectTitle">Astrometry</div>
 
-                            <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
-                            {this.wizards.map(e=>
-                                <input type="button"
-                                        value={e.title}
-                                        className="AstrometryWizardSelectButton"
-                                        onClick={e.start}
-                                />
-                            )}
+                                        <input type="button" value="Settings" className="AstrometryWizardSelectButton" onClick={this.showSettings}/>
+                                        <input type="button" value="Status" className="AstrometryWizardSelectButton" onClick={()=>this.setState({showLastStatus: true})}/>
+                                        {this.wizards.map(e=>
+                                            <input type="button"
+                                                    value={e.title}
+                                                    className="AstrometryWizardSelectButton"
+                                                    onClick={e.start}
+                                            />
+                                        )}
 
-                        </div>
+                                    </div>
+                        )
                     :
                     <AstrometryWizardBaseView showSettings={this.showSettings}>{this.wizardUi(this.props.currentWizard)}</AstrometryWizardBaseView>
             }
