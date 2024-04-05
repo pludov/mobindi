@@ -37,7 +37,7 @@ find_package(CFITSIO REQUIRED)
 find_package(INDI 1.7 REQUIRED client)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
-
+find_package(CGICC REQUIRED)
 
 include_directories( ${INDI_INCLUDE_DIR})
 
@@ -81,8 +81,8 @@ target_link_libraries (fits-server ${CFITSIO_LIBRARIES})
 #####################
 
 add_executable(fitsviewer.cgi $<TARGET_OBJECTS:archive>  fitsviewer.cpp)
-target_include_directories(fitsviewer.cgi PUBLIC ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR})
-target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CFITSIO_LIBRARIES} cgicc)
+target_include_directories(fitsviewer.cgi PUBLIC ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIR} ${CFITSIO_INCLUDE_DIR} ${CGICC_INCLUDE_DIRS})
+target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CFITSIO_LIBRARIES} ${CGICC_LIBRARIES})
 
 
 #####################
@@ -90,15 +90,16 @@ target_link_libraries (fitsviewer.cgi ${JPEG_LIBRARY} ${PNG_LIBRARY} ${CFITSIO_L
 #####################
 
 add_executable(processor $<TARGET_OBJECTS:archive>  processor.cpp)
-target_link_libraries (processor ${CFITSIO_LIBRARIES} cgicc)
+target_include_directories(processor PUBLIC ${CGICC_INCLUDE_DIRS})
+target_link_libraries (processor ${CFITSIO_LIBRARIES} ${CGICC_LIBRARIES})
 
 #####################
 #      streamer     #
 #####################
 
 add_executable(streamer $<TARGET_OBJECTS:archive>  streamer.cpp)
-target_include_directories(streamer PUBLIC ${INDI_INCLUDE_DIR})
-target_link_libraries (streamer ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LIBRARIES} Threads::Threads cgicc)
+target_include_directories(streamer PUBLIC ${INDI_INCLUDE_DIR} ${CGICC_INCLUDE_DIRS})
+target_link_libraries (streamer ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LIBRARIES} Threads::Threads  ${CGICC_LIBRARIES})
 
 
 #####################
@@ -108,6 +109,6 @@ target_link_libraries (streamer ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ZLIB_LI
 file(GLOB TEST_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
 
 add_executable(unittests $<TARGET_OBJECTS:archive>  ${TEST_FILES})
-
-target_link_libraries (unittests ${CFITSIO_LIBRARIES} cgicc)
+target_include_directories(unittests PUBLIC ${CGICC_INCLUDE_DIRS})
+target_link_libraries (unittests ${CFITSIO_LIBRARIES} ${CGICC_LIBRARIES})
 
