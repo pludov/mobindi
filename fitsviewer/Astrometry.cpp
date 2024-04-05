@@ -212,6 +212,7 @@ public:
                             wcsPath);
 
         std::vector<std::string> args;
+        args.push_back("--in-parallel");
         args.push_back(inputPath);
         int ecode;
         if ((ecode = system("astrometry-engine", args)) != 0) {
