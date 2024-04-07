@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <unistd.h>
 #include <cstdint>
@@ -400,7 +401,24 @@ void to_json(nlohmann::json&j, const ImageDesc & i) {
 void sendHttpHeader(const cgicc::HTTPResponseHeader & header)
 {
 	if (!disableHttp) {
-		cout << header;
+		// Workaround UGLY bug in cgicc
+		// It seems header missing a \r\n at the end
+
+		// render header to a memory stream
+		std::ostringstream headerStream;
+		headerStream << header;
+
+		std::string headerStr = headerStream.str();
+		// Replace LF by CRLF
+		for(size_t i = 0; i < headerStr.length(); ++i) {
+			if (headerStr[i] == '\n') {
+				if (i == 0 || headerStr[i - 1] != '\r') {
+					headerStr.insert(i, 1, '\r');
+				}
+			}
+		}
+
+		cout << headerStr << std::flush;
 	}
 }
 
