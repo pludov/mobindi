@@ -114,7 +114,12 @@ namespace SharedCache {
 		open();
 		wasMmapped = true;
 		if (size) {
-			posix_fallocate(fd, 0, size);
+			if (posix_fallocate(fd, 0, size) == -1) {
+				perror("fallocate");
+				std::cerr << "fallocate failed for " << filename << " failed\n";
+				throw std::runtime_error("fallocate failed");
+			}
+
 			mmapped = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 			if (mmapped == MAP_FAILED) {
 				perror("mmap");
