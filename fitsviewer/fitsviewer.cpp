@@ -155,7 +155,7 @@ public:
 
 class JpegWriter
 {
-	int width, height, channels;
+	int width, height, channels, quality;
 
 	/* This struct contains the JPEG compression parameters and pointers to
 	 * working space (which is allocated as needed by the JPEG library).
@@ -176,11 +176,12 @@ class JpegWriter
 	struct jpeg_error_mgr jerr;
 	own_jpeg_destination_mgr destMgr;
 public:
-	JpegWriter(int w, int h, int channels)
+	JpegWriter(int w, int h, int channels, int quality)
 	{
 		this->width = w;
 		this->height = h;
 		this->channels = channels;
+		this->quality = quality;
 
 	}
 
@@ -226,8 +227,10 @@ public:
 		   * Here we just illustrate the use of quality (quantization table) scaling:
 		   */
 
-		  jpeg_set_quality(&cinfo, 90, TRUE /* limit to baseline-JPEG values */);
-		  cinfo.dct_method = JDCT_IFAST;
+		  jpeg_set_quality(&cinfo, quality, TRUE /* limit to baseline-JPEG values */);
+		  if (quality < 80) {
+		  	cinfo.dct_method = JDCT_IFAST;
+		  }
 
 		  // For progressive, use: jpeg_simple_progression(&cinfo);
 		  // But in that case, the compression will not be streamed.
@@ -425,6 +428,8 @@ class ResponseGenerator {
 	int y0 = -1;
 	int x1 = -1;
 	int y1 = -1;
+
+	int quality = 90;
 	long lastSerialStream = 0;
 public:
 
@@ -444,6 +449,17 @@ public:
 		fi = formData.getElement("size");
 		if ((!fi->isEmpty()) && (fi != (*formData).end()) && (**fi == "true")) {
 			wantSize = true;
+		}
+
+		fi = formData.getElement("quality");
+		if ((!fi->isEmpty()) && (fi != (*formData).end())) {
+			quality = stod(**fi);
+			if (quality < 0) {
+				quality = 0;
+			}
+			if (quality > 100) {
+				quality = 100;
+			}
 		}
 
 		fi = formData.getElement("streamid");
@@ -552,7 +568,7 @@ public:
 
 		double low = parseFormFloat(formData, "low", 0.05);
 		double med = parseFormFloat(formData, "med", 0.5);
-		double high = parseFormFloat(formData, "high", 0.95);
+		double high = parseFormFloat(formData, "high", 0.999);
 
 		SharedCache::Messages::ContentRequest histogramRequest;
 		histogramRequest.histogram.build();
@@ -605,7 +621,7 @@ public:
 		int sx = x1 - x0 + 1;
 		int sy = y1 - y0 + 1;
 		
-		JpegWriter writer(binDiv(sx, bin), binDiv(sy, bin), color ? 3 : 1);
+		JpegWriter writer(binDiv(sx, bin), binDiv(sy, bin), color ? 3 : 1, quality);
 		writer.start();
 
 		int stripHeight = 32 << bin;
