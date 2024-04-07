@@ -330,6 +330,7 @@ export class ImageLoader {
         if (window.devicePixelRatio) {
             bin /= window.devicePixelRatio;
         }
+        const ratio = bin;
 
         // lower this to a 2^power. 0.8 is for filtering/speedup
         const idealBin = Math.log2(bin) + 0.8;
@@ -341,11 +342,19 @@ export class ImageLoader {
             bin = 0;
         }
 
+        let quality = bin == 0 ? 92 : 85;
+        if (this.param.path.startsWith("stream:")) {
+            // Streaming get lower quality for faster transfert
+            quality -= 5;
+        }
+
+        console.log('ratio is ', ratio, quality);
         str = this.cgiUrl;
         str += '?bin=' + bin + '&' + this.encodePathUrl();
         str += '&low=' + this.param.levels.low;
         str += '&med=' + this.param.levels.medium;
         str += '&high=' + this.param.levels.high;
+        str += '&quality=' + quality;
         if (this.param.serial !== null) {
             str += "&serial=" + encodeURIComponent(this.param.serial);
         }
