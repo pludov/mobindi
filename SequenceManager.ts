@@ -814,7 +814,7 @@ export default class SequenceManager
                                         throw new Error("CCD target temperature changed");
                                     }
                                     // Assume the temperature is generally going down.
-                                    if (status.current <= param.ccdTemp && status.current >= param.ccdTemp - 0.5) {
+                                    if (status.current <= param.ccdTemp + 0.15 && status.current >= param.ccdTemp - 0.5) {
                                         logger.info("CCD reached target temperature", status);
                                         break;
                                     }
