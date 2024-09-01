@@ -69,6 +69,15 @@ table.RADECTable tr td:first-child{
 .PhdHeightSelector {
     font-size: 0.6em;
 }
+.PhdCalibration-no {
+    color: red;
+}
+.PhdCalibration-run {
+    color: orange;
+}
+.PhdCalibration-yes {
+    color: green;
+}
 
 .PhdStarLock {
     display: block;

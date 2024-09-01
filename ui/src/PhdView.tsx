@@ -19,6 +19,7 @@ import * as Help from './Help';
 const StatusForGuiding = ["Paused", "Looping", "LostLock" ];
 const StatusForLooping = ["Guiding", "Paused", "Stopped", "LostLock" ];
 const StatusForClearingCalibration = ["Paused", "Stopped", "Looping" ];
+const StatusForDeslectingStar =  ["Guiding", "Paused", "Stopped", "LostLock", "Looping" ];
 
 type ViewId = "graph"|"image";
 
@@ -44,6 +45,7 @@ const startLoopingHelp = Help.key("Start PHD looping", "PHD guiding will start t
 const startGuideHelp = Help.key("Start PHD guiding", "PHD will start guiding, selecting a star if none is available");
 const stopGuideHelp = Help.key("Stop PHD guide & looping");
 const clearCalibrationHelp = Help.key("Clear calibration", "Clearing calibration causes PHD2 to recalibrate next time guiding starts.");
+const deselectStartHelp = Help.key("Deselect star", "Deselect the current star");
 const chooseViewHelp = Help.key("Toggle between PHD guiding graph and PHD live frame view (only available when PHD is using INDI driver)");
 
 // Afficher l'état de phd et permet de le controller
@@ -74,6 +76,10 @@ class PhdView extends React.PureComponent<Props, State> {
         await BackendRequest.RootInvoker("phd")("clearCalibration")(CancellationToken.CONTINUE, {});
     }
 
+    private deselectStar = async ()=> {
+        await BackendRequest.RootInvoker("phd")("deselectStar")(CancellationToken.CONTINUE, {});
+    }
+
     private setView = (e:React.ChangeEvent<HTMLSelectElement>)=> {
         const view = e.target.value as ViewId;
         GenericUiStore.updateComponentState<ViewId>(viewIdStateLocalStorageKey, view);
@@ -92,14 +98,28 @@ class PhdView extends React.PureComponent<Props, State> {
         const StateTitle = (this.props.AppState === "Guiding" && !!this.props.settling?.running )
                             ? "Settling"
                             : this.props.AppState;
+        const calibState = this.props.AppState === "Calibrating" ? "run" : this.props.calibrated ? "yes" : "no";
+
         return (
             <div className="Page">
                 <div className={'PHDAppState PHDAppState_' + this.props.AppState}>{StateTitle}
                 </div>
-                <div>
-                    {SNR}
-                    {Separator}
-                    {Progress}
+                <div style={{display: "flex", justifyContent: "space-between"}}>
+                    <div>
+                        {SNR}
+                        {Separator}
+                        {Progress}
+                    </div>
+                    <div className={`PhdCalibration-${calibState}`}>
+                        {calibState === "no" ? "Not calibrated" : null}
+                        {calibState === "run" ? "Calibrating" : null}
+                        {calibState === "yes" ? "Calibrated" : null}                        
+                        &nbsp;
+                        <input type="button" value='❌' className="PhdControlBton" onClick={this.clearCalibration}
+                            {...clearCalibrationHelp.dom()}
+                            disabled={(!this.props.calibrated) || StatusForClearingCalibration.indexOf(this.props.AppState) === -1}
+                        />
+                    </div>
                 </div>
                 {this.state.view === "graph"
                     ?
@@ -118,9 +138,9 @@ class PhdView extends React.PureComponent<Props, State> {
                     disabled={StatusForLooping.indexOf(this.props.AppState) == -1}
                     className="PhdControlBton"
                     />
-                <input type="button" value='❌' className="PhdControlBton" onClick={this.clearCalibration}
-                    {...clearCalibrationHelp.dom()}
-                    disabled={(!this.props.calibrated) || StatusForClearingCalibration.indexOf(this.props.AppState) === -1}
+                <input type="button" value="🔍" className="PhdControlBton" onClick={this.deselectStar}
+                    {...deselectStartHelp.dom()}
+                    disabled={StatusForDeslectingStar.indexOf(this.props.AppState) == -1}
                     />
                 <input type="button" value={"\u{2295}"} onClick={this.startGuide}
                     {...startGuideHelp.dom()}

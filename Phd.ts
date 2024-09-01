@@ -1182,6 +1182,7 @@ export default class Phd
             setLockPosition: this.setLockPosition,
             findStar: this.findStar,
             clearCalibration: this.clearCalibration,
+            deselectStar: this.deselectStar,
         }
         return ret;
     };
@@ -1352,6 +1353,12 @@ export default class Phd
                 method: 'clear_calibration',
             });
         await this.queryCalibration(ct);
+    }
+
+    deselectStar = async(ct: CancellationToken, payload: {})=>{
+        await this.sendOrderWithFailureLog(ct, {
+                method: 'deselect_star',
+            });
     }
 
     setLockPosition = async(ct: CancellationToken, payload: { x: number, y:number, exact: boolean})=>{

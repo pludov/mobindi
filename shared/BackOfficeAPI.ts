@@ -257,6 +257,7 @@ export type PhdAPI = {
     setLockPosition: (payload: { x: number, y:number, exact: boolean})=>void;
     findStar: (payload: {roi?: Array<number>})=>void;
     clearCalibration: (payload: {})=>void;
+    deselectStar: (payload: {})=>void;
 }
 
 export type BackOfficeAPI = {
