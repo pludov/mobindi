@@ -266,6 +266,9 @@ export default class Notifier {
     protected handleNotifications(n: {batch: any[]}|{data: any}) {};
 
     private _open() {
+        if (!this.url) {
+            return;
+        }
         logger.info('Websocket: connecting', {url: this.url});
         this.resetHandshakeStatus(false);
         try {
