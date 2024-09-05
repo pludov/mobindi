@@ -5,14 +5,18 @@ import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import FitsViewerWithAstrometry from '../FitsViewerWithAstrometry';
+import { AstrometryResult } from '@bo/ProcessorTypes';
 
 type InputProps = {
     currentPath: string;
     detailPath: string;
+    // Return undefined to use main astrometry status, null or AstrometryResult to override
+    astrometryStatusProvider?: (store: Store.Content, uid:string)=> AstrometryResult|undefined|null;
 }
 
 type MappedProps = {
     path: string|null;
+    astrometryResult?: AstrometryResult|null|undefined;
 }
 
 type Props = InputProps & MappedProps
@@ -20,9 +24,11 @@ type Props = InputProps & MappedProps
 class ImageDetail extends React.PureComponent<Props> {
 
     render() {
+        console.log("ImageDetail render", this.props.path, this.props.astrometryResult);
         return <FitsViewerWithAstrometry
                             contextKey="sequence"
                             path={this.props.path}
+                            astrometryResult={this.props.astrometryResult}
                             streamId={null}
                             streamSerial={null}
                             streamDetails={null}
@@ -30,7 +36,7 @@ class ImageDetail extends React.PureComponent<Props> {
                         />;
     }
 
-    static mapStateToProps(store:any, ownProps: InputProps):MappedProps {
+    static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
         var selected = atPath(store, ownProps.currentPath);
 
         if (!selected) {
@@ -43,7 +49,8 @@ class ImageDetail extends React.PureComponent<Props> {
             return {path: null};
         }
         return {
-            path: details.path
+            path: details.path,
+            astrometryResult: ownProps.astrometryStatusProvider ? ownProps.astrometryStatusProvider(store, selected) : undefined
         };
     }
 }

@@ -22,6 +22,7 @@ import { SequenceLogic, Progress } from './shared/SequenceLogic';
 import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
 import { SequenceParamClassifier } from './shared/SequenceParamClassifier';
+import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 
 const logger = Log.logger(__filename);
 
@@ -518,7 +519,7 @@ export default class SequenceManager
             return rslt;
         }
 
-        const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=> {
+        const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>, scopePos : Partial<ProcessorAstrometryRequest>|null)=> {
             ct.throwIfCancelled();
 
             target.guideStats = GuideStats.computeGuideStats(guideSteps);
@@ -564,12 +565,26 @@ export default class SequenceManager
                 }
                 target.starCount = starCount;
                 logger.info('Got FWHM', {shootResult, fwhm, starCount});
+
+                const astrometry: AstrometryResult = await this.imageProcessor.compute(ct, {
+                    astrometry: {
+                        source: {
+                                source: {
+                                    path: shootResult.path,
+                                    streamId: "",
+                                }
+                        },
+                        ...this.context.astrometry.baseRequest(scopePos === null || Object.keys(scopePos).length === 0),
+                        ...scopePos
+                    }
+                });
+                target.astrometry = astrometry;
             }
         }
 
-        const computeStatsWithMetrics = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>)=>{
+        const computeStatsWithMetrics = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>, scopePos : Partial<ProcessorAstrometryRequest>|null)=>{
             // FIXME :report error here
-            await computeStats(ct, indiFrameType, shootResult, target, guideSteps);
+            await computeStats(ct, indiFrameType, shootResult, target, guideSteps, scopePos);
 
             this.lastImageTime = Date.now();
             this.lastGuideStats = Obj.deepCopy(target.guideStats);
@@ -834,6 +849,8 @@ export default class SequenceManager
                     sequence.progress = (stepTypeLabel) + " " + shootTitle;
                     ct.throwIfCancelled();
 
+                    let astrometryScopePos = param.type === 'FRAME_LIGHT' ? await this.context.astrometry.captureScopeParameters(ct, false) : null;
+
                     const guideSteps:Array<PhdGuideStep> = [];
                     const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
 
@@ -860,7 +877,7 @@ export default class SequenceManager
                         bin: param.bin,
                         filter: param.filter,
                     });
-                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps)
+                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps, astrometryScopePos)
                         .finally(sequenceFwhmWatcher.updateStats)
                         .finally(sequenceBackgroundWatcher.updateStats);
                 }

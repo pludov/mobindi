@@ -12,7 +12,7 @@ import {Props as FitsViewerProps, ContextMenuEntry} from './FitsViewer/FitsViewe
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import * as Help from "./Help";
-import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
+import { AstrometryResult, SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';
 import ContextMenuItem from './FitsViewer/ContextMenuItem';
 
@@ -25,6 +25,7 @@ type InputProps = {
     subframe: FitsViewerInContextInputProps["subframe"],
     streamDetails: BackOfficeStatus.StreamDetails|null;
     autoCropCb?: FitsViewerInContextInputProps["autoCropCb"],
+    astrometryResult?: AstrometryResult|null|undefined;
     contextKey: string;
 };
 
@@ -176,6 +177,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
             return '0"';
         }
 
+        dlt = dlt % 86400;
+        if (dlt <= -86400 / 2) dlt += 86400;
+        if (dlt > 86400 / 2) dlt -= 86400;
+
         let rslt;
         if (dlt < 0) {
             rslt = '-';
@@ -273,6 +278,80 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     static mapStateToProps():(store:any, ownProps: InputProps)=>MappedProps {
+        const displayFixedAstrometry = createSelector(
+            [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.path, (store:any, ownProps:InputProps)=>ownProps.astrometryResult],
+            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null, astrometryResult: InputProps["astrometryResult"]):AstrometryProps =>  {
+                if (astrometry === undefined) {
+                    return {
+                        status: "empty",
+                        visible: false,
+                        narrowable: false,
+                        cancel: false,
+                        move: false,
+                        sync: false,
+                        start: false,
+                        error: null,
+                        trackScope: null,
+                        ranow : null,
+                        decnow: null,
+                    }
+                }
+                const scopeStatus = astrometry.scopeStatus;
+                const result: AstrometryProps = {
+                    status: astrometryResult ? "ready" : "empty",
+                    narrowable: false,
+                    visible: true,
+                    cancel: false,
+                    move: false,
+                    sync: false,
+                    start: false,
+                    error: null,
+                    trackScope: null,
+                    ranow: null,
+                    decnow: null,
+                };
+
+                const calcTrackScope=()=>{
+                    if (astrometryResult && astrometryResult.found ) {
+
+                        result.trackScope = astrometry.selectedScope;
+
+                        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
+                        // take the center of the image
+                        const center = [(astrometryResult.width - 1) / 2, (astrometryResult.height - 1) / 2];
+                        // Project to J2000
+                        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                        // compute JNOW center for last image.
+                        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+
+                        result.ranow = ranow;
+                        result.decnow = decnow;
+                    }
+                }
+                if (scopeStatus === "moving" || scopeStatus === "syncing") {
+                    result.cancel = true;
+                    result.status = scopeStatus;
+                    calcTrackScope();
+                } else {
+                    if (astrometryResult) {
+                        if (astrometryResult.found) {
+                            result.move = astrometry.scopeReady;
+                            result.sync = astrometry.scopeReady && !astrometry.scopeMovedSinceImage;
+                            calcTrackScope();
+                        } else {
+                            result.error = "failed";
+                        }
+                    } else {
+                        result.visible = false;
+                    }
+                }
+
+                if (astrometry.scopeDetails !== null) {
+                    result.error = astrometry.scopeDetails;
+                }
+
+                return result;
+            });
 
         const selector = createSelector (
             [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.path],
@@ -374,12 +453,12 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                 return result;
             });
 
-        return (store:any, ownProps:InputProps):MappedProps=>{
-            const astrometryProps = selector(store, ownProps);
+        return (store:Store.Content, ownProps:InputProps):MappedProps=>{
+            const astrometryProps = ownProps.astrometryResult === undefined ? selector(store, ownProps) : displayFixedAstrometry(store, ownProps);
             const liveProps: LiveProps = { scopeDeltaRa:null, scopeDeltaDec:null};
-            if (astrometryProps.trackScope) {
+            if (astrometryProps.trackScope && store.backend.indiManager) {
                 try {
-                    const coordNode = store.backend.indiManager.deviceTree[astrometryProps.trackScope].EQUATORIAL_EOD_COORD;
+                    const coordNode = store.backend.indiManager?.deviceTree[astrometryProps.trackScope].EQUATORIAL_EOD_COORD;
                     const ra = 360 * parseFloat(coordNode.childs.RA.$_) / 24;
                     const dec = parseFloat(coordNode.childs.DEC.$_);
 

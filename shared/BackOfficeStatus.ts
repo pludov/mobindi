@@ -115,6 +115,7 @@ export type ImageStats = SequenceImageParameters & {
     guideStats?: PhdGuideStats;
     backgroundLevel?: number;
     arrivalTime: number;
+    astrometry?: AstrometryResult;
 }
 
 export type SequenceValueMonitoringPerClassSettings = {

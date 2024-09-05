@@ -626,6 +626,80 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         }
     }
 
+    baseRequest = (forceWide:boolean)=> {
+        let result : Omit<ProcessorAstrometryRequest, 'source'> = {
+            "exePath": "",
+            "libraryPath": "",
+            "fieldMin":
+                this.currentStatus.narrowedField !== null && !forceWide
+                    ? this.currentStatus.narrowedField * 100 / (100 + this.currentStatus.settings.narrowedFieldPercent)
+                    : this.currentStatus.settings.initialFieldMin,
+            "fieldMax":
+                this.currentStatus.narrowedField !== null && !forceWide
+                    ? this.currentStatus.narrowedField * (100 + this.currentStatus.settings.narrowedFieldPercent) / 100
+                    : this.currentStatus.settings.initialFieldMax,
+            "raCenterEstimate": 0,
+            "decCenterEstimate": 0,
+            "searchRadius": 180,
+            "numberOfBinInUniformize": 10,
+        };
+        return result;
+    }
+
+    captureScopePos = async(ct: CancellationToken, targetScope: string) => {
+        this.context.indiManager.checkDeviceConnected(targetScope);
+        const mountDevice = this.context.indiManager.getValidConnection().getDevice(targetScope);
+
+        const vector = mountDevice.getVector('EQUATORIAL_EOD_COORD');
+        if (!vector.isReadyForOrder()) {
+            throw new Error("Mount is busy");
+        }
+
+        const scopeRa = parseFloat(vector.getPropertyValue("RA"));
+        const scopeDec = parseFloat(vector.getPropertyValue("DEC"));
+        if (isNaN(scopeRa)||isNaN(scopeDec)) {
+            throw new Error("Invalid mount position");
+        }
+
+        const j2000Center = SkyProjection.J2000RaDecFromEpoch([scopeRa*360/24, scopeDec], Date.now());
+        let result = {
+            raCenterEstimate : j2000Center[0],
+            decCenterEstimate : j2000Center[1],
+        }
+        return result;
+    }
+
+    captureSearchRadius = async(ct: CancellationToken, targetScope: string, forceWide: boolean) => {
+        const radius = this.currentStatus.useNarrowedSearchRadius && !forceWide
+            ? this.currentStatus.settings.narrowedSearchRadius
+            : this.currentStatus.settings.initialSearchRadius;
+
+        return {
+            searchRadius: radius !== null ? radius : 180
+        }
+    }
+
+    captureScopeParameters = async(ct: CancellationToken, forceWide: boolean) => {
+        if (this.currentStatus.settings.useMountPosition) {
+            // Use scope position, with either small or large radius
+            try {
+                const targetScope = this.currentStatus.selectedScope;
+                if (!targetScope) {
+                    throw new Error('No mount selected');
+                }
+
+                return {
+                    ... (await this.captureScopePos(ct, targetScope)),
+                    ... (await this.captureSearchRadius(ct, targetScope, forceWide)),
+                }
+            } catch(e) {
+                logger.warn('Astrometry problem with mount - doing wide scan', e);
+            }
+        }
+        return {};
+    }
+
+
     compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
         return await createTask<AstrometryResult>(ct, async (task) => {
             if (this.currentProcess !== null) {
@@ -657,61 +731,14 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.lastOperationError = null;
 
                 const astrometry:ProcessorAstrometryRequest = {
-                    "exePath": "",
-                    "libraryPath": "",
-                    "fieldMin":
-                        this.currentStatus.narrowedField !== null && !message.forceWide
-                            ? this.currentStatus.narrowedField * 100 / (100 + this.currentStatus.settings.narrowedFieldPercent)
-                            : this.currentStatus.settings.initialFieldMin,
-                    "fieldMax":
-                        this.currentStatus.narrowedField !== null && !message.forceWide
-                            ? this.currentStatus.narrowedField * (100 + this.currentStatus.settings.narrowedFieldPercent) / 100
-                            : this.currentStatus.settings.initialFieldMax,
-                    "raCenterEstimate": 0,
-                    "decCenterEstimate": 0,
-                    "searchRadius": 180,
-                    "numberOfBinInUniformize": 10,
+                    ...this.baseRequest(!!message.forceWide),
                     "source": {
-                        "source": { 
+                        "source": {
                             "path": message.image,
                             streamId: "",
                         }
-                    }
-                }
-
-                if (this.currentStatus.settings.useMountPosition) {
-                    // Use scope position, with either small or large radius
-                    try {
-                        const targetScope = this.currentStatus.selectedScope;
-                        if (!targetScope) {
-                            throw new Error('No mount selected');
-                        }
-                        this.context.indiManager.checkDeviceConnected(targetScope);
-                        const mountDevice = this.context.indiManager.getValidConnection().getDevice(targetScope);
-
-                        const vector = mountDevice.getVector('EQUATORIAL_EOD_COORD');
-                        if (!vector.isReadyForOrder()) {
-                            throw new Error("Mount is busy");
-                        }
-
-                        const scopeRa = parseFloat(vector.getPropertyValue("RA"));
-                        const scopeDec = parseFloat(vector.getPropertyValue("DEC"));
-                        if (isNaN(scopeRa)||isNaN(scopeDec)) {
-                            throw new Error("Invalid mount position");
-                        }
-
-                        const j2000Center = SkyProjection.J2000RaDecFromEpoch([scopeRa*360/24, scopeDec], Date.now());
-                        astrometry.raCenterEstimate = j2000Center[0];
-                        astrometry.decCenterEstimate = j2000Center[1];
-                        const radius = this.currentStatus.useNarrowedSearchRadius && !message.forceWide
-                            ? this.currentStatus.settings.narrowedSearchRadius
-                            : this.currentStatus.settings.initialSearchRadius;
-
-                        astrometry.searchRadius = radius !== null ? radius : 180;
-
-                    } catch(e) {
-                        logger.warn('Astrometry problem with mount - doing wide scan', e);
-                    }
+                    },
+                    ...(await this.captureScopeParameters(ct, !!message.forceWide)),
                 }
 
                 logger.info('Starting astrometry', {astrometry});

@@ -182,6 +182,10 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                         <ImageDetail
                             currentPath='$.sequence.currentImage'
                             detailPath='$.backend.camera.images.byuuid'
+                            astrometryStatusProvider={(store: Store.Content, uid:string)=> {
+                                const currentSequence = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, this.props.uid);
+                                return Utils.getOwnProp(currentSequence?.imageStats, uid)?.astrometry || undefined;
+                            }}
                         />
                     </div>
                     <div className="SequenceViewTable">
