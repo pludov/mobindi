@@ -76,7 +76,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly center = async() => {
         const state = Store.getStore().getState();
-        const astrometryResult = state.backend.astrometry!.result;
+        const astrometryResult = this.props.astrometryResult !== undefined ? this.props.astrometryResult : state.backend.astrometry!.result;
         logger.debug('center');
 
         if (astrometryResult === null) {
@@ -108,7 +108,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly move = async (pos:any) => {
         const state = Store.getStore().getState();
-        const astrometryResult = state.backend.astrometry!.result;
+        const astrometryResult = this.props.astrometryResult !== undefined ? this.props.astrometryResult : state.backend.astrometry!.result;
         logger.debug('move', {pos});
         if (pos.imageX === undefined || pos.imageY === undefined) {
             throw new Error("Wrong image position");
