@@ -50,7 +50,15 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         title:  'File',
         minimumWidth: '3em',
         grow: 1,
-        render: (o:BackOfficeStatus.ImageStatus)=>(o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+        render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats)=>
+            (o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+    },
+    {
+        id: 'astrometry',
+        title: '🞋',
+        minimumWidth: '1.2em',
+        cellClass: 'cell-astrometry',
+        render: (o:BackOfficeStatus.ImageStats)=>(o.astrometry ? <span className={`col-astrometry col-astrometry-${o.astrometry.found?"ok":"failed"}`}><b>🞋</b></span> : null)
     },
     {
         id: 'backgroundLevel',
@@ -80,7 +88,7 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
     }
 ]
 
-const fields = fieldList.reduce((c, a)=>{c[a.id]=a; return c}, {});
+const fields = fieldList.reduce((c, a)=>{c[a.id]=a; return c}, {} as {[id:string]:FieldDefinition});
 const defaultHeader:HeaderItem[] = fieldList.map(e=>({id: e.id}));
 
 class AccessorFactory {

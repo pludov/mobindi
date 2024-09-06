@@ -40,7 +40,7 @@ class TableEntry<DatabaseObject> extends React.PureComponent<Props<DatabaseObjec
             } else {
                 details = item === undefined ? "N/A" : "" + item[o.id];
             }
-            content.push(<div key={o.id} className="Cell" style={this.props.cellStyles[i]}>
+            content.push(<div key={o.id} className={"Cell" + (field.cellClass ? (" " + field.cellClass) : "")} style={this.props.cellStyles[i]}>
                 <ScrollableText>
                     {details}
                 </ScrollableText>

@@ -24,7 +24,6 @@ type Props = InputProps & MappedProps
 class ImageDetail extends React.PureComponent<Props> {
 
     render() {
-        console.log("ImageDetail render", this.props.path, this.props.astrometryResult);
         return <FitsViewerWithAstrometry
                             contextKey="sequence"
                             path={this.props.path}

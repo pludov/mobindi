@@ -113,4 +113,14 @@
     }
 }
 
+.cell-astrometry {
+    text-align: center;
+}
 
+.col-astrometry-ok {
+    color: green;
+}
+
+.col-astrometry-failed {
+    color: red;
+}

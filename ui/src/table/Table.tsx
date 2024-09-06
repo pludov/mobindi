@@ -18,6 +18,7 @@ export type FieldDefinition = {
     title: string;
     minimumWidth: string;
     grow?: number;
+    cellClass?: string;
 }
 
 type InputProps<DatabaseObject> = {
