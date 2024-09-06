@@ -216,6 +216,7 @@ class SequenceStatMonitoringView extends React.PureComponent<Props, State> {
                 progress: null,
                 status: "idle",
                 stepStatus: {},
+                astrometryRefImageUuid: null,
                 title: "",
             }, ()=>"");
 

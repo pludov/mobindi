@@ -183,7 +183,9 @@ export type Sequence = {
     // uuids of images
     images: string [];
     storedImages?: Array<ImageStatus&ImageStats>;
+    storedAstrometryRefImageId?: number|null;
     imageStats: {[uid:string]: ImageStats};
+    astrometryRefImageUuid: string|null;
 }
 
 export type IndiMessageWithUid = IndiMessage & {

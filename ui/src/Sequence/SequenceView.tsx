@@ -30,6 +30,7 @@ type SequenceViewDatabaseObject = {
     images?: BackOfficeStatus.CameraStatus["images"]["byuuid"],
     imageList?: BackOfficeStatus.Sequence["images"],
     imageStats?: BackOfficeStatus.Sequence["imageStats"],
+    astrometryRefImageUuid: string|null,
 }
 
 type InputProps = {
@@ -42,6 +43,10 @@ type MappedProps = {
     currentMonitoring: SequenceStore.SequenceStoreContent["currentMonitoringView"];
 };
 
+type AdditionalImageStatus = {
+    isAstrometryRef: boolean;
+}
+
 type SequenceViewProps = InputProps & MappedProps;
 
 const fieldList:Array<FieldDefinition & {id:string}> = [
@@ -50,8 +55,9 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         title:  'File',
         minimumWidth: '3em',
         grow: 1,
-        render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats)=>
-            (o === undefined ? "N/A" : o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+        render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats&AdditionalImageStatus)=>
+            (o.isAstrometryRef ? "🏅" : "") +
+            (o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
     },
     {
         id: 'astrometry',
@@ -209,14 +215,16 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                                         images: store.backend.camera?.images.byuuid,
                                         imageList: currentSequence?.images,
                                         imageStats: currentSequence?.imageStats,
+                                        astrometryRefImageUuid: currentSequence?.astrometryRefImageUuid || null,
                                     };
                                 }
                             }
                             getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
-                            getItem={(db:SequenceViewDatabaseObject,uid:string)=>
+                            getItem={(db:SequenceViewDatabaseObject,uid:string):BackOfficeStatus.ImageStatus&Partial<BackOfficeStatus.ImageStats>&AdditionalImageStatus=>
                                 ({
-                                    ...Utils.getOwnProp(db.images, uid),
-                                    ...Utils.getOwnProp(db.imageStats, uid)
+                                    ...Utils.getOwnProp(db.images, uid)!,
+                                    ...Utils.getOwnProp(db.imageStats, uid),
+                                    isAstrometryRef: db.astrometryRefImageUuid === uid,
                                 })}
                             currentPath='$.sequence.currentImage'
                             currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'

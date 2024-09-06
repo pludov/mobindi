@@ -17,6 +17,7 @@ const unusedFields = {
     fwhmMonitoring: {enabled: false, perClassStatus:{}, perClassSettings: {}, evaluationCount:5, evaluationPercentile: 0.5, learningCount:5, learningPercentile: 0.9},
     backgroundMonitoring:  {enabled: false, perClassStatus:{}, perClassSettings: {}, evaluationCount:5, evaluationPercentile: 0.5, learningCount:5, learningPercentile: 0.9},
     activityMonitoring: {enabled: false},
+    astrometryRefImageUuid: null,
 }
 
 describe("SequenceLogicDithering", () => {

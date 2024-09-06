@@ -119,6 +119,7 @@ export default class SequenceManager
                     if (!seq.imageStats) {
                         seq.imageStats = {};
                     }
+                    seq.astrometryRefImageUuid = null;
                     if (seq.storedImages) {
                         for(const image of seq.storedImages!) {
                             const {device, path, ...stats} = {...image};
@@ -131,9 +132,13 @@ export default class SequenceManager
                             seq.images.push(uuid);
 
                             seq.imageStats[uuid] = stats;
+                            if (seq.images.length - 1 === seq.storedAstrometryRefImageId) {
+                                seq.astrometryRefImageUuid = uuid;
+                            }
                         }
                     }
                     delete(seq.storedImages);
+                    delete(seq.storedAstrometryRefImageId);
                 }
                 return content;
             },
@@ -144,6 +149,7 @@ export default class SequenceManager
                 for(const sid of Object.keys(content.byuuid!)) {
                     const seq: Partial<Sequence> = content.byuuid![sid];
                     seq.storedImages = [];
+                    seq.storedAstrometryRefImageId = null;
                     for(const uuid of seq.images || []) {
                         if (hasKey(this.context.camera.currentStatus.images.byuuid, uuid)) {
                             const toWrite = {
@@ -151,8 +157,12 @@ export default class SequenceManager
                                             ...this.context.camera.currentStatus.images.byuuid[uuid],
                                             ... Obj.getOwnProp(seq.imageStats, uuid)};
                             seq.storedImages.push(toWrite);
+                            if (seq.astrometryRefImageUuid === uuid) {
+                                seq.storedAstrometryRefImageId = seq.storedImages.length - 1;
+                            }
                         }
                     }
+                    delete seq.astrometryRefImageUuid;
                     delete seq.images;
                     delete seq.imageStats;
                 }
@@ -198,6 +208,7 @@ export default class SequenceManager
             errorMessage: 'Convertion error',
             stepStatus: {},
             title: 'invalid sequence',
+            astrometryRefImageUuid: null,
         }
         return {...defaultSequence, ...t};
     }
@@ -855,7 +866,7 @@ export default class SequenceManager
                     const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};
 
                     logger.info('Starting exposure', {sequence, uuid, settings});
-                    let shootResult;
+                    let shootResult : BackOfficeAPI.ShootResult;
                     try {
                         sequenceActivityWatchdog.reset(-settings.exposure);
                         shootResult = await this.context.camera.doShoot(ct, sequence.imagingSetup, ()=>(settings));
@@ -877,9 +888,15 @@ export default class SequenceManager
                         bin: param.bin,
                         filter: param.filter,
                     });
-                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, sequence.imageStats[shootResult.uuid], guideSteps, astrometryScopePos)
+                    const statTarget = sequence.imageStats[shootResult.uuid];
+                    computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, statTarget, guideSteps, astrometryScopePos)
                         .finally(sequenceFwhmWatcher.updateStats)
-                        .finally(sequenceBackgroundWatcher.updateStats);
+                        .finally(sequenceBackgroundWatcher.updateStats)
+                        .finally(()=> {
+                            if ((!sequence.astrometryRefImageUuid) && statTarget.astrometry?.found) {
+                                sequence.astrometryRefImageUuid = shootResult.uuid;
+                            }
+                        });
                 }
             } finally {
                 sequenceActivityWatchdog.end();
