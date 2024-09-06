@@ -336,7 +336,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     if (astrometryResult) {
                         if (astrometryResult.found) {
                             result.move = astrometry.scopeReady;
-                            result.sync = astrometry.scopeReady && !astrometry.scopeMovedSinceImage;
                             calcTrackScope();
                         } else {
                             result.error = "failed";
@@ -470,7 +469,6 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                 } catch(e) {
                     logger.error('ignoring error', e);
                 }
-                logger.debug('liveProps', {liveProps});
             }
             return {
                 ...liveProps,
