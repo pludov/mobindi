@@ -227,7 +227,7 @@ int main (int argc, char ** argv) {
     pipesize = fcntl(1, F_SETPIPE_SZ, &pipesize);
     
     MyClient * client = new MyClient(argv[3], argv[4]);
-    client->setServer(argv[1], atoi(argv[2]));
+    client->setServer("localhost"/*argv[1]*/, atoi(argv[2]));
     client->watchDevice(argv[3]);
     if (!client->connectServer()) {
         fprintf(stderr, "unable to connect to indi\n");
