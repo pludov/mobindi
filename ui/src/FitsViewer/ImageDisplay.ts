@@ -179,17 +179,10 @@ export class ImageDisplay {
 
     static allowHttpFallback() {
         const env = process.env.NODE_ENV;
-        if (document.location.protocol === 'https:' || env === 'development') {
-            const raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
-            const chrome = raw ? parseInt(raw[2], 10) : false;
-
-            if (chrome && chrome > 79) {
-                return false;
-            }
+        if (env === 'development' && document.location.protocol === 'http:') {
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     // imageSize is expected only for streams
@@ -447,7 +440,7 @@ export class ImageDisplay {
     }
 
     private getDisplaySize() {
-        return { width: this.child.width()!, height: this.child.height()! }
+        return { width: Math.max(this.child.width()!, 16), height: Math.max(this.child.height()!, 16) }
     }
 
     private setRawCurrentImagePos(e:CompleteImagePos, displaySize: ImageSize) {
@@ -547,7 +540,7 @@ export class ImageDisplay {
     }
 
     getBestFitForSize(imageSize:ImageSize) {
-        var viewSize = { width: this.child.width()!, height: this.child.height()!};
+        var viewSize = { width: Math.max(this.child.width()!, 16), height: Math.max(this.child.height()!, 16)};
         return getBestFitForSize(imageSize, viewSize);
     }
 
