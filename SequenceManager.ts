@@ -576,14 +576,6 @@ export default class SequenceManager
                 }
                 target.starCount = starCount;
                 logger.info('Got FWHM', {shootResult, fwhm, starCount});
-
-                const astrometry: AstrometryResult = await this.context.astrometry.internalCompute(
-                        ct,
-                        shootResult.uuid,
-                        scopePos === null,
-                        scopePos === null ? undefined : scopePos
-                    );
-                target.astrometry = astrometry;
             }
         }
 
@@ -887,11 +879,19 @@ export default class SequenceManager
                     const statTarget = sequence.imageStats[shootResult.uuid];
                     computeStatsWithMetrics(CancellationToken.CONTINUE, param.type, shootResult, statTarget, guideSteps, astrometryScopePos)
                         .finally(sequenceFwhmWatcher.updateStats)
-                        .finally(sequenceBackgroundWatcher.updateStats)
-                        .finally(()=> {
-                            if ((!sequence.astrometryRefImageUuid) && statTarget.astrometry?.found) {
+                        .finally(sequenceBackgroundWatcher.updateStats);
+
+                    this.context.astrometry.internalCompute(CancellationToken.CONTINUE,
+                        shootResult.uuid,
+                        astrometryScopePos === null,
+                        astrometryScopePos === null ? undefined : astrometryScopePos)
+                        .then((astrometry)=>{
+                            if ((!sequence.astrometryRefImageUuid) && astrometry.found) {
                                 sequence.astrometryRefImageUuid = shootResult.uuid;
                             }
+                        })
+                        .catch((e)=>{
+                            logger.error(`Astrometry failed for ${shootResult.path}`, e);
                         });
                 }
             } finally {
