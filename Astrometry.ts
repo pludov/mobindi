@@ -734,6 +734,14 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                     // Compute the narrowed field
                     this.currentStatus.narrowedField = skyProjection.getFieldSize(this.currentStatus.result.width, this.currentStatus.result.height); 
                 }
+
+                if (result !== null) {
+                    // Report into the image
+                    const image = this.context.camera.getImageByUuid(imageUuid);
+                    if (image) {
+                        image.astrometry = {...result};
+                    }
+                }
             };
 
             let result: AstrometryResult;
