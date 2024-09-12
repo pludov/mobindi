@@ -681,7 +681,6 @@ export type AstrometryStatus = {
     lastOperationError: string|null;
     image: string | null;
     imageUuid: string | null;
-    result: AstrometryResult|null;
     selectedScope: string | null;
     settings: AstrometrySettings;
     // set during GOTOs
