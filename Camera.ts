@@ -83,8 +83,7 @@ export default class Camera
 
                 }
             },
-            lastByDevices: {},
-
+            lastUuidByDevices: {},
             dynStateByDevices: {},
             configuration: {
                 preferedImagingSetup: null,
@@ -760,9 +759,9 @@ export default class Camera
                     }
                     logger.warn('Using fake image', {device, value});
                 }
-                this.currentStatus.lastByDevices[device] = value;
 
                 var newUuid = this.imageIdGenerator.next();
+                this.currentStatus.lastUuidByDevices[device] = newUuid;
 
                 this.currentStatus.images.list.push(newUuid);
                 this.currentStatus.images.byuuid[newUuid] = {

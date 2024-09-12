@@ -10,7 +10,7 @@ export type ToolExecuterAPI = {
 }
 
 export type AstrometryComputeRequest = {
-    image: string;
+    imageUuid: string;
     forceWide?: boolean;
 }
 

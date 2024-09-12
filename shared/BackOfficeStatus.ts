@@ -316,6 +316,7 @@ export type IndiManagerSetPropertyRequest = {
 export type ImageStatus = {
     path: string;
     device: string;
+    astrometry?: AstrometryResult;
 }
 
 export type CameraConfiguration = {
@@ -381,7 +382,7 @@ export type CameraStatus = {
     defaultImageLoadingPath: string|null;
     currentStreams: {[deviceId: string]: CameraStream};
     currentShoots: {[deviceId:string]:CameraShoot};
-    lastByDevices: {[deviceId:string]:string};
+    lastUuidByDevices: {[deviceId:string]:string};
     dynStateByDevices: {[deviceId: string] : CameraDeviceDynState};
     images: {
         list: string[];
@@ -680,6 +681,7 @@ export type AstrometryStatus = {
     scopeDetails: string | null;
     lastOperationError: string|null;
     image: string | null;
+    imageUuid: string | null;
     result: AstrometryResult|null;
     selectedScope: string | null;
     settings: AstrometrySettings;

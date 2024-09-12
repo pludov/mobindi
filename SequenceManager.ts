@@ -22,7 +22,7 @@ import { SequenceLogic, Progress } from './shared/SequenceLogic';
 import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
 import { SequenceParamClassifier } from './shared/SequenceParamClassifier';
-import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
+import { AstrometryResult, ProcessorAstrometryConstraints, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 
 const logger = Log.logger(__filename);
 
@@ -530,7 +530,7 @@ export default class SequenceManager
             return rslt;
         }
 
-        const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>, scopePos : Partial<ProcessorAstrometryRequest>|null)=> {
+        const computeStats = async (ct: CancellationToken, indiFrameType: string|undefined, shootResult: BackOfficeAPI.ShootResult, target: ImageStats, guideSteps: Array<PhdGuideStep>, scopePos : Partial<ProcessorAstrometryConstraints>|null)=> {
             ct.throwIfCancelled();
 
             target.guideStats = GuideStats.computeGuideStats(guideSteps);
@@ -577,18 +577,12 @@ export default class SequenceManager
                 target.starCount = starCount;
                 logger.info('Got FWHM', {shootResult, fwhm, starCount});
 
-                const astrometry: AstrometryResult = await this.imageProcessor.compute(ct, {
-                    astrometry: {
-                        source: {
-                                source: {
-                                    path: shootResult.path,
-                                    streamId: "",
-                                }
-                        },
-                        ...this.context.astrometry.baseRequest(scopePos === null || Object.keys(scopePos).length === 0),
-                        ...scopePos
-                    }
-                });
+                const astrometry: AstrometryResult = await this.context.astrometry.internalCompute(
+                        ct,
+                        shootResult.uuid,
+                        scopePos === null,
+                        scopePos === null ? undefined : scopePos
+                    );
                 target.astrometry = astrometry;
             }
         }
@@ -860,7 +854,9 @@ export default class SequenceManager
                     sequence.progress = (stepTypeLabel) + " " + shootTitle;
                     ct.throwIfCancelled();
 
-                    let astrometryScopePos = param.type === 'FRAME_LIGHT' ? await this.context.astrometry.captureScopeParameters(ct, false) : null;
+                    let astrometryScopePos:null|Partial<ProcessorAstrometryConstraints>;
+
+                    astrometryScopePos = param.type === 'FRAME_LIGHT' ? await this.context.astrometry.captureScopeParameters(ct, false) : null;
 
                     const guideSteps:Array<PhdGuideStep> = [];
                     const unregisterPhd = (param.type === 'FRAME_LIGHT') ? this.phd.listenForSteps((step)=>guideSteps.push(step)) : ()=>{};

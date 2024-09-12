@@ -60,7 +60,7 @@ export default class MeridianFlipWizard extends Wizard {
 
     // Solve plate in JNOW (degree)
     solve = async(token: CancellationToken, photo: ShootResult, photoTime: number) => {
-        const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: true});
+        const astrometry = await this.astrometry.compute(token, {imageUuid: photo.uuid, forceWide: true});
 
         logger.info('Done astrometry', {astrometry, photoTime});
 

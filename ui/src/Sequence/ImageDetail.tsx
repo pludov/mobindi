@@ -15,6 +15,7 @@ type InputProps = {
 }
 
 type MappedProps = {
+    imageUuid: string|null;
     path: string|null;
     astrometryResult?: AstrometryResult|null|undefined;
 }
@@ -26,6 +27,7 @@ class ImageDetail extends React.PureComponent<Props> {
     render() {
         return <FitsViewerWithAstrometry
                             contextKey="sequence"
+                            imageUuid={this.props.imageUuid}
                             path={this.props.path}
                             astrometryResult={this.props.astrometryResult}
                             streamId={null}
@@ -36,18 +38,20 @@ class ImageDetail extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
-        var selected = atPath(store, ownProps.currentPath);
+        const selected = atPath(store, ownProps.currentPath);
 
         if (!selected) {
             return {
-                path: null
+                path: null,
+                imageUuid: null
             };
         }
-        var details = atPath(store, ownProps.detailPath + '[' + JSON.stringify(selected) + ']');
+        const details = atPath(store, ownProps.detailPath + '[' + JSON.stringify(selected) + ']');
         if (details === undefined) {
-            return {path: null};
+            return {path: null, imageUuid: null};
         }
         return {
+            imageUuid: selected,
             path: details.path,
             astrometryResult: ownProps.astrometryStatusProvider ? ownProps.astrometryStatusProvider(store, selected) : undefined
         };

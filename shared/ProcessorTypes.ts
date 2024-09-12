@@ -41,14 +41,17 @@ export type ProcessorStarFieldResult = {
     stars: Array<ProcessorStarFieldOccurence>;
 }
 
-export type ProcessorAstrometryRequest = {
-    exePath: string;
-    libraryPath: string;
+export type ProcessorAstrometryConstraints = {
     fieldMin: number;
     fieldMax: number;
     raCenterEstimate: number;
     decCenterEstimate: number;
     searchRadius: number;
+}
+
+export type ProcessorAstrometryRequest = ProcessorAstrometryConstraints & {
+    exePath: string;
+    libraryPath: string;
     numberOfBinInUniformize: 10;
     source: ProcessorStarFieldRequest;
 }

@@ -19,6 +19,7 @@ import ContextMenuItem from './FitsViewer/ContextMenuItem';
 const logger = Log.logger(__filename);
 
 type InputProps = {
+    imageUuid: string|null;
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
@@ -143,13 +144,13 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     private readonly start=async (forceWide?:boolean)=>
     {
-        if (this.props.path === null) {
+        if (this.props.imageUuid === null) {
             throw new Error("Astrometry not possible on stream");
         }
         return await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
-                image: this.props.path,
+                imageUuid: this.props.imageUuid,
                 forceWide:!!forceWide
             }
         );

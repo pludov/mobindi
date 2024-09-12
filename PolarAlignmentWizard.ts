@@ -561,7 +561,7 @@ export default class PolarAlignmentWizard extends Wizard {
                             // FIXME: put in a resumable task queue
                             try {
                                 wizardReport.astrometryRunning = true;
-                                const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
+                                const astrometry = await this.astrometry.compute(token, {imageUuid: photo.uuid, forceWide: false});
                                 // FIXME: convert to JNOW & put in queue
                                 logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType});
                                 if (astrometry.found) {
@@ -668,7 +668,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     }
                     logger.info("Done photo", {takeRefFrame, photo, photoTime});
 
-                    const astrometry = await this.astrometry.compute(token, {image: photo.path, forceWide: false});
+                    const astrometry = await this.astrometry.compute(token, {imageUuid: photo.uuid, forceWide: false});
                     if (astrometry.found) {
                         const geoCoords = this.readGeoCoords();
                         const { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(astrometry, photoTime!, geoCoords);

@@ -28,6 +28,7 @@ type InputProps = {
 
 type MappedProps = {
     path: string|null;
+    imageUuid: string|null;
     imagingSetup: string|null;
     streamId: string|null;
     streamSerial: string|null;
@@ -54,14 +55,14 @@ class CameraView extends React.PureComponent<Props, State> {
     private readonly defaultImageLoadingPathAccessor = CameraStore.defaultImageLoadingPathAccessor();
 
     startAstrometry = async () => {
-        if (this.props.path === null) {
+        if (this.props.imageUuid === null) {
             throw new Error("Astrometry require a fits file");
         }
         logger.debug('Start astrometry', {path: this.props.path});
         await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
-                image: this.props.path,
+                imageUuid: this.props.imageUuid,
             }
         );
         logger.debug('done astrometry ?');
@@ -125,6 +126,7 @@ class CameraView extends React.PureComponent<Props, State> {
             <div className="CameraViewDisplay">
                 <FitsViewerWithAstrometry
                     contextKey="default"
+                    imageUuid={this.props.imageUuid}
                     path={this.state.loadedImage || this.props.path}
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
@@ -161,6 +163,7 @@ class CameraView extends React.PureComponent<Props, State> {
                     return {
                         imagingSetup,
                         path: null,
+                        imageUuid: null,
                         streamId: stream.streamId,
                         streamSerial: "" + stream.serial,
                         streamDetails: stream.streamDetails,
@@ -170,20 +173,26 @@ class CameraView extends React.PureComponent<Props, State> {
                 }
             }
 
-            if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.lastByDevices, cameraDevice)) {
-                return {
-                    imagingSetup,
-                    path: store.backend.camera!.lastByDevices[cameraDevice],
-                    streamId: null,
-                    streamSerial: null,
-                    streamDetails: null,
-                    cameraDevice,
-                    subframe: null,
-                };
+            if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.lastUuidByDevices, cameraDevice)) {
+                const imageUuid = store.backend.camera!.lastUuidByDevices[cameraDevice];
+                const path = store.backend.camera!.images.byuuid[imageUuid]?.path;
+                if (imageUuid !== undefined && path !== undefined) {
+                    return {
+                        imagingSetup,
+                        imageUuid,
+                        path,
+                        streamId: null,
+                        streamSerial: null,
+                        streamDetails: null,
+                        cameraDevice,
+                        subframe: null,
+                    };
+                }
             }
             return {
                 imagingSetup,
                 path: null,
+                imageUuid: null,
                 streamId: null,
                 streamSerial: null,
                 streamDetails: null,

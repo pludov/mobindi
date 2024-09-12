@@ -5,8 +5,8 @@ import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import ConfigStore from './ConfigStore';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings, FineSlewLearning, SlewCalibrationVector } from './shared/BackOfficeStatus';
-import { AstrometryResult, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
+import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings, FineSlewLearning, SlewCalibrationVector, ImageStatus } from './shared/BackOfficeStatus';
+import { AstrometryResult, ProcessorAstrometryConstraints, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './shared/JsonProxy';
 import { IndiConnection } from './Indi';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
@@ -233,6 +233,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             scopeMovedSinceImage: false,
             scopeDetails: "not initialised",
             image: null,
+            imageUuid: null,
             result: null,
             selectedScope: null,
             target: null,
@@ -679,7 +680,14 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         }
     }
 
-    captureScopeParameters = async(ct: CancellationToken, forceWide: boolean) => {
+    captureScopeParameters = async(ct: CancellationToken, forceWide: boolean, constraints? : Partial<ProcessorAstrometryConstraints>):Promise<Partial<ProcessorAstrometryConstraints>> => {
+        let wantPos = constraints?.raCenterEstimate === undefined || constraints?.decCenterEstimate === undefined;
+        let wantRadius = constraints?.searchRadius === undefined;
+
+        if (!wantPos && !wantRadius) {
+            return constraints || {};
+        }
+
         if (this.currentStatus.settings.useMountPosition) {
             // Use scope position, with either small or large radius
             try {
@@ -689,8 +697,9 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
 
                 return {
-                    ... (await this.captureScopePos(ct, targetScope)),
-                    ... (await this.captureSearchRadius(ct, targetScope, forceWide)),
+                    ... wantPos ? (await this.captureScopePos(ct, targetScope)) : {},
+                    ... wantRadius ? (await this.captureSearchRadius(ct, targetScope, forceWide)) : {},
+                    ...constraints
                 }
             } catch(e) {
                 logger.warn('Astrometry problem with mount - doing wide scan', e);
@@ -699,8 +708,16 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         return {};
     }
 
-
     compute = async(ct: CancellationToken, message:BackOfficeAPI.AstrometryComputeRequest)=>{
+        return await this.internalCompute(ct, message.imageUuid, !!message.forceWide);
+    }
+
+    internalCompute = async(ct: CancellationToken, imageUuid:string, forceWide: boolean, constraints? : Partial<ProcessorAstrometryConstraints>)=>{
+        const imageStatus: ImageStatus|undefined = this.context.camera.getImageByUuid(imageUuid);
+        if (!imageStatus) {
+            throw new Error("Image not found");
+        }
+
         return await createTask<AstrometryResult>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
@@ -720,10 +737,10 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             };
 
             let result: AstrometryResult;
-
             this.currentProcess = task;
             try {
-                this.currentStatus.image = message.image;
+                this.currentStatus.imageUuid = imageUuid;
+                this.currentStatus.image = imageStatus.path;
                 this.currentStatus.scopeMovedSinceImage = false;
                 this.currentStatus.status = 'computing';
                 this.currentStatus.result = null;
@@ -731,14 +748,14 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.lastOperationError = null;
 
                 const astrometry:ProcessorAstrometryRequest = {
-                    ...this.baseRequest(!!message.forceWide),
+                    ...this.baseRequest(!!forceWide),
                     "source": {
                         "source": {
-                            "path": message.image,
+                            "path": imageStatus.path,
                             streamId: "",
                         }
                     },
-                    ...(await this.captureScopeParameters(ct, !!message.forceWide)),
+                    ...(await this.captureScopeParameters(ct, forceWide, constraints)),
                 }
 
                 logger.info('Starting astrometry', {astrometry});
