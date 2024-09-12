@@ -8,13 +8,14 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
 import FitsViewerInContext, {UnmappedFitsViewerInContext, InputProps as FitsViewerInContextInputProps} from './FitsViewerInContext';
-import {Props as FitsViewerProps, ContextMenuEntry} from './FitsViewer/FitsViewer';
+import {Props as FitsViewerProps, ContextMenuEntry, ContextMenuEvent} from './FitsViewer/FitsViewer';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import * as Help from "./Help";
 import { AstrometryResult, SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import CancellationToken from 'cancellationtoken';
 import ContextMenuItem from './FitsViewer/ContextMenuItem';
+import { ImageSize } from './FitsViewer/Types';
 
 const logger = Log.logger(__filename);
 
@@ -75,10 +76,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         return await BackendRequest.RootInvoker("astrometry")("cancel")(CancellationToken.CONTINUE, {});
     }
 
-    private readonly center = async() => {
+    private readonly getRaDecNow = (getTargetPixel : (imageSize:ImageSize)=>[number, number]) => {
         const state = Store.getStore().getState();
         const astrometryResult = this.props.astrometryResult !== undefined ? this.props.astrometryResult : state.backend.astrometry!.result;
-        logger.debug('center');
 
         if (astrometryResult === null) {
             throw new Error("No astrometry result");
@@ -90,12 +90,19 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         }
 
         const skyProjection = SkyProjection.fromAstrometry(astrometryResult as SucceededAstrometryResult);
-        // take the center of the image
-        const center = [currentImageSize.width / 2, currentImageSize.height / 2];
+        // find the target pixel in the image
+        // const center = [currentImageSize.width / 2, currentImageSize.height / 2];
+        const targetPixel = getTargetPixel(currentImageSize);
         // Project to J2000
-        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+        const [ra2000, dec2000] = skyProjection.pixToRaDec(targetPixel);
         // compute JNOW center for last image.
-        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+        return SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+    }
+
+    private readonly center = async() => {
+        logger.debug('center');
+
+        const [ranow, decnow] = this.getRaDecNow((imageSize:ImageSize)=>[imageSize.width / 2, imageSize.height / 2]);
 
         return await BackendRequest.RootInvoker("astrometry")("goto")(
             CancellationToken.CONTINUE,
@@ -107,24 +114,14 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     }
 
-    private readonly move = async (pos:any) => {
-        const state = Store.getStore().getState();
-        const astrometryResult = this.props.astrometryResult !== undefined ? this.props.astrometryResult : state.backend.astrometry!.result;
+    private readonly move = async (pos: ContextMenuEvent) => {
         logger.debug('move', {pos});
-        if (pos.imageX === undefined || pos.imageY === undefined) {
+        const { imageX, imageY } = pos;
+        if (imageX === undefined || imageY === undefined) {
             throw new Error("Wrong image position");
         }
-        if (astrometryResult === null) {
-            throw new Error("No astrometry result");
-        }
 
-        const skyProjection = SkyProjection.fromAstrometry(astrometryResult as SucceededAstrometryResult);
-        // take the center of the image
-        const center = [pos.imageX, pos.imageY];
-        // Project to J2000
-        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-        // compute JNOW center for last image.
-        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+        const [ranow, decnow] = this.getRaDecNow((imageSize:ImageSize)=>[imageX, imageY]);
 
         return await BackendRequest.RootInvoker("astrometry")("goto")(
             CancellationToken.CONTINUE,
@@ -136,9 +133,16 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     private readonly sync = async () => {
+        logger.debug('sync');
+
+        const [ranow, decnow] = this.getRaDecNow((imageSize:ImageSize)=>[imageSize.width / 2, imageSize.height / 2]);
+
         return await BackendRequest.RootInvoker("astrometry")("sync")(
             CancellationToken.CONTINUE,
-            {}
+            {
+                ra: ranow,
+                dec: decnow,
+            }
         );
     }
 

@@ -910,7 +910,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         this.currentStatus.useNarrowedSearchRadius = true;
     }
 
-    sync = async (ct: CancellationToken, message: {})=>{
+    sync = async (ct: CancellationToken, message: BackOfficeAPI.AstrometrySyncScopeRequest)=>{
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
@@ -929,7 +929,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 throw new Error("No scope selected for astrometry");
             }
 
-            logger.info('Astrometry: sync');
+            logger.info('Astrometry: sync', message);
 
             const finish = (status: AstrometryStatus['scopeStatus'], error:string|null)=> {
                 this.currentProcess = null;
@@ -943,16 +943,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.lastOperationError = null;
                 this.currentStatus.target = null;
 
-                const skyProjection = SkyProjection.fromAstrometry(this.currentStatus.result);
-
-                // take the center of the image
-                const center = [(this.currentStatus.result.width - 1) / 2, (this.currentStatus.result.height - 1) / 2];
-                // Project to J2000
-                const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-                // compute JNOW center for last image.
-                const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
-
-                await this.doSync(task.cancellation, targetScope, {ra: ranow, dec:decnow});
+                await this.doSync(task.cancellation, targetScope, message);
             } catch(e) {
                 if (e instanceof CancellationToken.CancellationError) {
                     finish('idle', null)

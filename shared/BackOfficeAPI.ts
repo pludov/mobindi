@@ -15,9 +15,16 @@ export type AstrometryComputeRequest = {
 }
 
 export type AstrometryGotoScopeRequest = {
-    // 0 - 360 degrees
+    // 0 - 360 degrees (JNOW)
     ra:number;
-    // -90 - 90 degrees
+    // -90 - 90 degrees (JNOW)
+    dec:number;
+}
+
+export type AstrometrySyncScopeRequest = {
+    // 0 - 360 degrees (JNOW)
+    ra:number;
+    // -90 - 90 degrees (JNOW)
     dec:number;
 }
 
@@ -221,7 +228,7 @@ export type AstrometryAPI = AstrometryWizards & {
     cancel: (payload: {})=>void;
     setScope: (payload: {deviceId: string})=>void;
     goto: (payload:AstrometryGotoScopeRequest)=>void;
-    sync: (payload:{})=>void;
+    sync: (payload:AstrometrySyncScopeRequest)=>void;
     wizardQuit: (payload:{})=>void;
     wizardInterrupt: (payload:{})=>void;
     wizardNext: (payload:{})=>void;
