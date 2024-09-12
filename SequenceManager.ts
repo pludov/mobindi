@@ -122,8 +122,8 @@ export default class SequenceManager
                     seq.astrometryRefImageUuid = null;
                     if (seq.storedImages) {
                         for(const image of seq.storedImages!) {
-                            const {device, path, ...stats} = {...image};
-                            const status: ImageStatus = {device, path};
+                            const {device, path, astrometry, ...stats} = {...image};
+                            const status: ImageStatus = Obj.noUndef({device, path, astrometry});
 
                             // Pour l'instant c'est brutal
                             const uuid = this.context.camera.imageIdGenerator.next();
