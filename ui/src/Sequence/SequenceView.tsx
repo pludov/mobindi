@@ -56,7 +56,6 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         minimumWidth: '3em',
         grow: 1,
         render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats&AdditionalImageStatus)=>
-            (o.isAstrometryRef ? "🏅" : "") +
             (o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
     },
     {
@@ -64,7 +63,15 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         title: '🞋',
         minimumWidth: '1.2em',
         cellClass: 'cell-astrometry',
-        render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats)=>(o.astrometry ? <span className={`col-astrometry col-astrometry-${o.astrometry.found?"ok":"failed"}`}><b>🞋</b></span> : null)
+        render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats&AdditionalImageStatus)=>(
+            o.astrometry ?
+            <span className={`col-astrometry col-astrometry-${o.astrometry.found?"ok":"failed"}`}>
+                {(o.astrometry.found && o.isAstrometryRef)  ?
+                    <b>🏅</b> :
+                    <b>🞋</b>
+                }
+            </span>
+        : null)
     },
     {
         id: 'backgroundLevel',
