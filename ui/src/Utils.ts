@@ -71,6 +71,13 @@ export function getOwnProp(o: any, s: any) {
     return undefined;
 }
 
+export function fallback<T, U>(o: T|undefined, def: U):T|U {
+    if (o === undefined) {
+        return def;
+    }
+    return o;
+}
+
 export function shallowEqual<T>(a: null | undefined | {[id: string]: T}, b: null | undefined | {[id: string]: T}): boolean {
     if (a === b) return true;
     if (a === null) return false;

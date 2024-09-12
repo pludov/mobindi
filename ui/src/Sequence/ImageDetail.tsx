@@ -5,19 +5,15 @@ import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import FitsViewerWithAstrometry from '../FitsViewerWithAstrometry';
-import { AstrometryResult } from '@bo/ProcessorTypes';
 
 type InputProps = {
     currentPath: string;
     detailPath: string;
-    // Return undefined to use main astrometry status, null or AstrometryResult to override
-    astrometryStatusProvider?: (store: Store.Content, uid:string)=> AstrometryResult|undefined|null;
 }
 
 type MappedProps = {
     imageUuid: string|null;
     path: string|null;
-    astrometryResult?: AstrometryResult|null|undefined;
 }
 
 type Props = InputProps & MappedProps
@@ -29,7 +25,6 @@ class ImageDetail extends React.PureComponent<Props> {
                             contextKey="sequence"
                             imageUuid={this.props.imageUuid}
                             path={this.props.path}
-                            astrometryResult={this.props.astrometryResult}
                             streamId={null}
                             streamSerial={null}
                             streamDetails={null}
@@ -53,7 +48,6 @@ class ImageDetail extends React.PureComponent<Props> {
         return {
             imageUuid: selected,
             path: details.path,
-            astrometryResult: ownProps.astrometryStatusProvider ? ownProps.astrometryStatusProvider(store, selected) : undefined
         };
     }
 }

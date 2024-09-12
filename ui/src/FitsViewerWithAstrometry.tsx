@@ -16,6 +16,7 @@ import { AstrometryResult, SucceededAstrometryResult } from '@bo/ProcessorTypes'
 import CancellationToken from 'cancellationtoken';
 import ContextMenuItem from './FitsViewer/ContextMenuItem';
 import { ImageSize } from './FitsViewer/Types';
+import { getOwnProp, fallback } from './Utils';
 
 const logger = Log.logger(__filename);
 
@@ -27,7 +28,6 @@ type InputProps = {
     subframe: FitsViewerInContextInputProps["subframe"],
     streamDetails: BackOfficeStatus.StreamDetails|null;
     autoCropCb?: FitsViewerInContextInputProps["autoCropCb"],
-    astrometryResult?: AstrometryResult|null|undefined;
     contextKey: string;
 };
 
@@ -36,6 +36,7 @@ type AstrometryProps = {
     narrowable: boolean;
     status: BackOfficeStatus.AstrometryStatus["status"] | BackOfficeStatus.AstrometryStatus["scopeStatus"];
     error: string | null;
+    scopeError:  string | null;
     cancel: boolean;
     move: boolean;
     sync: boolean;
@@ -43,6 +44,8 @@ type AstrometryProps = {
     trackScope: string|null;
     ranow: number|null;
     decnow: number|null;
+
+    astrometryResult: AstrometryResult | null;
 };
 
 type LiveProps = {
@@ -77,10 +80,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 
     private readonly getRaDecNow = (getTargetPixel : (imageSize:ImageSize)=>[number, number]) => {
-        const state = Store.getStore().getState();
-        const astrometryResult = this.props.astrometryResult !== undefined ? this.props.astrometryResult : state.backend.astrometry!.result;
+        const astrometryResult = this.props.astrometryResult;
 
-        if (astrometryResult === null) {
+        if (!astrometryResult?.found) {
             throw new Error("No astrometry result");
         }
 
@@ -278,88 +280,23 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     ? <div className="Error">{this.props.error}</div>
                     : null
                 }
+                {this.props.scopeError !== null
+                    ? <div className="Error">{this.props.scopeError}</div>
+                    : null
+                }
             </span>
         </div>;
     }
 
     static mapStateToProps():(store:any, ownProps: InputProps)=>MappedProps {
-        const displayFixedAstrometry = createSelector(
-            [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.path, (store:any, ownProps:InputProps)=>ownProps.astrometryResult],
-            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null, astrometryResult: InputProps["astrometryResult"]):AstrometryProps =>  {
-                if (astrometry === undefined) {
-                    return {
-                        status: "empty",
-                        visible: false,
-                        narrowable: false,
-                        cancel: false,
-                        move: false,
-                        sync: false,
-                        start: false,
-                        error: null,
-                        trackScope: null,
-                        ranow : null,
-                        decnow: null,
-                    }
-                }
-                const scopeStatus = astrometry.scopeStatus;
-                const result: AstrometryProps = {
-                    status: astrometryResult ? "ready" : "empty",
-                    narrowable: false,
-                    visible: true,
-                    cancel: false,
-                    move: false,
-                    sync: false,
-                    start: false,
-                    error: null,
-                    trackScope: null,
-                    ranow: null,
-                    decnow: null,
-                };
-
-                const calcTrackScope=()=>{
-                    if (astrometryResult && astrometryResult.found ) {
-
-                        result.trackScope = astrometry.selectedScope;
-
-                        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
-                        // take the center of the image
-                        const center = [(astrometryResult.width - 1) / 2, (astrometryResult.height - 1) / 2];
-                        // Project to J2000
-                        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-                        // compute JNOW center for last image.
-                        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
-
-                        result.ranow = ranow;
-                        result.decnow = decnow;
-                    }
-                }
-                if (scopeStatus === "moving" || scopeStatus === "syncing") {
-                    result.cancel = true;
-                    result.status = scopeStatus;
-                    calcTrackScope();
-                } else {
-                    if (astrometryResult) {
-                        if (astrometryResult.found) {
-                            result.move = astrometry.scopeReady;
-                            calcTrackScope();
-                        } else {
-                            result.error = "failed";
-                        }
-                    } else {
-                        result.visible = false;
-                    }
-                }
-
-                if (astrometry.scopeDetails !== null) {
-                    result.error = astrometry.scopeDetails;
-                }
-
-                return result;
-            });
-
         const selector = createSelector (
-            [(store:any)=>store.backend.astrometry, (store:any, ownProps:InputProps)=>ownProps.path],
-            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null):AstrometryProps =>  {
+            [
+                (store:Store.Content)=>store.backend.astrometry,
+                (store:Store.Content, ownProps:InputProps)=>ownProps.path,
+                (store:Store.Content, ownProps:InputProps)=>ownProps.imageUuid,
+                (store:Store.Content, ownProps:InputProps)=>getOwnProp(store.backend.camera?.images.byuuid, ownProps.imageUuid!)?.astrometry
+            ],
+            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null, currentImageUuid: string|null,astrometryResult: AstrometryResult|undefined):AstrometryProps =>  {
                 if (astrometry === undefined) {
                     return {
                         status: "empty",
@@ -373,8 +310,11 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         trackScope: null,
                         ranow : null,
                         decnow: null,
+                        astrometryResult: null,
+                        scopeError: null,
                     }
                 }
+
                 const computeStatus = astrometry.status;
                 const scopeStatus = astrometry.scopeStatus;
                 const result: AstrometryProps = {
@@ -389,76 +329,76 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     trackScope: null,
                     ranow: null,
                     decnow: null,
+                    astrometryResult: astrometryResult || null,
+                    scopeError: astrometry.scopeDetails,
                 };
 
+                // Compute the reference for scope distance
+                // (This is not done in the selector because it will change often when scope will move)
                 const calcTrackScope=()=>{
-                    if (astrometry.image !== null && astrometry.image === path
-                        && astrometry.status === "ready"
-                        && astrometry.result !== null && astrometry.result.found ) {
-
+                    if (astrometryResult?.found ) {
                         result.trackScope = astrometry.selectedScope;
 
-                        if (astrometry.target === null) {
-                            const skyProjection = SkyProjection.fromAstrometry(astrometry.result);
-                            // take the center of the image
-                            const center = [(astrometry.result.width - 1) / 2, (astrometry.result.height - 1) / 2];
-                            // Project to J2000
-                            const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
-                            // compute JNOW center for last image.
-                            const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
+                        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
+                        // take the center of the image
+                        const center = [(astrometryResult.width - 1) / 2, (astrometryResult.height - 1) / 2];
+                        // Project to J2000
+                        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                        // compute JNOW center for last image.
+                        const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
 
-                            result.ranow = ranow;
-                            result.decnow = decnow;
-                        } else {
-                            result.ranow = astrometry.target.ra;
-                            result.decnow = astrometry.target.dec;
-                        }
+                        result.ranow = ranow;
+                        result.decnow = decnow;
                     }
                 }
+
+                const isCurrentImage = !!(currentImageUuid  && currentImageUuid === astrometry.imageUuid);
+
+                // When something is occuring, prevent any other action, but cancel...
                 if (scopeStatus === "moving" || scopeStatus === "syncing") {
                     result.cancel = true;
                     result.status = scopeStatus;
-                    calcTrackScope();
-                } else if (computeStatus === "computing") {
-                    result.cancel = true;
+                    result.visible = false;
+                    // if (isCurrentImage) {
+                        result.trackScope = astrometry.selectedScope;
+                        result.ranow = fallback(astrometry.target?.ra, null);
+                        result.decnow = fallback(astrometry.target?.dec, null);
+                    // }
                 } else {
-                    if (astrometry.image !== null && astrometry.image === path)
-                    {
-                        switch(astrometry.status) {
-                            case "empty":
-                            case "error":
-                                result.start = true;
-                                break;
-                            case "ready":
-                                if (astrometry.result !== null && astrometry.result.found) {
-                                    result.move = astrometry.scopeReady;
-                                    result.sync = astrometry.scopeReady && !astrometry.scopeMovedSinceImage;
-                                    calcTrackScope();
-                                } else {
-
-                                    result.start = true;
-                                    result.error = "failed";
-                                }
-                                break;
+                    if (computeStatus === "computing") {
+                        result.cancel = true;
+                        if (!isCurrentImage) {
+                            calcTrackScope();
                         }
                     } else {
-                        result.start = true;
+                        // Don't show the status
                         result.visible = false;
+                        if (currentImageUuid) {
+                            if (astrometry.scopeReady) {
+                                result.move = !!(astrometryResult?.found);
+                                result.sync = isCurrentImage && !!(astrometryResult?.found && !astrometry.scopeMovedSinceImage);
+                                result.start = !astrometryResult?.found;
+                            }
+                            calcTrackScope();
+
+                            // Report error only if displaying the image from the last astrometry
+                            if (isCurrentImage) {
+                                if (astrometry.lastOperationError !== null) {
+                                    result.error = astrometry.lastOperationError;
+                                } else if (astrometry.status === "error") {
+                                    result.error = "failed";
+                                    result.visible = true;
+                                }
+                            }
+                        }
                     }
                 }
 
-                if (astrometry.image !== null && astrometry.image === path) {
-                    if (astrometry.lastOperationError !== null) {
-                        result.error = astrometry.lastOperationError;
-                    } else if (astrometry.scopeDetails !== null) {
-                        result.error = astrometry.scopeDetails;
-                    }
-                }
                 return result;
             });
 
         return (store:Store.Content, ownProps:InputProps):MappedProps=>{
-            const astrometryProps = ownProps.astrometryResult === undefined ? selector(store, ownProps) : displayFixedAstrometry(store, ownProps);
+            const astrometryProps = selector(store, ownProps);
             const liveProps: LiveProps = { scopeDeltaRa:null, scopeDeltaDec:null};
             if (astrometryProps.trackScope && store.backend.indiManager) {
                 try {
