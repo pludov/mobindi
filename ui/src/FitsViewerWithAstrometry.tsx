@@ -44,6 +44,7 @@ type AstrometryProps = {
     trackScope: string|null;
     ranow: number|null;
     decnow: number|null;
+    fieldAngle: number|null;
 
     astrometryResult: AstrometryResult | null;
 };
@@ -210,6 +211,17 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         return rslt;
     }
 
+    static rotationTitle(angle:number) {
+        angle = angle % 360;
+        if (angle < -180) {
+            angle += 360;
+        }
+        if (angle > 180) {
+            angle -= 360;
+        }
+        return angle.toFixed(1) + "°";
+    }
+
     render() {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext contextKey={this.props.contextKey}
@@ -272,10 +284,11 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
             </FitsViewerInContext>
 
             <span className="AstrometryImageInfoRoot">
-                {this.props.scopeDeltaRa !== null ? "Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)  : null}
-                {this.props.visible && this.props.scopeDeltaRa === null ? this.titleForStatus(this.props.status) : null}
                 {this.props.cancel ? <input type='button' className='AstrometryBton' value='Abort' onClick={this.cancel}/> : null}
                 {this.props.sync && this.props.scopeDeltaRa !== 0 && this.props.scopeDeltaDec !== 0 ? <input type='button' className='AstrometryBton' value='Sync' onClick={this.sync}/> : null}
+                {this.props.scopeDeltaRa !== null ? <div>{"Δ Ra/Dec: " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaRa!) + "  " + FitsViewerWithAstrometry.deltaTitle(this.props.scopeDeltaDec!)}</div>  : null}
+                {this.props.fieldAngle !== null ? <div>{"Rotation: " + FitsViewerWithAstrometry.rotationTitle(this.props.fieldAngle)}</div> : null}
+                {this.props.visible && this.props.scopeDeltaRa === null ? this.titleForStatus(this.props.status) : null}
                 {this.props.error !== null
                     ? <div className="Error">{this.props.error}</div>
                     : null
@@ -312,6 +325,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                         decnow: null,
                         astrometryResult: null,
                         scopeError: null,
+                        fieldAngle: null,
                     }
                 }
 
@@ -330,20 +344,25 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                     ranow: null,
                     decnow: null,
                     astrometryResult: astrometryResult || null,
+                    fieldAngle: null,
                     scopeError: astrometry.scopeDetails,
                 };
+
+                const skyProjection = (astrometryResult?.found) ? SkyProjection.fromAstrometry(astrometryResult) : undefined;
+                const skyProjectionCenter = (astrometryResult?.found) ? [(astrometryResult.width - 1) / 2, (astrometryResult.height - 1) / 2] : undefined;
+
+                if (skyProjection) {
+                    result.fieldAngle = skyProjection.getRotationAngle(skyProjectionCenter!);
+                }
 
                 // Compute the reference for scope distance
                 // (This is not done in the selector because it will change often when scope will move)
                 const calcTrackScope=()=>{
-                    if (astrometryResult?.found ) {
+                    if (skyProjection ) {
                         result.trackScope = astrometry.selectedScope;
 
-                        const skyProjection = SkyProjection.fromAstrometry(astrometryResult);
-                        // take the center of the image
-                        const center = [(astrometryResult.width - 1) / 2, (astrometryResult.height - 1) / 2];
                         // Project to J2000
-                        const [ra2000, dec2000] = skyProjection.pixToRaDec(center);
+                        const [ra2000, dec2000] = skyProjection.pixToRaDec(skyProjectionCenter!);
                         // compute JNOW center for last image.
                         const [ranow, decnow] = SkyProjection.raDecEpochFromJ2000([ra2000, dec2000], Date.now());
 

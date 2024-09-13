@@ -409,6 +409,9 @@ export default class SkyProjection {
 
     // Compute the field rotation in J2000 for the given image position
     // Centerpix[1] must be >> 0
+    // FIXME: we are working in J2000 for astrometry, but the mount is actually using J2000
+    // this slightly change the actual angle value, but make sure that
+    // a given image will have the same rotation value year after year.
     public getRotationAngle(centerPix: number[]) {
         const raDec = this.pixToRaDec(centerPix);
         const raDecEQ3D = SkyProjection.convertRaDecToEQ3D(raDec);
