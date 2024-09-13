@@ -183,10 +183,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         if (dlt === 0) {
             return '0"';
         }
-
-        dlt = dlt % 86400;
-        if (dlt <= -86400 / 2) dlt += 86400;
-        if (dlt > 86400 / 2) dlt -= 86400;
+        let max = 360 * 3600;
+        dlt = dlt % max;
+        if (dlt <= -max / 2) dlt += max;
+        if (dlt > max / 2) dlt -= max;
 
         let rslt;
         if (dlt < 0) {
