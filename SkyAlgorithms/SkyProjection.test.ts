@@ -3,7 +3,7 @@ import * as assert from 'assert';
 import 'mocha';
 import { expect } from 'chai';
 import { default as SkyProjection, Map360, Map180 } from "./SkyProjection";
-import { SucceededAstrometryResult } from "@src/shared/ProcessorTypes";
+import { AstrometryResult, SucceededAstrometryResult } from "@src/shared/ProcessorTypes";
 const Quaternion = require("quaternion");
 
 const hms = (h:number, m:number, s:number)=>(h + m / 60 + s / 3600);
@@ -611,6 +611,137 @@ describe("Astronomic computations", ()=> {
             expect(delta).to.be.lte(maxDelta);
             maxDelta = delta;
             minDelta /= 2;
+        }
+    });
+
+    it("Detect correct rotation values", ()=> {
+        const samples : Array<{value: number, samples: Array<SucceededAstrometryResult>}> = [
+            {
+                value: 0,
+                samples: [
+                    {
+                        cd1_1: 4.74518739341e-7,
+                        cd1_2: 0.000878459460715,
+                        cd2_1: -0.000878582379761,
+                        cd2_2: -1.56514935461e-7,
+                        decCenter: -0.123279382453,
+                        found: true,
+                        height: 1024,
+                        raCenter: 0.11171329412,
+                        refPixX: 457.014019012,
+                        refPixY: 709.247116089,
+                        width: 1280
+                    }
+                ]
+            },
+            {
+                value: 10,
+                samples: [
+                    {
+                        cd1_1: -0.000152585011138,
+                        cd1_2: 0.00086512349165,
+                        cd2_1: -0.000864554625806,
+                        cd2_2: -0.000152067501899,
+                        decCenter: -0.123094741814,
+                        found: true,
+                        height: 1024,
+                        raCenter: 0.111858652429,
+                        refPixX: 425.250216961,
+                        refPixY: 674.74546814,
+                        width: 1280
+                    }
+                ]
+            },
+            {
+                value: 80,
+                samples: [
+                    {
+                        cd1_1: 0.000864952680446,
+                        cd1_2: -0.000158593244977,
+                        cd2_1: 0.000158223910672,
+                        cd2_2: 0.000864209859321,
+                        decCenter: 45.2459178171,
+                        found: true,
+                        height: 1024,
+                        raCenter: 179.450969427,
+                        refPixX: 242.218927383,
+                        refPixY: 544.263450623,
+                        width: 1280
+                    }
+                ]
+            },
+            {
+                value: 180,
+                samples: [
+                    {
+                        cd1_1: -5.69177470214e-7,
+                        cd1_2: -0.000878724210965,
+                        cd2_1: 0.000878595700711,
+                        cd2_2: 4.85376243506e-7,
+                        decCenter: -0.123232269666,
+                        found: true,
+                        height: 1024,
+                        raCenter: 0.111627882094,
+                        refPixX: 821.980484009,
+                        refPixY: 313.756032944,
+                        width: 1280
+                    },
+                    {
+                        cd1_1: 0.00000562546021859,
+                        cd1_2: 0.00088054162786,
+                        cd2_1: -0.000878536241097,
+                        cd2_2: 0.00000639446039726,
+                        decCenter: 45.2536157421,
+                        found: true,
+                        height: 1024,
+                        raCenter: 179.428987847,
+                        refPixX: 667.016300201,
+                        refPixY: 97.0183362961,
+                        width: 1280
+                    }
+                ]
+            },
+            {
+                value: 280,
+                samples: [
+                    {
+                        cd1_1: -0.000866920960988,
+                        cd1_2: -0.000146589958207,
+                        cd2_1: 0.000146439404241,
+                        cd2_2: -0.000866397922226,
+                        decCenter: 45.3952894312,
+                        found: true,
+                        height: 1024,
+                        raCenter: 179.397491709,
+                        refPixX: 1094.25942993,
+                        refPixY: 456.004471779,
+                        width: 1280
+                    }
+                ]
+            }
+        ];
+
+        const degreeDistance= (d: number)=>{
+            d = d % 360;
+            if (d < -180) {
+                d += 360;
+            }
+            if (d > 180) {
+                d -= 360;
+            }
+            return d;
+        }
+
+        for(const sample of samples) {
+            for(const s of sample.samples) {
+                const skyProj = SkyProjection.fromAstrometry(s);
+
+                const angle = skyProj.getRotationAngle([s.width / 2, s.height / 2]);
+
+                const delta = degreeDistance(angle - sample.value);
+                console.log('Project back ', {expected : sample.value, got: angle, delta});
+                expect(Math.abs(delta)).to.be.lte(0.2);
+            }
         }
     });
 });

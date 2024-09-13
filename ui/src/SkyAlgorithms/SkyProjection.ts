@@ -407,6 +407,27 @@ export default class SkyProjection {
         return Math.sqrt(radw*radw + radh*radh) * 180/Math.PI;
     }
 
+    // Compute the field rotation in J2000 for the given image position
+    // Centerpix[1] must be >> 0
+    public getRotationAngle(centerPix: number[]) {
+        const raDec = this.pixToRaDec(centerPix);
+        const raDecEQ3D = SkyProjection.convertRaDecToEQ3D(raDec);
+
+        const goToCenterQuaternion = Quaternion.fromBetweenVectors(raDecEQ3D, [1,0,0]);
+
+        const projectToReference = (xy:number[])=> {
+            const eq3D = this.pixToEQ3D(xy);
+            return goToCenterQuaternion.rotateVector(eq3D);
+        }
+
+        const center = projectToReference(centerPix);
+        const north = projectToReference([centerPix[0], 0]);
+        const deltaVec = [center[1] - north[1], center[2] - north[2]];
+
+        const angle = -Math.atan2(deltaVec[1], deltaVec[0]) * 180 / Math.PI;
+        return angle;
+    }
+
     /** Pixel => ra/dec (degrees) */
     public pixToRaDec(xy: number[]): number[] {
         const x = (xy[0] - this.centerx) * this.pixelRad;
@@ -418,6 +439,17 @@ export default class SkyProjection {
 
         const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
         return SkyProjection.convertEQ3DToRaDec(pt3d);
+    }
+
+    public pixToEQ3D(xy: number[]): number[] {
+        const x = (xy[0] - this.centerx) * this.pixelRad;
+        const y = (xy[1] - this.centery) * this.pixelRad;
+
+        const z3d = 1.0 / Math.sqrt(y * y + x * x + 1.0);
+        const x3d = x * z3d;
+        const y3d = y * z3d;
+
+        return this.invertedTransform.convert([x3d, y3d, z3d]);
     }
 
     /**
