@@ -414,6 +414,15 @@ export default class PolarAlignmentWizard extends Wizard {
         }
     }
 
+    static getAngleCos2D(vec1: number[], vec2: number[]): number {
+        // normalize
+        const n1 = Math.sqrt(vec1[0]*vec1[0] + vec1[1]*vec1[1]);
+        const n2 = Math.sqrt(vec2[0]*vec2[0] + vec2[1]*vec2[1]);
+        const dot = vec1[0]*vec2[0] + vec1[1]*vec2[1];
+        const cos = dot / (n1 * n2);
+        return cos;
+    }
+
     static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
         const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
 
@@ -425,31 +434,83 @@ export default class PolarAlignmentWizard extends Wizard {
         // This is more stable but less precise since field rotation is very imprecise compared to astrometry resolution
         // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
         const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
+
+        // Apply the correction to trackedRefALTAZ3D
+
+        // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
+        // We project theses vectors on the plane defined by quatALTAZ3D
+
+        // This returns the reference image shifted by a small transform in alt/az
+        let getRefALTAZ3DVec = (epsilon_alt_deg:number, epsilon_az_deg: number) => {
+            // Défaire l'azimuth
+            // Défaire l'altitude
+            // Faire la nouvelle altitude
+            // Faire la nouvell azimuth
+
+            const operations = [
+                // Undo azimuth
+                Quaternion.fromAxisAngle([1,0,0], -previousAxe.az * Math.PI / 180),
+                // Undo alt
+                Quaternion.fromAxisAngle([0,1,0], -previousAxe.alt * Math.PI / 180),
+                // Apply new alt
+                Quaternion.fromAxisAngle([0,1,0], (previousAxe.alt + epsilon_alt_deg) * Math.PI / 180),
+                // Apply new az
+                Quaternion.fromAxisAngle([1,0,0], (previousAxe.az + epsilon_az_deg) * Math.PI / 180),
+            ];
+
+            let vector = trackedRefALTAZ3Dvec;
+            for(const op of operations) {
+                vector = op.rotateVector(vector);
+            }
+            return vector;
+        }
+
+        let vec_sub = (a:[number, number, number], b:[number, number, number]) : [number, number, number] => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+
+        let refAltAz3DVec = getRefALTAZ3DVec(0, 0);
+        let epsilon_deg = 1 / 60;
+
+        // Create a rotation that sends everything on the x, y plane (so we report 2D angles)
+        // Origin of this base is the reference frame.
+        let evaluationProjection = Quaternion.fromBetweenVectors(refAltAz3DVec, [0,0,1]);
+
+        let alt_az_target_base = [
+            evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(epsilon_deg, 0), refAltAz3DVec)),
+            evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(0, epsilon_deg), refAltAz3DVec)),
+        ];
+        
+        logger.info('Axe evaluated', previousAxe);
+        
+        // Check that the vectors of the base are orthogonal
+        // We compute the cross product of the two vectors
+        // If the cross product is null, the vectors are orthogonal
+        let base_angle_cose = PolarAlignmentWizard.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
+        logger.info('Base angle:', 180 * Math.acos(base_angle_cose) / Math.PI);
+        logger.info('Evaluation target base :', alt_az_target_base);
+        logger.info('Reference frame projects at :', evaluationProjection.rotateVector(refAltAz3DVec));
+        
+        
         const correctedALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
-        logger.info('Alt-az move is ' + SkyProjection.getDegreeDistance3D(trackedRefALTAZ3Dvec, correctedALTAZ3Dvec) + "°");
-
-        // Check that axis are not too close to the pole
-        const trackedRefAltAz = SkyProjection.convertALTAZ3DToAltAz(trackedRefALTAZ3Dvec);
-        const correctedAltAz = SkyProjection.convertALTAZ3DToAltAz(correctedALTAZ3Dvec);
+        logger.info('correctedALTAZ3Dvec', correctedALTAZ3Dvec);
         
-        const move1 = {az: Map180(correctedAltAz.az - trackedRefAltAz.az), alt: Map180(correctedAltAz.alt - trackedRefAltAz.alt)};
-        const invertedCorrectedAltAz = {
-            az: Map360(correctedAltAz.az + 180),
-            alt: correctedAltAz.alt >=0 ? 180 - correctedAltAz.alt : (-180) - correctedAltAz.alt
+        // project corrected in that base
+        let corrected_in_evaluation_base = evaluationProjection.rotateVector(correctedALTAZ3Dvec);
+        
+        logger.info('Sample frame projects at :', corrected_in_evaluation_base);
+
+        // Cannot use orthogonal projection because the base is not orthogonal
+        const corrected = corrected_in_evaluation_base;
+        const target_base = alt_az_target_base;
+        // Compute displacment in degree
+        let alt_az_move_from_ref = {
+            alt: (corrected[1]*target_base[1][0]-corrected[0]*target_base[1][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]) * epsilon_deg,
+            az: -(corrected[1]*target_base[0][0]-corrected[0]*target_base[0][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]) * epsilon_deg,
         };
-        const move2 = {az: Map180(invertedCorrectedAltAz.az - trackedRefAltAz.az), alt: Map180(invertedCorrectedAltAz.alt - trackedRefAltAz.alt)};
 
-        const move = Math.abs(move1.az)+Math.abs(move1.alt) <= Math.abs(move2.az)+Math.abs(move2.alt) ? move1 : move2;
+        logger.info('Displacement from reference is ', alt_az_move_from_ref);
+
         
-        // FIXME: alt can go above 90...
-        return {alt: previousAxe.alt + move.alt, az: previousAxe.az + move.az};
-
-        // const polarMove = Quaternion.fromBetweenVectors(refALTAZ3Dvec, correctedALTAZ3Dvec);
-        
-        // // const newAxeALTAZ3D = polarMove.rotateVector(previousAxeALTAZ3D);
-
-        // logger.debug({previousAxeALTAZ3D, refALTAZ3D, correctedRefALTAZ3D, quatALTAZ3D, polarMove, newAxeALTAZ3D, trackedMs});
-        // return SkyProjection.convertALTAZ3DToAltAz(newAxeALTAZ3D);
+        return {alt: previousAxe.alt + alt_az_move_from_ref.alt, az: previousAxe.az + alt_az_move_from_ref.az};
     }
 
 
