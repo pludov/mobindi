@@ -234,6 +234,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             scopeDetails: "not initialised",
             image: null,
             imageUuid: null,
+            result: null,
             selectedScope: null,
             target: null,
             settings: defaultSettings(),
@@ -726,11 +727,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentProcess = null;
                 this.currentStatus.status = status;
                 this.currentStatus.lastOperationError = error;
+                this.currentStatus.result = result;
 
-                if (result !== null && result.found) {
-                    const skyProjection = SkyProjection.fromAstrometry(result);
+                if (this.currentStatus.result !== null && this.currentStatus.result.found) {
+                    const skyProjection = SkyProjection.fromAstrometry(this.currentStatus.result);
                     // Compute the narrowed field
-                    this.currentStatus.narrowedField = skyProjection.getFieldSize(result.width, result.height); 
+                    this.currentStatus.narrowedField = skyProjection.getFieldSize(this.currentStatus.result.width, this.currentStatus.result.height); 
                 }
 
                 if (result !== null) {
@@ -749,6 +751,7 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 this.currentStatus.image = imageStatus.path;
                 this.currentStatus.scopeMovedSinceImage = false;
                 this.currentStatus.status = 'computing';
+                this.currentStatus.result = null;
                 this.currentStatus.target = null;
                 this.currentStatus.lastOperationError = null;
 
@@ -911,6 +914,14 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         return await createTask<void>(ct, async (task) => {
             if (this.currentProcess !== null) {
                 throw new Error("Astrometry already in process");
+            }
+
+            if (this.currentStatus.result === null) {
+                throw new Error("Run astrometry first");
+            }
+
+            if (!this.currentStatus.result.found) {
+                throw new Error("Astrometry failed, cannot sync");
             }
 
             const targetScope = this.currentStatus.selectedScope;
