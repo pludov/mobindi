@@ -42,6 +42,26 @@ class Request {
     }
 }
 
+function appLoadingFeedback(feedback: () => any) {
+    if (window.parent && window.parent !== window) {
+        console.log('Parent window detected');
+        const queryString = document.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        const startupDispatchToken = urlParams.get('startupDispatchToken');
+        if (startupDispatchToken) {
+            console.log('Startup dispatch token detected');
+
+            // Send the startup dispatch token to the parent window
+            window.parent.postMessage({
+                ...feedback(),
+                startupDispatchToken: startupDispatchToken
+            }, '*');
+        }
+    }
+}
+
+appLoadingFeedback(()=>({type: 'starting'}));
+
 export default class Notifier {
     private sendingQueueMaxSize: number;
     private suspended: boolean;
@@ -130,6 +150,13 @@ export default class Notifier {
             this.clientId = clientId;
         }
         this.clearXmitTimeout();
+
+        // Detect if a startup dispatch token has been passed in the URL
+        if (status) {
+            appLoadingFeedback(() => ({
+                type: 'connected',
+            }));
+        }
     }
 
     private sendingQueueReady() {
