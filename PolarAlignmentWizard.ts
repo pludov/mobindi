@@ -423,20 +423,11 @@ export default class PolarAlignmentWizard extends Wizard {
         return cos;
     }
 
-    static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
-        const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
-
-        const tracking = Quaternion.fromAxisAngle(previousAxeALTAZ3D, -trackedMs * 2 * Math.PI / SkyProjection.SIDERAL_DAY_MS);
-        // Rotate previous Axe
-        const trackedRefALTAZ3D = tracking.mul(refALTAZ3D);
-
-        // We could divied quat/corrected.
-        // This is more stable but less precise since field rotation is very imprecise compared to astrometry resolution
-        // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
-        const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
-
-        // Apply the correction to trackedRefALTAZ3D
-
+    /**
+     * Compute a vector base to evaluation mount moves in resp. alt & az,
+     * at (or near) the given target image position
+     */
+    static getMountMovementEvaluationBase = (mountAxe: {alt:number, az:number}, imagePos: [number, number, number]) => {
         // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
         // We project theses vectors on the plane defined by quatALTAZ3D
 
@@ -449,16 +440,16 @@ export default class PolarAlignmentWizard extends Wizard {
 
             const operations = [
                 // Undo azimuth
-                Quaternion.fromAxisAngle([1,0,0], -previousAxe.az * Math.PI / 180),
+                Quaternion.fromAxisAngle([1,0,0], -mountAxe.az * Math.PI / 180),
                 // Undo alt
-                Quaternion.fromAxisAngle([0,1,0], -previousAxe.alt * Math.PI / 180),
+                Quaternion.fromAxisAngle([0,1,0], -mountAxe.alt * Math.PI / 180),
                 // Apply new alt
-                Quaternion.fromAxisAngle([0,1,0], (previousAxe.alt + epsilon_alt_deg) * Math.PI / 180),
+                Quaternion.fromAxisAngle([0,1,0], (mountAxe.alt + epsilon_alt_deg) * Math.PI / 180),
                 // Apply new az
-                Quaternion.fromAxisAngle([1,0,0], (previousAxe.az + epsilon_az_deg) * Math.PI / 180),
+                Quaternion.fromAxisAngle([1,0,0], (mountAxe.az + epsilon_az_deg) * Math.PI / 180),
             ];
 
-            let vector = trackedRefALTAZ3Dvec;
+            let vector = imagePos;
             for(const op of operations) {
                 vector = op.rotateVector(vector);
             }
@@ -478,7 +469,36 @@ export default class PolarAlignmentWizard extends Wizard {
             evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(epsilon_deg, 0), refAltAz3DVec)),
             evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(0, epsilon_deg), refAltAz3DVec)),
         ];
+
+        // Unit is one degree, divide accordingly
+        for(let vec of alt_az_target_base) {
+            vec[0] /= epsilon_deg; vec[1] /= epsilon_deg; vec[2] /= epsilon_deg;
+        }
         
+        return alt_az_target_base;
+    }
+
+    static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
+        const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
+
+        const tracking = Quaternion.fromAxisAngle(previousAxeALTAZ3D, -trackedMs * 2 * Math.PI / SkyProjection.SIDERAL_DAY_MS);
+        // Rotate previous Axe
+        const trackedRefALTAZ3D = tracking.mul(refALTAZ3D);
+
+        // We could divied quat/corrected.
+        // This is more stable but less precise since field rotation is very imprecise compared to astrometry resolution
+        // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
+        const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
+
+        let refAltAz3DVec = trackedRefALTAZ3Dvec;
+        // Create a rotation that sends everything on the x, y plane (so we report 2D angles)
+        // Origin of this base is the reference frame.
+        let evaluationProjection = Quaternion.fromBetweenVectors(refAltAz3DVec, [0,0,1]);
+
+        
+        // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
+        // We project theses vectors on the plane defined by quatALTAZ3D
+        let alt_az_target_base = PolarAlignmentWizard.getMountMovementEvaluationBase(previousAxe, trackedRefALTAZ3Dvec);
         logger.info('Axe evaluated', previousAxe);
         
         // Check that the vectors of the base are orthogonal
@@ -503,8 +523,8 @@ export default class PolarAlignmentWizard extends Wizard {
         const target_base = alt_az_target_base;
         // Compute displacment in degree
         let alt_az_move_from_ref = {
-            alt: (corrected[1]*target_base[1][0]-corrected[0]*target_base[1][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]) * epsilon_deg,
-            az: -(corrected[1]*target_base[0][0]-corrected[0]*target_base[0][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]) * epsilon_deg,
+            alt: (corrected[1]*target_base[1][0]-corrected[0]*target_base[1][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]),
+            az: -(corrected[1]*target_base[0][0]-corrected[0]*target_base[0][1])/(target_base[0][1]*target_base[1][0]-target_base[0][0]*target_base[1][1]),
         };
 
         logger.info('Displacement from reference is ', alt_az_move_from_ref);
