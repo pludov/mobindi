@@ -3,7 +3,7 @@ import Log from './Log';
 import Wizard from "./Wizard";
 
 import sleep from "./Sleep";
-import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionWarning } from './shared/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionMessage } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
@@ -31,24 +31,68 @@ class ImpreciseDirectionChecker {
         this.wizard = wizard;
     }
 
-    getWarn = ()=> {
-        const raDec = this.wizard.readScopePos();
+    getWarn = ()  : null|PolarAlignPositionMessage => {
+        const raDecScope = this.wizard.readScopePos();
         // FIXME: in degrees please
-        raDec.ra *= 15;
+        raDecScope.ra *= 15;
 
         const geoCoords = this.wizard.readGeoCoords();
-
         const zenithRa = SkyProjection.getLocalSideralTime(new Date().getTime(), geoCoords.long);
-        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDec.ra - zenithRa, dec: raDec.dec}, geoCoords);
-        return this.wizard.getAltAzWarningForAdjust(scopeAltAz);
+        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
+
+        const scopeAltAz3DVec = SkyProjection.convertAltAzToALTAZ3D(scopeAltAz);
+
+        // Get the axe
+        let axe = this.wizard.wizardStatus.polarAlignment!.axis!;
+
+        let {alt_az_target_base} = PolarAlignmentWizard.getMountMovementEvaluationBase(axe, scopeAltAz3DVec);
+
+
+        let base_angle_cose = PolarAlignmentWizard.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
+
+        // Warn about small vectors
+        for(let i of [{v: alt_az_target_base[0], title:  'Altitude'}, {v: alt_az_target_base[1], title: 'Azimuth'}]) {
+            let vec = i.v;
+            // No less than 1/10°
+            let norm = Math.sqrt(vec[0]*vec[0] + vec[1]*vec[1]);
+            let degree = norm * 360 / (2 * Math.PI);
+            logger.info('Base norm', {axe: i.title, norm});
+            if (degree < 0.1) {
+                return {
+                    message: `The region pointed by the scope has poor scaling on the ${i.title} axis ${(degree * 100).toFixed(2)}%`,
+                    warning: true,
+                }
+            }
+        }
+
+        let base_angle = 180 * Math.acos(base_angle_cose) / Math.PI;
+        logger.info('Base angle:', base_angle);
+
+        let eval_angle = 90 - Math.abs(90 - base_angle);
+        if (eval_angle > 60) {
+            return {
+                message: `The current position is ok for good precision. The base angle is ${eval_angle.toFixed(1)}°`,
+                warning: false,
+            };
+        } else if (eval_angle > 30) {
+            return {
+                message: `The region pointed by the scope will give poor precision. The base angle is too small (${eval_angle.toFixed(3)}°)`,
+                warning: true,
+            }
+        } else {
+            return {
+                message: `The region pointed by the scope is not suitable. The base angle is too small (${eval_angle.toFixed(3)}°)`,
+                warning: true,
+            }
+        }
     }
 
     check = ()=> {
         try {
-            this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = this.getWarn();
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionMessage = this.getWarn();
             this.wizard.wizardStatus.polarAlignment!.adjustPositionError = null;
         } catch(e) {
-            this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = null;
+            this.wizard.wizardStatus.polarAlignment!.adjustPositionMessage = null;
             this.wizard.wizardStatus.polarAlignment!.adjustPositionError = (e as any).message || "" + e;
         }
     }
@@ -77,7 +121,7 @@ class ImpreciseDirectionChecker {
 
     stop() {
         this.astrometry.appStateManager.removeSynchronizer(this.listener!);
-        this.wizard.wizardStatus.polarAlignment!.adjustPositionWarning = null;
+        this.wizard.wizardStatus.polarAlignment!.adjustPositionMessage = null;
         this.wizard.wizardStatus.polarAlignment!.adjustPositionError = null;
     }
 }
@@ -112,50 +156,7 @@ export default class PolarAlignmentWizard extends Wizard {
         return {ra, dec};
     }
 
-    getAltAzWarningForAdjust(scopeAltAz: {alt:number, az:number}) : null|PolarAlignPositionWarning
-    {
-        function acceptAbove(v: number, min: number, max: number):number|undefined
-        {
-            if (v <= min) {
-                return 0;
-            }
-            if (v >= max) {
-                return undefined;
-            }
-            return (v - min) / (max - min);
-        }
-
-        let distances = [
-            {
-                id: "zenith",
-                dst: acceptAbove(90 - scopeAltAz.alt, 10, 20),
-            },
-            {
-                id: "west",
-                dst: acceptAbove(SkyProjection.getDegreeDistanceAltAz(scopeAltAz, {alt:0, az:-90}), 15, 25)
-            },
-            {
-                id: "east",
-                dst: acceptAbove(SkyProjection.getDegreeDistanceAltAz(scopeAltAz, {alt:0, az:90}), 15, 25)
-            },
-            {
-                id: "horizon",
-                dst : acceptAbove(scopeAltAz.alt, 10, 20)
-            },
-        ];
-
-        let worstC = null;
-        for(const c of distances) {
-            if (c.dst === 0) {
-                return {id: c.id, dst:c.dst};
-            }
-            if (c.dst !== undefined && (worstC === null || c.dst < worstC.dst!)) {
-                worstC = c;
-            }
-        }
-        return worstC as null|PolarAlignPositionWarning;
-    }
-
+    
     readGeoCoords = () => {
         // Inserts a sleep to ensure data is up to date ?
         const vec = this.astrometry.indiManager.getValidConnection().getDevice(this.getScope()).getVector("GEOGRAPHIC_COORD");
@@ -426,6 +427,9 @@ export default class PolarAlignmentWizard extends Wizard {
     /**
      * Compute a vector base to evaluation mount moves in resp. alt & az,
      * at (or near) the given target image position
+     * 
+     * The base is returned as 2D vector on the 3D plane at z=1.
+     * The transformation from the imagePos to the center of this plane is returned.
      */
     static getMountMovementEvaluationBase = (mountAxe: {alt:number, az:number}, imagePos: [number, number, number]) => {
         // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
@@ -475,7 +479,7 @@ export default class PolarAlignmentWizard extends Wizard {
             vec[0] /= epsilon_deg; vec[1] /= epsilon_deg; vec[2] /= epsilon_deg;
         }
         
-        return alt_az_target_base;
+        return { alt_az_target_base , evaluationProjection };
     }
 
     static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
@@ -489,16 +493,10 @@ export default class PolarAlignmentWizard extends Wizard {
         // This is more stable but less precise since field rotation is very imprecise compared to astrometry resolution
         // Compute alt-az of center of correctedRefAltAz3D (just rotateVector origin)
         const trackedRefALTAZ3Dvec = trackedRefALTAZ3D.rotateVector([0,0,1]);
-
-        let refAltAz3DVec = trackedRefALTAZ3Dvec;
-        // Create a rotation that sends everything on the x, y plane (so we report 2D angles)
-        // Origin of this base is the reference frame.
-        let evaluationProjection = Quaternion.fromBetweenVectors(refAltAz3DVec, [0,0,1]);
-
         
         // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
         // We project theses vectors on the plane defined by quatALTAZ3D
-        let alt_az_target_base = PolarAlignmentWizard.getMountMovementEvaluationBase(previousAxe, trackedRefALTAZ3Dvec);
+        let { alt_az_target_base , evaluationProjection } = PolarAlignmentWizard.getMountMovementEvaluationBase(previousAxe, trackedRefALTAZ3Dvec);
         logger.info('Axe evaluated', previousAxe);
         
         // Check that the vectors of the base are orthogonal
@@ -507,7 +505,7 @@ export default class PolarAlignmentWizard extends Wizard {
         let base_angle_cose = PolarAlignmentWizard.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
         logger.info('Base angle:', 180 * Math.acos(base_angle_cose) / Math.PI);
         logger.info('Evaluation target base :', alt_az_target_base);
-        logger.info('Reference frame projects at :', evaluationProjection.rotateVector(refAltAz3DVec));
+        logger.info('Reference frame projects at :', evaluationProjection.rotateVector(trackedRefALTAZ3Dvec));
         
         
         const correctedALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
@@ -563,7 +561,7 @@ export default class PolarAlignmentWizard extends Wizard {
             fatalError: null,
             hasRefFrame: false,
             adjustPositionError: null,
-            adjustPositionWarning: null,
+            adjustPositionMessage: null,
         }
 
         const wizardReport = this.wizardStatus.polarAlignment!;

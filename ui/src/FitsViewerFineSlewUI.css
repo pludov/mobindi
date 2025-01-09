@@ -7,6 +7,16 @@
     right: 1em;
 }
 
+.ScopeJoystickContainer {
+    text-align: center;
+}
+
+.ScopeJoystickContainer > .RawSlewButtonPanel {
+    position: relative;
+    bottom: unset;
+    right: unset;
+}
+
 .RawSlewBton {
     pointer-events: auto;
 }

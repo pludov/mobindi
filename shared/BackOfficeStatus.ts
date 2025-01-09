@@ -517,10 +517,9 @@ export type PolarAlignAxisResult = {
     distance: number;
 }
 
-export type PolarAlignPositionWarning = {
-    id: string;
-    // From 0 : do not accept to 1 ok
-    dst: number;
+export type PolarAlignPositionMessage = {
+    message: string;
+    warning: boolean;
 }
 
 export type PolarAlignStatus = {
@@ -547,7 +546,7 @@ export type PolarAlignStatus = {
     adjustError: null|string;
     adjusting: null|"frame"|"refframe";
 
-    adjustPositionWarning: null|PolarAlignPositionWarning;
+    adjustPositionMessage: null|PolarAlignPositionMessage;
     // When warning is not computed
     adjustPositionError: null|string;
 }

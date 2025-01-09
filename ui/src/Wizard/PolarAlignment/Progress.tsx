@@ -146,7 +146,7 @@ class Progress extends React.PureComponent<Props> {
             hasRefFrame: false,
             fatalError: "Wizard not ready",
             adjustPositionError: null,
-            adjustPositionWarning: null,
+            adjustPositionMessage: null,
         };
 
         return (store: Store.Content, props: InputProps) =>

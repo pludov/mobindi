@@ -4,9 +4,10 @@ import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionWarning } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
 import ImageControl from '../ImageControl';
+import ScopeJoystick from '../../ScopeJoystick';
 
 type InputProps = {};
 type MappedProps = {
@@ -19,9 +20,10 @@ type MappedProps = {
     adjustError: PolarAlignStatus["adjustError"];
     nextFrame: PolarAlignStatus["adjusting"];
 
-    adjustPositionWarningId: null|PolarAlignPositionWarning["id"];
-    adjustPositionWarningDst: null|PolarAlignPositionWarning["dst"];
+    adjustPositionMessage: null|string;
+    adjustPositionWarning: null|string;
     adjustPositionError: PolarAlignStatus["adjustPositionError"];
+    imagingSetup: string|null;
 }
 
 type Props = InputProps & MappedProps;
@@ -84,21 +86,19 @@ class Adjust extends React.PureComponent<Props> {
                     ? <div className="PolarAlignExplainError">{this.props.adjustPositionError}</div>
                     : null
             }
-            {this.props.adjustPositionWarningId !== null && this.props.adjustPositionWarningDst === 0
+            {this.props.adjustPositionWarning !== null
                 ? <div className="PolarAlignExplainBigWarning">
-                        The position of the scope is not suitable for adjustment:
-                        <span className="PolarAlignExplainBigWarningEmphasis">
-                            too close to {this.props.adjustPositionWarningId}
-                        </span>.<br/>
+                        {this.props.adjustPositionWarning}
+                        <br/>
                         Please slew somewhere else then take a new reference frame.
                     </div>
                 :null
             }
-            {this.props.adjustPositionWarningId !== null && this.props.adjustPositionWarningDst !== 0
-                ? <div className="PolarAlignExplainWarning">
-                        The precision of the adjustment may be increased by moving the scope further away from {this.props.adjustPositionWarningId}.
-                    </div>
-                :null
+            {this.props.adjustPositionMessage !== null
+                ? <div className="PolarAlignExplainGood">
+                    {this.props.adjustPositionMessage}
+                </div>
+                : null
             }
             <div>
                 {!!this.props.adjusting
@@ -125,11 +125,19 @@ class Adjust extends React.PureComponent<Props> {
                         </div>
                 }
                 {this.props.nextFrame === "refframe"
-                    ? <div className="PolarAlignExplain">
-                        Click next to take a ref frame.<br/>
-                        You can move (slew) the scope to a region with more stars if required.<br/>
-                        If you just moved the polar axis of the mount, ensure that an adjustment frame has been completed before slewing the scope.
-                    </div>
+                    ? <>
+                        <div className="PolarAlignExplain">
+                            Click next to take a ref frame.<br/>
+                            You can move (slew) the scope to a region with more stars if required.<br/>
+                            If you just moved the polar axis of the mount, ensure that an adjustment frame has been completed before slewing the scope.
+                        </div>
+                        {this.props.imagingSetup !== null
+                            ? <div className="ScopeJoystickContainer">
+                                <ScopeJoystick imagingSetup={this.props.imagingSetup}/>
+                            </div>
+                            : null
+                        }
+                    </>
                     : null
                 }
                 {this.props.nextFrame === "frame"
@@ -148,6 +156,9 @@ class Adjust extends React.PureComponent<Props> {
     }
 
     static mapStateToProps(store: Store.Content, props: InputProps):MappedProps {
+
+        let imagingSetup = AstrometryStore.currentImagingSetupAccessor().fromStore(store);
+
         const status = store.backend.astrometry?.runningWizard?.polarAlignment;
         if (status === undefined) {
             return {
@@ -159,9 +170,10 @@ class Adjust extends React.PureComponent<Props> {
                 adjustError: null,
                 adjusting: null,
                 nextFrame: null,
-                adjustPositionWarningId: null,
-                adjustPositionWarningDst: null,
+                adjustPositionMessage: null,
+                adjustPositionWarning: null,
                 adjustPositionError: null,
+                imagingSetup,
             };
         }
         let nextFrame : MappedProps["nextFrame"];
@@ -183,9 +195,10 @@ class Adjust extends React.PureComponent<Props> {
             adjusting: status.adjusting,
             adjustError: status.adjustError,
             nextFrame,
-            adjustPositionWarningId: status.adjustPositionWarning ? status.adjustPositionWarning.id : null,
-            adjustPositionWarningDst: status.adjustPositionWarning ? status.adjustPositionWarning.dst : null,
+            adjustPositionMessage: (status.adjustPositionMessage?.warning === false) ? status.adjustPositionMessage.message : null,
+            adjustPositionWarning: (status.adjustPositionMessage?.warning) ? status.adjustPositionMessage.message : null,
             adjustPositionError: status.adjustPositionError,
+            imagingSetup,
         };
     }
 }

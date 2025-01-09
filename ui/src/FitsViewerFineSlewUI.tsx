@@ -18,6 +18,7 @@ import "./FitsViewerFineSlewUI.css";
 import { SlewDirection } from '@bo/BackOfficeAPI';
 import SlewButtonController from './SlewButtonControler';
 import { ContextMenuEvent } from './FitsViewer/FitsViewer';
+import ScopeJoystick from './ScopeJoystick';
 
 const logger = Log.logger(__filename);
 
@@ -59,25 +60,6 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
     private static slewToTopRightHelp = Help.key("Slew to top right", "Slew the selected image location near the top right area of the camera FOV");
     private static slewToBottomLeftHelp = Help.key("Slew to bottom left", "Slew the selected image location near the bottom left area of the camera FOV");
     private static slewToBottomRightHelp = Help.key("Slew to bottom right", "Slew the selected image location near the bottom right area of the camera FOV");
-
-    private slewControls = {
-        north: new SlewButtonController(
-            ()=>this.slew("north", false),
-            ()=>this.slew("north", true)
-        ),
-        south: new SlewButtonController(
-            ()=>this.slew("south", false),
-            ()=>this.slew("south", true)
-        ),
-        east: new SlewButtonController(
-            ()=>this.slew("east", false),
-            ()=>this.slew("east", true)
-        ),
-        west: new SlewButtonController(
-            ()=>this.slew("west", false),
-            ()=>this.slew("west", true)
-        ),
-    };
 
     constructor(props:Props) {
         super(props);
@@ -152,17 +134,7 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
 
     }
 
-    componentWillUnmount = ()=>{
-        for(const e of Object.keys(this.slewControls)) {
-            this.slewControls[e].stop();
-        }
-    }
-
     private readonly abortLearning = async () => {
-        // Make sure all slew button are released
-        for(const e of Object.keys(this.slewControls)) {
-            this.slewControls[e].stop();
-        }
         return await BackendRequest.RootInvoker("astrometry")("fineSlewAbortLearning")(CancellationToken.CONTINUE, {});
     }
 
@@ -185,23 +157,12 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
         });
     }
 
-    private slew = async (direction: SlewDirection, release: boolean)=>{
-        return await BackendRequest.RootInvoker("astrometry")("slew")(CancellationToken.CONTINUE, {
-            direction,
-            release,
-        });
-    }
-
     private showSlewControls = ()=> {
         this.setState({ visible: true });
     }
 
     private hideSlewControls = ()=> {
         this.setState({ visible: false });
-    }
-
-    private abort = async ()=> {
-        return await BackendRequest.RootInvoker("astrometry")("abortSlew")(CancellationToken.CONTINUE, {});
     }
 
     static getDerivedStateFromProps(newProps:Props, state:State) {
@@ -275,15 +236,7 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
                             null
                     }
 
-                    {
-                        <div className="RawSlewButtonPanel">
-                            <input type='button' className='RawSlewBton RawSlewNorth' value='N' {...this.slewControls.north.buttonProperties()}/>
-                            <input type='button' className='RawSlewBton RawSlewSouth' value='S' {...this.slewControls.south.buttonProperties()}/>
-                            <input type='button' className='RawSlewBton RawSlewEast' value='E'  {...this.slewControls.east.buttonProperties()}/>
-                            <input type='button' className='RawSlewBton RawSlewWest' value='W'  {...this.slewControls.west.buttonProperties()}/>
-                            <input type='button' className='RawSlewBton RawSlewAbort' value='X' onClick={this.abort}/>
-                        </div>
-                    }
+                    <ScopeJoystick imagingSetup={this.props.imagingSetup}/>
                 </div>
 
                 {this.props.canSlew

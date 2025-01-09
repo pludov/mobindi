@@ -45,7 +45,7 @@ export default class SlewButtonController {
         }
         this.timer = setInterval(this.doSend, 500);
         this.stopRequested = false;
-        this.send();
+        this.doSend();
     }
 
     public stop=()=>{
@@ -60,10 +60,22 @@ export default class SlewButtonController {
         }
     }
 
+    // When a generic abort is sent, prevent this button from sending any more commands
+    public interrupted=()=>{
+        if (this.timer) {
+            this.clearTimer();
+        }
+        // In case something is beeing sent, we'll need to stop it as soon as possible
+        if (this.sendingCount > 0) {
+            this.stopRequested = true;
+        }
+    }
+
     buttonProperties = (): React.InputHTMLAttributes<HTMLInputElement> => {
         return {
             onMouseDown: this.start,
             onMouseUp: this.stop,
+            onMouseOut: this.stop,
 
             onTouchStart: this.start,
             onTouchEnd: this.stop,
