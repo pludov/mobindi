@@ -240,6 +240,15 @@ describe("Astronomic computations", ()=> {
         
         const west = SkyProjection.convertAltAzToALTAZ3D({alt: 0, az: 270});
         expect(dist(west, [0,-1,0])).to.be.closeTo(0, delta);
+
+        // Verify the axis rotation for azimuth is negative when using quaternion
+        const altaz = {alt:0, az: 90};
+        const east_1 = SkyProjection.convertAltAzToALTAZ3D(altaz);
+        const east_2 = Quaternion.fromAxisAngle([1,0,0], (-altaz.az) * Math.PI / 180).rotateVector([0,0,1]);
+        console.log('east_1', east_1);
+        console.log('east_2', east_2);
+        expect(dist(east_1, east_2)).to.be.closeTo(0, delta);
+
     });
 
     it("ALTAZ3D => [alt,az]", ()=>{

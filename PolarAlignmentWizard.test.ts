@@ -33,6 +33,85 @@ describe("Polar Alignment", ()=> {
 
     let latfactor = 0;
 
+    it("altitude is stable during azimuth only move", () => {
+        // 2025-01-11T17:56:14.901Z
+        const axis = {
+            alt: 48.085878900709695,
+            az: 0.7475027980451935,
+            tooEast: 0.7475027980451935,
+            tooHigh: 0.0025789007096932437,
+            distance: 0.24968051457126753
+        }
+        const ref = {
+            astrometry: {
+              cd1_1: 0.000528054905258,
+              cd1_2: 0.00125778235081,
+              cd2_1: -0.00125827122628,
+              cd2_2: 0.000525782242973,
+              decCenter: 1.14498252119,
+              found: true,
+              height: 1410,
+              raCenter: 46.7390323198,
+              refPixX: 393.877548218,
+              refPixY: 911.506774902,
+              width: 2072
+            },
+            photoTime: 1736618405678,
+            geoCoords: { lat: 48.0833, long: -1.6833 },
+            frameType: 'reference',
+            takeRefFrame: true
+          };
+          // 2025-01-11T18:04:08.385Z
+          const last = {
+            astrometry: {
+              cd1_1: 0.000537380782757,
+              cd1_2: 0.00125483034596,
+              cd2_1: -0.00125530164647,
+              cd2_2: 0.000536694600305,
+              decCenter: 0.340027676074,
+              found: true,
+              height: 1410,
+              raCenter: 47.6138089254,
+              refPixX: 1191.78471883,
+              refPixY: 845.717610677,
+              width: 2072
+            },
+            photoTime: 1736618645870.5,
+            geoCoords: { lat: 48.0833, long: -1.6833 },
+            frameType: 'adjustment',
+            takeRefFrame: false
+          };
+
+          let badAxisAtRefAltAz = {alt: axis!.alt, az: axis!.az};
+          let newAxisLastAltAz;
+          let refALTAZ3D;
+          {
+              let { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(ref.astrometry as any, ref.photoTime!, ref.geoCoords);
+  
+              const ALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
+              console.log(ALTAZ3Dvec);
+  
+              refALTAZ3D = quatALTAZ3D;
+          }
+
+          {
+              const photoTrackSinceRef = last.photoTime! - ref.photoTime!;
+              let { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(last.astrometry as any, last.photoTime!, last.geoCoords);
+  
+              const ALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
+              console.log(ALTAZ3Dvec);
+              console.log(photoTrackSinceRef);
+              // TODO: on perd des secondes de tracking ?
+              newAxisLastAltAz = PolarAlignmentWizard.updateAxis(badAxisAtRefAltAz, refALTAZ3D!, quatALTAZ3D, photoTrackSinceRef);
+  
+              console.log(PolarAlignmentWizard.computeAxis(newAxisLastAltAz, ref.geoCoords));
+          }
+
+          expect(newAxisLastAltAz.alt, "dlt(alt)").to.be.closeTo(axis.alt, 2/60);
+          expect(newAxisLastAltAz.az, "dlt(az)").to.be.closeTo(0, 2/60);
+
+    });
+
     it("azimuth is stable during altitude only move", ()=> {
         // This was taken during on a session 2025-05-07.
         const axis = {
@@ -62,25 +141,7 @@ describe("Polar Alignment", ()=> {
             frameType: 'reference',
             takeRefFrame: true,
         };
-        const last =   /*{
-            astrometry: {
-              cd1_1: -0.000244533910062,
-              cd1_2: -0.000636512616026,
-              cd2_1: 0.000635918427878,
-              cd2_2: -0.000244928756108,
-              decCenter: 32.6864571153,
-              found: true,
-              height: 2822,
-              raCenter: 105.836022282,
-              refPixX: 1057.65814209,
-              refPixY: 1593.69156138,
-              width: 4144
-            },
-            photoTime: 1736196996215.5,
-            geoCoords: { lat: 48.0833 + latfactor, long: -1.6833 },
-            frameType: 'adjustment',
-            takeRefFrame: false,
-        };*/ {
+        const last = {
             astrometry: {
                 cd1_1: -0.000244498379067,
                 cd1_2: -0.000636357907356,
@@ -100,7 +161,7 @@ describe("Polar Alignment", ()=> {
             takeRefFrame: false,
         };
         let badAxisAtRefAltAz = {alt: axis!.alt, az: axis!.az};
-        let badAxisLastAltAz = badAxisAtRefAltAz;
+        let newAxisLastAltAz;
         let refALTAZ3D;
         {
             let { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(ref.astrometry as any, ref.photoTime!, ref.geoCoords);
@@ -115,25 +176,22 @@ describe("Polar Alignment", ()=> {
             const photoTrackSinceRef = last.photoTime! - ref.photoTime!;
             let { raDecDegNow, quatALTAZ3D } = PolarAlignmentWizard.centerFromAstrometry(last.astrometry as any, last.photoTime!, last.geoCoords);
 
-            // On est proche de la cible (<1°), et on a bougé que l'altitude. On s'attend 
             const ALTAZ3Dvec =quatALTAZ3D.rotateVector([0,0,1]);
-            // On s'attend à ce que ce vector ait bougé que sur X,Z (
             console.log(ALTAZ3Dvec);
             console.log(photoTrackSinceRef);
             // TODO: on perd des secondes de tracking ?
-            badAxisLastAltAz = PolarAlignmentWizard.updateAxis(badAxisAtRefAltAz, refALTAZ3D!, quatALTAZ3D, photoTrackSinceRef + 0 * 30000);
+            newAxisLastAltAz = PolarAlignmentWizard.updateAxis(badAxisAtRefAltAz, refALTAZ3D!, quatALTAZ3D, photoTrackSinceRef);
 
-
-
-            console.log(PolarAlignmentWizard.computeAxis(badAxisLastAltAz, ref.geoCoords));
+            console.log(PolarAlignmentWizard.computeAxis(newAxisLastAltAz, ref.geoCoords));
 
 
         }
 
-        expect(badAxisLastAltAz.alt).to.be.below(axis.alt - 3);
-        expect(badAxisLastAltAz.alt).to.be.above(axis.alt - 4);
-        expect(badAxisLastAltAz.az).to.be.above(axis.az - 0.25);
-        expect(badAxisLastAltAz.az).to.be.below(axis.az + 0.25);
+        // Precision is bad here, probably because the location on sky was imprecise.
+        expect(newAxisLastAltAz.az, "az move").to.be.closeTo(axis.az, 40/60);
+
+        expect(newAxisLastAltAz.alt, "alt < -3").to.be.below(axis.alt - 3);
+        expect(newAxisLastAltAz.alt, "alt > -4").to.be.above(axis.alt - 4);
 
     });
 

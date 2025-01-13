@@ -444,13 +444,13 @@ export default class PolarAlignmentWizard extends Wizard {
 
             const operations = [
                 // Undo azimuth
-                Quaternion.fromAxisAngle([1,0,0], -mountAxe.az * Math.PI / 180),
+                Quaternion.fromAxisAngle([1,0,0], mountAxe.az * Math.PI / 180),
                 // Undo alt
                 Quaternion.fromAxisAngle([0,1,0], -mountAxe.alt * Math.PI / 180),
                 // Apply new alt
                 Quaternion.fromAxisAngle([0,1,0], (mountAxe.alt + epsilon_alt_deg) * Math.PI / 180),
                 // Apply new az
-                Quaternion.fromAxisAngle([1,0,0], (mountAxe.az + epsilon_az_deg) * Math.PI / 180),
+                Quaternion.fromAxisAngle([1,0,0], -(mountAxe.az + epsilon_az_deg) * Math.PI / 180),
             ];
 
             let vector = imagePos;
