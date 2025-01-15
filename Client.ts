@@ -127,7 +127,7 @@ export default class Client {
                 return;
             }
             this.socket.send(JSON.stringify(event), (error)=> {
-                if (error !== undefined) {
+                if (error !== undefined  && error !== null) {
                     logger.warn('Failed to send', this.logContext(), error);
                     this.dispose();
                 }
