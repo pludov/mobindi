@@ -192,7 +192,7 @@ export default class ConfigStore<T extends object, STORED=T> {
         }
 
         function createTemp() {
-            tmp.file({dir: configDir, prefix: self.fileName, postfix: '.json'},
+            tmp.file({dir: configDir, prefix: self.fileName, postfix: '.json', detachDescriptor: true},
                 function(err, path, fd, cleanupCallback) {
                     if (err) {
                         return onError(err);
