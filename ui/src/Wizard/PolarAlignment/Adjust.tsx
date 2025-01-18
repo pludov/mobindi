@@ -3,6 +3,7 @@ import '../../AstrometryView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
+import * as DegreeDistanceDisplay from '../../utils/DegreeDistanceDisplay';
 import * as BackendAccessor from "../../utils/BackendAccessor";
 import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
@@ -28,34 +29,6 @@ type MappedProps = {
 
 type Props = InputProps & MappedProps;
 
-function deltaTitle(dlt:number) {
-    if (dlt === 0) {
-        return '0"';
-    }
-
-    let rslt;
-    if (dlt < 0) {
-        rslt = '-';
-        dlt = -dlt;
-    } else {
-        rslt = '+';
-    }
-
-    if (dlt >= 3600) {
-        rslt += Math.floor(dlt / 3600) + '°';
-    }
-
-    if (dlt >= 60 && dlt < 2*3600) {
-        rslt += (Math.floor(dlt / 60) % 60) + "'";
-    }
-
-    if (dlt < 120) {
-        rslt += (dlt % 60) + '"';
-    }
-    return rslt;
-}
-
-
 class Adjust extends React.PureComponent<Props> {
     accessor: BackendAccessor.RecursiveBackendAccessor<PolarAlignSettings>;
     
@@ -76,10 +49,10 @@ class Adjust extends React.PureComponent<Props> {
             </div>
             <div className="PolarAlignDeltaDisplay">
                 <div>
-                    Δ toward east: {this.props.tooEast === null ? "N/A" : deltaTitle(Math.round(this.props.tooEast * 3600))}
+                    Δ toward east: {this.props.tooEast === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooEast)}
                 </div>
                 <div>
-                    Δ toward zenith: {this.props.tooHigh === null ? "N/A" : deltaTitle(Math.round(this.props.tooHigh * 3600))}
+                    Δ toward zenith: {this.props.tooHigh === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooHigh)}
                 </div>
             </div>
             {this.props.adjustPositionError !== null
