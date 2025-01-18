@@ -29,6 +29,7 @@ export function start() {
         ...SequenceStore.initialState,
         ...GeolocStore.initialState,
         ...GenericUiStore.initialState,
+        currentApp: null,
     };
 
     const onImport:Array<(store:Store.Content)=>(void)> = [
@@ -71,7 +72,10 @@ export function start() {
         var actionsByApp = {};
 
         var reducer = function (state:Store.Content = initialState, action:any) {
-            var type = action.type;
+            const type = action.type;
+            if (('' + type).startsWith('@@redux/INIT')) {
+                return state;
+            }
             if (type == "update") {
                 state = update(state, action.op);
             } else  if (type == "appAction") {
@@ -110,8 +114,7 @@ export function start() {
                     return rslt;
                 },
                 deserialize: (data:string)=>{
-                    const ret = JSON.parse(data);
-
+                    const ret = JSON.parse(data) || {};
                     // ensure no missing property / no unsaved properties
                     for(const childOnImport of onImport) {
                         childOnImport(ret);

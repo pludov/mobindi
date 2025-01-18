@@ -189,60 +189,66 @@ export type MessageActions = typeof actions;
 Actions.register<MessageActions>(actions);
 
 let worker: SharedWorker;
-try {
-    worker = new SharedWorker(new URL('BackgroundWorker/Worker.ts', import.meta.url));
-    worker.port.start();
-    worker.port.postMessage({ a: 1 });
-    worker.port.onmessage = function (event) {logger.debug('worker event', {event});};
+if (typeof(SharedWorker) !== 'undefined') {
+    try {
+        worker = new SharedWorker(new URL('BackgroundWorker/Worker.ts', import.meta.url));
+        worker.port.start();
+        worker.port.postMessage({ a: 1 });
+        worker.port.onmessage = function (event) {logger.debug('worker event', {event});};
 
-    worker.port.postMessage({notificationAllowed: !!getMessageAuthValue()});
+        worker.port.postMessage({notificationAllowed: !!getMessageAuthValue()});
 
-    window.addEventListener("unload", ()=> {
-        worker.port.postMessage({unloaded: true});
-    });
+        window.addEventListener("unload", ()=> {
+            worker.port.postMessage({unloaded: true});
+        });
 
-    let hidden: string;
-    let visibilityChange: string;
-    if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
-        hidden = "hidden";
-        visibilityChange = "visibilitychange";
-    } else if (typeof (document as any).msHidden !== "undefined") {
-        hidden = "msHidden";
-        visibilityChange = "msvisibilitychange";
-    } else if (typeof (document as any).webkitHidden !== "undefined") {
-        hidden = "webkitHidden";
-        visibilityChange = "webkitvisibilitychange";
-    } else {
-        logger.warn('no access to visiblity status');
-        hidden = "";
-        visibilityChange = "";
-    }
+        let hidden: string;
+        let visibilityChange: string;
+        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
+            hidden = "hidden";
+            visibilityChange = "visibilitychange";
+        } else if (typeof (document as any).msHidden !== "undefined") {
+            hidden = "msHidden";
+            visibilityChange = "msvisibilitychange";
+        } else if (typeof (document as any).webkitHidden !== "undefined") {
+            hidden = "webkitHidden";
+            visibilityChange = "webkitvisibilitychange";
+        } else {
+            logger.warn('no access to visiblity status');
+            hidden = "";
+            visibilityChange = "";
+        }
 
-    if (visibilityChange && hidden) {
-        let timer:NodeJS.Timer;
-        const ping = ()=> {
-            logger.debug('worker ping');
-            const visible = !document[hidden];
+        if (visibilityChange && hidden) {
+            let timer:NodeJS.Timer;
+            const ping = ()=> {
+                logger.debug('worker ping');
+                const visible = !document[hidden];
 
-            worker.port.postMessage({visible});
-        };
+                worker.port.postMessage({visible});
+            };
 
-        document.addEventListener(visibilityChange, ()=>{
-            ping();
-            clearInterval(timer);
+            document.addEventListener(visibilityChange, ()=>{
+                ping();
+                clearInterval(timer);
+                timer = setInterval(ping, 30000);
+            }, false);
             timer = setInterval(ping, 30000);
-        }, false);
-        timer = setInterval(ping, 30000);
-        ping();
-    }
+            ping();
+        }
 
-} catch(e) {
-    logger.error("could not setup notification", e);
+    } catch(e) {
+        logger.error("could not setup notification", e);
+    }
 }
 
 function getMessageAuthValue():undefined|boolean
 {
     try {
+        if (typeof(Notification) === 'undefined') {
+            logger.info('Notification not supported');
+            return undefined;
+        }
         const perm = Notification.permission;
         if (perm === "default") {
             return undefined;

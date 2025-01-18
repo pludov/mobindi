@@ -16,7 +16,7 @@ export const initialState:Content = {
 }
 
 export function onImport(t:Content) {
-    t.currentApp = t.currentApp || null;
+    t.currentApp = t?.currentApp || null;
 }
 
 // Swallow copy of the store. Do not inplace modify childs
