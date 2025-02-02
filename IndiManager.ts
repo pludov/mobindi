@@ -525,7 +525,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 this.connection = undefined;
                 this.refreshStatus();
             }
-
+            this.indiServerStarter?.onIndiConnectionLost();
             await Sleep(ct, 2000);
         }
     }

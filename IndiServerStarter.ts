@@ -97,13 +97,21 @@ export default class IndiServerStarter {
         return ret;
     }
 
-    private startIndiServer=async (ct: CancellationToken)=>{
+    private cleanFifo=async (fifopath:string|null)=>{
+        if (fifopath === null) {
+            return;
+        }
+        logger.info('Cleaning fifo', {fifopath});
+        await SystemPromise.Exec(CancellationToken.CONTINUE, {command: ["rm", "-f", "--", fifopath]});
+    }
+
+    private startIndiServer=async (ct: CancellationToken):Promise<{fifopath:string, pid:number}>=>{
         this.indiServerStartAttempt++;
 
         this.currentConfiguration.fifopath = this.wantedConfiguration.fifopath;
         this.currentConfiguration.path = this.wantedConfiguration.path;
 
-        const fifopath = this.actualFifoPath();
+        const fifopath = this.buildFifoPath();
         if (fifopath === null) {
             throw new Error("Invalid indi fifo path");
         }
@@ -138,7 +146,7 @@ export default class IndiServerStarter {
         }
         logger.info('Started indiserver', {pid: child.pid});
         this.currentConfiguration.devices = {};
-        return child.pid;
+        return {pid: child.pid, fifopath};
     }
 
     public restartDevice=async (ct:CancellationToken, dev:string)=>
@@ -151,11 +159,19 @@ export default class IndiServerStarter {
 
     }
 
-    private actualFifoPath=()=>{
+    private buildFifoPath=():string=>{
+        let fifopath;
         if (this.currentConfiguration.fifopath === null) {
-            return "/tmp/indiserverfifo";
+            fifopath = "/tmp/indiserverfifo";
+        } else {
+            fifopath = this.currentConfiguration.fifopath;
         }
-        return this.currentConfiguration.fifopath;
+        
+        if (this.currentConfiguration.autorun) {
+            // Generate a unique fifo path
+            fifopath += "." + Date.now() + "." + process.pid;
+        }
+        return fifopath;
     }
 
     // Return a todo obj, or undefined
@@ -280,8 +296,8 @@ export default class IndiServerStarter {
     }
 
     // Build a promise that update or ping indiserver
-    // The promise generate 0 (was pinged), 1 (was updated), dead: indiserver unreachable
-    private async pushOneDriverChange(ct: CancellationToken)
+    // The promise generate 0 (was pinged), 1 (was updated), 2 (skipped), "dead": indiserver unreachable
+    private async pushOneDriverChange(ct: CancellationToken, fifopath: string, lastPingAge: number|undefined): Promise<number|"dead">
     {
         let todo = this.nextToStartStop();
         let delay: number = 0;
@@ -291,7 +307,7 @@ export default class IndiServerStarter {
                 if (delay < 0) {
                     delay = 0;
                 }
-                if (delay >= 2000) {
+                if (delay > 1000) {
                     todo = undefined;
                 }
             }
@@ -299,7 +315,6 @@ export default class IndiServerStarter {
 
         if (delay > 0) {
             await Sleep(ct, delay);
-            return;
         }
 
         if (todo === undefined) {
@@ -312,10 +327,15 @@ export default class IndiServerStarter {
                     return 0;
                 }
             }
+
+            if (lastPingAge !== undefined && lastPingAge < 30000) {
+                // Skip ping...
+                return 2
+            }
+            logger.debug('Indi: fifo order', {cmd: todo.cmd});
         } else {
             logger.info('Indi: fifo order', {cmd: todo.cmd});
         }
-        const fifopath = this.actualFifoPath();
 
         function shellEscape(str:string)
         {
@@ -323,9 +343,6 @@ export default class IndiServerStarter {
         }
         
         try {
-            if (fifopath === null) {
-                throw new Error("no fifopath set");
-            }
             await Timeout(ct, async(ct:CancellationToken)=> {
                     todo!.start();
                     if (await SystemPromise.Exec(ct, {
@@ -357,74 +374,131 @@ export default class IndiServerStarter {
         }
     }
 
+    private readonly getFifoFromPid = async (ct: CancellationToken, pid:number): Promise<string|undefined> => {
+        let cmd = await SystemPromise.getCommand(ct, pid);
+        for(let i = 0; i < cmd.length - 1; ++i) {
+            if (cmd[i] === '-f') {
+                return cmd[i + 1];
+            }
+        }
+        return undefined;
+    }
+
+    private indiServerTrouble: boolean = false;
+
+    // Notify the lifecycle that from now, the indi server may be in trouble
+    public readonly onIndiConnectionLost = () => {
+        this.indiServerTrouble = true;
+    }
+
     // Start the lifecycle
     // check if indiserver is running. If so, assume that the drivers are all started
     // otherwise,
     startLifeCycle=()=>{
         createTask<void>(CancellationToken.CONTINUE, async (task:Task<void>)=> {
-            let ranSuccessfully = false;
             if (this.lifeCycle !== null) {
                 return;
             }
+            let fifopath: string|undefined = undefined;
+            const startup_delay = 500;
             this.lifeCycle = task;
-            let indiServerPid:number|undefined = undefined;
             try {
-                let status;
+                let lastIndiSeen: number|undefined = undefined;
+                let lastIndiStart: number|undefined = undefined;
+                let lastPing: number|undefined = undefined;
+                let firstCheck = true;
+                let needPidCheck = true;
                 do {
-                    const serverPids = await SystemPromise.PidOf(task.cancellation, 'indiserver');
-                    let newServerPid;
-                    if (serverPids.length > 0) {
-                        if (indiServerPid !== undefined && serverPids.indexOf(indiServerPid) !== -1) {
-                            // Continue with the previously choosen one
-                            newServerPid = indiServerPid;
+                    if (needPidCheck) {
+                        const serverPids = await SystemPromise.PidOf(task.cancellation, 'indiserver');
+                        if (serverPids.length > 0) {
+                            if (firstCheck) {
+                                logger.warn('Existing indiserver process found. Assuming it already has the right configuration.', {serverPids});
+                                // Deduce fifopath from pid
+                                this.currentConfiguration = {
+                                    ...Obj.deepCopy(this.wantedConfiguration),
+                                    restartList: [],
+                                    startDelay: {},
+                                };
+                                for(const pid of serverPids) {
+                                    fifopath = await this.getFifoFromPid(task.cancellation, pid);
+                                    if (fifopath !== undefined) {
+                                        logger.info('Found fifo path', {fifopath});
+                                        break;
+                                    }
+                                }
+                                if (fifopath === undefined) {
+                                    logger.error('Unable to find fifo path from pid', {serverPids});
+                                }
+                            } else {
+                                if (lastIndiStart !== undefined && (lastIndiSeen === undefined || lastIndiSeen < lastIndiStart)) {
+                                    logger.info("Indi server is alive", {serverPids});
+                                } else {
+                                    logger.debug("Indi server is alive", {serverPids});
+                                }
+                            }
+                            lastIndiSeen = Date.now();
+                            if (lastIndiStart === undefined) {
+                                lastIndiStart = lastIndiSeen;
+                            }
                         } else {
-                            logger.warn('multiple indiserver are running. Choosing the first', {serverPids});
-                            indiServerPid = serverPids[0];
+                            lastPing = undefined;
+                            logger.warn("Indiserver process not found");
+                            if (lastIndiSeen === undefined || lastIndiSeen < Date.now() - 10000) {
+                                if (lastIndiStart !== undefined) {
+                                    logger.error("Indiserver process not found for more than 10s.");
+                                }
+                                if (lastIndiStart === undefined || lastIndiStart < Date.now() - 30000) {
+                                    if (lastIndiStart !== undefined) {
+                                        logger.error("Attempting restart of indiserver");
+                                    } else {
+                                        logger.info("Attempting startup of indiserver start");
+                                    }
+
+                                    lastIndiStart = Date.now();
+                                    if (fifopath !== undefined) {
+                                        await this.cleanFifo(fifopath);
+                                        fifopath = undefined;
+                                    }
+
+                                    ({fifopath} = await this.startIndiServer(task.cancellation));
+                                    this.currentConfiguration.restartList = [];
+                                }
+                            }
                         }
-                    } else {
-                        indiServerPid = undefined;
+                        firstCheck = false;
                     }
 
-                    if (newServerPid !== indiServerPid && indiServerPid !== undefined) {
-                        if (ranSuccessfully) {
-                            logger.error('indiserver disappeared', {indiServerPid});
-                            this.context.notification.error('Indiserver was stopped/crashed');
-                            this.context.notification.notify('Indiserver was stopped/crashed');
+                    let sleep_duration = 1000;
+                    if ((fifopath !== undefined) && (lastIndiStart !== undefined && lastIndiStart < Date.now() - startup_delay)) {
+                        let status = await this.pushOneDriverChange(task.cancellation, fifopath!, (lastPing !== undefined && !this.indiServerTrouble) ? Date.now() - lastPing: undefined);
+                        if (status !== 2 && status !== 'dead') {
+                            // If the ping was skipped, we don't update the lastPing
+                            lastPing = Date.now();
+                            this.indiServerTrouble = false;
+                        }
+                        if (status === 1) {
+                            // We sent an order, continue asap
+                            sleep_duration = 20;
+                        }
+                        // As long as we are able to communicate with the server, we assume it is alive
+                        needPidCheck = (status === 'dead');
+                    } else {
+                        if (fifopath !== undefined) {
+                            sleep_duration = startup_delay;
                         } else {
-                            // Some notification if indi server is not starting ? beware this could forever
+                            sleep_duration = 100;
                         }
+                        needPidCheck = true;
                     }
 
-                    if (newServerPid === undefined) {
-                        indiServerPid = await this.startIndiServer(task.cancellation);
-                        this.currentConfiguration.restartList = [];
-                        ranSuccessfully = false;
-                    } else if (newServerPid !== indiServerPid) {
-                        indiServerPid = newServerPid
-                        logger.warn('Existing indiserver process found. Assuming it already has the right configuration.', {indiServerPid});
-                        this.currentConfiguration = {
-                            ...Obj.deepCopy(this.wantedConfiguration),
-                            restartList: [],
-                            startDelay: {},
-                        };
-                        ranSuccessfully = false;
-
-                    } else {
-                        // indi is up & running... no change to notify
-                    }
-
-                    status = await this.pushOneDriverChange(task.cancellation);
-                    if (status !== 'dead') {
-                        ranSuccessfully = true;
-                    }
-                    if (status === 0 || status === 'dead') {
-                        await Sleep(task.cancellation, 2000);
-                    }
+                    await Sleep(task.cancellation, sleep_duration);
                 } while(this.wantedConfiguration.autorun);
             } catch(error) {
                 logger.error('IndiServerStarter error', error);
             } finally {
                 this.lifeCycle = null;
+                // We may leak a fifo here in case of crash, but that will allow next instance to start properly
                 if (this.wantedConfiguration.autorun) {
                     setTimeout(this.startLifeCycle, 1000);
                 }

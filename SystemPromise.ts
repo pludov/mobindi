@@ -4,6 +4,7 @@ import CancellationToken from 'cancellationtoken';
 import MemoryStreams from 'memory-streams';
 import { StringDecoder } from 'string_decoder';
 import Log from './Log';
+import fs from 'fs';
 
 const logger = Log.logger(__filename);
 
@@ -191,6 +192,20 @@ export async function UncheckedPipe(ct: CancellationToken, p: ExecParams, input?
     return {
         exitCode: ret,
         stdout: result
+    }
+}
+
+// Returns the command line of a process.
+// Non ascii characters are messed up due to utf8/latin1 conversion
+export async function getCommand(ct: CancellationToken, pid: number):Promise<Array<string>> {
+    try {
+        const content = await fs.promises.readFile(`/proc/${pid}/cmdline`);
+        return content.toString('latin1').split('\0');
+    } catch(e: any) {
+        if (e.code === 'ENOENT') {
+            return [];
+        }
+        throw e;
     }
 }
 
