@@ -353,7 +353,7 @@ export default class IndiServerStarter {
                     }
                     todo!.done();
                 },
-                120000,
+                todo!.cmd === 'ping' ? 5000 : 120000,
                 ()=>{
                     const e = new Error(todo!.cmd === 'ping' ? 'Indi ping timedout' : 'Indi fifo command timedout');
                     (e as any).isFifoTimeout = true;
@@ -409,7 +409,7 @@ export default class IndiServerStarter {
                 let firstCheck = true;
                 let needPidCheck = true;
                 do {
-                    if (needPidCheck) {
+                    if (needPidCheck || this.indiServerTrouble) {
                         const serverPids = await SystemPromise.PidOf(task.cancellation, 'indiserver');
                         if (serverPids.length > 0) {
                             if (firstCheck) {
