@@ -212,6 +212,7 @@ export type IndiServerConfiguration = {
     fifopath: null;
     devices: {[id: string]: IndiDeviceConfiguration};
     autorun: boolean;
+    systemdServiceName?: string;
 }
 
 export type IndiProfilePropertyConfiguration = {
