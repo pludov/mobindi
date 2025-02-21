@@ -3,7 +3,7 @@ import Log from './Log';
 import Wizard from "./Wizard";
 
 import sleep from "./Sleep";
-import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionMessage } from './shared/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionMessage, PolarAlignCalibration } from './shared/BackOfficeStatus';
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
@@ -712,6 +712,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 wizardReport.adjusting = null;
                 // Always go back to normal frame
                 this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame = false;
+                delete this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibration;
                 const posChecker = new ImpreciseDirectionChecker(this);
                 posChecker.start();
                 try {
@@ -721,7 +722,16 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
                 this.setPaused(false);
                 const takeRefFrame = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameIsReferenceFrame || (refALTAZ3D === null);
-                wizardReport.adjusting = takeRefFrame ? "refframe" : "frame";
+                let axisCalibrationRequest : undefined| PolarAlignCalibration;
+                if (takeRefFrame) {
+                    axisCalibrationRequest = undefined;
+                } else {
+                    // Any convertion here because compiler do not detect that the await above may recreate the deleted value
+                    axisCalibrationRequest = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibration as any;
+                }
+                delete this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibration;
+
+                wizardReport.adjusting = takeRefFrame ? "refframe" : axisCalibrationRequest ? "calibration" : "frame";
                 wizardReport.adjustError = null;
 
                 const {token, cancel} = CancellationToken.create();
@@ -765,8 +775,32 @@ export default class PolarAlignmentWizard extends Wizard {
                             tempScopeTrackCounter = undefined;
 
                         } else {
+                            let prevAxis = {...wizardReport.axis};
+
                             badAxisLastAltAz = PolarAlignmentWizard.updateAxis(badAxisAtRefAltAz, refALTAZ3D!, quatALTAZ3D, photoTrackSinceRef);
                             wizardReport.axis = PolarAlignmentWizard.computeAxis(badAxisLastAltAz, geoCoords);
+
+                            if (axisCalibrationRequest) {
+                                let axis : "alt"|"az" = axisCalibrationRequest.axis;
+
+                                const values = [prevAxis[axis], wizardReport.axis[axis]];
+                                let turned = axisCalibrationRequest.axisTurn;
+
+                                const axisTurnPerMovedDegree = (values[1] - values[0]) / turned;
+
+                                logger.info("Calibrated axis", {axis, values, turned, axisTurnPerMovedDegree});
+
+                                let polarAlignAxis = this.astrometry.currentStatus.settings.polarAlign[axis];
+                                if (!polarAlignAxis) {
+                                    this.astrometry.currentStatus.settings.polarAlign[axis] = {
+                                        axisTurnPerMovedDegree: axisTurnPerMovedDegree,
+                                        axisNames: [ "defaul" ],
+                                    };
+                                } else {
+                                    polarAlignAxis.axisTurnPerMovedDegree = axisTurnPerMovedDegree;
+                                }
+                            }
+
                         }
                     } else {
                         throw new Error("Astrometry failed");

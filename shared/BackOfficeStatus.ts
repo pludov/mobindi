@@ -498,12 +498,27 @@ export type AstrometrySettings = {
     preferedImagingSetup: string|null;
 }
 
+export type PolarAlignAxisSettings = {
+    axisTurnPerMovedDegree: number|null;
+    // Positive turning mean turning clockwise
+    // When 2 axis are present, positive mean turn the first one.
+    axisNames: string[];
+}
+
+export type PolarAlignCalibration = {
+    axis: "alt"|"az";
+    axisTurn: number;
+}
+
 export type PolarAlignSettings = {
     slewRate: string;
     sampleCount: number;
     angle: number;
     minAltitude: number;
+    alt: PolarAlignAxisSettings|null;
+    az: PolarAlignAxisSettings|null;
     dyn_nextFrameIsReferenceFrame?: boolean;
+    dyn_nextFrameCalibration?: PolarAlignCalibration;
 }
 
 export type MeridianFlipSettings = {
@@ -545,7 +560,7 @@ export type PolarAlignStatus = {
     hasRefFrame: boolean;
 
     adjustError: null|string;
-    adjusting: null|"frame"|"refframe";
+    adjusting: null|"frame"|"refframe"|"calibration";
 
     adjustPositionMessage: null|PolarAlignPositionMessage;
     // When warning is not computed
