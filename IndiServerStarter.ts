@@ -128,7 +128,7 @@ export default class IndiServerStarter {
         let env:{[id:string]:string|undefined} = {};
         let args = ['indiserver', '-v', '-f', fifopath];
         if (this.currentConfiguration.path != null) {
-            env.PATH = this.currentConfiguration.path + ":" + env['PATH']
+            env.PATH = this.currentConfiguration.path + ":" + process.env['PATH'];
         }
 
         if (this.currentConfiguration.libpath) {
