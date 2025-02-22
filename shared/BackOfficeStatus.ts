@@ -505,11 +505,6 @@ export type PolarAlignAxisSettings = {
     axisNames: string[];
 }
 
-export type PolarAlignCalibration = {
-    axis: "alt"|"az";
-    axisTurn: number;
-}
-
 export type PolarAlignSettings = {
     slewRate: string;
     sampleCount: number;
@@ -517,8 +512,8 @@ export type PolarAlignSettings = {
     minAltitude: number;
     alt: PolarAlignAxisSettings|null;
     az: PolarAlignAxisSettings|null;
-    dyn_nextFrameIsReferenceFrame?: boolean;
-    dyn_nextFrameCalibration?: PolarAlignCalibration;
+    dyn_nextFrameKind?: "refframe"|"frame"|"cal_alt"|"cal_az";
+    dyn_nextFrameCalibrationTurn?: null|number;
 }
 
 export type MeridianFlipSettings = {
@@ -560,7 +555,7 @@ export type PolarAlignStatus = {
     hasRefFrame: boolean;
 
     adjustError: null|string;
-    adjusting: null|"frame"|"refframe"|"calibration";
+    adjusting: null|"frame"|"refframe"|"cal_alt"|"cal_az";
 
     adjustPositionMessage: null|PolarAlignPositionMessage;
     // When warning is not computed

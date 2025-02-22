@@ -29,6 +29,8 @@ const defaultSettings = ():AstrometrySettings=> ({
         sampleCount: 5,
         angle: 60,
         minAltitude: 10,
+        alt: null,
+        az: null,
     },
     meridianFlip: {
         clearPhdCalibration: false,
