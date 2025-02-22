@@ -2,7 +2,6 @@ import * as React from 'react';
 import * as AccessPath from './shared/AccessPath';
 import Bool from './primitives/Bool';
 import Int from './primitives/Int';
-import Text from './primitives/Text';
 import Conditional from './primitives/Conditional';
 import './CameraView.css'
 import * as Help from './Help';

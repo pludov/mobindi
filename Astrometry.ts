@@ -5,7 +5,7 @@ import * as BackOfficeAPI from './shared/BackOfficeAPI';
 import * as RequestHandler from './RequestHandler';
 import ConfigStore from './ConfigStore';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings, FineSlewLearning, SlewCalibrationVector, ImageStatus } from './shared/BackOfficeStatus';
+import { AstrometryStatus, BackofficeStatus, AstrometryWizard, AstrometrySettings, FineSlewLearning, SlewCalibrationVector, ImageStatus, PolarAlignAxisSettings } from './shared/BackOfficeStatus';
 import { AstrometryResult, ProcessorAstrometryConstraints, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
 import JsonProxy from './shared/JsonProxy';
 import { IndiConnection } from './Indi';
@@ -16,6 +16,12 @@ import PolarAlignmentWizard from "./PolarAlignmentWizard";
 import MeridianFlipWizard from './MeridianFlipWizard';
 
 const logger = Log.logger(__filename);
+
+export const defaultAxis = ():PolarAlignAxisSettings=> ({
+    axisTurnPerMovedDegree: null,
+    screwLabelStraight: "clockwise",
+    screwLabelReverse: "counter-clockwise",
+});
 
 const defaultSettings = ():AstrometrySettings=> ({
     initialFieldMin: 0.2,
@@ -29,8 +35,8 @@ const defaultSettings = ():AstrometrySettings=> ({
         sampleCount: 5,
         angle: 60,
         minAltitude: 10,
-        alt: null,
-        az: null,
+        alt: defaultAxis(),
+        az: defaultAxis(),
     },
     meridianFlip: {
         clearPhdCalibration: false,
@@ -259,6 +265,17 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
             defaultSettings(),
             defaultSettings(),
             (c)=>{
+                // FIXME: really usefull ???
+                if (!c.polarAlign) {
+                    c.polarAlign = defaultSettings().polarAlign;
+                }
+                if (!c.polarAlign.az) {
+                    c.polarAlign.az = defaultSettings().polarAlign.az;
+                }
+                if (!c.polarAlign.alt) {
+                    c.polarAlign.alt = defaultSettings().polarAlign.alt;
+                }
+
                 // Adjust here if required
                 return c;
             }

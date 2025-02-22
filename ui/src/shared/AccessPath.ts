@@ -97,6 +97,9 @@ class PropertyResolver {
         if (property instanceof Symbol) {
             throw new Error("Not supported");
         }
+        if (typeof property === "number") {
+            property = "" + property;
+        }
         const child = new PropertyResolver(this, property);
         return child.getProxy();
     }

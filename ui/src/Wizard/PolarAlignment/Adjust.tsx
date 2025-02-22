@@ -9,6 +9,9 @@ import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage } from 
 import StatusLabel from '../../Sequence/StatusLabel';
 import ImageControl from '../ImageControl';
 import ScopeJoystick from '../../ScopeJoystick';
+import PolarAlignCalibrationAmount from './PolarAlignCalibrationAmount';
+import PolarAlignCalibrationScrewRatio from './PolarAlignCalibrationScrewRatio';
+import PolarAlignCalibrationScrewValue from './PolarAlignCalibrationScrewValue';
 
 type InputProps = {};
 type MappedProps = {
@@ -38,7 +41,8 @@ class Adjust extends React.PureComponent<Props> {
     }
 
     setNextFrame = (e:React.ChangeEvent<HTMLSelectElement>)=> {
-        this.accessor.child(AccessPath.For((e)=>e.dyn_nextFrameIsReferenceFrame)).send(e.target.value === "refframe");
+        let nextFrame = e.target.value as "frame"|"cal_alt"|"cal_az"|"refframe";
+        this.accessor.child(AccessPath.For((e)=>e.dyn_nextFrameKind)).send(nextFrame);
     }
 
     render() {
@@ -49,10 +53,25 @@ class Adjust extends React.PureComponent<Props> {
             </div>
             <div className="PolarAlignDeltaDisplay">
                 <div>
-                    Δ toward east: {this.props.tooEast === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooEast)}
+                    Δ toward east (Az): {this.props.tooEast === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooEast)}
+
+                    {this.props.nextFrame !== "cal_az" && this.props.tooEast !== null
+                        ? <>
+                            &nbsp;-&nbsp;
+                            <PolarAlignCalibrationScrewValue axis="az" value={this.props.tooEast}/>
+                        </>
+                        : null
+                    }
                 </div>
                 <div>
-                    Δ toward zenith: {this.props.tooHigh === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooHigh)}
+                    Δ toward zenith (Alt): {this.props.tooHigh === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooHigh)}
+                    {this.props.nextFrame !== "cal_alt" && this.props.tooHigh !== null
+                        ? <>
+                            &nbsp;-&nbsp;
+                            <PolarAlignCalibrationScrewValue axis="alt" value={this.props.tooHigh}/>
+                        </>
+                        : null
+                    }
                 </div>
             </div>
             {this.props.adjustPositionError !== null
@@ -90,6 +109,8 @@ class Adjust extends React.PureComponent<Props> {
                             Next frame: {this.props.canTakeMoveFrame
                                     ? <select value={this.props.nextFrame!} onChange={this.setNextFrame}>
                                         <option value="frame">Adjustment</option>
+                                        <option value="cal_alt">Altitude Calibration</option>
+                                        <option value="cal_az">Azimuth Calibration</option>
                                         <option value="refframe">Reference</option>
                                     </select>
 
@@ -119,6 +140,25 @@ class Adjust extends React.PureComponent<Props> {
                     </div>
                     : null
                 }
+                {
+                    this.props.nextFrame === "cal_alt" || this.props.nextFrame === "cal_az"
+                    ? <>
+                        <div className="PolarAlignExplain">
+
+                            Adjust the screw for the {this.props.nextFrame === "cal_alt" ? "Alt" : "Az"} axis and report the movement in degrees here (eg. 360 for one complete screw turn).
+
+                            The ratio will be learned and used to give better instructions during adjustment.
+
+                        </div>
+                        <PolarAlignCalibrationAmount axis={this.props.nextFrame === "cal_alt" ? "alt" : "az"}/>
+
+                        <div className="PolarAlignExplain">
+                            Current ratio is : <PolarAlignCalibrationScrewRatio axis={this.props.nextFrame === "cal_alt" ? "alt" : "az"}/>
+                        </div>
+                    </>
+                    : null
+                }
+
             </div>
 
 
@@ -156,7 +196,7 @@ class Adjust extends React.PureComponent<Props> {
             if (!status.hasRefFrame) {
                 nextFrame = "refframe";
             } else {
-                nextFrame = store.backend.astrometry?.settings.polarAlign.dyn_nextFrameIsReferenceFrame ? "refframe" : "frame";
+                nextFrame = store.backend.astrometry?.settings.polarAlign.dyn_nextFrameKind || "frame";
             }
         }
         return {

@@ -500,9 +500,10 @@ export type AstrometrySettings = {
 
 export type PolarAlignAxisSettings = {
     axisTurnPerMovedDegree: number|null;
-    // Positive turning mean turning clockwise
-    // When 2 axis are present, positive mean turn the first one.
-    axisNames: string[];
+
+    // Straight is the direction for positive value.
+    screwLabelStraight: string;
+    screwLabelReverse: string;
 }
 
 export type PolarAlignSettings = {
@@ -510,8 +511,8 @@ export type PolarAlignSettings = {
     sampleCount: number;
     angle: number;
     minAltitude: number;
-    alt: PolarAlignAxisSettings|null;
-    az: PolarAlignAxisSettings|null;
+    alt: PolarAlignAxisSettings;
+    az: PolarAlignAxisSettings;
     dyn_nextFrameKind?: "refframe"|"frame"|"cal_alt"|"cal_az";
     dyn_nextFrameCalibrationTurn?: null|number;
 }

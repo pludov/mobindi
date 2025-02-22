@@ -10,7 +10,7 @@ import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyPro
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
 import ScopeTrackCounter from './ScopeTrackCounter';
-import Astrometry from './Astrometry';
+import Astrometry, { defaultAxis } from './Astrometry';
 import { SynchronizerTriggerCallback } from './shared/JsonProxy';
 import * as Quaternion from 'quaternion';
 
@@ -723,15 +723,20 @@ export default class PolarAlignmentWizard extends Wizard {
                 const nextFrameKind = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameKind;
                 const takeRefFrame = (nextFrameKind === "refframe") || (refALTAZ3D === null);
                 let axisCalibrationRequest : undefined| { axis :"alt"|"az", turn: number};
-                if (takeRefFrame || (nextFrameKind === "frame")) {
+                if (takeRefFrame || (nextFrameKind === "frame") || nextFrameKind === undefined) {
                     axisCalibrationRequest = undefined;
                 } else {
                     let turn = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibrationTurn;
+                    wizardReport.adjusting = nextFrameKind;
                     if (turn === undefined || turn === null) {
-                        throw new Error("No turn defined");
+                        wizardReport.adjustError = "No turn value defined";
+                        await this.waitNext("Resume");
+                        continue;
                     }
                     if (Math.abs(turn) < 1 / 3600) {
-                        throw new Error("Turn too small");
+                        wizardReport.adjustError = "Turn value too small";
+                        await this.waitNext("Resume");
+                        continue;
                     }
                     axisCalibrationRequest = {
                         axis: nextFrameKind === "cal_alt" ? "alt" : "az",
@@ -801,8 +806,8 @@ export default class PolarAlignmentWizard extends Wizard {
                                 let polarAlignAxis = this.astrometry.currentStatus.settings.polarAlign[axis];
                                 if (!polarAlignAxis) {
                                     this.astrometry.currentStatus.settings.polarAlign[axis] = {
+                                        ...defaultAxis(),
                                         axisTurnPerMovedDegree: axisTurnPerMovedDegree,
-                                        axisNames: [ "defaul" ],
                                     };
                                 } else {
                                     polarAlignAxis.axisTurnPerMovedDegree = axisTurnPerMovedDegree;
