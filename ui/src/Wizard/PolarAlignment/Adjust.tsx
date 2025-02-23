@@ -30,6 +30,14 @@ type MappedProps = {
     imagingSetup: string|null;
 }
 
+const FrameTitles = {
+    frame: "adjustment frame",
+    refframe: "reference frame",
+    cal_alt: "altitude screw calibration frame",
+    cal_az: "azimuth screw calibration frame",
+
+}
+
 type Props = InputProps & MappedProps;
 
 class Adjust extends React.PureComponent<Props> {
@@ -55,7 +63,7 @@ class Adjust extends React.PureComponent<Props> {
                 <div>
                     Δ toward east (Az): {this.props.tooEast === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooEast)}
 
-                    {this.props.nextFrame !== "cal_az" && this.props.tooEast !== null
+                    {this.props.nextFrame !== "cal_az" && this.props.tooEast !== null && !this.props.adjusting
                         ? <>
                             &nbsp;-&nbsp;
                             <PolarAlignCalibrationScrewValue axis="az" value={this.props.tooEast}/>
@@ -65,7 +73,7 @@ class Adjust extends React.PureComponent<Props> {
                 </div>
                 <div>
                     Δ toward zenith (Alt): {this.props.tooHigh === null ? "N/A" : DegreeDistanceDisplay.deltaTitle(this.props.tooHigh)}
-                    {this.props.nextFrame !== "cal_alt" && this.props.tooHigh !== null
+                    {this.props.nextFrame !== "cal_alt" && this.props.tooHigh !== null && !this.props.adjusting
                         ? <>
                             &nbsp;-&nbsp;
                             <PolarAlignCalibrationScrewValue axis="alt" value={this.props.tooHigh}/>
@@ -100,7 +108,7 @@ class Adjust extends React.PureComponent<Props> {
                             <StatusLabel
                                 className={this.props.adjustError === null ? "PolarAlignStatus_running" : "PolarAlignStatus_error"}
                                 text={this.props.adjustError === null
-                                        ? "Taking " + (this.props.adjusting === "frame" ? " adjustment frame" : " reference frame")
+                                        ? "Taking " + FrameTitles[this.props.adjusting]
                                         : this.props.adjustError}
                             />
                         </div>
@@ -109,9 +117,9 @@ class Adjust extends React.PureComponent<Props> {
                             Next frame: {this.props.canTakeMoveFrame
                                     ? <select value={this.props.nextFrame!} onChange={this.setNextFrame}>
                                         <option value="frame">Adjustment</option>
-                                        <option value="cal_alt">Altitude Calibration</option>
-                                        <option value="cal_az">Azimuth Calibration</option>
                                         <option value="refframe">Reference</option>
+                                        <option value="cal_az">Azimuth Calibration</option>
+                                        <option value="cal_alt">Altitude Calibration</option>
                                     </select>
 
                                     :   <b>Reference (required)</b>
