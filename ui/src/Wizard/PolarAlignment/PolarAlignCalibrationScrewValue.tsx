@@ -38,8 +38,8 @@ class PolarAlignCalibrationScrewValue extends React.PureComponent<Props> {
             return <i>Not calibrated</i>;
         }
 
-        // Get the number of turn
-        const rawTurn = this.props.value / this.props.currentRatio;
+        // Get the number of turn (negate to cancel the current value)
+        const rawTurn = - this.props.value / this.props.currentRatio;
 
         const axis = rawTurn >= 0 ? this.props.axisNames[0] : this.props.axisNames[1];
 

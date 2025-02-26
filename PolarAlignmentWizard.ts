@@ -726,21 +726,24 @@ export default class PolarAlignmentWizard extends Wizard {
                 if (takeRefFrame || (nextFrameKind === "frame") || nextFrameKind === undefined) {
                     axisCalibrationRequest = undefined;
                 } else {
-                    let turn = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibrationTurn;
                     wizardReport.adjusting = nextFrameKind;
-                    if (turn === undefined || turn === null) {
-                        wizardReport.adjustError = "No turn value defined";
-                        await this.waitNext("Resume");
-                        continue;
-                    }
-                    if (Math.abs(turn) < 1 / 3600) {
-                        wizardReport.adjustError = "Turn value too small";
-                        await this.waitNext("Resume");
-                        continue;
-                    }
-                    axisCalibrationRequest = {
-                        axis: nextFrameKind === "cal_alt" ? "alt" : "az",
-                        turn
+                    
+                    if (nextFrameKind === "cal_alt" || nextFrameKind === "cal_az") {
+                        let turn = this.astrometry.currentStatus.settings.polarAlign.dyn_nextFrameCalibrationTurn;
+                        if (turn === undefined || turn === null) {
+                            wizardReport.adjustError = "No turn value defined";
+                            await this.waitNext("Resume");
+                            continue;
+                        }
+                        if (Math.abs(turn) < 1 / 3600) {
+                            wizardReport.adjustError = "Turn value too small";
+                            await this.waitNext("Resume");
+                            continue;
+                        }
+                        axisCalibrationRequest = {
+                            axis: nextFrameKind === "cal_alt" ? "alt" : "az",
+                            turn
+                        }
                     }
                 }
 
@@ -799,7 +802,8 @@ export default class PolarAlignmentWizard extends Wizard {
                                 const values = [prevAxis[axis], wizardReport.axis[axis]];
                                 let turned = axisCalibrationRequest.turn;
 
-                                const axisTurnPerMovedDegree = (values[1] - values[0]) / turned;
+                                // mountAxisTurnPerScrewTurn
+                                const axisTurnPerMovedDegree = Map180(values[1] - values[0]) / turned;
 
                                 logger.info("Calibrated axis", {axis, values, turned, axisTurnPerMovedDegree});
 
