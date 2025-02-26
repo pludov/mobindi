@@ -30,6 +30,24 @@ WantedBy=multi-user.target
 
 Pair with mobile using bluetoothctl.
 
+```
+sudo bluetoothctl
+discoverable on
+```
+
+Pair on the phone. There will be a confirmation request:
+```
+[CHG] Device 94:52:AA:BB:CC:DD Connected: yes
+Request confirmation
+[agent] Confirm passkey 970015 (yes/no): yes
+[CHG] Device 94:52:AA:BB:CC:DD Bonded: yes
+[CHG] Device 94:52:AA:BB:CC:DD Paired: yes
+[CHG] Device 94:52:AA:BB:CC:DD Connected: no
+[CHG] Device 94:52:AA:BB:CC:DD Connected: yes
+[Galaxy A33 5G]# 
+```
+
+
 You can use "Serial Bluetooth Terminal" android app for connecting
 
 
