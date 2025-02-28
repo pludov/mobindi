@@ -11,6 +11,7 @@ import * as Metrics from "./Metrics";
 import * as Obj from './shared/Obj';
 import { AppContext } from './ModuleBase';
 import fs from 'fs';
+import { handleSystemdStartup } from './ProcessStarter';
 
 
 const logger = Log.logger(__filename);
@@ -135,40 +136,11 @@ export default class IndiServerStarter {
             env.LD_LIBRARY_PATH= this.currentConfiguration.libpath + (env.LD_LIBRARY_PATH ? ":" + env.LD_LIBRARY_PATH : "")
         }
 
-        if (this.currentConfiguration.systemdServiceName || process.env.MOBINDI_USE_SYSTEMD_RUN) {
-            const unitname = this.currentConfiguration.systemdServiceName || 'indiserver';
-            // Run using systemd
-            const systemctl = ['/usr/bin/systemd-run', '--user', '--collect', `--unit=${unitname}`];
-            for(const [key, value] of Object.entries(env)) {
-                if (value === undefined) {
-                    continue;
-                }
-                systemctl.push('--setenv', `${key}=${value}`);
-            }
+        let exec = await handleSystemdStartup(args, env, this.currentConfiguration.systemdServiceName);
 
-            // We need to find the path of indiserver
-            for(const dir of (env.PATH || process.env.PATH || "").split(':')) {
-                const path = `${dir}/${args[0]}`;
-                try {
-                    let stat = await fs.promises.stat(path);
-                    if (stat.isFile() && (stat.mode & fs.constants.S_IXUSR)) {
-                        args[0] = path;
-                        break;
-                    }
-                } catch(e) {
-                    logger.debug('Path not found', {path, e});
-                    continue;
-                }
-            }
-
-            args = [...systemctl, ...args];
-            env = {};
-        }
-        env = {...process.env, ...env};
-
-        logger.debug('Starting indiserver', {args});
-        const child = child_process.spawn(args[0], args.slice(1), {
-                env: env,
+        logger.debug('Starting indiserver', {args: exec.args});
+        const child = child_process.spawn(exec.args[0], exec.args.slice(1), {
+                env: exec.env,
                 detached: true,
                 stdio: ['ignore', process.stdout, process.stderr],
             });
