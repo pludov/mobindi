@@ -2,6 +2,7 @@
 #define FIXEDSIZEBITSET_H_
 
 #include <cassert>
+#include <cstdint>
 #include <string>
 
 class FixedSizeBitSet {
