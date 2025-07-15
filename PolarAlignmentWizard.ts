@@ -7,6 +7,7 @@ import { PolarAlignSettings, PolarAlignAxisResult, PolarAlignPositionMessage } f
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import { default as SkyProjection, Map360, Map180 } from './SkyAlgorithms/SkyProjection';
+import * as PolarAlignment from './SkyAlgorithms/PolarAlignment';
 import * as PlaneFinder from './SkyAlgorithms/PlaneFinder';
 import { SucceededAstrometryResult } from './shared/ProcessorTypes';
 import ScopeTrackCounter from './ScopeTrackCounter';
@@ -40,41 +41,26 @@ class ImpreciseDirectionChecker {
         const zenithRa = SkyProjection.getLocalSideralTime(new Date().getTime(), geoCoords.long);
         const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
 
-        const scopeAltAz3DVec = SkyProjection.convertAltAzToALTAZ3D(scopeAltAz);
-
         // Get the axe
         let axe = this.wizard.wizardStatus.polarAlignment!.axis!;
+        let e = PolarAlignment.evalPolarAlignmentPosition(scopeAltAz, axe);
+        logger.info('Current position evaluated', e);
 
-        let {alt_az_target_base} = PolarAlignmentWizard.getMountMovementEvaluationBase(axe, scopeAltAz3DVec);
-
-
-        let base_angle_cose = PolarAlignmentWizard.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
-
-        // Warn about small vectors
-        for(let i of [{v: alt_az_target_base[0], title:  'Altitude'}, {v: alt_az_target_base[1], title: 'Azimuth'}]) {
-            let vec = i.v;
-            // No less than 1/10°
-            let norm = Math.sqrt(vec[0]*vec[0] + vec[1]*vec[1]);
-            let degree = norm * 360 / (2 * Math.PI);
-            logger.info('Base norm', {axe: i.title, norm});
-            if (degree < 0.1) {
+        for(let {degree, title} of [{degree: e.alt_norm, title:  'Altitude'}, {degree: e.az_norm, title: 'Azimuth'}]) {   
+            if (degree < PolarAlignment.minimumAxeRatio) {
                 return {
-                    message: `The region pointed by the scope has poor scaling on the ${i.title} axis ${(degree * 100).toFixed(2)}%`,
+                    message: `The region pointed by the scope has poor scaling on the ${title} axis ${(degree * 100).toFixed(2)}%`,
                     warning: true,
                 }
             }
         }
-
-        let base_angle = 180 * Math.acos(base_angle_cose) / Math.PI;
-        logger.info('Base angle:', base_angle);
-
-        let eval_angle = 90 - Math.abs(90 - base_angle);
-        if (eval_angle > 60) {
+        const eval_angle = e.eval_angle;
+        if (eval_angle > PolarAlignment.orthogonalityThreshold[0]) {
             return {
                 message: `The current position is ok for good precision. The base angle is ${eval_angle.toFixed(1)}°`,
                 warning: false,
             };
-        } else if (eval_angle > 30) {
+        } else if (eval_angle > PolarAlignment.orthogonalityThreshold[1]) {
             return {
                 message: `The region pointed by the scope will give poor precision. The base angle is too small (${eval_angle.toFixed(3)}°)`,
                 warning: true,
@@ -415,73 +401,6 @@ export default class PolarAlignmentWizard extends Wizard {
         }
     }
 
-    static getAngleCos2D(vec1: number[], vec2: number[]): number {
-        // normalize
-        const n1 = Math.sqrt(vec1[0]*vec1[0] + vec1[1]*vec1[1]);
-        const n2 = Math.sqrt(vec2[0]*vec2[0] + vec2[1]*vec2[1]);
-        const dot = vec1[0]*vec2[0] + vec1[1]*vec2[1];
-        const cos = dot / (n1 * n2);
-        return cos;
-    }
-
-    /**
-     * Compute a vector base to evaluation mount moves in resp. alt & az,
-     * at (or near) the given target image position
-     * 
-     * The base is returned as 2D vector on the 3D plane at z=1.
-     * The transformation from the imagePos to the center of this plane is returned.
-     */
-    static getMountMovementEvaluationBase = (mountAxe: {alt:number, az:number}, imagePos: [number, number, number]) => {
-        // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
-        // We project theses vectors on the plane defined by quatALTAZ3D
-
-        // This returns the reference image shifted by a small transform in alt/az
-        let getRefALTAZ3DVec = (epsilon_alt_deg:number, epsilon_az_deg: number) => {
-            // Défaire l'azimuth
-            // Défaire l'altitude
-            // Faire la nouvelle altitude
-            // Faire la nouvell azimuth
-
-            const operations = [
-                // Undo azimuth
-                Quaternion.fromAxisAngle([1,0,0], mountAxe.az * Math.PI / 180),
-                // Undo alt
-                Quaternion.fromAxisAngle([0,1,0], -mountAxe.alt * Math.PI / 180),
-                // Apply new alt
-                Quaternion.fromAxisAngle([0,1,0], (mountAxe.alt + epsilon_alt_deg) * Math.PI / 180),
-                // Apply new az
-                Quaternion.fromAxisAngle([1,0,0], -(mountAxe.az + epsilon_az_deg) * Math.PI / 180),
-            ];
-
-            let vector = imagePos;
-            for(const op of operations) {
-                vector = op.rotateVector(vector);
-            }
-            return vector;
-        }
-
-        let vec_sub = (a:[number, number, number], b:[number, number, number]) : [number, number, number] => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-
-        let refAltAz3DVec = getRefALTAZ3DVec(0, 0);
-        let epsilon_deg = 1 / 60;
-
-        // Create a rotation that sends everything on the x, y plane (so we report 2D angles)
-        // Origin of this base is the reference frame.
-        let evaluationProjection = Quaternion.fromBetweenVectors(refAltAz3DVec, [0,0,1]);
-
-        let alt_az_target_base = [
-            evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(epsilon_deg, 0), refAltAz3DVec)),
-            evaluationProjection.rotateVector(vec_sub(getRefALTAZ3DVec(0, epsilon_deg), refAltAz3DVec)),
-        ];
-
-        // Unit is one degree, divide accordingly
-        for(let vec of alt_az_target_base) {
-            vec[0] /= epsilon_deg; vec[1] /= epsilon_deg; vec[2] /= epsilon_deg;
-        }
-        
-        return { alt_az_target_base , evaluationProjection };
-    }
-
     static updateAxis = (previousAxe: {alt:number, az:number}, refALTAZ3D: Quaternion, quatALTAZ3D: Quaternion, trackedMs:number):{alt:number, az:number}=> {
         const previousAxeALTAZ3D = SkyProjection.convertAltAzToALTAZ3D(previousAxe);
 
@@ -496,13 +415,13 @@ export default class PolarAlignmentWizard extends Wizard {
         
         // We can derive a 'alt' vector and a 'az' vector by under/over correcting in alt/az.
         // We project theses vectors on the plane defined by quatALTAZ3D
-        let { alt_az_target_base , evaluationProjection } = PolarAlignmentWizard.getMountMovementEvaluationBase(previousAxe, trackedRefALTAZ3Dvec);
+        let { alt_az_target_base , evaluationProjection } = PolarAlignment.getMountMovementEvaluationBase(previousAxe, trackedRefALTAZ3Dvec);
         logger.info('Axe evaluated', previousAxe);
         
         // Check that the vectors of the base are orthogonal
         // We compute the cross product of the two vectors
         // If the cross product is null, the vectors are orthogonal
-        let base_angle_cose = PolarAlignmentWizard.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
+        let base_angle_cose = PolarAlignment.getAngleCos2D(alt_az_target_base[0], alt_az_target_base[1]);
         logger.info('Base angle:', 180 * Math.acos(base_angle_cose) / Math.PI);
         logger.info('Evaluation target base :', alt_az_target_base);
         logger.info('Reference frame projects at :', evaluationProjection.rotateVector(trackedRefALTAZ3Dvec));
