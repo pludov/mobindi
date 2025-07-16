@@ -415,6 +415,8 @@ export default class PolarAlignmentWizard extends Wizard {
             shootRunning: false,
             scopeMoving: false,
             astrometryRunning: false,
+            startRelRa: null,
+            endRelRa: null,
             maxStepId: 0,
             stepId: 0,
             adjustError: null,
@@ -479,7 +481,10 @@ export default class PolarAlignmentWizard extends Wizard {
                             }
                             wizardReport.stepId = status.stepId;
                             wizardReport.maxStepId = status.maxStepId;
+                            wizardReport.startRelRa = status.start;
+                            wizardReport.endRelRa = status.end;
 
+                            logger.info('Polar alignment step', {stepId: status.stepId, start: status.start, end: status.end, stepSize: status.stepSize});
                             await this.prepareScope(token, this.astrometry.currentStatus.settings.polarAlign);
                             
                             const relRa = status.start + status.stepSize * status.stepId;

@@ -11,6 +11,7 @@ import * as AstrometryStore from "../../AstrometryStore";
 import { RecursiveBackendAccessor } from "../../utils/BackendAccessor";
 import { PolarAlignSettings } from '@bo/BackOfficeStatus';
 import ImageControl from '../ImageControl';
+import ScopePositionSelector from './ScopePositionSelector';
 
 type InputProps = {};
 type MappedProps = {
@@ -68,6 +69,10 @@ class InitialConfirm extends React.PureComponent<Props> {
                         helpKey={InitialConfirm.slewRateHelp}
                         />
                 </div>
+            </Panel>
+            <Panel guid="astrom:polaralign:scope">
+                <span>Sky situation</span>
+                <ScopePositionSelector moveAllowed={true}/>
             </Panel>
         </>
     }

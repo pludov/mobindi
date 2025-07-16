@@ -1,11 +1,29 @@
 /** CSS for visualization of sky spots for polar alignment */
 
+.polar_align_sky_view_control {
+    text-align: center;
+    flex-grow: 1;
+    max-width: 30%;
+}
+
+.ScopeOrientationViewContainer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+}
+
+/* Globally set the width */
+.polar_align_sky_view_container, .polar_align_sky_view_item, .polar_align_sky_view_scope {
+    --area: calc(min(60em, 40vw, 30vh));
+}
+
 .polar_align_sky_view_item {
 
-    top: calc(var(--level) * 0.5 * min(80em, 80vw, 50vh));
-    left: calc(var(--level) * 0.5 * min(80em, 80vw, 50vh));
-    width: calc((1 - var(--level)) * min(80em, 80vw, 50vh));
-    height: calc((1 - var(--level)) * min(80em, 80vw, 50vh));
+    top: calc(var(--level) * 0.5 * var(--area));
+    left: calc(var(--level) * 0.5 * var(--area));
+    width: calc((1 - var(--level)) * var(--area));
+    height: calc((1 - var(--level)) * var(--area));
 
     border-radius: 50%;
     position: absolute;
@@ -13,14 +31,13 @@
 
 
 .polar_align_sky_view_container {
-    width: calc( min(80em, 80vw, 50vh));
-    height: calc( min(80em, 80vw, 50vh));
+    width: calc(var(--area));
+    height: calc(var(--area));
     position: relative;
 }
 
 .polar_align_sky_view_scope {
     --scale: 0.03;
-    --area: calc(min(80em, 80vw, 50vh));
     width: calc(var(--scale) * var(--area));
     height: calc(var(--scale) * var(--area));
 

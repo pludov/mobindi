@@ -552,6 +552,10 @@ export type PolarAlignStatus = {
     scopeMoving: boolean;
     astrometryRunning: boolean;
 
+    // Meridian relative RA span (hours)
+    startRelRa: number|null;
+    endRelRa: number|null;
+
     axis?: null | PolarAlignAxisResult;
     hasRefFrame: boolean;
 

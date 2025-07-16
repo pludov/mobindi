@@ -12,6 +12,7 @@ import ScopeJoystick from '../../ScopeJoystick';
 import PolarAlignCalibrationAmount from './PolarAlignCalibrationAmount';
 import PolarAlignCalibrationScrewRatio from './PolarAlignCalibrationScrewRatio';
 import PolarAlignCalibrationScrewValue from './PolarAlignCalibrationScrewValue';
+import ScopePositionSelector from './ScopePositionSelector';
 
 type InputProps = {};
 type MappedProps = {
@@ -94,12 +95,6 @@ class Adjust extends React.PureComponent<Props> {
                     </div>
                 :null
             }
-            {this.props.adjustPositionMessage !== null
-                ? <div className="PolarAlignExplainGood">
-                    {this.props.adjustPositionMessage}
-                </div>
-                : null
-            }
             <div>
                 {!!this.props.adjusting
                     ?
@@ -134,8 +129,13 @@ class Adjust extends React.PureComponent<Props> {
                             If you just moved the polar axis of the mount, ensure that an adjustment frame has been completed before slewing the scope.
                         </div>
                         {this.props.imagingSetup !== null
-                            ? <div className="ScopeJoystickContainer">
-                                <ScopeJoystick imagingSetup={this.props.imagingSetup}/>
+                            ?
+                            <ScopePositionSelector moveAllowed={true}/>
+                            : null
+                        }
+                        {this.props.adjustPositionMessage !== null
+                            ? <div className="PolarAlignExplainGood">
+                                {this.props.adjustPositionMessage}
                             </div>
                             : null
                         }

@@ -8,6 +8,8 @@ import * as Store from "../../Store";
 import * as Utils from "../../Utils";
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
+import Panel from '../../Panel';
+import ScopePositionSelector from './ScopePositionSelector';
 
 type InputProps = {};
 type MappedProps = PolarAlignStatus & {
@@ -126,6 +128,11 @@ class Progress extends React.PureComponent<Props> {
                     : null
                 }
             </div>
+            <Panel guid="astrom:polaralign:scope">
+                <span>Sky situation</span>
+                <ScopePositionSelector moveAllowed={false}/>
+            </Panel>
+
         </>
     }
 
@@ -147,6 +154,8 @@ class Progress extends React.PureComponent<Props> {
             fatalError: "Wizard not ready",
             adjustPositionError: null,
             adjustPositionMessage: null,
+            startRelRa: null,
+            endRelRa: null,
         };
 
         return (store: Store.Content, props: InputProps) =>

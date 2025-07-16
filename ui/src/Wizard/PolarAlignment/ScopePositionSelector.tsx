@@ -8,12 +8,13 @@ import './ScopePositionSelector.css';
 import * as IndiUtils from '../../IndiUtils';
 import { defaultMemoize } from 'reselect';
 import ScopeJoystick from '../../ScopeJoystick';
+import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 
 type InputProps = {
-    currentScope: string;
     moveAllowed: boolean;
 };
 type MappedProps = {
+    currentScope: string;
     gradient: string[][]|undefined;
     scopeAltAz: undefined|{alt: number, az: number};
     steps: Array<{alt: number, az: number}>|undefined;
@@ -63,21 +64,30 @@ class ScopePositionSelector extends React.PureComponent<Props> {
     render() {
         return <>
             <div className="PolarAlignExplain">
-                <div className="polar_align_sky_view_container">
+                <div className="ScopeOrientationViewContainer">
+                    <div>
+                        
+                    <div className="polar_align_sky_view_container">
 
-                {
-                    this.props.gradient?.map((e, i) => this.renderGradient(i / this.props.gradient!.length, e))
-                }
-                {
-                    this.props.steps ? this.props.steps.map(e => this.renderScope(e, { background: 'rgba(255, 255, 255, 0.5)' })) : null
-                }
-                {
-                    this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz) : null
-                }
-                </div>
-    
-                <div className="ScopeJoystickContainer">
-                    <ScopeJoystick imagingSetup="unused"/>
+                    {
+                        this.props.gradient?.map((e, i) => this.renderGradient(i / this.props.gradient!.length, e))
+                    }
+                    {
+                        this.props.steps ? this.props.steps.map(e => this.renderScope(e, { background: 'rgba(255, 255, 255, 0.5)' })) : null
+                    }
+                    {
+                        this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz) : null
+                    }
+                    </div>
+        
+                    </div>
+                    <div className="polar_align_sky_view_control">
+                        {this.props.moveAllowed ?
+                            <div className="ScopeJoystickContainer">
+                                <ScopeJoystick imagingSetup="unused"/>
+                            </div>
+                        : null }
+                    </div>
                 </div>
 
             </div>
@@ -154,8 +164,8 @@ class ScopePositionSelector extends React.PureComponent<Props> {
     }
 
 
-    static getAxis(store: Store.Content, props: InputProps) {
-        const geoCoords = ScopePositionSelector.getGeoCoords(store, props.currentScope);
+    static getAxis(store: Store.Content, currentScope:string) {
+        const geoCoords = ScopePositionSelector.getGeoCoords(store, currentScope);
         if (geoCoords !== undefined) {
             const axis: {alt:number, az:number}|null|undefined = store.backend.astrometry?.runningWizard?.polarAlignment?.axis ||
             {
@@ -168,13 +178,13 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         }
     }
 
-    static getScopeAltAz(store: Store.Content, props: InputProps, now: number) {
-        const geoCoords = ScopePositionSelector.getGeoCoords(store, props.currentScope);
+    static getScopeAltAz(store: Store.Content, currentScope: string, now: number) {
+        const geoCoords = ScopePositionSelector.getGeoCoords(store, currentScope);
 
         if (!geoCoords) {
             return undefined;
         }
-        const raDecScope = ScopePositionSelector.getScopePosFromStore(store, props.currentScope);
+        const raDecScope = ScopePositionSelector.getScopePosFromStore(store, currentScope);
         if (!raDecScope) {
             return undefined;
         }
@@ -207,26 +217,40 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         return undefined;
     }
 
+    static getAstrometryWizardStatus(store: Store.Content): PolarAlignStatus|undefined {
+        return store.backend.astrometry?.runningWizard?.polarAlignment || undefined;
+    }
     static computeStepsAltAzFromSettings(geoCoords: {lat: number, long:number}, raDecScope : {ra: number, dec: number}, now: number, settings: {
                     angle: number,          // Maximum RA angle from zenith (mount limit)
                     minAltitude: number,    // Don't descend under this alt
                     sampleCount: number,
-    }) {
+    },
+            status: PolarAlignStatus|undefined,
+                
+    ) {
         if (settings.sampleCount < 3) {
             return [];
         }
         let raRange;
-        try  {
-            raRange  = PolarAlignment.computeRaRange(
-                                    geoCoords,
-                                    raDecScope,
-                                    now / 1000,
-                                    settings);
-        } catch(e) {
-            console.log('steps not available', e);
-            return undefined;
+        if (status !== undefined && status.startRelRa !== null && status.endRelRa !== null) {
+            raRange = {
+                start: status.startRelRa,
+                end: status.endRelRa
+            };
+        } else {
+            // Compute RA range
+            // This may throw if the scope is too low above horizon..
+            try  {
+                raRange  = PolarAlignment.computeRaRange(
+                                        geoCoords,
+                                        raDecScope,
+                                        now / 1000,
+                                        settings);
+            } catch(e) {
+                console.log('steps not available', e);
+                return undefined;
+            }
         }
-        const zenithRa = SkyProjection.getLocalSideralTime(now, geoCoords.long);
         console.log('ra range is ', {geoCoords, raDecScope, now, settings, raRange});
         const ret: Array<{alt: number, az: number}> = [];
         for(let i = 0; i < settings.sampleCount; ++i) {
@@ -256,8 +280,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             resultEqualityCheck: deepEqual
         });
 
-        return (store: Store.Content, props: InputProps) => {
-            const scope = props.currentScope;
+        return (store: Store.Content, scope: string) => {
             const geoCoords = getGeoCoords(store, scope);
             if (!geoCoords) {
                 return undefined;
@@ -273,8 +296,10 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             let now = new Date().getTime();
             // Round to the second
             now = Math.trunc(now / 1000) * 1000;
+
+            const astrometryWizardStatus = ScopePositionSelector.getAstrometryWizardStatus(store);
             
-            return computeStepsAltAzFromSettings(geoCoords, scopePos, now, stepSettings);
+            return computeStepsAltAzFromSettings(geoCoords, scopePos, now, stepSettings, astrometryWizardStatus);
         };
     }
     
@@ -292,11 +317,13 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         const computeStepsAltAz = ScopePositionSelector.computeStepsAltAz();
 
         return (store: Store.Content, props: InputProps):MappedProps => {
-            const axis = ScopePositionSelector.getAxis(store, props);
+            const currentScope = store.backend.astrometry?.selectedScope || "";
+            const axis = ScopePositionSelector.getAxis(store, currentScope);
             const now = new Date().getTime();
-            const scopeAltAz = roundScopeAltAz(ScopePositionSelector.getScopeAltAz(store, props, now));
-            const steps = computeStepsAltAz(store, props);
+            const scopeAltAz = roundScopeAltAz(ScopePositionSelector.getScopeAltAz(store, currentScope, now));
+            const steps = computeStepsAltAz(store, currentScope);
             return {
+                currentScope,
                 gradient: axis ? computeGradient(axis) : undefined,
                 scopeAltAz,
                 steps
