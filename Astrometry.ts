@@ -34,6 +34,7 @@ const defaultSettings = ():AstrometrySettings=> ({
         slewRate: "SLEW_FIND",
         sampleCount: 5,
         angle: 60,
+        meridianGuard: 2,
         minAltitude: 10,
         alt: defaultAxis(),
         az: defaultAxis(),
@@ -274,6 +275,9 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
                 }
                 if (!c.polarAlign.alt) {
                     c.polarAlign.alt = defaultSettings().polarAlign.alt;
+                }
+                if (!c.polarAlign.meridianGuard) {
+                    c.polarAlign.meridianGuard = defaultSettings().polarAlign.meridianGuard;
                 }
 
                 // Adjust here if required

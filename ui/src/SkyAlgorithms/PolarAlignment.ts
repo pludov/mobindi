@@ -1,6 +1,7 @@
 
 import Quaternion from "quaternion";
 import SkyProjection from "./SkyProjection";
+import { PolarAlignSettings } from "@bo/BackOfficeStatus";
 
 // Raise an error if an axis is bellow this efficiency ratio (so the user will pick a better position)
 export const minimumAxeRatio = 0.1;
@@ -95,6 +96,9 @@ export function evalPolarAlignmentPosition(scopeAltAz:{alt: number, az:number}, 
 }
 
 
+export type PolarAlignSettingsForRange = Pick<PolarAlignSettings, "angle"|"minAltitude"|"meridianGuard">;
+
+
 /**
  * geoCoords: position of the observer
  * raDecNow: supposed position of the scope
@@ -106,10 +110,7 @@ export function computeRaRange(
                 geoCoords: {lat:number, long:number},
                 raDecNow: {ra: number, dec:number},
                 epoch: number,
-                settings : {
-                    angle: number,          // Maximum RA angle from zenith (mount limit)
-                    minAltitude: number,    // Don't descend under this alt
-                }
+                settings : PolarAlignSettingsForRange
 ) {
     const zenithRa = SkyProjection.getLocalSideralTime(epoch * 1000, geoCoords.long);
 
@@ -139,15 +140,22 @@ export function computeRaRange(
         throw new Error("Star too low. Peek a star closer to its culmination");
     }
 
+    const guard = (settings.meridianGuard || 0) / 15;
+    const span = raRange - guard;
+
+    if (span < 30 / 15) {
+        throw new Error(`The travel in RA is too short (${span * 15}°). Need more rotation for good precision`);
+    }
+
     let start: number, end:number;
     if (startRelRa < 0) {
         // -90° to 0
         start = -raRange;
-        end = 0;
+        end = -guard;
     } else {
         // 0 to 90°
         start = raRange;
-        end = 0;
+        end = guard;
     }
     return {start, end};
 }

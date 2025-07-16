@@ -36,7 +36,8 @@ describe("Polar Alignment", ()=> {
             home, vega, testEpoch,
             {
                 angle: 90,
-                minAltitude: 10,    // Don't descend under this alt
+                minAltitude: 10,
+                meridianGuard: 0,
             });
         expect(ret.end).to.eq(0);
         expect(ret.start).to.be.closeTo(6, 1/15);
@@ -47,6 +48,7 @@ describe("Polar Alignment", ()=> {
             {
                 angle: 90,
                 minAltitude: 10,    // Don't descend under this alt
+                meridianGuard: 0,
             });
         expect(ret.end).to.eq(0);
         expect(ret.start).to.be.closeTo(-6, 1/15);
@@ -58,8 +60,22 @@ describe("Polar Alignment", ()=> {
             {
                 angle: 90,
                 minAltitude: 10,    // Don't descend under this alt=> f
+                meridianGuard: 0,
             });
         expect(ret.end).to.eq(0);
         expect(ret.start).to.be.closeTo(-(2+10/60), 1/15);
     });
+    it("Compute valid ra travel range for Antares (south/west), with guard", ()=>{
+        // This range is cut by horizon.
+        const ret = PolarAlignment.computeRaRange(
+            home, antares, testEpoch,
+            {
+                angle: 90,
+                minAltitude: 10,    // Don't descend under this alt=> f
+                meridianGuard: 2,
+            });
+        expect(ret.end).to.be.closeTo(-2/15, 0.00001);
+        expect(ret.start).to.be.closeTo(-(2+10/60), 1/15);
+    });
+
 });

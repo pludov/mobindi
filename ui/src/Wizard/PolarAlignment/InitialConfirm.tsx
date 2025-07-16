@@ -22,6 +22,7 @@ type Props = InputProps & MappedProps;
 class InitialConfirm extends React.PureComponent<Props> {
     static sampleCountHelp = Help.key("Number of samples", "Enter the number of exposure to take. Exposure will be spaced evenly between min and max angles.");
     static angleHelp = Help.key("Max angle", "Maximum RA angle from meridian (°). The mount will move in the same side of pier from the meridian up to this angle (mount limit)");
+    static meridianGuardHelp = Help.key("Meridian guard", "Don't go too close from the meridian (°). This is useful to avoid the mount to change pier side.");
     static minAltitudeHelp = Help.key("Minimum altitude", "Ensure exposure below are not taken at altitude below that angle (°).");
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
     accessor: RecursiveBackendAccessor<PolarAlignSettings>;
@@ -49,6 +50,10 @@ class InitialConfirm extends React.PureComponent<Props> {
                 <div>
                     Max angle from meridian (°):
                     <Float accessor={this.accessor.child(AccessPath.For((e)=>e.angle))} min={0} max={120} helpKey={InitialConfirm.angleHelp}/>
+                </div>
+                <div>
+                    Meridian guard (°):
+                    <Float accessor={this.accessor.child(AccessPath.For((e)=>e.meridianGuard))} min={0} max={90} helpKey={InitialConfirm.meridianGuardHelp}/>
                 </div>
                 <div>
                     Min alt. above horizon (°):

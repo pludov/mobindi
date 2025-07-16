@@ -511,6 +511,7 @@ export type PolarAlignSettings = {
     sampleCount: number;
     angle: number;
     minAltitude: number;
+    meridianGuard: number; // Don't go too close from the meridian (°)
     alt: PolarAlignAxisSettings;
     az: PolarAlignAxisSettings;
     dyn_nextFrameKind?: "refframe"|"frame"|"cal_alt"|"cal_az";

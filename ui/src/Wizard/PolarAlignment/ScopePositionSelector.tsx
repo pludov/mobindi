@@ -8,7 +8,7 @@ import './ScopePositionSelector.css';
 import * as IndiUtils from '../../IndiUtils';
 import { defaultMemoize } from 'reselect';
 import ScopeJoystick from '../../ScopeJoystick';
-import { PolarAlignStatus } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
 
 type InputProps = {
     moveAllowed: boolean;
@@ -21,6 +21,8 @@ type MappedProps = {
 }
 type Props = InputProps & MappedProps;
 
+
+type PolarAlignSettingsForSteps = Pick<PolarAlignSettings, "angle"|"minAltitude"|"sampleCount"|"meridianGuard">;
 
 class ScopePositionSelector extends React.PureComponent<Props> {
     
@@ -205,13 +207,14 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         return scopeAltAz;
     }
 
-    static getStepSettings(store: Store.Content) {
+    static getStepSettings(store: Store.Content): PolarAlignSettingsForSteps|undefined {
         const settings = store.backend.astrometry?.settings?.polarAlign;
         if (settings) {
             return {
                 angle: settings.angle,
                 minAltitude: settings.minAltitude,
-                sampleCount: settings.sampleCount
+                sampleCount: settings.sampleCount,
+                meridianGuard: settings.meridianGuard,
             };
         }
         return undefined;
@@ -220,11 +223,8 @@ class ScopePositionSelector extends React.PureComponent<Props> {
     static getAstrometryWizardStatus(store: Store.Content): PolarAlignStatus|undefined {
         return store.backend.astrometry?.runningWizard?.polarAlignment || undefined;
     }
-    static computeStepsAltAzFromSettings(geoCoords: {lat: number, long:number}, raDecScope : {ra: number, dec: number}, now: number, settings: {
-                    angle: number,          // Maximum RA angle from zenith (mount limit)
-                    minAltitude: number,    // Don't descend under this alt
-                    sampleCount: number,
-    },
+    static computeStepsAltAzFromSettings(geoCoords: {lat: number, long:number}, raDecScope : {ra: number, dec: number}, now: number, 
+            settings: PolarAlignSettingsForSteps,
             status: PolarAlignStatus|undefined,
                 
     ) {
