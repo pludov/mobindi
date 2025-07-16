@@ -17,7 +17,8 @@ type MappedProps = {
     currentScope: string;
     gradient: string[][]|undefined;
     scopeAltAz: undefined|{alt: number, az: number};
-    steps: Array<{alt: number, az: number}>|undefined;
+    steps?: Array<{alt: number, az: number}>;
+    stepsProblem?: string;
 }
 type Props = InputProps & MappedProps;
 
@@ -81,7 +82,6 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                         this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz) : null
                     }
                     </div>
-        
                     </div>
                     <div className="polar_align_sky_view_control">
                         {this.props.moveAllowed ?
@@ -90,6 +90,13 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                             </div>
                         : null }
                     </div>
+                    {
+                        this.props.stepsProblem ?
+                            <div className="polar_align_sky_view_warning">
+                                <span>{this.props.stepsProblem}</span>
+                            </div>
+                        : null
+                    }
                 </div>
 
             </div>
@@ -227,9 +234,9 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             settings: PolarAlignSettingsForSteps,
             status: PolarAlignStatus|undefined,
                 
-    ) {
+    ): Pick<MappedProps, "steps"|"stepsProblem"> {
         if (settings.sampleCount < 3) {
-            return [];
+            return { stepsProblem: "Not enough samples"};
         }
         let raRange;
         if (status !== undefined && status.startRelRa !== null && status.endRelRa !== null) {
@@ -247,8 +254,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                                         now / 1000,
                                         settings);
             } catch(e) {
-                console.log('steps not available', e);
-                return undefined;
+                return { stepsProblem: e.message};
             }
         }
         console.log('ra range is ', {geoCoords, raDecScope, now, settings, raRange});
@@ -259,7 +265,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             ret.push(scopeAltAz);
         }
 
-        return ret;
+        return {steps: ret};
     }
 
     static computeStepsAltAz() {
@@ -280,18 +286,18 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             resultEqualityCheck: deepEqual
         });
 
-        return (store: Store.Content, scope: string) => {
+        return (store: Store.Content, scope: string): Pick<MappedProps, "steps" | "stepsProblem"> => {
             const geoCoords = getGeoCoords(store, scope);
             if (!geoCoords) {
-                return undefined;
+                return {};
             }
             const scopePos = getScopePos(store, scope);
             if (!scopePos) {
-                return undefined;
+                return {};
             }
             const stepSettings = getStepSettings(store);
             if (!stepSettings) {
-                return undefined;
+                return {};
             }
             let now = new Date().getTime();
             // Round to the second
@@ -321,12 +327,12 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             const axis = ScopePositionSelector.getAxis(store, currentScope);
             const now = new Date().getTime();
             const scopeAltAz = roundScopeAltAz(ScopePositionSelector.getScopeAltAz(store, currentScope, now));
-            const steps = computeStepsAltAz(store, currentScope);
+            const stepProps = computeStepsAltAz(store, currentScope);
             return {
                 currentScope,
                 gradient: axis ? computeGradient(axis) : undefined,
                 scopeAltAz,
-                steps
+                ...stepProps,
             }
         }
     }

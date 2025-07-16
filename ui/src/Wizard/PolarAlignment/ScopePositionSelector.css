@@ -6,11 +6,16 @@
     max-width: 30%;
 }
 
+.polar_align_sky_view_warning {
+    flex-basis: 100%;
+    text-align: center;
+}
 .ScopeOrientationViewContainer {
     display: flex;
     align-items: center;
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 /* Globally set the width */
