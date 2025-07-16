@@ -1,0 +1,34 @@
+/** CSS for visualization of sky spots for polar alignment */
+
+.polar_align_sky_view_item {
+
+    top: calc(var(--level) * 0.5 * min(80em, 80vw, 50vh));
+    left: calc(var(--level) * 0.5 * min(80em, 80vw, 50vh));
+    width: calc((1 - var(--level)) * min(80em, 80vw, 50vh));
+    height: calc((1 - var(--level)) * min(80em, 80vw, 50vh));
+
+    border-radius: 50%;
+    position: absolute;
+}
+
+
+.polar_align_sky_view_container {
+    width: calc( min(80em, 80vw, 50vh));
+    height: calc( min(80em, 80vw, 50vh));
+    position: relative;
+}
+
+.polar_align_sky_view_scope {
+    --scale: 0.03;
+    --area: calc(min(80em, 80vw, 50vh));
+    width: calc(var(--scale) * var(--area));
+    height: calc(var(--scale) * var(--area));
+
+    top: calc(var(--rely) * var(--area) - 0.5 * var(--scale) * var(--area));
+    left: calc(var(--relx) * var(--area) - 0.5 * var(--scale) * var(--area));
+
+    background: #0000ff;
+    border-radius: 50%;
+    position: absolute;
+
+}
