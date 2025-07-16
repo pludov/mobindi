@@ -252,64 +252,6 @@ export default class PolarAlignmentWizard extends Wizard {
         ct.throwIfCancelled();
     }
 
-    /**
-     * geoCoords: position of the observer
-     * raDecNow: supposed position of the scope
-     * epoch: number
-     * 
-     * return {start, end}: rel to zenith RA range
-     */
-    static computeRaRange = (
-                geoCoords: {lat:number, long:number},
-                raDecNow: {ra: number, dec:number},
-                epoch: number,
-                settings : {
-                    angle: number,          // Maximum RA angle from zenith (mount limit)
-                    minAltitude: number,    // Don't descend under this alt
-                }
-    ) => {
-        const zenithRa = SkyProjection.getLocalSideralTime(epoch * 1000, geoCoords.long);
-        logger.debug('zenith ra', {zenithRa});
-
-        // Minimum RA step in °
-        const step = 1;
-        let rangeDeg = 0;
-        while(  (rangeDeg + step <= settings.angle)
-                && (rangeDeg+step <= 110)
-                && (SkyProjection.lstRelRaDecToAltAz({relRaDeg:rangeDeg + step, dec : raDecNow.dec}, geoCoords).alt >= Math.max(settings.minAltitude,5))
-                )
-        {
-            rangeDeg += step;
-        }
-
-        if (rangeDeg === 0) {
-            throw new Error("Current pos is too low above the horizon. Move scope or raise min altitude");
-        }
-        logger.debug('rangeDeg', {rangeDeg});
-        const raRange = rangeDeg / 15;
-
-        const startRelRa = SkyProjection.raDiff(
-                                raDecNow.ra,
-                                zenithRa / 15
-                                );
-
-        if (Math.abs(startRelRa) > 6) {
-            throw new Error("Star too low. Peek a star closer to its culmination");
-        }
-
-        let start: number, end:number;
-        if (startRelRa < 0) {
-            // -90° to 0
-            start = -raRange;
-            end = 0;
-        } else {
-            // 0 to 90°
-            start = raRange;
-            end = 0;
-        }
-        return {start, end};
-    }
-
     // Return coords of the axis in deg rel to zenith coords.
     static findMountAxis(path:Array<{relRaDeg: number, dec:number}>):{relRaDeg: number, dec:number}
     {
@@ -523,7 +465,7 @@ export default class PolarAlignmentWizard extends Wizard {
                                     throw new Error("Need at least 3 samples");
                                 }
 
-                                const raRange = PolarAlignmentWizard.computeRaRange(
+                                const raRange = PolarAlignment.computeRaRange(
                                                         geoCoords,
                                                         this.readScopePos(),
                                                         new Date().getTime() / 1000,
