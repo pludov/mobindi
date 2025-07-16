@@ -17,3 +17,16 @@ export function timestampToDate(timestamp:string):Date
 {
     return new Date(timestamp + "Z");
 }
+
+export function parsePropFloat(value: string|undefined):number|undefined
+{
+    if (value === undefined) {
+        return undefined;
+    }
+    let ret = parseFloat(value);
+    if (isNaN(ret)) {
+        return undefined;
+    }
+    return ret;
+
+}
