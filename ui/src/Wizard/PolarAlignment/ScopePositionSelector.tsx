@@ -7,6 +7,7 @@ import * as PolarAlignment from '../../SkyAlgorithms/PolarAlignment';
 import './ScopePositionSelector.css';
 import * as IndiUtils from '../../IndiUtils';
 import { defaultMemoize } from 'reselect';
+import ScopeJoystick from '../../ScopeJoystick';
 
 type InputProps = {
     currentScope: string;
@@ -15,10 +16,9 @@ type InputProps = {
 type MappedProps = {
     gradient: string[][]|undefined;
     scopeAltAz: undefined|{alt: number, az: number};
+    steps: Array<{alt: number, az: number}>|undefined;
 }
 type Props = InputProps & MappedProps;
-
-
 
 
 class ScopePositionSelector extends React.PureComponent<Props> {
@@ -46,13 +46,13 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                 </div>;
     }
 
-    renderScope(altAz: {alt: number, az: number}) {
+    renderScope(altAz: {alt: number, az: number}, optStyle?: React.CSSProperties) {
         let dst = 0.5 * (90 - altAz.alt) / 90;
         
         let relX = 0.5 + dst * Math.sin(altAz.az * Math.PI / 180.0);
         let relY = 0.5 - dst * Math.cos(altAz.az * Math.PI / 180.0);
 
-        const style = { "--relx": relX, "--rely": relY } as React.CSSProperties;
+        const style = { "--relx": relX, "--rely": relY, ...optStyle } as React.CSSProperties;
 
         return <div
                     className='polar_align_sky_view_scope'
@@ -69,10 +69,17 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                     this.props.gradient?.map((e, i) => this.renderGradient(i / this.props.gradient!.length, e))
                 }
                 {
+                    this.props.steps ? this.props.steps.map(e => this.renderScope(e, { background: 'rgba(255, 255, 255, 0.5)' })) : null
+                }
+                {
                     this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz) : null
                 }
                 </div>
     
+                <div className="ScopeJoystickContainer">
+                    <ScopeJoystick imagingSetup="unused"/>
+                </div>
+
             </div>
         </>;
     }
@@ -85,7 +92,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             return undefined;
         }
 
-        return {ra : 15 * coordRaDec[0], dec: coordRaDec[1]};
+        return {ra : coordRaDec[0], dec: coordRaDec[1]};
     }
 
     static getGeoCoords(store: Store.Content, scope: string) {
@@ -173,7 +180,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         }
 
         const zenithRa = SkyProjection.getLocalSideralTime(now, geoCoords.long);
-        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
+        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: 15 * raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
 
         scopeAltAz.alt = Math.round(scopeAltAz.alt);
         scopeAltAz.az = Math.round(scopeAltAz.az);
@@ -188,6 +195,89 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         return scopeAltAz;
     }
 
+    static getStepSettings(store: Store.Content) {
+        const settings = store.backend.astrometry?.settings?.polarAlign;
+        if (settings) {
+            return {
+                angle: settings.angle,
+                minAltitude: settings.minAltitude,
+                sampleCount: settings.sampleCount
+            };
+        }
+        return undefined;
+    }
+
+    static computeStepsAltAzFromSettings(geoCoords: {lat: number, long:number}, raDecScope : {ra: number, dec: number}, now: number, settings: {
+                    angle: number,          // Maximum RA angle from zenith (mount limit)
+                    minAltitude: number,    // Don't descend under this alt
+                    sampleCount: number,
+    }) {
+        if (settings.sampleCount < 3) {
+            return [];
+        }
+        let raRange;
+        try  {
+            raRange  = PolarAlignment.computeRaRange(
+                                    geoCoords,
+                                    raDecScope,
+                                    now / 1000,
+                                    settings);
+        } catch(e) {
+            console.log('steps not available', e);
+            return undefined;
+        }
+        const zenithRa = SkyProjection.getLocalSideralTime(now, geoCoords.long);
+        console.log('ra range is ', {geoCoords, raDecScope, now, settings, raRange});
+        const ret: Array<{alt: number, az: number}> = [];
+        for(let i = 0; i < settings.sampleCount; ++i) {
+            let fact = i / (settings.sampleCount - 1);
+            const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: 15 * (raRange.start  + fact * (raRange.end - raRange.start)), dec: raDecScope.dec}, geoCoords);
+            ret.push(scopeAltAz);
+        }
+
+        return ret;
+    }
+
+    static computeStepsAltAz() {
+
+        const getGeoCoords = defaultMemoize(ScopePositionSelector.getGeoCoords, {
+            resultEqualityCheck: deepEqual, 
+        });
+
+        const getScopePos = defaultMemoize(ScopePositionSelector.getScopePosFromStore, {
+            resultEqualityCheck: deepEqual
+        })
+
+        const getStepSettings = defaultMemoize(ScopePositionSelector.getStepSettings, {
+            resultEqualityCheck: deepEqual 
+        })
+
+        const computeStepsAltAzFromSettings = defaultMemoize(ScopePositionSelector.computeStepsAltAzFromSettings, {
+            resultEqualityCheck: deepEqual
+        });
+
+        return (store: Store.Content, props: InputProps) => {
+            const scope = props.currentScope;
+            const geoCoords = getGeoCoords(store, scope);
+            if (!geoCoords) {
+                return undefined;
+            }
+            const scopePos = getScopePos(store, scope);
+            if (!scopePos) {
+                return undefined;
+            }
+            const stepSettings = getStepSettings(store);
+            if (!stepSettings) {
+                return undefined;
+            }
+            let now = new Date().getTime();
+            // Round to the second
+            now = Math.trunc(now / 1000) * 1000;
+            
+            return computeStepsAltAzFromSettings(geoCoords, scopePos, now, stepSettings);
+        };
+    }
+    
     static mapStateToProps() {
         
         const computeGradient = defaultMemoize(ScopePositionSelector.buildGradientFromAxis, {
@@ -198,15 +288,18 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         const roundScopeAltAz = defaultMemoize(ScopePositionSelector.roundScopeAltAz, {
             resultEqualityCheck: deepEqual
         });
-        
+
+        const computeStepsAltAz = ScopePositionSelector.computeStepsAltAz();
+
         return (store: Store.Content, props: InputProps):MappedProps => {
             const axis = ScopePositionSelector.getAxis(store, props);
             const now = new Date().getTime();
             const scopeAltAz = roundScopeAltAz(ScopePositionSelector.getScopeAltAz(store, props, now));
-
+            const steps = computeStepsAltAz(store, props);
             return {
                 gradient: axis ? computeGradient(axis) : undefined,
-                scopeAltAz
+                scopeAltAz,
+                steps
             }
         }
     }
