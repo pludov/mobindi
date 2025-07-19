@@ -26,6 +26,7 @@ import IndiSelectorPropertyView from './indiview/IndiSelectorPropertyView';
 import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector';
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { getMountRichPosFromStore, MountRichPos } from './MountStore';
+import MountParkButton from './MountParkButton';
 
 const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
@@ -207,8 +208,8 @@ class ScopePanel extends PureComponent<Props> {
                 </div>
 
 
-                <input type="button" value="PARK" className="scope_panel_wizard_button" />
-
+                <MountParkButton scope={this.props.currentScope}/>
+                
                 <input type="button" value="Polar align" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startPolarAlignmentWizard')}}/>
                 <input type="button" value="Meridian flip" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startMeridianFlipWizard')}}/>
 
