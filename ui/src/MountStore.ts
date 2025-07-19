@@ -59,6 +59,22 @@ export function getMountPosFromStore(store: Store.Content, currentScope: string)
     };
 }
 
+export function getMountPierSideFromStore(store: Store.Content, currentScope: string): "west"|"east"|undefined {
+    let vector_position = getVector(store, currentScope, "TARGETPIERSIDE");
+
+    const pier_side_west = vector_position?.childs["PIER_WEST"]?.$_ === "On";
+    const pier_side_east = vector_position?.childs["PIER_EAST"]?.$_ === "On";
+
+    if (pier_side_west) {
+        return "west";
+    }
+    if (pier_side_east) {
+        return "east";
+    }
+    
+    return undefined; // No pier side information available
+}
+
 // epoch is system time is milliseconds
 export function getMountRichPosFromStore(store:Store.Content, currentScope: string, epoch: number) : Partial<MountRichPos> {
     let geography = getMountGeographyFromStore(store, currentScope);
@@ -78,7 +94,7 @@ export function getMountRichPosFromStore(store:Store.Content, currentScope: stri
         jnow ? SkyProjection.J2000RaDecFromEpoch([jnow.ra, jnow.dec], epoch)
             : [undefined, undefined];
 
-
+    const pier_side = getMountPierSideFromStore(store, currentScope);
     return {
         ra_jnow : jnow?.ra,
         dec_jnow : jnow?.dec,
@@ -86,5 +102,6 @@ export function getMountRichPosFromStore(store:Store.Content, currentScope: stri
         ...geography,
         ra_j2000,
         dec_j2000,
+        pier_side
     };
 }
