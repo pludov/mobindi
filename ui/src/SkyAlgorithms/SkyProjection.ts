@@ -1,5 +1,6 @@
 import { IndiDevice } from '@bo/BackOfficeStatus';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
+import Aberration from './Aberration';
 //@ts-ignore
 const Quaternion = require("quaternion");
 
@@ -409,7 +410,7 @@ export default class SkyProjection {
 
     // Compute the field rotation in J2000 for the given image position
     // Centerpix[1] must be >> 0
-    // FIXME: we are working in J2000 for astrometry, but the mount is actually using J2000
+    // FIXME: we are working in J2000 for astrometry, but the mount is actually using JNOW
     // this slightly change the actual angle value, but make sure that
     // a given image will have the same rotation value year after year.
     public getRotationAngle(centerPix: number[]) {
@@ -630,7 +631,7 @@ export default class SkyProjection {
         return (jd);
     }
 
-    private static JDEpoch(epochMs: number) {
+    public static JDEpoch(epochMs: number) {
         const d = new Date(epochMs);
         const [year, month, day, hours, minutes, seconds, milliseconds] =
             [
@@ -1201,7 +1202,9 @@ export default class SkyProjection {
         const precession = SkyProjection.Precession(2000.0, jd, [radec[0] / 15, radec[1]], 1);
         const nutation = SkyProjection.Nutation(jd, precession, leapSecs, 1);
 
-        return [nutation[0] * 15, nutation[1]];
+        const {ra, dec} = Aberration.getEquatorialAberration({ ra: nutation[0] * 15, dec: nutation[1]}, jd);
+
+        return [ra, dec];
 
     }
 
@@ -1212,8 +1215,12 @@ export default class SkyProjection {
     public static J2000RaDecFromEpoch(radec: number[], epoch: number): number[] {
         const jd = SkyProjection.JDEpoch(epoch);
 
+        let [ra_aber, dec_aber] = [...radec];
+
+        const {ra, dec} = Aberration.cancelEquatorialAberration({ ra: ra_aber, dec: dec_aber }, jd);
+        
         /* Remove nutation for JD */
-        const nutation = SkyProjection.Nutation(jd, [radec[0] / 15, radec[1]], SkyProjection.getLeapSecForEpoch(epoch), -1);
+        const nutation = SkyProjection.Nutation(jd, [ra / 15, dec], SkyProjection.getLeapSecForEpoch(epoch), -1);
 
         /* Remove precession to EOD from J2000 */
         const precession = SkyProjection.Precession(2000.0, jd, nutation, -1);

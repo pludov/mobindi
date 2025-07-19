@@ -313,6 +313,8 @@ export default class PolarAlignmentWizard extends Wizard {
 
         quatALTAZ3D = PolarAlignmentWizard.mockALTAZ3D(photoTime, geoCoords, PolarAlignmentWizard.mountMock).mul(quatALTAZ3D);
 
+        // FIXME: Cancel refraction here as well ?
+
         return {raDecDegNow, quatALTAZ3D };
     }
 

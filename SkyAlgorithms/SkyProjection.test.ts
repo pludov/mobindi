@@ -753,5 +753,30 @@ describe("Astronomic computations", ()=> {
             }
         }
     });
+
+    it("Properly convert from J2000 to JNow", ()=> {
+
+        const rah = 15;
+        const ramin = rah / 60;
+        const rasec = ramin / 60;
+
+
+        const time = "2025-07-16T22:19:59.532297Z";
+        // 17h34m56.25s 12°33'30.3"
+        const j2000 = [ 17 * rah + 34 * ramin + 56.25 * rasec,
+                        12 + 33 / 60 + 30.3 / 3600 ];
+        
+
+        const jnow = [  17 * rah + 36 * ramin + 8.63 * rasec,
+                        12 + 32 / 60 + 32.14 / 3600 ];
+
+        const now = new Date(time).getTime();
+
+        const result = SkyProjection.raDecEpochFromJ2000(j2000, now);
+        
+        
+        expect(result[0]).to.be.closeTo(jnow[0], 0.1/(3600), "RA conversion");
+        expect(result[1]).to.be.closeTo(jnow[1], 0.1/(3600), "DEC conversion");
+    });
 });
 
