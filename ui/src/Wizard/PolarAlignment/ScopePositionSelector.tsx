@@ -50,7 +50,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                 </div>;
     }
 
-    renderScope(altAz: {alt: number, az: number}, optStyle?: React.CSSProperties) {
+    renderScope(altAz: {alt: number, az: number}, key: string, optStyle?: React.CSSProperties) {
         let dst = 0.5 * (90 - altAz.alt) / 90;
         
         let relX = 0.5 + dst * Math.sin(altAz.az * Math.PI / 180.0);
@@ -59,6 +59,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         const style = { "--relx": relX, "--rely": relY, ...optStyle } as React.CSSProperties;
 
         return <div
+                    key={key}
                     className='polar_align_sky_view_scope'
                     style={style}
                     ></div>
@@ -76,10 +77,10 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                         this.props.gradient?.map((e, i) => this.renderGradient(i / this.props.gradient!.length, e))
                     }
                     {
-                        this.props.steps ? this.props.steps.map(e => this.renderScope(e, { background: 'rgba(255, 255, 255, 0.5)' })) : null
+                        this.props.steps ? this.props.steps.map((e,i) => this.renderScope(e, `target-${i}`, { background: 'rgba(255, 255, 255, 0.5)' })) : null
                     }
                     {
-                        this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz) : null
+                        this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz, "scope") : null
                     }
                     </div>
                     </div>
@@ -257,7 +258,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                 return { stepsProblem: e.message};
             }
         }
-        console.log('ra range is ', {geoCoords, raDecScope, now, settings, raRange});
+
         const ret: Array<{alt: number, az: number}> = [];
         for(let i = 0; i < settings.sampleCount; ++i) {
             let fact = i / (settings.sampleCount - 1);
