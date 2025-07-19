@@ -1,6 +1,6 @@
 import React from 'react';
 import Log from '../../shared/Log';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from '../../Store';
 import InitialConfirm from "./InitialConfirm";
 import "../PolarAlignment/PolarAlignment.css";

@@ -19,7 +19,7 @@ import { AstrometrySettings } from '@bo/BackOfficeStatus';
 import IndiSelectorEditor from './IndiSelectorEditor';
 import DeviceSettingsBton from './DeviceSettingsBton';
 
-import "./ScopePanel.css"
+import "./MountPanel.css"
 import IndiPropertyView from './indiview/IndiPropertyView';
 import IndiSelectorPropertyView from './indiview/IndiSelectorPropertyView';
 import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector';

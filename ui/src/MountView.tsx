@@ -1,7 +1,7 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import Log from './shared/Log';
-import './AstrometryView.css';
+import './MountView.css';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import AstrometryWizardBaseView from './Wizard/BaseView';
 import * as Store from './Store';
@@ -11,7 +11,7 @@ import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
 import {default as MeridianFlipView} from "./Wizard/MeridianFlip/View";
 import AstrometryStatusView from './AstrometryStatusView';
-import ScopePanel from './ScopePanel';
+import MountPanel from './MountPanel';
 
 const logger = Log.logger(__filename);
 
@@ -44,7 +44,7 @@ type WizardDefinition = {
 
 type WizardId = "polarAlignment" | "meridianFlip";
 
-class AstrometryView extends React.PureComponent<Props, State> {
+class MountView extends React.PureComponent<Props, State> {
     constructor(props:Props) {
         super(props);
         this.state = { static: "panel", wizard: undefined };
@@ -66,10 +66,10 @@ class AstrometryView extends React.PureComponent<Props, State> {
                 // The wizard has changed, we need to update the state.
                 return { static: undefined, wizard: newProps.currentWizard as keyof AstrometryWizards };
             }
-            return undefined;
+            return null;
         } else {
             // No wizard, no static page, leave the state as is.
-            return undefined;
+            return null;
         }
     }
 
@@ -96,26 +96,26 @@ class AstrometryView extends React.PureComponent<Props, State> {
         polarAlignment:
             {
                 title: "Polar alignment",
-                start: AstrometryView.startWizard("startPolarAlignmentWizard"),
+                start: MountView.startWizard("startPolarAlignmentWizard"),
                 ui: () => <PolarAlignementView/>
             },
         meridianFlip:
             {
                 title: "Meridian flip",
-                start: AstrometryView.startWizard("startMeridianFlipWizard"),
+                start: MountView.startWizard("startMeridianFlipWizard"),
                 ui: () => <MeridianFlipView/>
             },
     };
 
 
     render() {
-        console.log('AstrometryView render', this.state);
+        console.log('MountView render', this.state);
         if (this.state.static === "settings") {
             return <AstrometrySettingsView close={()=>this.setState({static: "panel", wizard: undefined})}/>;
         }
 
         if (this.state.static === "panel") {
-            return <ScopePanel close={()=>this.setState({static: "settings", wizard: undefined})}/>;
+            return <MountPanel close={()=>this.setState({static: "settings", wizard: undefined})}/>;
         }
 
         if (this.state.wizard) {
@@ -133,4 +133,4 @@ class AstrometryView extends React.PureComponent<Props, State> {
     }
 }
 
-export default Store.Connect(AstrometryView);
+export default Store.Connect(MountView);

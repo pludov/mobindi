@@ -1,6 +1,6 @@
 import { deepEqual } from '../../shared/Obj';
 import React from 'react';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from "../../Store";
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import * as PolarAlignment from '../../SkyAlgorithms/PolarAlignment';

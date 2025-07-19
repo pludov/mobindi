@@ -1,6 +1,5 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
-import '../AstrometryView.css';
 import AstrometrySettingsView from '../AstrometrySettingsView';
 import * as Store from '../Store';
 import * as IndiManagerStore from '../IndiManagerStore';

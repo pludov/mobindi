@@ -1,5 +1,5 @@
 import React from 'react';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';

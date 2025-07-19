@@ -1,7 +1,7 @@
 import React from 'react';
 import Collapsible from 'react-collapsible';
 import Log from '../../shared/Log';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from '../../Store';
 import { MeridianFlipStatus, MeridianFlipStep, MeridianFlipStepBase, PolarAlignStatus } from '@bo/BackOfficeStatus';
 import "../PolarAlignment/PolarAlignment.css";

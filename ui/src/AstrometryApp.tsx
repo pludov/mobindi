@@ -1,7 +1,6 @@
 import React, { Component, PureComponent} from 'react';
 import BaseApp from './BaseApp';
 import * as Help from './Help';
-import AstrometryView from './AstrometryView';
 import MountView from './MountView';
 
 
