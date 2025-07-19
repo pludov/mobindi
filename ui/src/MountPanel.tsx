@@ -156,7 +156,7 @@ class ScopePanel extends PureComponent<Props> {
 
                         <div className="scope_coord_line">
                             <div className="scope_coord_title">Pier:</div>
-                            <div className="scope_coord_value">EAST</div>
+                            <div className="scope_coord_value">{this.props.pier_side?.toUpperCase() || "N/A"}</div>
                         </div>
 
                         <div className="scope_coord_line_separator"></div>
