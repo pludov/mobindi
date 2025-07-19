@@ -7,7 +7,7 @@ import IndiDriverConfig from './IndiDriverConfig';
 import "./DeviceSettingsBton.css";
 
 type Props = {
-    deviceId: string;
+    deviceId: string|null;
 }
 
 // Display a connect/disconnect button for a device

@@ -9,7 +9,6 @@ import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import "./BaseView.css";
 
 type InputProps = {
-    showSettings : ()=>(void);
 }
 
 type MappedProps = {

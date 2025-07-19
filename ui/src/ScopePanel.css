@@ -1,0 +1,72 @@
+.scope_coord_line {
+
+
+}
+
+.scope_coord_line_separator {
+    flex-basis: 100%;
+
+}
+
+.scope_coord_group {
+    margin-bottom: 0.3em;
+    margin-top: 0.3em;
+}
+
+.scope_coord_group_title {
+    position: absolute;
+    display: inline-block;
+    background: #00ac9d;
+    border-radius: 0.2em;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    left: 1em;
+    font-size: 0.7em;
+}
+.scope_coord_group_content {
+    border: 0.15em solid;
+    border-radius: 0.3em;
+    margin: 0.1em;
+    margin-top: 0.3em;
+    padding-top: 0.4em;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+}
+.scope_coord_title {
+    margin-left: 0.1em;
+    margin-right: 0.1em;
+    display: inline-block;
+    width: 4ch;
+    text-align: right;
+    font-size: 0.8em;
+}
+.scope_coord_value {
+    display: inline-block;
+    width: 12.5ch;
+    /* use a monospaced font */
+    font-family: monospace;
+    white-space: pre;
+    padding-left: 0.1ch;
+    padding-right: 0.1ch;
+    padding-top: 0.05em;
+    padding-bottom: 0.05em;
+    background: #303030;
+    text-align: center;
+    font-size: 0.9em;
+}
+
+.scope_panel_wizard_button {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    padding-left: 2em;
+    padding-right: 2em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    min-width: calc(50% - 4em);
+    white-space: nowrap;
+}
+.ScopeView {
+    height: 100%;
+    width: 100%;
+}
