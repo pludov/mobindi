@@ -27,6 +27,7 @@ import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { getMountRichPosFromStore, MountRichPos } from './MountStore';
 import MountParkButton from './MountParkButton';
+import MountTrackButton from './MountTrackButton';
 
 const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
@@ -196,15 +197,9 @@ class ScopePanel extends PureComponent<Props> {
                     <IndiSelectorPropertyView dev={this.props.currentScope || ""}
                                                             vec="TELESCOPE_TRACK_MODE"
                                                             />
-                    <input
-                        className="GlyphBton"
-                        type='button'
-                        value='▶'
-                        id='Start'
-                        disabled={false}
-                        onClick={(e)=>{}}
-                    />
-
+                
+                    <MountTrackButton scope={this.props.currentScope || ""} />
+                
                 </div>
 
 
