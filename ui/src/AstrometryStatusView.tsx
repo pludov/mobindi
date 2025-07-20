@@ -2,12 +2,10 @@ import { connect } from 'react-redux';
 import React, { PureComponent} from 'react';
 
 import * as Store from './Store';
-import PromiseSelector from './PromiseSelector';
 import { AstrometryStatus } from '@bo/BackOfficeStatus';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 
 type InputProps = {
-    close: ()=>(void);
 }
 
 type MappedProps = Partial<AstrometryStatus>;
@@ -35,9 +33,8 @@ class AstrometryStatusView extends PureComponent<Props> {
                     : null;
 
         return (
-        <div className="AstrometryWizardRootView">
-            <div className="AstrometryWizardContent">
-                <div className="AstrometryWizardSelectTitle">Last Astrometry Job</div>
+        <>
+            <div className="AstrometryWizardSelectTitle">Last Astrometry Job</div>
 
                 <div>
                     <div>Scope: {this.props.selectedScope || "N/A"}</div>
@@ -71,14 +68,9 @@ class AstrometryStatusView extends PureComponent<Props> {
                     }
 
                 </div>
-            </div>
-            <div className="AstrometryWizardControls">
-                <input type="button" value="Done" onClick={this.props.close}
-                       className="WizardRightButton"
-                    />
-            </div>
+          
 
-        </div>);
+        </>);
     }
 
     static mapStateToProps = (store: Store.Content, props: InputProps):MappedProps=> {

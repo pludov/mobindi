@@ -2,32 +2,23 @@ import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
 import React, { Component, PureComponent} from 'react';
 import numeral from 'numeral';
-import { default as ScopeJoystick } from './ScopeJoystick';
 import * as Help from "./Help";
 import * as Store from './Store';
-import Bool from './primitives/Bool';
-import Int from './primitives/Int';
-import Float from './primitives/Float';
-import Conditional from './primitives/Conditional';
 import PromiseSelector from './PromiseSelector';
-import { RecursiveBackendAccessor } from './utils/BackendAccessor';
 import DeviceConnectBton from './DeviceConnectBton';
 import DeviceGeolocBton from './DeviceGeolocBton';
-import * as AccessPath from './shared/AccessPath';
 import * as BackendRequest from "./BackendRequest";
-import * as AstrometryStore from "./AstrometryStore";
-import { AstrometrySettings } from '@bo/BackOfficeStatus';
-import IndiSelectorEditor from './IndiSelectorEditor';
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import "./MountPanel.css"
-import IndiPropertyView from './indiview/IndiPropertyView';
 import IndiSelectorPropertyView from './indiview/IndiSelectorPropertyView';
 import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector';
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { getMountRichPosFromStore, MountRichPos } from './MountStore';
 import MountParkButton from './MountParkButton';
 import MountTrackButton from './MountTrackButton';
+import AstrometrySettingsView from './AstrometrySettingsView';
+import AstrometryStatusView from './AstrometryStatusView';
 
 const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
@@ -35,7 +26,6 @@ const ScopeSelector = connect((store:Store.Content)=> ({
 }))(PromiseSelector);
 
 type InputProps = {
-    close: ()=>(void);
 }
 
 type MappedProps = {
@@ -135,9 +125,6 @@ class ScopePanel extends PureComponent<Props> {
                         />
                 <DeviceSettingsBton deviceId={this.props.currentScope || null}/>
 
-                <DeviceGeolocBton
-                        activePath="$.backend.astrometry.selectedScope"
-                        />
                 <div className="scope_coord_group">
                     <div className="scope_coord_group_title">Mount</div>
                     <div className="scope_coord_group_content">

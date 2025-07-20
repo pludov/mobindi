@@ -2,7 +2,6 @@ import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import Log from './shared/Log';
 import './MountView.css';
-import AstrometrySettingsView from './AstrometrySettingsView';
 import AstrometryWizardBaseView from './Wizard/BaseView';
 import * as Store from './Store';
 import * as IndiManagerStore from './IndiManagerStore';
@@ -10,14 +9,13 @@ import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";
 import {default as MeridianFlipView} from "./Wizard/MeridianFlip/View";
-import AstrometryStatusView from './AstrometryStatusView';
 import MountPanel from './MountPanel';
 
 const logger = Log.logger(__filename);
 
 type InputProps = {}
 
-type StaticPage = "settings" | "panel";
+type StaticPage = "panel";
 
 type ChildPage = {
     static: StaticPage,
@@ -110,12 +108,8 @@ class MountView extends React.PureComponent<Props, State> {
 
     render() {
         console.log('MountView render', this.state);
-        if (this.state.static === "settings") {
-            return <AstrometrySettingsView close={()=>this.setState({static: "panel", wizard: undefined})}/>;
-        }
-
         if (this.state.static === "panel") {
-            return <MountPanel close={()=>this.setState({static: "settings", wizard: undefined})}/>;
+            return <MountPanel/>;
         }
 
         if (this.state.wizard) {

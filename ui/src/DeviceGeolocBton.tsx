@@ -12,11 +12,10 @@ const logger = Log.logger(__filename);
 
 type InputProps = {
     // name of the device (indi id)
-    activePath: string;
+    currentDevice: null|string;
 }
 
 type MappedProps = {
-    currentDevice: null|string;
     state: "NotFound"|"Busy"|"Available";
 
     // coords in INDI
@@ -116,11 +115,10 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {
         const geoloc = GeolocStore.currentGeoloc(store);
-        var currentDevice = atPath(store, ownProps.activePath);
+        const currentDevice = ownProps.currentDevice;
         if (currentDevice === null || currentDevice === undefined) {
             return {
                 ...geoloc,
-                currentDevice: null,
                 state: "NotFound"
             }
         }
@@ -132,14 +130,12 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
             if (vec === undefined) {
                 return {
                     ...geoloc,
-                    currentDevice: null,
                     state: "NotFound"
                 }
             }
             if (vec.$state == "Busy") {
                 return {
                     ...geoloc,
-                    currentDevice,
                     state: "Busy"
                 }
             }
@@ -159,14 +155,12 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
             }
             return {
                 ...geoloc,
-                currentDevice,
                 state : "Available",
                 ...pos
             }
         } catch(e) {
             return {
                 ...geoloc,
-                currentDevice,
                 state: "NotFound",
             }
         }

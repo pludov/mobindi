@@ -194,6 +194,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         if (!geoCoords) {
             return undefined;
         }
+        // FIXME: share with MountStore
         const raDecScope = ScopePositionSelector.getScopePosFromStore(store, currentScope);
         if (!raDecScope) {
             return undefined;

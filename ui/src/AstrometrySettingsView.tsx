@@ -18,13 +18,9 @@ import * as AstrometryStore from "./AstrometryStore";
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
 import IndiSelectorEditor from './IndiSelectorEditor';
 
-const ScopeSelector = connect((store:Store.Content)=> ({
-    active: store.backend?.astrometry?.selectedScope,
-    availables: store.backend?.indiManager?.availableScopes || []
-}))(PromiseSelector);
 
 type InputProps = {
-    close: ()=>(void);
+    selectedScope: string|null;
 }
 
 type MappedProps = {
@@ -34,7 +30,7 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 class AstrometrySettingsView extends PureComponent<Props> {
-    static scopeSelectorHelp = Help.key("INDI mount device", "The coordinates of this INDI mount device will be used/adjusted during astrometry process.");
+    static astrometryEnablerHelp = Help.key("Activate astrometry", "The coordinates of this INDI mount device will be used/adjusted during astrometry process.");
     static initialSearchRadiusHelp = Help.key("Initial Search Radius", "Max distance (°) from the current mount coordinates to search on \"wide\" astrometry. This is used on \"wide\" astrometry search (first one, and after important moves).");
     static narrowedSearchRadiusHelp = Help.key("Synced search radius", "Max distance (°) from the current mount coordinates to search on \"narrow\" astrometry (after successfull one, if no important moves occured in between");
     static initialFieldHelp = Help.key("Initial field range", "Min an max value (°) for the initial estimation of field size of the images. This is used on \"wide\" astrometry search (first one, and after important moves)");
@@ -49,7 +45,12 @@ class AstrometrySettingsView extends PureComponent<Props> {
         this.accessor = AstrometryStore.astrometrySettingsAccessor();
     }
 
-    private setScope = async(deviceId:string)=> {
+    private switchAstrometryScope = async()=> {
+        if (this.props.selectedScope === null) {
+            console.warn("No scope selected, cannot switch to astrometry settings");
+            return;
+        }
+        let deviceId: string|null = this.props.selectedScope === this.props.currentScope ? null : this.props.selectedScope;
         return await BackendRequest.RootInvoker("astrometry")("setScope")(
             CancellationToken.CONTINUE,
             {
@@ -59,68 +60,63 @@ class AstrometrySettingsView extends PureComponent<Props> {
     }
 
     public render() {
+        const active = !!(this.props.selectedScope && this.props.selectedScope ===  this.props.currentScope);
         return (
-        <div className="AstrometryWizardRootView">
-            <div className="AstrometryWizardContent">
-
+            <>
                 <div className="AstrometryWizardSelectTitle">Astrometry Settings</div>
 
-                <ScopeSelector setValue={this.setScope} helpKey={AstrometrySettingsView.scopeSelectorHelp}/>
-                <DeviceConnectBton.forActivePath
-                        activePath="$.backend.astrometry.selectedScope"
+                Use for Astrometry:
+                <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={this.switchAstrometryScope}
+                        {...AstrometrySettingsView.astrometryEnablerHelp.dom()}
                         />
-                <DeviceGeolocBton
-                        activePath="$.backend.astrometry.selectedScope"
-                        />
-                <div>
+                { active ?
                     <div>
-                        Initial field range (°):
-                        <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMin))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
-                        to
-                        <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMax))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
-                    </div>
+                        <div>
+                            Initial field range (°):
+                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMin))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                            to
+                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialFieldMax))} min={0} max={90} helpKey={AstrometrySettingsView.initialFieldHelp}/>
+                        </div>
 
-                    <div>
-                        Max field variation (%):
-                        <Int accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedFieldPercent))} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
-                    </div>
-                    <div>
                         <div>
-                            Use mount position: <Bool accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
-                        </div>
-                        <Conditional accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))}>
-                        <div>
-                            Initial search radius (°):
-                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
+                            Max field variation (%):
+                            <Int accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedFieldPercent))} min={0} max={100} helpKey={AstrometrySettingsView.narrowedFieldPercentHelp}/>
                         </div>
                         <div>
-                            Synced search radius (°):
-                            <Float accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedSearchRadius))} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
+                            <div>
+                                Use mount position: <Bool accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))} helpKey={AstrometrySettingsView.useMountPositionHelp}/>
+                            </div>
+                            <Conditional accessor={this.accessor.child(AccessPath.For((e)=>e.useMountPosition))}>
+                            <div>
+                                Initial search radius (°):
+                                <Float accessor={this.accessor.child(AccessPath.For((e)=>e.initialSearchRadius))} min={0} max={180} helpKey={AstrometrySettingsView.initialSearchRadiusHelp}/>
+                            </div>
+                            <div>
+                                Synced search radius (°):
+                                <Float accessor={this.accessor.child(AccessPath.For((e)=>e.narrowedSearchRadius))} min={0} max={180}helpKey={AstrometrySettingsView.narrowedSearchRadiusHelp}/>
+                            </div>
+                            </Conditional>
                         </div>
-                        </Conditional>
-                    </div>
-                    <div>
-                        Unsynced slew :
                         <div>
-                            <IndiSelectorEditor
-                                device={this.props.currentScope || ""}
-                                // FIXME: use accessor here
-                                valuePath="$.backend.astrometry.settings.fineSlew.slewRate"
-                                setValue={this.accessor.child(AccessPath.For((e)=>e.fineSlew.slewRate)).send}
-                                vecName="TELESCOPE_SLEW_RATE"
-                                helpKey={AstrometrySettingsView.slewRateHelp}
-                            />
+                            Non goto slew:
+                                <IndiSelectorEditor
+                                    device={this.props.currentScope || ""}
+                                    // FIXME: use accessor here
+                                    valuePath="$.backend.astrometry.settings.fineSlew.slewRate"
+                                    setValue={this.accessor.child(AccessPath.For((e)=>e.fineSlew.slewRate)).send}
+                                    vecName="TELESCOPE_SLEW_RATE"
+                                    helpKey={AstrometrySettingsView.slewRateHelp}
+                                />
 
                         </div>
                     </div>
-                </div>
-            </div>
-            <div className="AstrometryWizardControls">
-                <input type="button" value="Done" onClick={this.props.close}
-                       className="WizardRightButton"
-                    />
-            </div>
-        </div>);
+                    :
+                    null
+                }
+            </>);
     }
 
     static mapStateToProps = (store: Store.Content, props: InputProps):MappedProps=> {

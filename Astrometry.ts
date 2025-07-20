@@ -810,11 +810,12 @@ export default class Astrometry implements RequestHandler.APIAppProvider<BackOff
         }
     }
 
-    setScope = async (ct: CancellationToken, message: {deviceId: string})=>{
-        if (this.indiManager.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
+    setScope = async (ct: CancellationToken, message: {deviceId: string|null})=>{
+        if (message.deviceId !== null && this.indiManager.currentStatus.availableScopes.indexOf(message.deviceId) === -1) {
             throw new Error("device not available");
         }
         this.currentStatus.selectedScope = message.deviceId;
+        logger.info('Astrometry: set scope', message.deviceId);
     }
 
     doGoto = async(ct: CancellationToken, targetScope: string, target: {ra: number, dec:number}) => {
