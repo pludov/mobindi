@@ -6,9 +6,15 @@ import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import * as PolarAlignment from '../../SkyAlgorithms/PolarAlignment';
 import './ScopePositionSelector.css';
 import * as IndiUtils from '../../IndiUtils';
+import * as IndiStore from '../../IndiStore';
 import { defaultMemoize } from 'reselect';
 import ScopeJoystick from '../../ScopeJoystick';
 import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import MiniMap from '../../MiniMap/MiniMap';
+import UniformBackground from '../../MiniMap/UniformBackground';
+import Marker from '../../MiniMap/Marker';
+import ComplexBackground from '../../MiniMap/ComplexBackground';
+import ScopeMarker from '../../MiniMap/ScopeMarker';
 
 type InputProps = {
     moveAllowed: boolean;
@@ -31,58 +37,34 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         super(props);
     }
 
-    renderGradient(level: number, values: Array<string>) {
-
-
-        let angleStep = 360 / values.length;
-        let background = values.map((c, i) => `${c} ${i * angleStep}deg ${(i + 1) * angleStep}deg`).join(', ');
-
-        
-        const style = { "--level": level, background: `conic-gradient(${background})` } as React.CSSProperties;
-
-        return <div
-                    key={`histo-${level}`}
-                    className='polar_align_sky_view_item'
-                    style={style}
-                        
-                    >                    
-
-                </div>;
-    }
-
-    renderScope(altAz: {alt: number, az: number}, key: string, optStyle?: React.CSSProperties) {
-        let dst = 0.5 * (90 - altAz.alt) / 90;
-        
-        let relX = 0.5 + dst * Math.sin(altAz.az * Math.PI / 180.0);
-        let relY = 0.5 - dst * Math.cos(altAz.az * Math.PI / 180.0);
-
-        const style = { "--relx": relX, "--rely": relY, ...optStyle } as React.CSSProperties;
-
-        return <div
-                    key={key}
-                    className='polar_align_sky_view_scope'
-                    style={style}
-                    ></div>
-    }
-
     render() {
         return <>
             <div className="PolarAlignExplain">
                 <div className="ScopeOrientationViewContainer">
                     <div>
-                        
-                    <div className="polar_align_sky_view_container">
+                        <MiniMap>
+                            {this.props.gradient  ?
+                                <ComplexBackground  gradient={this.props.gradient} />
+                            :
+                                <UniformBackground/>
+                            }
+                            {
+                                this.props.steps ?
+                                    this.props.steps.map((e,i) => 
+                                        <Marker className="polar_align_scope_step"
+                                            key={`step-${i}`}
+                                            alt={e.alt}
+                                            az={e.az}
+                                            style={{ background: 'rgba(255, 255, 255, 0.5)' }}
+                                        />
+                                    )
+                                : null
+                            }
+                            <ScopeMarker
+                                className="polar_align_scope"
+                                device={this.props.currentScope}/>
+                        </MiniMap>
 
-                    {
-                        this.props.gradient?.map((e, i) => this.renderGradient(i / this.props.gradient!.length, e))
-                    }
-                    {
-                        this.props.steps ? this.props.steps.map((e,i) => this.renderScope(e, `target-${i}`, { background: 'rgba(255, 255, 255, 0.5)' })) : null
-                    }
-                    {
-                        this.props.scopeAltAz ? this.renderScope(this.props.scopeAltAz, "scope") : null
-                    }
-                    </div>
                     </div>
                     <div className="polar_align_sky_view_control">
                         {this.props.moveAllowed ?
@@ -102,29 +84,6 @@ class ScopePositionSelector extends React.PureComponent<Props> {
 
             </div>
         </>;
-    }
-
-    static getScopePosFromStore(store: Store.Content, scope: string) {
-        const coordVec = !scope ? undefined : IndiUtils.getVectorDesc(store, scope, 'EQUATORIAL_EOD_COORD');
-        const coordRaDec = [ coordVec?.childs.RA?.$_, coordVec?.childs.DEC?.$_].map(IndiUtils.parsePropFloat);
-        
-        if (coordRaDec[0] === undefined || coordRaDec[1] === undefined) {
-            return undefined;
-        }
-
-        return {ra : coordRaDec[0], dec: coordRaDec[1]};
-    }
-
-    static getGeoCoords(store: Store.Content, scope: string) {
-        const vec = !scope ? undefined : IndiUtils.getVectorDesc(store, scope, "GEOGRAPHIC_COORD");
-
-        const coords = [ vec?.childs.LAT?.$_, vec?.childs.LONG?.$_].map(IndiUtils.parsePropFloat);
-        
-        if (coords[0] === undefined || coords[1] === undefined) {
-            return undefined;
-        }
-
-        return {lat: coords[0], long: coords[1]};
     }
 
 
@@ -175,7 +134,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
 
 
     static getAxis(store: Store.Content, currentScope:string) {
-        const geoCoords = ScopePositionSelector.getGeoCoords(store, currentScope);
+        const geoCoords = IndiStore.getMountGeoCoords(store, currentScope);
         if (geoCoords !== undefined) {
             const axis: {alt:number, az:number}|null|undefined = store.backend.astrometry?.runningWizard?.polarAlignment?.axis ||
             {
@@ -186,26 +145,6 @@ class ScopePositionSelector extends React.PureComponent<Props> {
         } else {
             return undefined;
         }
-    }
-
-    static getScopeAltAz(store: Store.Content, currentScope: string, now: number) {
-        const geoCoords = ScopePositionSelector.getGeoCoords(store, currentScope);
-
-        if (!geoCoords) {
-            return undefined;
-        }
-        // FIXME: share with MountStore
-        const raDecScope = ScopePositionSelector.getScopePosFromStore(store, currentScope);
-        if (!raDecScope) {
-            return undefined;
-        }
-
-        const zenithRa = SkyProjection.getLocalSideralTime(now, geoCoords.long);
-        const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: 15 * raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
-
-        scopeAltAz.alt = Math.round(scopeAltAz.alt);
-        scopeAltAz.az = Math.round(scopeAltAz.az);
-        return scopeAltAz;
     }
 
     static roundScopeAltAz(input: { alt:number, az:number}|undefined) {
@@ -272,11 +211,11 @@ class ScopePositionSelector extends React.PureComponent<Props> {
 
     static computeStepsAltAz() {
 
-        const getGeoCoords = defaultMemoize(ScopePositionSelector.getGeoCoords, {
+        const getGeoCoords = defaultMemoize(IndiStore.getMountGeoCoords, {
             resultEqualityCheck: deepEqual, 
         });
 
-        const getScopePos = defaultMemoize(ScopePositionSelector.getScopePosFromStore, {
+        const getScopePos = defaultMemoize(IndiStore.getMountPos, {
             resultEqualityCheck: deepEqual
         })
 
@@ -328,7 +267,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
             const currentScope = store.backend.astrometry?.selectedScope || "";
             const axis = ScopePositionSelector.getAxis(store, currentScope);
             const now = new Date().getTime();
-            const scopeAltAz = roundScopeAltAz(ScopePositionSelector.getScopeAltAz(store, currentScope, now));
+            const scopeAltAz = roundScopeAltAz(IndiStore.getMountAltAz(store, currentScope, now));
             const stepProps = computeStepsAltAz(store, currentScope);
             return {
                 currentScope,

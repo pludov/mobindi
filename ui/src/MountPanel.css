@@ -70,3 +70,27 @@
     height: 100%;
     width: 100%;
 }
+
+.scope_minimap_group {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 0.7em;
+    margin-bottom: 0.7em;
+}
+
+.scope_wizard_group {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 0.7em;
+    margin-bottom: 0.5em;
+}
+
+.scope_minimap_big {
+    --area: calc(min(50vw, 40vh));
+}

@@ -10,6 +10,7 @@ import DeviceGeolocBton from './DeviceGeolocBton';
 import * as BackendRequest from "./BackendRequest";
 import DeviceSettingsBton from './DeviceSettingsBton';
 
+import * as AccessPath from './shared/AccessPath';
 import "./MountPanel.css"
 import IndiSelectorPropertyView from './indiview/IndiSelectorPropertyView';
 import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector';
@@ -19,6 +20,12 @@ import MountParkButton from './MountParkButton';
 import MountTrackButton from './MountTrackButton';
 import AstrometrySettingsView from './AstrometrySettingsView';
 import AstrometryStatusView from './AstrometryStatusView';
+import MiniMap from './MiniMap/MiniMap';
+import UniformBackground from './MiniMap/UniformBackground';
+import ScopeMarker from './MiniMap/ScopeMarker';
+import ScopeJoystick from './ScopeJoystick';
+import IndiSelectorEditor from './IndiSelectorEditor';
+import * as AstrometryStore from "./AstrometryStore";
 
 const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
@@ -94,6 +101,9 @@ function format_longitude(longitude: number | undefined): string {
 
 class ScopePanel extends PureComponent<Props> {
     static scopeSelectorHelp = Help.key("INDI mount device", "The coordinates of this INDI mount device will be used/adjusted during astrometry process.");
+    static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
+
+    private astrometryAccessor = AstrometryStore.astrometrySettingsAccessor();
 
     constructor(props:Props) {
         super(props);
@@ -173,27 +183,55 @@ class ScopePanel extends PureComponent<Props> {
                         </div>
                     </div>
                 </div>
-                <div>
+                <div className="scope_minimap_group">
+                        <div>
+                            <MiniMap className="scope_minimap_big">
+                                <UniformBackground className="scope_minimap_big"/>
+                                {this.props.currentScope ?
+                                    <ScopeMarker
+                                        device={this.props.currentScope}
+                                        className="scope_minimap_big"
+                                        />
+                                    : null}
+                            </MiniMap>
+                        </div>
+                        <div>
+                            <div className="ScopeJoystickContainer">
+                                <ScopeJoystick imagingSetup="unused"/>
+                            </div>
+                            {/* <ScopePositionSelector moveAllowed={true}/> */}
+                            <div>
+                                Speed:
+                                    <IndiSelectorEditor
+                                        device={this.props.currentScope || ""}
+                                        // FIXME: use accessor here
+                                        valuePath="$.backend.astrometry.settings.fineSlew.slewRate"
+                                        setValue={this.astrometryAccessor.child(AccessPath.For((e)=>e.fineSlew.slewRate)).send}
+                                        vecName="TELESCOPE_SLEW_RATE"
+                                        helpKey={ScopePanel.slewRateHelp}
+                                    />
+                            </div>
+                            <div>
+                                Track: 
+                                <IndiSelectorPropertyView dev={this.props.currentScope || ""}
+                                                                        vec="TELESCOPE_TRACK_MODE"
+                                                                        />
+                            
+                                <MountTrackButton scope={this.props.currentScope || ""} />
+                            </div>
 
-                <ScopePositionSelector moveAllowed={true}/>
+                        </div>
+
                 </div>
 
 
-                <div>
-                    Track: 
-                    <IndiSelectorPropertyView dev={this.props.currentScope || ""}
-                                                            vec="TELESCOPE_TRACK_MODE"
-                                                            />
-                
-                    <MountTrackButton scope={this.props.currentScope || ""} />
-                
+
+                <div className="scope_wizard_group">
+
+                    <div><MountParkButton scope={this.props.currentScope}/></div>
+                    <div><input type="button" value="Polar align" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startPolarAlignmentWizard')}}/></div>
+                    <div><input type="button" value="Meridian flip" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startMeridianFlipWizard')}}/></div>
                 </div>
-
-
-                <MountParkButton scope={this.props.currentScope}/>
-                
-                <input type="button" value="Polar align" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startPolarAlignmentWizard')}}/>
-                <input type="button" value="Meridian flip" className="scope_panel_wizard_button" onClick={() => {this.onStartWizard('startMeridianFlipWizard')}}/>
 
         </div>);
     }
@@ -207,6 +245,7 @@ class ScopePanel extends PureComponent<Props> {
         // FIXME : detect if an activity is running, to disable some buttons:
         //        - parking/unparking
         //        - goto
+        //        - slewing
         return {
             currentScope,
             ...richPos

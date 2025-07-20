@@ -6,6 +6,8 @@ import { UpdateIndiVectorRequest } from '@bo/BackOfficeAPI';
 import CancellationToken from 'cancellationtoken';
 import { defaultMemoize } from 'reselect';
 import { isArrayEqual, shallowEqual } from './Utils';
+import * as IndiUtils from './IndiUtils';
+import SkyProjection from './SkyAlgorithms/SkyProjection';
 
 export function getDevice(state:Store.Content, deviceId: string): IndiDevice|null {
     const indi = state.backend.indiManager;
@@ -134,5 +136,49 @@ export function getDevicesMismatchStats(): (state:Store.Content) => {[dev:string
         const profile = state.backend?.indiManager?.profileStatus;
         return memoizedProfileToDevices(profile);
     }
+}
+
+export function getMountGeoCoords(store: Store.Content, scope: string) {
+    const vec = !scope ? undefined : IndiUtils.getVectorDesc(store, scope, "GEOGRAPHIC_COORD");
+
+    const coords = [ vec?.childs.LAT?.$_, vec?.childs.LONG?.$_].map(IndiUtils.parsePropFloat);
+    
+    if (coords[0] === undefined || coords[1] === undefined) {
+        return undefined;
+    }
+
+    return {lat: coords[0], long: coords[1]};
+}
+
+export function getMountPos(store: Store.Content, scope: string) {
+    const coordVec = !scope ? undefined : IndiUtils.getVectorDesc(store, scope, 'EQUATORIAL_EOD_COORD');
+    const coordRaDec = [ coordVec?.childs.RA?.$_, coordVec?.childs.DEC?.$_].map(IndiUtils.parsePropFloat);
+    
+    if (coordRaDec[0] === undefined || coordRaDec[1] === undefined) {
+        return undefined;
+    }
+
+    return {ra : coordRaDec[0], dec: coordRaDec[1]};
+}
+
+
+export function getMountAltAz(store: Store.Content, currentScope: string, now: number) : undefined|{alt: number, az: number} {
+    const geoCoords = getMountGeoCoords(store, currentScope);
+
+    if (!geoCoords) {
+        return undefined;
+    }
+    // FIXME: share with MountStore
+    const raDecScope = getMountPos(store, currentScope);
+    if (!raDecScope) {
+        return undefined;
+    }
+
+    const zenithRa = SkyProjection.getLocalSideralTime(now, geoCoords.long);
+    const scopeAltAz = SkyProjection.lstRelRaDecToAltAz({relRaDeg: 15 * raDecScope.ra - zenithRa, dec: raDecScope.dec}, geoCoords);
+
+    scopeAltAz.alt = Math.round(scopeAltAz.alt);
+    scopeAltAz.az = Math.round(scopeAltAz.az);
+    return scopeAltAz;
 }
 
