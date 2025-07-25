@@ -23,6 +23,7 @@ import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
 import { SequenceParamClassifier } from './shared/SequenceParamClassifier';
 import { AstrometryResult, ProcessorAstrometryConstraints, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
+import ImageProcessor from './ImageProcessor';
 
 const logger = Log.logger(__filename);
 
@@ -547,7 +548,7 @@ export default class SequenceManager
                 },
             });
 
-            const channelBlacks = histogram.map(ch=>this.imageProcessor.getHistgramAduLevel(ch, 0.2));
+            const channelBlacks = histogram.map(ch=>ImageProcessor.getHistogramAduLevelMean(ch, 0.10, 0.30));
 
             target.backgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
 
