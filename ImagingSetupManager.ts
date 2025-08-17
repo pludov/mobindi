@@ -346,6 +346,27 @@ export default class ImagingSetupManager
         }
     }
 
+    newImagingSetup = async(ct:CancellationToken, payload: {name: string}): Promise<string> => {
+        const imageSetup = {
+            name: this.dedupName(payload.name),
+            cameraDevice: null,
+            availableFilters: [],
+            filterWheelDevice: null,
+            focuserDevice: null,
+            focuserSettings: this.defaultFocuserSettings(),
+            cameraSettings: this.defaultCameraSettings(),
+            dynState: this.defaultDynState(),
+            refFocus: null,
+        }
+        const uuid = this.idGenerator.next();
+        this.currentStatus.configuration.byuuid[uuid] = imageSetup;
+        return uuid;
+    }
+
+    deleteImagingSetup = async(ct: CancellationToken, payload: { imagingSetupUuid: string}) => {
+        delete this.currentStatus.configuration.byuuid[payload.imagingSetupUuid];
+    }
+
     initDefaultImageSetups=()=> {
         let knownCameras:{[id:string]:boolean} = {};
         for(const imageSetup of this.getImageSetups()) {
@@ -368,6 +389,8 @@ export default class ImagingSetupManager
             setDevice: this.setDevice,
             setName: this.setName,
             updateCurrentSettings: this.updateCurrentSettings,
+            newImagingSetup: this.newImagingSetup,
+            deleteImagingSetup: this.deleteImagingSetup,
         }
     }
 

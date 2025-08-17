@@ -130,6 +130,8 @@ export type ImagingSetupManagerAPI = {
     setDevice: (payload: {imagingSetupUuid: string, device: "cameraDevice"|"focuserDevice"|"filterWheelDevice", value: string|null})=>void;
     setName:(payload: {imagingSetupUuid: string, name: string})=>void;
     updateCurrentSettings: (payload: {imagingSetupUuid: string, diff: any})=>void;
+    newImagingSetup:(payload: {name: string}) => string;
+    deleteImagingSetup: (payload: {imagingSetupUuid: string}) => void;
 }
 
 export type FilterWheelAPI = {

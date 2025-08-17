@@ -6,12 +6,17 @@ import * as Store from "./Store";
 import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as ImageSetupSelectorItem} from './ImagingSetupSelector';
 import PromiseSelector, {Props as PromiseSelectorProps} from './PromiseSelector';
 import ImagingSetupEditor from './ImagingSetupEditor';
-import { BackendAccessor } from './utils/BackendAccessor';
+import * as BackendRequest from "./BackendRequest";
+
 import Modal from './Modal';
+import CancellationToken from 'cancellationtoken';
+import { defaultMemoize } from 'reselect';
 
 type Props = ImagingSetupSelectorProps;
 type State = {
-    editingUuid: string | undefined;
+    // null when editing while no imaging setup is selected
+    editingUuid: string | null | undefined;
+    confirmDeleteImagingSetup: string | undefined;
 };
 
 function arraySwallowEquals(a1:Array<any>, a2:Array<any>|undefined) {
@@ -31,9 +36,15 @@ function arraySwallowEquals(a1:Array<any>, a2:Array<any>|undefined) {
 
 class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
     private static imaginSetupSelectorHelp = Help.key("Imaging setup", "Select your imaging configuration. This includes camera and related equipments like filterwheel, focuser, ... You can use the Edit option to choose/configure devices of this setup");
+    private static deleteImagingSetupBtonHelp = Help.key("Delete", "Delete an imaging setup configuration. Undo is not possible");
+    private static cancelDeleteBtonHelp = Help.key("Cancel", "Cancel the deletion of the imaging setup");
+    private static confirmDeleteBtonHelp = Help.key("Delete", "Delete the imaging setup");
+
     private readonly controls : ImagingSetupSelectorProps["controls"];
+    private readonly addNewControls : ImagingSetupSelectorProps["controls"];
     private prevControls : ImagingSetupSelectorProps["controls"] = [];
 
+    private deleteImagingSetupConfirmDialog = React.createRef<Modal>();
     private readonly imagingSetupSelectorRef = React.createRef<PromiseSelector<ImageSetupSelectorItem>>();
 
     constructor(props: Props) {
@@ -43,17 +54,33 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
             title:'✏️ Edit...',
             run: this.startEdit
         }];
+
+        this.addNewControls = [{
+            id: 'create',
+            title: '✏️ New...',
+            run: this.createNew,
+        }];
         this.state = {
-            editingUuid: undefined
+            editingUuid: undefined,
+            confirmDeleteImagingSetup: undefined,
         };
+    }
+
+    createNew = async() => {
+        let newUid = await BackendRequest.RootInvoker("imagingSetupManager")("newImagingSetup")(
+            CancellationToken.CONTINUE,
+            {
+                name: 'New imaging setup'
+            }
+        );
+
+        this.setState({editingUuid: newUid});
     }
 
     startEdit = async ()=> {
 
-        const current = this.props.accessor.fromStore(Store.getStore().getState());
-        if (current !== null) {
-            this.setState({editingUuid: current});
-        }
+        const current = this.props.accessor.fromStore(Store.getStore().getState()) || null;
+        this.setState({editingUuid: current});
     }
 
     getCurrentEditing = ()=>{
@@ -63,22 +90,48 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
         return this.state.editingUuid;
     }
 
-    setCurrentEditing = async (uid: string)=> {
+    setCurrentEditing = async (uid: string|null)=> {
         this.setState({editingUuid: uid});
     }
 
-    currentImagingSetupAccessor: Store.Accessor<string|null> = {
-        fromStore: this.getCurrentEditing,
-        send: this.setCurrentEditing,
-    }
+    currentImagingSetupAccessor = defaultMemoize((str: string|null): Store.Accessor<string|null> => {
+        return {
+            fromStore: ()=> str,
+            send: this.setCurrentEditing,
+        }
+    })
 
     closeEdit = ()=>{
-        if (this.state.editingUuid !== undefined) {
+        let editedUuid = this.state.editingUuid;
+        if (editedUuid !== undefined && editedUuid !== null) {
             const current = this.imagingSetupSelectorRef.current;
             console.log('current is ', current);
-            this.imagingSetupSelectorRef.current?.select(this.state.editingUuid);
+            this.imagingSetupSelectorRef.current?.select(editedUuid);
         }
         this.setState({editingUuid: undefined});
+    }
+
+    deleteImagingSetup = async() => {
+        const imagingSetupUuid = this.state.confirmDeleteImagingSetup;
+        if (imagingSetupUuid === null || imagingSetupUuid === undefined) {
+            return;
+        }
+        await BackendRequest.RootInvoker("imagingSetupManager")("deleteImagingSetup")(
+            CancellationToken.CONTINUE,
+            {
+                imagingSetupUuid
+            });
+        this.setState({confirmDeleteImagingSetup: undefined, editingUuid: null});
+        this.deleteImagingSetupConfirmDialog.current!.close();
+    }
+
+    confirmDeleteImagingSetup = (t: string|null) => {
+        if (t === null) {
+            return;
+        }
+        console.log('Going to drop', t);
+        this.setState({confirmDeleteImagingSetup: t},
+            ()=>this.deleteImagingSetupConfirmDialog.current!.open());
     }
 
     render() {
@@ -97,8 +150,41 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
                 {editingUuid !== undefined
                     ?
                         <Modal forceVisible={true} onClose={this.closeEdit}>
-                            <p>Imaging setup: <ImagingSetupSelector accessor={this.currentImagingSetupAccessor}/></p>
-                            <ImagingSetupEditor imagingSetupUid={editingUuid}/>
+
+                            <Modal ref={this.deleteImagingSetupConfirmDialog}
+                                closeHelpKey={EditableImagingSetupSelector.cancelDeleteBtonHelp}
+                                closeOnChange={this.state.confirmDeleteImagingSetup}
+                                controlButtons={
+                                    <input type="button"
+                                        onClick={(e)=>this.deleteImagingSetup()}
+                                        value={EditableImagingSetupSelector.confirmDeleteBtonHelp.title}
+                                        {...EditableImagingSetupSelector.confirmDeleteBtonHelp.dom()}>
+                                    </input>
+                                }>
+                                <div>
+                                    Do you really want to delete the profile
+                                    &nbsp;
+
+                                    <i>
+                                        {this.state.confirmDeleteImagingSetup}
+                                    </i> ?
+                                </div>
+                            </Modal>
+
+                            <p>Imaging setup: <ImagingSetupSelector
+                                    controls={this.addNewControls}
+                                    accessor={this.currentImagingSetupAccessor(editingUuid)}/>
+                                <input className="GlyphBton"
+                                    type='button' value='❌'
+                                    disabled={editingUuid === null}
+                                    onClick={()=>this.confirmDeleteImagingSetup(editingUuid)}
+                                    {...EditableImagingSetupSelector.deleteImagingSetupBtonHelp.dom()}
+                                    />
+                            </p>
+                            {editingUuid !== null
+                                ? <ImagingSetupEditor imagingSetupUid={editingUuid}/>
+                                : null
+                            }
                         </Modal>
                     : null
                 }
