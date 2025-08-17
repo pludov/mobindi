@@ -15,6 +15,7 @@ import IndiVectorView from './IndiVectorView';
 import IndiProfileSelector from './IndiProfileSelector';
 import IndiPropertyProfileStatus from './IndiPropertyProfileStatus';
 import IndiProfileGlobalStatus from './IndiProfileGlobalStatus';
+import IndiGroupProfileStatus from './IndiGroupProfileStatus';
 
 type InputProps = {
 }
@@ -86,21 +87,22 @@ class IndiManagerView extends React.PureComponent<Props> {
                 // Les groupes ouverts
                 const opens = this.props.uiState.expandedGroups[currentDevice];
 
-                const groups = {};
+                const groups: {[id:string]: {opened: boolean}} = {};
                 for(const key of Object.keys(deviceProps)) {
                     const grpId = deviceProps[key].$group;
                     groups[grpId] = {
                         opened: Object.prototype.hasOwnProperty.call(opens, grpId) && opens[grpId],
-                        vectors: []
                     };
                 }
                 const groupIds = Object.keys(groups).sort();
                 for(let group of groupIds) {
                     const groupDesc = groups[group];
                     let childs = [];
-                    for(const key of Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort()) {
+                    const keys = Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort();
+                    for(const key of keys) {
                         childs.push(<IndiVectorView key={currentDevice +':vector:' +key} decorator={decorator} dev={currentDevice} vec={key}/>);
                     }
+
                     // use panel here...
                     vectors.push(<Collapsible
                         key={currentDevice + ":" + group}
@@ -108,7 +110,12 @@ class IndiManagerView extends React.PureComponent<Props> {
                         onOpening={()=>this.setGroupState(currentDevice, group, true)}
                         onClosing={()=>this.setGroupState(currentDevice, group, false)}
                         transitionTime={200}
-                        trigger={group}
+                        trigger={
+                            <span>
+                                {group}
+                                <IndiGroupProfileStatus dev={currentDevice} group={group}/>
+                            </span>
+                        }
                         lazyRender={true}>{childs}</Collapsible>);
                 }
             }
