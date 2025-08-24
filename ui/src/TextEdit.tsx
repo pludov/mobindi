@@ -44,6 +44,7 @@ export default class TextEdit extends React.PureComponent<Props, State> {
                                     ? this.props.value
                                     : this.state.editorValue}
                             onChange={(e)=>this.setState({editorValue: e.target.value})}
+                            {...this.props.helpKey?.dom() }
                             />
                 {/* <textarea ref={this.textArea}
                             style={{clear: this.state.editor === 0 ? "none" : "right"}}

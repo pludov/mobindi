@@ -6,7 +6,7 @@ import Log from './Log';
 import {xml2JsonParser as Xml2JSONParser, Schema} from './Xml2JSONParser';
 import { DriverInterface, IndiConnection, Vector, Device} from './Indi';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { IndiManagerStatus, IndiManagerSetPropertyRequest, BackofficeStatus, IndiProfileConfiguration } from './shared/BackOfficeStatus';
+import { IndiManagerStatus, IndiManagerSetPropertyRequest, BackofficeStatus, IndiProfileConfiguration, IndiProfileExclusionGroupConfig } from './shared/BackOfficeStatus';
 import { IndiMessage } from './shared/IndiTypes';
 import JsonProxy, { TriggeredWildcard, NoWildcard } from './shared/JsonProxy';
 import CancellationToken from 'cancellationtoken';
@@ -100,23 +100,43 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 autorun: false,
                 path: null,
                 fifopath: null,
-                devices: {}
+                devices: {},
+                libpath: null,
+            },
+            profiles: {
+                list: [],
+                byUid: {},
             }
         }, {
             driverPath: '/usr/share/indi/,/opt/share/indi/',
             indiServer: {
                 autorun: true,
-                path: '/opt/bin',
+                path: null,
+                libpath: null,
                 fifopath: null,
                 devices: {
                     'CCD Simulator': {
                         driver: 'indi_simulator_ccd',
                         config: 'ccd_simul',
-                        prefix: null,
-                        skeleton: null
+                        options: {},
                     }
                 }
+            },
+            profiles: {
+                list: [],
+                byUid: {},
             }
+        }, (c: IndiManagerStatus["configuration"]) => {
+            if (!c.profiles) {
+                c.profiles = { list: [], byUid: {} };
+            }
+            for(const o of Object.values(c.profiles.byUid)) {
+                if (o.exclusionGroup === undefined) {
+                    o.exclusionGroup = null;
+                }
+            }
+
+            return c;
         });
 
         // List configuration settings
@@ -178,6 +198,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
 
     updateProfile= (ct: CancellationToken, payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string}) => {
         return this.profileManager.updateProfile(ct, payload);
+    }
+
+    updateProfileExclusionGroup = (ct: CancellationToken, payload: IndiProfileExclusionGroupConfig) => {
+        return this.profileManager.updateProfileExclusionGroup(ct, payload);
     }
 
     deleteProfile= (ct: CancellationToken, payload: { uid: string; }) => {

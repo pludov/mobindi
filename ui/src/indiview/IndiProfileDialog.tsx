@@ -7,7 +7,7 @@ import { IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
 import * as Help from '../Help';
 import * as BackendRequest from "../BackendRequest";
 import Modal from '../Modal';
-import IndiProfileNewDialog from './IndiProfileNewDialog';
+import IndiProfileNewDialog, { UnmappedIndiProfileNewDialog } from './IndiProfileNewDialog';
 import CancellationToken from 'cancellationtoken';
 import IndiProfileEditDialog from './IndiProfileEditDialog';
 
@@ -34,10 +34,11 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
     private static cancelDropBtonHelp = Help.key("Cancel", "Cancel the deletion of the profile");
     private static confirmDropBtonHelp = Help.key("Delete", "Delete the profile");
     private static editProfileBtonHelp = Help.key("Edit", "Edit the profile");
+    private static newProfileBtonHelp = Help.key("New profile", "Create a new empty profile");
 
     private dropProfileConfirmDialog = React.createRef<Modal>();
     private newProfileDialogModal = React.createRef<Modal>();
-    private newProfileDialog = React.createRef<IndiProfileNewDialog>();
+    private newProfileDialog = React.createRef<UnmappedIndiProfileNewDialog>();
     private editProfileDialog = React.createRef<Modal>();
 
     constructor(props:Props) {
@@ -151,7 +152,7 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
                     close={()=>this.newProfileDialogModal.current!.close()}/>
 
             </Modal>
-            <input className="GlyphBton" {...IndiProfileDialog.dropProfileBtonHelp.dom()}
+            <input className="GlyphBton" {...IndiProfileDialog.newProfileBtonHelp.dom()}
                                 type='button' value='⭐New profile' onClick={this.onNewProfileClick}/>
             </>
         );

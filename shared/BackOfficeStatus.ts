@@ -233,9 +233,15 @@ export type IndiProfileConfiguration = {
     uid: string;
     name: string;
     active: boolean;
-
+    // Exclusive groups will not be allowed to be active at the same time
+    exclusionGroup: string|null;
     // Keys are Stringified of { dev, vec, prop }
     keys: ProfilePropertyAssociation<IndiProfilePropertyConfiguration>;
+}
+
+export type IndiProfileExclusionGroupConfig = {
+    uid: string;
+    otherUids: string[];
 }
 
 export type IndiProfilesConfiguration = {

@@ -13,5 +13,5 @@ function createArraySelector<State,Optional,Result>(selector: (state:State, arg?
         (a:any)=>a);
 }
 
-export default {createArraySelector, isArrayEqual};
+export default {arraySelectorCreator, createArraySelector, isArrayEqual};
 
