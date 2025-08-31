@@ -281,6 +281,34 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         return uid;
     };
 
+    readonly moveProfile = async (ct: CancellationToken, payload: {uid: string, direction: number}) => {
+        const profile = this.getProfile(payload.uid);
+        if (!profile) {
+            throw new Error("Profile not found");
+        }
+
+        let currentPos = this.indiManager.configuration.profiles.list.indexOf(payload.uid);
+        if (currentPos === -1) {
+            throw new Error("Internal error: Profile not found in list");
+        }
+
+        if (payload.direction > 0) {
+            // Swap with currentPos + 1
+            if (currentPos + 1 < this.indiManager.configuration.profiles.list.length) {
+                const otherUid = this.indiManager.configuration.profiles.list[currentPos + 1];
+                this.indiManager.configuration.profiles.list[currentPos] = otherUid;
+                this.indiManager.configuration.profiles.list[currentPos + 1] = payload.uid;
+            }
+        } else if (payload.direction < 0) {
+            // Swap with currentPos - 1
+            if (currentPos - 1 >= 0) {
+                const otherUid = this.indiManager.configuration.profiles.list[currentPos - 1];
+                this.indiManager.configuration.profiles.list[currentPos] = otherUid;
+                this.indiManager.configuration.profiles.list[currentPos - 1] = payload.uid;
+            }
+        }
+    }
+
     getProfile = (uid: string) : IndiProfileConfiguration|null => {
         if (Object.prototype.hasOwnProperty.call(this.indiManager.configuration.profiles.byUid, uid)) {
             return this.indiManager.configuration.profiles.byUid[uid];
@@ -593,6 +621,7 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             deleteProfile: this.deleteProfile,
             updateProfile: this.updateProfile,
             updateProfileExclusionGroup: this.updateProfileExclusionGroup,
+            moveProfile: this.moveProfile,
             addToProfile: this.addToProfile,
             removeFromProfile: this.removeFromProfile,
             applyActiveProfiles: this.applyActiveProfiles,

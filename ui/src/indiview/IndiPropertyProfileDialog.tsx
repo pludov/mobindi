@@ -118,7 +118,7 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
                         Expected value: {
                             p.profile_value === undefined ?
                                 <i>not set</i> :
-                                <span style={{color: p.mismatch ? "red" : "green"}}>{p.profile_value}</span>
+                                <span style={{color: p.apply ? (p.mismatch ? "red" : "green") : "grey"}}>{p.profile_value}</span>
                             }
                         <br/>
 
@@ -184,6 +184,9 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
 
                 ret.profiles.push(profileItem);
             }
+
+            // Make sure the most precise profile is at the end (in sync with logic everywhere else)
+            ret.profiles.reverse();
 
             return ret;
         });

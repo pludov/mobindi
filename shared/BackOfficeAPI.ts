@@ -44,6 +44,7 @@ export type IndiProfileAPI = {
     createProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>)=>string;
     updateProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string})=>void;
     updateProfileExclusionGroup: (payload: IndiProfileExclusionGroupConfig)=>void;
+    moveProfile: (payload: {uid: string, direction: number})=>void;
     deleteProfile: (payload: {uid:string})=>void;
     addToProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
     removeFromProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;

@@ -200,6 +200,10 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         return this.profileManager.updateProfile(ct, payload);
     }
 
+    moveProfile = (ct: CancellationToken, payload: {uid: string, direction: number}) => {
+        return this.profileManager.moveProfile(ct, payload);
+    }
+
     updateProfileExclusionGroup = (ct: CancellationToken, payload: IndiProfileExclusionGroupConfig) => {
         return this.profileManager.updateProfileExclusionGroup(ct, payload);
     }
