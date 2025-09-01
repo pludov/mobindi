@@ -27,6 +27,12 @@ export type ImagingSetup = {
 
     dynState: ImagingSetupDynState;
     refFocus: FocuserPoint|null;
+
+    // This imagingSetup is available only when this profile is active
+    // Ignored if the profile is unknown
+    controlIndiProfileUid: null|string;
+    // Name of the last controlIndiProfileUid (use when the profile is gone)
+    controlIndiProfileName: null|string;
 }
 
 export type CameraDeviceSettings = {

@@ -3,6 +3,7 @@ import Log from './Log';
 import {BackofficeStatus, FocuserSettings, ImagingSetup, ImagingSetupStatus } from './shared/BackOfficeStatus';
 import { ExpressApplication, AppContext } from "./ModuleBase";
 import {IdGenerator} from "./IdGenerator";
+import * as AccessPath from './shared/AccessPath';
 import ConfigStore from './ConfigStore';
 import JsonProxy, { TriggeredWildcard } from './shared/JsonProxy';
 import * as Obj from "./shared/Obj";
@@ -83,7 +84,12 @@ export default class ImagingSetupManager
                 if (!imagingSetup.cameraSettings) {
                     imagingSetup.cameraSettings = this.defaultCameraSettings();
                 }
-
+                if (imagingSetup.controlIndiProfileUid === undefined) {
+                    imagingSetup.controlIndiProfileUid = null;
+                }
+                if (imagingSetup.controlIndiProfileName === undefined) {
+                    imagingSetup.controlIndiProfileName = null;
+                }
                 if (!imagingSetup.focuserSettings) {
                     imagingSetup.focuserSettings = this.defaultFocuserSettings();
                 } else {
@@ -114,6 +120,45 @@ export default class ImagingSetupManager
             ['imagingSetup', 'configuration', 'byuuid'],
             this.updateAvailableImagingSetups,
             true);
+
+        // Update also depending on indi profile activation
+        this.appStateManager.addSynchronizer(
+                [
+                    'indiManager', 'configuration', 'profiles', 'byUid', null,
+                        [
+                            ['active'],
+                            ['uid']
+                        ]
+                ],
+
+                () => {
+                    this.updateAvailableImagingSetups();
+                },
+                true
+            );
+
+        // keep the name of the indiprofile (watch indiprofile uid, name)
+        this.appStateManager.addSynchronizer(
+                [
+                    [
+                        [
+                            'indiManager', 'configuration', 'profiles', 'byUid', null,
+                                [
+                                    ['name'],
+                                    ['uid']
+                                ]
+                        ],
+
+                        [
+                            'imagingSetup', 'configuration', 'byuuid', null, 'controlIndiProfileUid',
+                        ]
+                    ]
+                ],
+                () => {
+                    this.updateControlerIndiProfileNames();
+                },
+                true
+            );
 
         // TODO: Add synchronizer for available filters per filterwheel (so report filterwheel when set)
     }
@@ -188,7 +233,33 @@ export default class ImagingSetupManager
 
     private readonly updateAvailableImagingSetups=()=>
     {
-        this.currentStatus.availableImagingSetups = Object.keys(this.currentStatus.configuration.byuuid).sort();
+        this.currentStatus.availableImagingSetups =
+            Object.entries(this.currentStatus.configuration.byuuid)
+                .filter(([k, v])=>{
+                    if (v.controlIndiProfileUid === null) return true;
+                    let profile = this.context.indiManager.profileManager.getProfile(v.controlIndiProfileUid);
+                    if (profile === null) {
+                        return true;
+                    }
+                    return profile.active;
+                })
+                .map(([k, v])=>k)
+                .sort();
+    }
+
+    private readonly updateControlerIndiProfileNames=()=>
+    {
+        // Go through all the imagingSetup.
+        for(const o of Object.values(this.currentStatus.configuration.byuuid)) {
+            if (o.controlIndiProfileUid === null) {
+                o.controlIndiProfileName = null;
+            } else {
+                let profile = this.context.indiManager.profileManager.getProfile(o.controlIndiProfileUid);
+                if (profile !== null) {
+                    o.controlIndiProfileName = profile.name;
+                }
+            }
+        }
     }
 
     updateFilters(imagingSetupUuid: string, reset?:boolean)
@@ -343,6 +414,8 @@ export default class ImagingSetupManager
             cameraSettings: this.defaultCameraSettings(),
             dynState: this.defaultDynState(),
             refFocus: null,
+            controlIndiProfileName: null,
+            controlIndiProfileUid: null,
         }
     }
 
@@ -357,6 +430,8 @@ export default class ImagingSetupManager
             cameraSettings: this.defaultCameraSettings(),
             dynState: this.defaultDynState(),
             refFocus: null,
+            controlIndiProfileName: null,
+            controlIndiProfileUid: null,
         }
         const uuid = this.idGenerator.next();
         this.currentStatus.configuration.byuuid[uuid] = imageSetup;
