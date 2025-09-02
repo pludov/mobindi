@@ -19,8 +19,10 @@ import { FocuserSettings, ImagingSetup } from '@bo/BackOfficeStatus';
 import IndiFilterWheelFocusAdjusterConfig from './IndiFilterWheelFocusAdjusterConfig';
 import IndiPropertyIdentifierSelector from './indiview/IndiPropertyIdentifierSelector';
 import Bool from './primitives/Bool';
+import IndiProfileSelector from './indiview/IndiProfileSelector';
 
 const namePropertyHelp = Help.key("Name", "Give a name to this imaging setup. Will use camera name by default");
+const indiProfileControlHelp = Help.key("Restricted to indi profile", "Make this imaging setup available only when this indi profile is active. Indi profiles can be enabled/disabled in the indi tab");
 const cameraSelectorHelp = Help.key("Camera", "Select the main camera for this imaging setup");
 const filterWheelSelectorHelp = Help.key("Filter wheel", "Select the filter wheel for this imaging setup");
 const focuserSelectorHelp = Help.key("Focuser", "Select the focuser for this imaging setup");
@@ -79,6 +81,8 @@ type MappedProps = {
     hasFocuserTemperatureReferenceProperty: boolean;
     focusStepPerDegree: number|null;
     focusStepTolerance: number;
+    controlIndiProfileName: ImagingSetup["controlIndiProfileName"];
+    controlIndiProfileUid: ImagingSetup["controlIndiProfileUid"];
 }
 
 type Props = InputProps & MappedProps;
@@ -144,6 +148,21 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
         return await this.updateSetting("focusStepTolerance", e);
     }
 
+    updateControlIndiProfile=async (uid:string|null)=>{
+
+        return await BackendRequest.RootInvoker("imagingSetupManager")("updateCurrentSettings")(
+            CancellationToken.CONTINUE,
+            {
+                imagingSetupUuid: this.props.imagingSetupUid,
+                diff: {
+                    update: {
+                        controlIndiProfileUid: uid
+                    }
+                }
+            }
+        );
+    }
+
     setCamera = this.setDevice("cameraDevice");
     setFilterWheel = this.setDevice("filterWheelDevice");
     setFocuser = this.setDevice("focuserDevice");
@@ -160,6 +179,15 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                             value={this.props.name}
                             helpKey={namePropertyHelp}
                             onChange={(e)=>this.updateName(e)} />
+                </div>
+                <div className="IndiProperty">
+                        Restricted to indi profile:
+                        <IndiProfileSelector
+                            activeName={this.props.controlIndiProfileName}
+                            activeUid={this.props.controlIndiProfileUid}
+                            setValue={this.updateControlIndiProfile}
+                            helpKey={indiProfileControlHelp}
+                            />
                 </div>
                 <div className="IndiProperty">
                         Camera:
@@ -242,7 +270,7 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
     static mapStateToProps(store:Store.Content, ownProps: InputProps):MappedProps {
         const byuuid= store.backend?.imagingSetup?.configuration?.byuuid;
         if (Utils.has(byuuid, ownProps.imagingSetupUid)) {
-            const {cameraDevice, filterWheelDevice, focuserDevice, focuserSettings, ...details} = byuuid![ownProps.imagingSetupUid];
+            const {cameraDevice, filterWheelDevice, focuserDevice, focuserSettings, controlIndiProfileName, controlIndiProfileUid, ...details} = byuuid![ownProps.imagingSetupUid];
 
             const hasFocuserTemperatureReferenceProperty = !!focuserSettings?.temperatureProperty;
             const focusStepPerDegree = (focuserSettings || {focusStepPerDegree: null}).focusStepPerDegree;
@@ -254,6 +282,8 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                 hasFocuserTemperatureReferenceProperty,
                 focusStepPerDegree,
                 focusStepTolerance,
+                controlIndiProfileName,
+                controlIndiProfileUid
             }
         } else {
             return {
@@ -265,6 +295,8 @@ class ImagingSetupEditor extends React.PureComponent<Props, State> {
                 hasFocuserTemperatureReferenceProperty: false,
                 focusStepPerDegree: 0,
                 focusStepTolerance: 0,
+                controlIndiProfileName: null,
+                controlIndiProfileUid: null,
             }
         }
     }

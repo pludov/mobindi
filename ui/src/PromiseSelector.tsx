@@ -33,6 +33,7 @@ export type Props<TYPE> = (NumberStored | StringStored) & {
     availablesGenerator?: (props: Props<TYPE>)=>Array<TYPE>;
     getId?: (o: TYPE, props: Props<TYPE>)=>string;
     getTitle?: (o: TYPE, props: Props<TYPE>)=>string;
+    getEnabled?: (o: TYPE, props: Props<TYPE>)=>boolean;
     controls?: Array<Control>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
@@ -136,7 +137,8 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         }
         for(const v of availables) {
             const id = JSON.stringify(this.props.getId!(v, this.props));
-            options.push(<option value={id} key={id}>{this.props.getTitle!(v, this.props)}</option>);
+            let option_disabled = this.props.getEnabled ? !this.props.getEnabled(v, this.props) : false;
+            options.push(<option disabled={option_disabled} value={id} key={id}>{this.props.getTitle!(v, this.props)}</option>);
             disabled = false;
         }
 

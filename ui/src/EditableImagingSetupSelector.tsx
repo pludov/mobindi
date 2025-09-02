@@ -173,6 +173,7 @@ class EditableImagingSetupSelector extends React.PureComponent<Props, State> {
 
                             <p>Imaging setup: <ImagingSetupSelector
                                     controls={this.addNewControls}
+                                    accessInactive={true}
                                     accessor={this.currentImagingSetupAccessor(editingUuid)}/>
                                 <input className="GlyphBton"
                                     type='button' value='❌'
