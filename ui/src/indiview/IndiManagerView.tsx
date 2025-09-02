@@ -12,7 +12,7 @@ import "../Collapsible.css";
 import IndiDriverControlPanel from './IndiDriverControlPanel';
 import IndiDriverSelector from './IndiDriverSelector';
 import IndiVectorView from './IndiVectorView';
-import IndiProfileSelector from './IndiProfileSelector';
+import IndiProfileActiveSelector from './IndiProfileActiveSelector';
 import IndiPropertyProfileStatus from './IndiPropertyProfileStatus';
 import IndiProfileGlobalStatus from './IndiProfileGlobalStatus';
 import IndiGroupProfileStatus from './IndiGroupProfileStatus';
@@ -127,8 +127,8 @@ class IndiManagerView extends React.PureComponent<Props> {
                 <div className={'IndiAppState IndiAppState_' + bs.status}>Server: {bs.status}
                 </div>
 
-                <div className="IndiProfileSelector">
-                    <IndiProfileSelector/>
+                <div className="IndiProfileActiveSelector">
+                    <IndiProfileActiveSelector/>
                     <IndiProfileGlobalStatus/>
                 </div>
 

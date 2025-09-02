@@ -18,7 +18,7 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 
-class IndiProfileSelector extends React.PureComponent<Props> {
+class IndiProfileActiveSelector extends React.PureComponent<Props> {
     private static selectorHelp = Help.key("Indi profile(s) selector", "Indi profiles can be used to apply indi values, possibly depending on external conditions. They will display locks for each property to represent its state (controlled, conform or not)");
     private dialog = React.createRef<Modal>();
 
@@ -32,7 +32,7 @@ class IndiProfileSelector extends React.PureComponent<Props> {
 
         return <>
             <select value={"current"} onChange={this.openDialog} className={activeProfiles.length == 0 ? "IndiNoPropfileSelector" : ""} 
-                {...IndiProfileSelector.selectorHelp.dom()}
+                {...IndiProfileActiveSelector.selectorHelp.dom()}
             >
                 <option value="current">
                     {activeProfiles.length > 0 ?
@@ -62,4 +62,4 @@ class IndiProfileSelector extends React.PureComponent<Props> {
     }
 };
 
-export default Store.Connect(IndiProfileSelector);
+export default Store.Connect(IndiProfileActiveSelector);
