@@ -12,6 +12,7 @@ import { IdGenerator } from './IdGenerator';
 
 import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D, count3D } from './shared/Obj';
 import Timeout from './Timeout';
+import { canonicalize } from 'json-canonicalize';
 
 const logger = Log.logger(__filename);
 
@@ -52,6 +53,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
 
     notificationId: string|undefined;
 
+    perProfileDeviceListener : Map<string, {jsonCrit: string, cancel: ()=>void}> = new Map();
+
     constructor(app: ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.app = app;
         this.appStateManager = appStateManager;
@@ -66,6 +69,9 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             ['indiManager', 'configuration', 'profiles'],
             this.fullRefreshProfileStatus, true);
 
+        this.appStateManager.addSynchronizer(
+            ['indiManager', 'configuration', 'profiles', 'byUid', null, 'systemDeviceIdentifier'],
+            this.registerSystemDeviceWatches, true);
 
         this.appStateManager.addSynchronizer(
             [   'indiManager',
@@ -77,6 +83,61 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                 '$_'
             ],
             this.verifyPropertyWildcard, false, true);
+    }
+
+    private readonly switchProfileFromDevice=(profileUid: string, deviceIsPresent: boolean)=>{
+        const profile = this.getProfile(profileUid);
+        if (profile === null) {
+            logger.warn("Profile not found during device activation", {profileUid, deviceIsPresent});
+            return;
+        }
+
+        const targetState = profile.systemDeviceLogic ? deviceIsPresent : !deviceIsPresent;
+
+        if (profile.active === targetState) {
+            logger.info("Status of profile is already aligned with system device", {profileUid, name: profile.name, active: profile.active, targetState, deviceIsPresent});
+            return;
+        }
+
+        logger.warn("Switching profile status according to system device", {profileUid, name: profile.name, targetState, deviceIsPresent, systemDeviceIdentifier: profile.systemDeviceIdentifier});
+
+        profile.active = targetState;
+        this.context.notification.info(`Indi profile ${profile.name} ${targetState ? "enabled": "disabled"} ${deviceIsPresent ? "since control device is connected": "because control device is not found"}`);
+    }
+
+    private readonly registerSystemDeviceWatches= ()=>{
+        for(const [k,prof] of Object.entries(this.indiManager.configuration.profiles.byUid)) {
+            let listener = this.perProfileDeviceListener.get(k);
+            if (!prof.systemDeviceIdentifier) {
+                if (listener) {
+                    listener.cancel();
+                    this.perProfileDeviceListener.delete(k);
+                }
+            } else {
+                const jsonCrit = canonicalize(prof.systemDeviceIdentifier);
+                if (!listener) {
+                    listener = {
+                        jsonCrit: "",
+                        cancel: ()=>{},
+                    };
+                    this.perProfileDeviceListener.set(k, listener);
+                }
+
+                if (jsonCrit !== listener.jsonCrit) {
+                    listener.cancel();
+                    listener.jsonCrit = jsonCrit;
+                    listener.cancel = this.context.systemDeviceManager.watch(JSON.parse(jsonCrit) as any, (present)=> {
+                        this.switchProfileFromDevice(k, present)
+                    });
+                }
+            }
+        }
+        for(const [k, listener] of Array.from(Object.entries(this.perProfileDeviceListener))) {
+            if (!Object.prototype.hasOwnProperty.call(this.indiManager.configuration.profiles.byUid, k)) {
+                listener.cancel();
+                this.perProfileDeviceListener.delete(k);
+            }
+        }
     }
 
     private readonly fullRefreshProfileStatus = () => {
@@ -274,6 +335,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             uid,
             name: "New profile",
             active: false,
+            systemDeviceIdentifier: null,
+            systemDeviceLogic: true,
             ...payload,
             exclusionGroup: null,
             keys: {},

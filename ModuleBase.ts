@@ -12,6 +12,7 @@ import FilterWheel from "./FilterWheel";
 import SequenceManager from "./SequenceManager";
 import Notification from "./Notification";
 import ImagingSetupManager from "./ImagingSetupManager";
+import SystemDeviceManager from "./SystemDeviceManager";
 
 export type ExpressApplication = ExpressApplicationFromExpress;
 
@@ -28,5 +29,6 @@ export type AppContext = {
     astrometry: Astrometry;
     notification: Notification;
     imagingSetupManager: ImagingSetupManager;
+    systemDeviceManager: SystemDeviceManager;
 };
 

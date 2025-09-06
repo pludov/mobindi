@@ -134,6 +134,12 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                 if (o.exclusionGroup === undefined) {
                     o.exclusionGroup = null;
                 }
+                if (o.systemDeviceIdentifier === undefined) {
+                    o.systemDeviceIdentifier = null;
+                }
+                if (o.systemDeviceLogic === undefined) {
+                    o.systemDeviceLogic = true;
+                }
             }
 
             return c;

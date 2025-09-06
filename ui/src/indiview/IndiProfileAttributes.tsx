@@ -8,7 +8,7 @@ import TextEdit from '../TextEdit';
 import { getProfileList } from '../IndiProfileStore';
 import './IndiProfileAttributes.css';
 
-type StandardProps = Omit<IndiProfileConfiguration, "uid" | "active" | "keys" | "exclusionGroup">;
+type StandardProps = Omit<IndiProfileConfiguration, "uid" | "active" | "keys" | "exclusionGroup" | "systemDeviceIdentifier" | "systemDeviceLogic">;
 
 export type HandledProps = StandardProps & {
     exclusionGroupPeers: Array<string>

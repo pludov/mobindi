@@ -44,6 +44,7 @@ import Notification from "./Notification";
 import Log from './Log';
 
 import * as Metrics from "./Metrics";
+import SystemDeviceManager from "./SystemDeviceManager";
 
 const logger = Log.logger(__filename);
 
@@ -276,6 +277,9 @@ function init() {
 
     app.set('port', appState.uiConfig.directPort);
     server.listen({port: appState.uiConfig.directPort}, ()=> {
+
+        context.systemDeviceManager = new SystemDeviceManager();
+
         context.notification = new Notification(app, appStateManager, context as AppContext, serverId);
 
         context.imagingSetupManager = new ImagingSetupManager(app, appStateManager, context as AppContext);
@@ -300,6 +304,7 @@ function init() {
 
         context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
+        context.systemDeviceManager!.run();
 
         apiRoot = {
             notification: context.notification.getAPI(),
