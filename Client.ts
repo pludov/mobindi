@@ -18,14 +18,13 @@ export default class Client {
     private pendingDiffs = 0;
     readonly socket: WebSocket;
     private disposed: boolean;
-    private requests: ClientRequest[];
     private jsonProxy: JsonProxy<BackofficeStatus>;
     private jsonSerial: ComposedSerialSnapshot;
     private jsonListenerId: string;
     private sendingTimer: NodeJS.Timeout|undefined;
     private whiteList: WhiteList;
     private pingTo: undefined|NodeJS.Timeout;
-
+    requests: Map<string, ClientRequest> = new Map();
     constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList)
     {
         this.uid = clientUid;
@@ -36,7 +35,6 @@ export default class Client {
         this.whiteList = whiteList;
         this.socket = socket;
         this.disposed = false;
-        this.requests = [];
         this.jsonListener = this.jsonListener.bind(this);
 
         this.jsonProxy = jsonProxy;
@@ -49,12 +47,6 @@ export default class Client {
 
     private logContext(): object {
         return {uid: this.uid}
-    }
-
-    public attachRequest(c: ClientRequest) {
-        if (!this.disposed) {
-            this.requests.push(c);
-        }
     }
 
     private sendDiff=()=>{
@@ -93,11 +85,9 @@ export default class Client {
             this.jsonProxy.removeListener(this.jsonListenerId);
             delete clients[this.uid];
 
-        
-            while(this.requests.length) {
-                const r = this.requests[0];
-                this.requests.splice(0, 1);
-                r.dettach();
+            for(const request of Array.from(this.requests.values())) {
+                request.requestCancellation("Client disconnected");
+                request.dettach();
             }
         }
     }
@@ -150,5 +140,25 @@ export default class Client {
             logger.debug('Reply message', {...this.logContext(), data});
             this.write(data);
         }
+    }
+
+    cancelRequested = (id: string) => {
+        const request = this.requests.get(id);
+        if (request !== undefined) {
+            request?.requestCancellation("Explicit abort requested");
+        }
+    }
+
+    newRequest=(id: string) => {
+        const uid = this.uid + ":" + id;
+        const requestDesc = new ClientRequest(uid, this);
+        const existing = this.requests.get(uid);
+        // Insert in the list of active requests
+        if (existing) {
+            logger.warn("Multiple request with same id from client", {uid});
+            existing.requestCancellation("Duplicate request id");
+        }
+        this.requests.set(uid, requestDesc);
+        return requestDesc;
     }
 }

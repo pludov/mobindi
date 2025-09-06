@@ -5,6 +5,7 @@ import Log from './Log';
 import { Watch } from './shared/Watch';
 import Sleep from './Sleep';
 import { createTask } from './Task';
+import { RequestControl, RequestGenerator } from './RequestHandler';
 
 const logger = Log.logger(__filename);
 
@@ -237,10 +238,10 @@ export default class SystemDeviceManager {
         });
     }
 
-    watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, generator:(t:Array<{[id: string]: string}>)=>Promise<void>) => {
+    watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, ctrl: RequestControl & RequestGenerator<Array<{[id: string]: string}>>) => {
         while(true) {
             await Sleep(ct, 1000);
-            await generator([{}]);
+            await ctrl.stream([{}]);
         }
     }
 
