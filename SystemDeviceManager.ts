@@ -110,7 +110,7 @@ class DeviceWatch {
 export default class SystemDeviceManager {
     private readonly watches = new Map<string, CriteriaWatch>();
     private readonly monitoringRequired = new Watch<boolean>(false);
-
+    private lastState : Array<DeviceDesc>|undefined;
     // Return an unregister function
     watch(criterias: {[id: string]:string}, cb:(present:boolean)=> void) : ()=>void {
         const devid = canonicalize(criterias);
@@ -122,6 +122,7 @@ export default class SystemDeviceManager {
         const watch = this.watches.get(devid)!;
         const ret = watch.addWatch(cb);
         this.monitoringRequired.update((cur)=>true);
+        this.lastState = undefined;
         return ret.unregister;
     }
 
@@ -234,6 +235,19 @@ export default class SystemDeviceManager {
                 return new Date().getTime() + 200;
             });
         });
+    }
+
+    watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, generator:(t:Array<{[id: string]: string}>)=>Promise<void>) => {
+        while(true) {
+            await Sleep(ct, 1000);
+            await generator([{}]);
+        }
+    }
+
+    getAPI = () => {
+        return {
+            watchDevice: this.watchDevice
+        }
     }
 }
 

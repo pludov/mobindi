@@ -139,7 +139,7 @@ function initWss(server: http.Server) {
                         const funcImpl = appImpl[_func];
                         let ret;
                         try {
-                            ret = await funcImpl(task.cancellation, message.details.payload);
+                            ret = await funcImpl(task.cancellation, message.details.payload, request.stream);
                         } finally {
                             // Wait here to avoid sending inconsistent state
                             // (let all setimmediate settle down)
@@ -318,6 +318,7 @@ function init() {
             imageProcessor: context.imageProcessor.getAPI(),
             phd: context.phd.getAPI(),
             imagingSetupManager: context.imagingSetupManager.getAPI(),
+            systemDeviceManager: context.systemDeviceManager.getAPI(),
         };
         
         initWss(server);

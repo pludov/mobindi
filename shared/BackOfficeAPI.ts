@@ -5,6 +5,10 @@ import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepP
 import { Json } from './Json';
 import { Diff } from '../shared/JsonProxy';
 
+export interface AsyncStream<T> {
+    next:()=>Promise<T|undefined>;
+}
+
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
 }
@@ -177,6 +181,10 @@ export type SequenceAPI = {
     resetStatMonitoringCurrent: (payload: ResetStatMonitoringRequest)=>void,
 }
 
+export type SystemDeviceManagerAPI = {
+    watchDevice: (payload: { criteria: {[id: string]: string} }) => AsyncStream<Array<{[id: string]: string}>>;
+}
+
 export type ExposedNotificationRequest = {
     uuid: string;
 }
@@ -283,4 +291,5 @@ export type BackOfficeAPI = {
     phd: PhdAPI;
     notification: NotificationAPI;
     imagingSetupManager: ImagingSetupManagerAPI;
+    systemDeviceManager: SystemDeviceManagerAPI;
 }

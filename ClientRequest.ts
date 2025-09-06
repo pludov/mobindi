@@ -61,6 +61,18 @@ export default class ClientRequest {
         this.dettach();
     }
 
+    async stream(payload: any) {
+        logger.debug('Request streaming', {...this.logContext, payload});
+        if (this.promise === undefined) {
+            return;
+        }
+        this.dispatch({
+            type: 'requestStream',
+            uid: this.uid,
+            payload
+        });
+    }
+
     success (rslt:any) {
         if (rslt == undefined) rslt = null;
         logger.info('Request success', this.logContext());
