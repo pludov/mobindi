@@ -239,6 +239,7 @@ export default class SystemDeviceManager {
     }
 
     watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, ctrl: RequestControl & RequestGenerator<Array<{[id: string]: string}>>) => {
+        ctrl.setInterruptible(true);
         while(true) {
             await Sleep(ct, 1000);
             await ctrl.stream([{}]);

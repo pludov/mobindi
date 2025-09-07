@@ -6,17 +6,29 @@ import { WhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 
+type RequestStatus = 'pending'|'sent'|'terminated';
+
 class Request {
     readonly notifier: Notifier;
     readonly requestData: any;
     readonly requestId: number;
     readonly type: string;
     uid: string | undefined;
-    canceled: boolean;
+    status: RequestStatus;
+    cancelRequested: boolean;
     readonly resolve: (e: any) => void;
     readonly reject: (err: any) => void;
+    readonly stream?: (e: any)=> void;
 
-    constructor(notifier: Notifier, requestData: any, requestId: number, resolve: (e:any)=>(void), reject:(err:any)=>(void), type?: string) {
+    constructor(notifier: Notifier,
+        {requestData, requestId, resolve, reject, stream, type}: {
+                    requestData: any,
+                    requestId: number,
+                    resolve: (e:any)=>(void),
+                    reject:(err:any)=>(void),
+                    stream?: (e: any)=>(void),
+                    type?: string,
+                }) {
         this.notifier = notifier;
         this.type = type || "startRequest";
         this.requestData = requestData;
@@ -25,16 +37,18 @@ class Request {
         // Callback for done, onError, onCancel...
         this.resolve = resolve;
         this.reject = reject;
+        this.stream = stream;
 
         // Set when first send
         this.uid = undefined;
 
         // cancel was called on client side ?
-        this.canceled = false;
+        this.status = 'pending';
     }
 
     setClientId(clientId:string) {
         this.uid = clientId + ':' + this.requestId;
+        this.status = 'sent';
     }
 
     wasSent() {
@@ -62,6 +76,16 @@ function appLoadingFeedback(feedback: () => any) {
 
 appLoadingFeedback(()=>({type: 'starting'}));
 
+type Comm =
+    | {
+        startRequest: Request;
+        cancelRequest?: undefined;
+    }
+    | {
+        startRequest?: undefined;
+        cancelRequest: Request;
+    };
+
 export default class Notifier {
     private sendingQueueMaxSize: number;
     private suspended: boolean;
@@ -70,8 +94,7 @@ export default class Notifier {
     private serverId: string|undefined;
     private socket: WebSocket|undefined;
     private url: string|undefined;
-    private toSendRequests: Request[];
-    private toCancelRequests: Request[];
+    private pendingComms: Array<Comm>;
     private activeRequests: {[id:string]:Request};
     private resendTimer: NodeJS.Timeout|undefined;
     private handshakeOk: boolean|undefined;
@@ -104,8 +127,7 @@ export default class Notifier {
         this.serverId = undefined;
 
         // uniqRequestId => Request objects
-        this.toSendRequests = [];
-        this.toCancelRequests = [];
+        this.pendingComms = [];
         this.activeRequests = {};
 
         this.resendTimer = undefined;
@@ -171,16 +193,20 @@ export default class Notifier {
         }
 
         let sthSent = false;
-        while((this.toSendRequests.length || this.toCancelRequests.length) && this.sendingQueueReady()) {
+        while((this.pendingComms.length ) && this.sendingQueueReady()) {
             sthSent = true;
-            if (this.toCancelRequests.length) {
-                const toCancel = this.toCancelRequests.splice(0, 1)[0];
+
+            const commItem = this.pendingComms.splice(0, 1)[0];
+
+            if (commItem.cancelRequest) {
+                const toCancel = commItem.cancelRequest;
                 this.write({
-                    'type': 'cancelRequest',
-                    'uid': toCancel.uid
+                    'type': 'interrupt',
+                    'id': toCancel.requestId
                 });
-            } else {
-                const toSend = this.toSendRequests.splice(0, 1)[0];
+            }
+            if (commItem.startRequest) {
+                const toSend = commItem.startRequest;
                 toSend.setClientId(this.clientId!);
                 this.activeRequests[toSend.uid!] = toSend;
                 this.write({
@@ -192,11 +218,11 @@ export default class Notifier {
         }
         // Add a timer to restart asap
         // FIXME: would prefer a notification from websocket !
-        if (this.toSendRequests.length || this.toCancelRequests.length) {
+        if (this.pendingComms.length) {
             this.resendTimer = setTimeout(()=>{
                 this.resendTimer = undefined;
                 this.sendAsap();
-            }, 100);
+            }, 50);
         }
    }
 
@@ -210,10 +236,90 @@ export default class Notifier {
             if (!this.handshakeOk) {
                 throw "Backend not connected";
             }
-            const request = new Request(this, {... content}, this.uniqRequestId++, resolve, reject, type);
-            this.toSendRequests.push(request);
+            const request = new Request(this, {
+                requestData: {...content},
+                requestId: this.uniqRequestId++,
+                resolve, reject, type
+            });
+            this.pendingComms.push({
+                startRequest: request
+            });
             this.sendAsap();
         });
+    }
+
+    private filterPendingComms(filter: (item: Comm)=>boolean) {
+        for(let i = 0; i <this.pendingComms.length; ) {
+            if (!filter(this.pendingComms[i])) {
+                this.pendingComms.splice(i, 1);
+            } else {
+                i++;
+            }
+        }
+    }
+
+    private cancelRequest(req: Request) {
+        // Check the status of the request, it can be dead already
+        if (req.cancelRequested) {
+            return;
+        }
+        req.cancelRequested = true;
+        switch(req.status) {
+            case 'pending':
+                this.filterPendingComms(item=>item.startRequest !== req);
+                req.status = 'terminated';
+                break;
+            case "sent":
+                // Push a cancellation
+                this.pendingComms.push({
+                    cancelRequest: req
+                });
+                this.sendAsap();
+                break;
+            case "terminated":
+                break;
+        }
+    }
+
+    // Remark: callback will not get called after a call to cancel is done
+    public startStream<Q, R>({requestData, resolve, reject, onItem, type} :
+                {
+                    requestData: Q,
+                    resolve: ()=>void,
+                    reject:(reason:any)=>void,
+                    onItem:(item:R)=>void,
+                    type?: string,
+                }): ()=>void
+    {
+        requestData = {...requestData};
+        const requestId = this.uniqRequestId++;
+        let request:Request|undefined;
+        let cancelled: boolean = false;
+        Promise.resolve().then(()=> {
+            if (!this.handshakeOk) {
+                reject(new Error("Backend not connected"));
+            }
+
+            request = new Request(this, {
+                requestData,
+                requestId,
+                resolve : () => { cancelled || resolve() },
+                reject: (reason) => { cancelled || reject(reason) },
+                stream: (item) => { cancelled || onItem(item) },
+                type
+            });
+            this.pendingComms.push({
+                startRequest: request
+            });
+            this.sendAsap();
+        });
+        return ()=> {
+            if (cancelled) return;
+            cancelled = true;
+            if (request) {
+                this.cancelRequest(request);
+            }
+        };
     }
 
     // Called on reconnection when backend was restarted.
@@ -226,14 +332,10 @@ export default class Notifier {
             const request = this.activeRequests[uid];
             delete this.activeRequests[uid];
 
-            for(let j = 0 ; this.toCancelRequests.length;) {
-                if (this.toCancelRequests[j] === request) {
-                    this.toCancelRequests.splice(j, 1);
-                } else {
-                    j++;
-                }
-            }
+            // Remove pending cancelation
+            this.filterPendingComms(item=>(item.cancelRequest !== request));
 
+            request.status = "terminated";
             try {
                 request.reject(error);
             } catch(e) {
@@ -386,13 +488,33 @@ export default class Notifier {
                     this.handleNotifications({data: data.data});
                 }
 
+                if (data.type == 'requestStream') {
+                    flushNotifications();
+                    const uid = data.uid;
+                    const payload = data.payload;
+                    if (Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) {
+                        const request = this.activeRequests[uid];
+                        logger.info('Request streaming', {uid, payload});
+                        if (request.stream) {
+                            request.stream(payload);
+                        } else {
+                            logger.warn("Received streaming for non streamed request", {uid, payload});
+                        }
+                    } else {
+                        logger.warn("Received streaming for finished/canceled/unknwown request", {uid, payload});
+                    }
+                }
+
                 if (data.type == 'requestEnd') {
                     flushNotifications();
                     const uid = data.uid;
                     if (Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) {
                         const request = this.activeRequests[uid];
                         delete(this.activeRequests[uid]);
-                        this.toCancelRequests = this.toCancelRequests.filter((item)=>(item.uid !== uid));
+                        // No more need for cancellation...
+                        this.filterPendingComms(item=>(item.cancelRequest !== request));
+                        request.status = "terminated";
+
                         logger.info('Request status', {uid, status: data.status});
                         try {
                             switch(data.status) {

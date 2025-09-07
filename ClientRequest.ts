@@ -53,7 +53,7 @@ export default class ClientRequest {
         this.client.reply(content);
     }
 
-    onError(err:any) {
+    readonly onError=(err:any)=>{
         if (err == undefined) {
             err = null;
         } else {
@@ -70,7 +70,7 @@ export default class ClientRequest {
         this.dettach();
     }
 
-    async stream(payload: any) {
+    readonly stream = async (payload: any) => {
         logger.debug('Request streaming', {...this.logContext(), payload});
         this.dispatch({
             type: 'requestStream',
@@ -79,7 +79,7 @@ export default class ClientRequest {
         });
     }
 
-    success (rslt:any) {
+    readonly success= (rslt:any)=>{
         if (rslt == undefined) rslt = null;
         logger.info('Request success', this.logContext());
         logger.debug('Request result', {...this.logContext(), rslt});

@@ -145,7 +145,10 @@ export default class Client {
     cancelRequested = (id: string) => {
         const request = this.requests.get(id);
         if (request !== undefined) {
+            logger.info("Cancelling request as asked by client", {...this.logContext(), id});
             request?.requestCancellation("Explicit abort requested");
+        } else {
+            logger.warn("Cancellation request for an unknown request", {...this.logContext(), id});
         }
     }
 
@@ -158,7 +161,7 @@ export default class Client {
             logger.warn("Multiple request with same id from client", {uid});
             existing.requestCancellation("Duplicate request id");
         }
-        this.requests.set(uid, requestDesc);
+        this.requests.set(id, requestDesc);
         return requestDesc;
     }
 }
