@@ -116,6 +116,10 @@ function initWss(server: http.Server) {
                 }
                 return;
             }
+            if (message.type === "srvProbe") {
+                client.onProbeReceived(message);
+                return;
+            }
             if (message.type === "interrupt") {
                 const id = parseRequestId(message.id);
                 if (id === null) {

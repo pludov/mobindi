@@ -487,6 +487,10 @@ export default class Notifier {
 
                     this.handleNotifications({data: data.data});
                 }
+                if (data.type === 'srvProbe') {
+                    // Just forward back the probe.
+                    this.write(data);
+                }
 
                 if (data.type == 'requestStream') {
                     flushNotifications();

@@ -10,20 +10,40 @@ const clients: {[id:string]:Client} = {};
 
 const pingDelay = 60000;
 
+
+type SendQueueItem = {
+    // Perform a sendDiff before sending the payload
+    sendDiff: boolean;
+    payload: any;
+    cb?: (err?:any)=>void;
+}
+
+type Probe = {
+    type: "srvProbe",
+    id: number;
+    offset: number;
+    time: number;
+}
+
 export default class Client {
     public readonly uid: string;
     
-    private pendingWrites = 0;
+    // Byte counter of transmitted characters
     private writes = 0;
-    private pendingDiffs = 0;
+    private lastProbeAcked: Probe | undefined;
+    private lastProbeSent: Probe| undefined;
+    private laggingWarning : number|undefined;
+
     readonly socket: WebSocket;
     private disposed: boolean;
     private jsonProxy: JsonProxy<BackofficeStatus>;
     private jsonSerial: ComposedSerialSnapshot;
     private jsonListenerId: string;
-    private sendingTimer: NodeJS.Timeout|undefined;
+    private sendDiffTimer: {id: NodeJS.Timeout}|undefined;
     private whiteList: WhiteList;
     private pingTo: undefined|NodeJS.Timeout;
+    private sendQueue:Array<SendQueueItem>;
+
     requests: Map<string, ClientRequest> = new Map();
     constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList)
     {
@@ -32,6 +52,7 @@ export default class Client {
 
         logger.info('Client connected', {...this.logContext(), whiteList});
 
+        this.sendQueue = [];
         this.whiteList = whiteList;
         this.socket = socket;
         this.disposed = false;
@@ -40,8 +61,11 @@ export default class Client {
         this.jsonProxy = jsonProxy;
         const initialState = this.jsonProxy.fork(whiteList);
         this.jsonSerial = initialState.serial;
-        this.sendingTimer = undefined;
-        this.notify({type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data});
+        this.sendDiffTimer = undefined;
+        this.enqueue({
+            sendDiff: false,
+            payload: {type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data}
+        });
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
     }
 
@@ -49,25 +73,135 @@ export default class Client {
         return {uid: this.uid}
     }
 
-    private sendDiff=()=>{
-        if (this.sendingTimer !== undefined) {
-            clearTimeout(this.sendingTimer);
-            this.sendingTimer = undefined;
+    private enqueue(sendQueueItem: SendQueueItem) {
+        if (this.disposed) {
+            return;
         }
-        this.pendingDiffs = 0;
-        var patch = this.jsonProxy.diff(this.jsonSerial, this.whiteList);
+        this.sendQueue.push(sendQueueItem);
+        this.flushSendQueue();
+    }
+
+    private async transmit(sendQueueItem: SendQueueItem) {
+        if (this.disposed) {
+            return;
+        }
+
+        return new Promise((res, rej)=> {
+            sendQueueItem.cb = res;
+            this.enqueue(sendQueueItem);
+        });
+
+    }
+
+    private flushSendQueue() {
+        if (this.disposed) {
+            // callback for sendqueueitem...
+            this.sendQueue.splice(0, this.sendQueue.length).forEach((e)=> {
+                if (e.cb) {
+                    setImmediate(e.cb);
+                }  
+            });
+            return;
+        }
+
+
+        if (!this.sendQueue.length) {
+            return;
+        }
+
+        // Send a traffic probe every 64k, or every 0.5s, whatever comes first
+        // Traffic will not proceed until the last probe has been acked
+
+        // Check if we must wait for a probe (right after the second was sent)
+        if (this.lastProbeSent && this.lastProbeSent.id > 0) {
+            // Waiting for probe
+            const now = new Date().getTime();
+
+            if (this.lastProbeSent.time + 1000 < now) {
+                if (this.laggingWarning == undefined) {
+                    logger.warn("Client is lagging over 1000ms", {...this.logContext(), lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked});
+                    this.laggingWarning = now;
+                }
+            } else {
+                if (this.laggingWarning) {
+                    this.laggingWarning = undefined;
+                    logger.info("Client is back under 1000ms", {...this.logContext(), lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked});
+                }
+            }
+
+            if ((!this.lastProbeAcked) || (this.lastProbeAcked.id < this.lastProbeSent.id - 1)) {
+                return;
+            }
+        }
+        if (this.laggingWarning) {
+            this.laggingWarning = undefined;
+            logger.info("Client is back under 1000ms", {...this.logContext(), lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked});
+        }
+
+        let maxOffset = (this.lastProbeSent?.offset || 0) + 65536;
+        while((!this.disposed) && this.sendQueue.length && (this.writes < maxOffset)) {
+            const item = this.sendQueue.splice(0, 1)[0];
+            if (item.sendDiff) {
+                const patch = this.getPendingDiff();
+                if (patch !== undefined) {
+                    this.write(patch);
+                }
+            }
+            if ((item.payload)&&!(this.disposed)) {
+                this.write(item.payload);
+            }
+            if (item.cb) {
+                setImmediate(item.cb);
+            }
+        }
+
+        let now = new Date().getTime();
+        if ((this.writes >= maxOffset) || ((this.lastProbeSent?.time || 0) + 500 < now)) {
+            logger.debug("Sending probe", {...this.logContext(), writes: this.writes, lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked, queueLength: this.sendQueue.length, bufferedAmount: this.socket.bufferedAmount});
+            this.lastProbeSent = {
+                time: now,
+                offset: this.writes,
+                id: ( this.lastProbeSent === undefined ? 0 : this.lastProbeSent.id + 1),
+                type: "srvProbe"
+            }
+            this.write(this.lastProbeSent);
+        }
+    }
+
+    onProbeReceived(p: Probe) {
+        // FIXME: use the time delta ?
+        this.lastProbeAcked = p;
+        // If the acked probe is the last sent, we can proceed
+        this.flushSendQueue();
+    }
+
+    private getPendingDiff=()=>{
+        if (this.sendDiffTimer !== undefined) {
+            clearTimeout(this.sendDiffTimer.id);
+            this.sendDiffTimer = undefined;
+        }
+        const patch = this.jsonProxy.diff(this.jsonSerial, this.whiteList);
         if (patch !== undefined) {
-            this.notify({type: 'update', status: "ok", diff: patch});
+            return {type: 'update', status: "ok", diff: patch};
+        } else {
+            return undefined;
         }
     }
 
     private jsonListener=()=>{
-        this.pendingDiffs++;
-        if (this.sendingTimer === undefined) {
-            this.sendingTimer = setTimeout(()=> {
-                this.sendingTimer = undefined;
-                this.sendDiff();
-            }, 40);
+        if (this.sendDiffTimer === undefined) {
+            const timer = {
+                id: setTimeout(async ()=> {
+                    await this.transmit({
+                        sendDiff: true,
+                        payload: undefined,
+                    });
+                    if (this.sendDiffTimer === timer) {
+                        this.sendDiffTimer = undefined;
+                    }
+                }, 40)
+            };
+            this.sendDiffTimer = timer;
         }
     }
 
@@ -92,9 +226,6 @@ export default class Client {
         }
     }
 
-    public notify=(changeEvent:any)=>{
-        this.write(changeEvent);
-    }
 
     private ping=()=>{
         logger.info('pinging client', {uid: this.uid});
@@ -116,12 +247,14 @@ export default class Client {
             if (this.disposed) {
                 return;
             }
-            this.socket.send(JSON.stringify(event), (error)=> {
+            const payload = JSON.stringify(event);
+            const byteSize = payload.length;
+            this.writes += byteSize;
+            this.socket.send(payload, (error)=> {
                 if (error !== undefined  && error !== null) {
                     logger.warn('Failed to send', this.logContext(), error);
                     this.dispose();
                 }
-                this.writes--;
                 this.restartPing();
             });
         } catch(e) {
@@ -129,16 +262,27 @@ export default class Client {
             this.dispose();
             return;
         }
-        this.writes++;
     }
 
-    public reply=(data:any)=>{
-        // Ensure client view is up to date
-        this.sendDiff();
-
+    public reply=(payload:any)=>{
         if (!this.disposed) {
-            logger.debug('Reply message', {...this.logContext(), data});
-            this.write(data);
+            logger.debug('Reply message', {...this.logContext(), payload});
+            this.enqueue({
+                // Ensure client view is up to date
+                sendDiff: true,
+                payload
+            });
+        }
+    }
+
+    public stream=async (payload: any)=> {
+        if (!this.disposed) {
+            logger.debug('Stream message', {...this.logContext(), payload});
+            await this.transmit({
+                // Ensure client view is up to date
+                sendDiff: true,
+                payload
+            });
         }
     }
 

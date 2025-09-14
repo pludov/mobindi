@@ -71,8 +71,10 @@ export default class ClientRequest {
     }
 
     readonly stream = async (payload: any) => {
-        logger.debug('Request streaming', {...this.logContext(), payload});
-        this.dispatch({
+        if (this.client === undefined) {
+            return;
+        }
+        await this.client.stream({
             type: 'requestStream',
             uid: this.uid,
             payload
