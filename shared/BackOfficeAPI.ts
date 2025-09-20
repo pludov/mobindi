@@ -181,8 +181,15 @@ export type SequenceAPI = {
     resetStatMonitoringCurrent: (payload: ResetStatMonitoringRequest)=>void,
 }
 
+export type SystemDeviceList = Array<{[id: string]: string}>;
+export type SystemDevicePartialList = {
+    items: SystemDeviceList,
+    more: boolean,
+    props: {[props:string]: Array<string>},
+}
+
 export type SystemDeviceManagerAPI = {
-    watchDevice: (payload: { criteria: {[id: string]: string} }) => AsyncStream<Array<{[id: string]: string}>>;
+    watchDevice: (payload: { criteria: {[id: string]: string} }) => AsyncStream<SystemDevicePartialList>;
 }
 
 export type ExposedNotificationRequest = {

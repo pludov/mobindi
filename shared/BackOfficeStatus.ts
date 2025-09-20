@@ -241,9 +241,14 @@ export type IndiProfileConfiguration = {
     active: boolean;
     // Exclusive groups will not be allowed to be active at the same time
     exclusionGroup: string|null;
+
+    // Activate when this device appear
     systemDeviceIdentifier: null|{[id: string]:string};
     // true if profile is to be activated when the device is present
-    systemDeviceLogic: boolean;
+    // false for the opposite logic
+    // null disable automatic change
+    systemDeviceLogic: null|boolean;
+
     // Keys are Stringified of { dev, vec, prop }
     keys: ProfilePropertyAssociation<IndiProfilePropertyConfiguration>;
 }

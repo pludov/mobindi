@@ -41,6 +41,16 @@ class IndiProfileEditDialog extends React.PureComponent<Props> {
             });
     }
 
+    readonly updateSystemDevice = async(e: Pick<IndiProfileConfiguration, "systemDeviceLogic"|"systemDeviceIdentifier">) => {
+        console.log('Updating system device', e);
+        await BackendRequest.RootInvoker("indi")("updateProfile")(
+            CancellationToken.CONTINUE,
+            {
+                uid: this.props.uid,
+                ...e
+            });
+    }
+
     readonly updateExclusionGroup = async(otherUids: Array<string>) => {
         await BackendRequest.RootInvoker("indi")("updateProfileExclusionGroup")(
             CancellationToken.CONTINUE,
@@ -59,9 +69,12 @@ class IndiProfileEditDialog extends React.PureComponent<Props> {
                 <IndiProfileAttributes
                     name={this.props.name}
                     exclusionGroupPeers={this.props.exclusionGroupPeers}
+                    systemDeviceIdentifier={this.props.systemDeviceIdentifier}
+                    systemDeviceLogic={this.props.systemDeviceLogic}
                     nameChanged={this.updateName}
                     exclusionGroupChanged={this.updateExclusionGroup}
                     exclusionGroupPotentials={this.props.exclusionGroupPotentials}
+                    systemDeviceChanged={this.updateSystemDevice}
                     />
             </>
         );

@@ -91,6 +91,10 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             logger.warn("Profile not found during device activation", {profileUid, deviceIsPresent});
             return;
         }
+        if (profile.systemDeviceLogic === null) {
+            logger.warn("Profile has no device logic during device activation", {profileUid, deviceIsPresent});
+            return;
+        }
 
         const targetState = profile.systemDeviceLogic ? deviceIsPresent : !deviceIsPresent;
 
@@ -108,7 +112,7 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
     private readonly registerSystemDeviceWatches= ()=>{
         for(const [k,prof] of Object.entries(this.indiManager.configuration.profiles.byUid)) {
             let listener = this.perProfileDeviceListener.get(k);
-            if (!prof.systemDeviceIdentifier) {
+            if ((!prof.systemDeviceIdentifier) || (prof.systemDeviceLogic === null)) {
                 if (listener) {
                     listener.cancel();
                     this.perProfileDeviceListener.delete(k);
@@ -126,7 +130,7 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                 if (jsonCrit !== listener.jsonCrit) {
                     listener.cancel();
                     listener.jsonCrit = jsonCrit;
-                    listener.cancel = this.context.systemDeviceManager.watch(JSON.parse(jsonCrit) as any, (present)=> {
+                    listener.cancel = this.context.systemDeviceManager.presenceWatch(JSON.parse(jsonCrit) as any, (present)=> {
                         this.switchProfileFromDevice(k, present)
                     });
                 }
@@ -336,7 +340,7 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             name: "New profile",
             active: false,
             systemDeviceIdentifier: null,
-            systemDeviceLogic: true,
+            systemDeviceLogic: null,
             ...payload,
             exclusionGroup: null,
             keys: {},
@@ -434,6 +438,12 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         }
         if (payload.name !== undefined) {
             profile.name = payload.name;
+        }
+        if (payload.systemDeviceIdentifier !== undefined) {
+            profile.systemDeviceIdentifier = payload.systemDeviceIdentifier;
+        }
+        if (payload.systemDeviceLogic !== undefined) {
+            profile.systemDeviceLogic = payload.systemDeviceLogic;
         }
     }
 

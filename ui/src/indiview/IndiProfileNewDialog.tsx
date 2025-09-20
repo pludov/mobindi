@@ -28,6 +28,8 @@ export class UnmappedIndiProfileNewDialog extends React.PureComponent<Props, Sta
         this.state = {
             name: "",
             exclusionGroupPeers: [],
+            systemDeviceIdentifier: null,
+            systemDeviceLogic: false,
         };
     }
 
@@ -67,6 +69,9 @@ export class UnmappedIndiProfileNewDialog extends React.PureComponent<Props, Sta
                     exclusionGroupPeers={this.state.exclusionGroupPeers}
                     exclusionGroupChanged={this.updateExclusionGroup}
                     exclusionGroupPotentials={this.props.exclusionGroupPotentials}
+                    systemDeviceLogic={this.state.systemDeviceLogic}
+                    systemDeviceIdentifier={this.state.systemDeviceIdentifier}
+                    systemDeviceChanged={(e)=>this.setState(e)}
                     />
             </>
         );

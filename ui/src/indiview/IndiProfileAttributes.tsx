@@ -7,8 +7,9 @@ import * as Help from '../Help';
 import TextEdit from '../TextEdit';
 import { getProfileList } from '../IndiProfileStore';
 import './IndiProfileAttributes.css';
+import SystemDeviceFilterEditor from '../SystemDeviceFilterEditor';
 
-type StandardProps = Omit<IndiProfileConfiguration, "uid" | "active" | "keys" | "exclusionGroup" | "systemDeviceIdentifier" | "systemDeviceLogic">;
+type StandardProps = Omit<IndiProfileConfiguration, "uid" | "active" | "keys" | "exclusionGroup">;
 
 export type HandledProps = StandardProps & {
     exclusionGroupPeers: Array<string>
@@ -18,9 +19,10 @@ type OnChangeCallbacks<API> = {
     [P in keyof API as P extends string ? `${P}Changed` : never]: (value: API[P])=>void;
 }
 
-type Props = HandledProps & OnChangeCallbacks<StandardProps> & {
+type Props = HandledProps & OnChangeCallbacks<Omit<StandardProps, "systemDeviceLogic"|"systemDeviceIdentifier">> & {
     exclusionGroupPotentials: ReturnType<ReturnType<typeof getProfileList>>;
     exclusionGroupChanged: (uids:Array<string>)=> void;
+    systemDeviceChanged: (systemDevice: Pick<StandardProps, "systemDeviceIdentifier"|"systemDeviceLogic">)=>void;
 };
 
 
@@ -107,6 +109,16 @@ class IndiProfileAttributes extends React.PureComponent<Props, State> {
                     :
                     null
                 }
+                <div >
+                    <span className="systemDeviceFilterTitle">Depends on system device:
+                        </span>
+                    <SystemDeviceFilterEditor
+                        systemDeviceLogic={this.props.systemDeviceLogic}
+                        systemDeviceIdentifier={this.props.systemDeviceIdentifier}
+                        onChange={this.props.systemDeviceChanged}
+                        />
+
+                </div>
             </>
         );
     }

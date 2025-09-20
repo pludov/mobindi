@@ -65,7 +65,7 @@ export class Watch<Something> {
                 continue;
             }
             this.watchers.delete(k);
-            setImmediate(cb);
+            Promise.resolve().then(cb);
         }
     }
 

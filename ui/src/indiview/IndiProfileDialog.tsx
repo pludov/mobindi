@@ -181,7 +181,7 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
 
             </Modal>
             <input className="GlyphBton" {...IndiProfileDialog.newProfileBtonHelp.dom()}
-                                type='button' value='⭐New profile' onClick={this.onNewProfileClick}/>
+                                type='button' value='⭐️New profile' onClick={this.onNewProfileClick}/>
             </>
         );
     }

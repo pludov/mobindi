@@ -138,7 +138,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                     o.systemDeviceIdentifier = null;
                 }
                 if (o.systemDeviceLogic === undefined) {
-                    o.systemDeviceLogic = true;
+                    o.systemDeviceLogic = null;
                 }
             }
 

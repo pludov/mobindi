@@ -6,6 +6,8 @@ import { Watch } from './shared/Watch';
 import Sleep from './Sleep';
 import { createTask } from './Task';
 import { RequestControl, RequestGenerator } from './RequestHandler';
+import { deepEqual } from './shared/Obj';
+import { SystemDeviceList, SystemDevicePartialList } from './shared/BackOfficeAPI';
 
 const logger = Log.logger(__filename);
 
@@ -18,10 +20,12 @@ class CriteriaWatch {
     readonly watches: Array<DeviceWatch> = [];
 
     state: boolean|undefined;
+    matches: SystemDeviceList|undefined;
 
     constructor(globalMonitor: SystemDeviceManager, criterias: {[id: string]:string}) {
         this.globalMonitor = globalMonitor;
         this.criterias = criterias;
+        this.matches = undefined;
     }
 
     removeWatch(c: DeviceWatch) {
@@ -36,15 +40,22 @@ class CriteriaWatch {
         }
     }
 
-    addWatch(cb: (present: boolean) =>  void) : DeviceWatch {
-        const watch = new DeviceWatch(cb, this);
+    addPresenceWatch(cb: (present: boolean) =>  void) : DeviceWatch {
+        const watch = new DevicePresenceWatch(cb, this);
         this.watches.push(watch);
-        Promise.resolve().then(watch.invoke);
+        Promise.resolve().then(watch.invoke.bind(watch));
         return watch;
     }
 
-    broadcast(newValue: boolean) {
-        logger.debug("Updating to new state", {newValue, oldValue: this.state, criterias: this.criterias});
+    addMatchesWatch(cb: (content: SystemDeviceList)=>void) : DeviceWatch {
+        const watch = new DeviceListWatch(cb, this);
+        this.watches.push(watch);
+        Promise.resolve().then(watch.invoke.bind(watch));
+        return watch;
+    }
+
+    broadcastPresence(newValue: boolean) {
+        logger.info("Updating to new state", {newValue, oldValue: this.state, criterias: this.criterias});
         if (newValue === this.state) {
             return;
         }
@@ -52,12 +63,30 @@ class CriteriaWatch {
         this.state = newValue;
 
         for(const w of [...this.watches]) {
-            Promise.resolve().then(w.invoke);
+            if (w.wantPresence) {
+                Promise.resolve().then(w.invoke.bind(w));
+            }
         }
     }
 
+    broadcastMatches(newMatches: SystemDeviceList) {
+        logger.info("Updating to new device list", {newMatches, oldValue: this.state, criterias: this.criterias});
+        if (deepEqual(this.matches, newMatches)) {
+            return;
+        }
+        this.matches = newMatches;
+        for(const w of [...this.watches]) {
+            if (w.wantMatches) {
+                Promise.resolve().then(w.invoke.bind(w));
+            }
+        }
+    }
+
+
     update(devices: Array<DeviceDesc>) {
         let contains = false;
+        let matching = [];
+
         logger.debug("Checking devices", {criterias: this.criterias});
         for(const d of devices) {
             let match = true;
@@ -69,41 +98,101 @@ class CriteriaWatch {
             }
             if (match) {
                 contains = true;
-                break;
+                matching.push(d);
             }
         }
-        this.broadcast(contains);
+        this.broadcastMatches(matching);
+        this.broadcastPresence(contains);
     }
 }
 
 
 class DeviceWatch {
+    protected readonly device: CriteriaWatch;
+    protected alive: boolean;
+    wantPresence: boolean;
+    wantMatches: boolean;
+
+    constructor(device: CriteriaWatch) {
+        this.device = device;
+        this.alive = true;
+        this.wantPresence = false;
+        this.wantMatches = false;
+    }
+
+    public unregister() {
+        this.device.removeWatch(this);
+        this.alive = false;
+    }
+
+    invoke() {
+        throw new Error("pure method called");
+    }
+}
+
+class DevicePresenceWatch extends DeviceWatch {
     private cb: ((present:boolean)=>void)|undefined;
     private sent: undefined|boolean;
-    private readonly device: CriteriaWatch;
+
     constructor(cb: (present:boolean)=>void, device: CriteriaWatch) {
+        super(device)
+        this.wantPresence = true;
         this.cb = cb;
-        this.device = device;
         this.sent = undefined;
     }
 
-    public unregister=()=>{
+    public unregister(): void {
+        super.unregister();
         this.cb = undefined;
-        this.device.removeWatch(this);
     }
 
-    invoke = ()=>{
-        if (this.cb) {
-            const value = this.device.state;
-            if (value === undefined) {
-                return;
-            }
-            if (value === this.sent) {
-                return;
-            }
-            this.sent = value;
-            this.cb(value);
+    invoke() {
+        if (!this.cb) {
+            return;
         }
+
+        const value = this.device.state;
+        if (value === undefined) {
+            return;
+        }
+        if (value === this.sent) {
+            return;
+        }
+        this.sent = value;
+        this.cb(value);
+    }
+}
+
+class DeviceListWatch extends DeviceWatch {
+    private cb: ((content: SystemDeviceList)=>void)| undefined;
+    private sent: SystemDeviceList|undefined;
+
+    constructor(cb: (content: SystemDeviceList)=>void, device: CriteriaWatch) {
+        super(device);
+        this.wantMatches = true;
+        this.cb = cb;
+        this.sent = undefined;
+    }
+
+    public unregister(): void {
+        super.unregister();
+        this.cb = undefined;
+    }
+
+    invoke() {
+        if (!this.cb) {
+            return;
+        }
+
+        const value = this.device.matches;
+        if (value === undefined) {
+            return;
+        }
+        if (deepEqual(value, this.sent)) {
+            return;
+        }
+        this.sent = value;
+        this.cb(value);
     }
 }
 
@@ -111,20 +200,32 @@ class DeviceWatch {
 export default class SystemDeviceManager {
     private readonly watches = new Map<string, CriteriaWatch>();
     private readonly monitoringRequired = new Watch<boolean>(false);
-    private lastState : Array<DeviceDesc>|undefined;
-    // Return an unregister function
-    watch(criterias: {[id: string]:string}, cb:(present:boolean)=> void) : ()=>void {
+    private state: SystemDeviceList|undefined = undefined;
+    private getWatch(criterias: {[id: string]:string}) {
         const devid = canonicalize(criterias);
-        let init = false;
+
         if (!this.watches.has(devid)) {
-            this.watches.set(devid, new CriteriaWatch(this, JSON.parse(devid)));
-            init = true;
+            const w = new CriteriaWatch(this, JSON.parse(devid));
+            this.watches.set(devid, w);
+            this.monitoringRequired.update((cur)=>true);
+            if (this.state !== undefined) {
+                w.update(this.state);
+            }
         }
-        const watch = this.watches.get(devid)!;
-        const ret = watch.addWatch(cb);
-        this.monitoringRequired.update((cur)=>true);
-        this.lastState = undefined;
-        return ret.unregister;
+        return this.watches.get(devid)!;
+    }
+
+    // Return an unregister function
+    public presenceWatch(criterias: {[id: string]:string}, cb:(present:boolean)=> void) : ()=>void {
+        const watch = this.getWatch(criterias);
+        const ret = watch.addPresenceWatch(cb);
+        return ret.unregister.bind(ret);
+    }
+
+    public matchesWatch(criterias: {[id: string]:string}, cb:(items: SystemDeviceList)=> void) : ()=>void {
+        const watch = this.getWatch(criterias);
+        const ret = watch.addMatchesWatch(cb);
+        return ret.unregister.bind(ret);
     }
 
     removeWatch(watch: CriteriaWatch) {
@@ -155,6 +256,7 @@ export default class SystemDeviceManager {
             });
 
             logger.info("Device monitoring ended");
+            this.state = undefined;
         }
     }
 
@@ -189,7 +291,13 @@ export default class SystemDeviceManager {
     }
 
     broadcast(devices: Array<DeviceDesc>) {
-        // Broadcast the devices to all watches
+
+        devices.sort((a, b) => {
+            return (a.title< b.title ? -1 : a.title>b.title ? 1 : 0)
+        });
+
+        this.state = devices;
+        // Broadcast the devices to all presenceWatches
         const done = new Set<string>();
         while(true) {
             let sthDone = false;
@@ -238,11 +346,71 @@ export default class SystemDeviceManager {
         });
     }
 
-    watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, ctrl: RequestControl & RequestGenerator<Array<{[id: string]: string}>>) => {
+
+    static createPartialDeviceList(dev: SystemDeviceList) : SystemDevicePartialList {
+
+        const propsMap: Map<string, Set<string>>  = new Map();
+        for(const d of dev) {
+            for(const [k,v] of Object.entries(d)) {
+                if (k === 'title') {
+                    continue;
+                }
+                if (k === 'SYSNAME') {
+                    continue;
+                }
+                let kset = propsMap.get(k);
+                if (kset === undefined) {
+                    kset = new Set();
+                    propsMap.set(k, kset);
+                }
+                kset.add(v);
+            }
+        }
+
+        const props : SystemDevicePartialList['props'] = {};
+
+        for(const [k, v] of propsMap) {
+            const arr = Array.from(v.values()).sort();
+            props[k] = arr;
+        }
+
+        return {
+            items: dev.slice(0, 10),
+            more: dev.length > 10,
+            props,
+        };
+    }
+
+    watchDevice = async(ct: CancellationToken, payload: { criteria: {[id: string]: string} }, ctrl: RequestControl & RequestGenerator<SystemDevicePartialList>) => {
         ctrl.setInterruptible(true);
-        while(true) {
-            await Sleep(ct, 1000);
-            await ctrl.stream([{}]);
+
+        // When a notif arrive it will either start a transmit promise or get enqueued.
+        let pending: SystemDeviceList|undefined = undefined;
+        let sending: boolean = false;
+
+        const cancel = this.matchesWatch(payload.criteria, async (items)=> {
+            if (sending) {
+                pending = items;
+                return;
+            }
+
+            pending = items;
+            sending = true;
+            try {
+                while(pending) {
+                    let e = pending;
+                    pending = undefined;
+                    await ct.racePromise(ctrl.stream(SystemDeviceManager.createPartialDeviceList(e)));
+                }
+            } finally {
+                sending = false;
+            }
+        });
+        try {
+            await ct.racePromise(new Promise(()=>{}));
+        } finally {
+            logger.info("Stopping device watch", {criteria: payload.criteria});
+            cancel();
         }
     }
 
@@ -357,7 +525,7 @@ async function demo() {
         ID_VENDOR: 'pludov',
         ID_SERIAL_SHORT: 'E66038B713397937',
     };
-    const w = monitor.watch(watch, (present)=> {
+    const w = monitor.presenceWatch(watch, (present)=> {
         console.log('Presence of device', watch, 'is now', present);
     });
 }
