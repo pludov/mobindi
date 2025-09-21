@@ -106,6 +106,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         logger.warn("Switching profile status according to system device", {profileUid, name: profile.name, targetState, deviceIsPresent, systemDeviceIdentifier: profile.systemDeviceIdentifier});
 
         profile.active = targetState;
+        this.applyExclusionAfterProfileSwitch(profile);
+
         this.context.notification.info(`Indi profile ${profile.name} ${targetState ? "enabled": "disabled"} ${deviceIsPresent ? "since control device is connected": "because control device is not found"}`);
     }
 
@@ -416,25 +418,30 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
         }
     };
 
+    readonly applyExclusionAfterProfileSwitch=(profile: IndiProfileConfiguration)=>{
+        // for exclusionGroup, switch off other profiles
+        if (profile.active && profile.exclusionGroup !== null) {
+            for(const other of this.getExclusionGroupProfiles(profile.exclusionGroup)) {
+                if (other !== profile.uid) {
+                    const otherProfile = this.getProfile(other);
+                    if (otherProfile && otherProfile.active) {
+                        otherProfile.active = false;
+                    }
+                }
+            }
+        }
+
+    }
+
     readonly updateProfile = async (ct: CancellationToken, payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string}) => {
         const profile = this.getProfile(payload.uid);
         if (!profile) {
             throw new Error("Profile not found");
         }
-        if (payload.active !== undefined) {
+        if (payload.active !== undefined && payload.active !== profile.active) {
             profile.active = payload.active;
 
-            // for exclusionGroup, switch off other profiles
-            if (profile.exclusionGroup !== null) {
-                for(const other of this.getExclusionGroupProfiles(profile.exclusionGroup)) {
-                    if (other !== profile.uid) {
-                        const otherProfile = this.getProfile(other);
-                        if (otherProfile && otherProfile.active) {
-                            otherProfile.active = false;
-                        }
-                    }
-                }
-            }
+            this.applyExclusionAfterProfileSwitch(profile);
         }
         if (payload.name !== undefined) {
             profile.name = payload.name;
