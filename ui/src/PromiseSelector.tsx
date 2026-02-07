@@ -7,6 +7,7 @@ const logger = Log.logger(__filename);
 type Control = {
     id: string;
     title: string;
+    disabled?: boolean;
     run: ()=>Promise<any>;
 }
 
@@ -145,7 +146,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         if (this.props.controls) {
             for(const v of this.props.controls) {
                 var id = "ctrl:" + JSON.stringify(v.id);
-                options.push(<option value={id} key={id}>{v.title}</option>);
+                options.push(<option value={id} key={id} disabled={!!v.disabled}>{v.title}</option>);
                 disabled = false;
             }
         }

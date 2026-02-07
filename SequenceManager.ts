@@ -236,6 +236,47 @@ export default class SequenceManager
         return key;
     }
 
+    copySequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
+        const sourceKey = message.sequenceUid;
+
+        if (!hasKey(this.currentStatus.sequences.byuuid, sourceKey)) {
+            throw new Error("source sequence not found");
+        }
+        const source = this.currentStatus.sequences.byuuid[sourceKey];
+
+        const model: Partial<Sequence>= {
+            imagingSetup: source.imagingSetup,
+
+            root: deepCopy(source.root),
+            fwhmMonitoring: deepCopy(source.fwhmMonitoring),
+            backgroundMonitoring: deepCopy(source.backgroundMonitoring),
+            activityMonitoring: deepCopy(source.activityMonitoring),
+        };
+
+
+        const key = uuidv4();
+        const firstSeq = uuidv4();
+        this.currentStatus.sequences.byuuid[key] = this.completeSequence({
+            status: 'idle',
+            title: 'New sequence',
+            progress: null,
+            imagingSetup: null,
+            errorMessage: null,
+
+            root: {
+                type: 'FRAME_LIGHT'
+            },
+
+            images: [],
+            imageStats: {},
+            ...model
+        });
+
+
+        this.currentStatus.sequences.list.push(key);
+        return key;
+    }
+
     findSequenceFromRequest=(sequenceUid:string): Sequence=>
     {
         if (!hasKey(this.currentStatus.sequences.byuuid, sequenceUid)) {
@@ -1128,6 +1169,7 @@ export default class SequenceManager
             stopSequence: this.stopSequence,
             resetSequence: this.resetSequence,
             dropSequence: this.dropSequence,
+            copySequence: this.copySequence,
             resetStatMonitoringLearning: this.resetStatMonitoringLearning,
             resetStatMonitoringCurrent: this.resetStatMonitoringCurrent,
         }

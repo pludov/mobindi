@@ -33,6 +33,16 @@ async function newSequence(onCreated: (uid:string)=>void) {
     onCreated(sequence);
 }
 
+async function copySequence(existing: string, onCreated: (uid:string)=>void) {
+    const sequence = await BackendRequest.RootInvoker("sequence")("copySequence")(
+        CancellationToken.CONTINUE,
+        {
+            sequenceUid: existing,
+        });
+    Actions.dispatch<SequenceStore.SequenceActions>()("setCurrentSequence", {sequence});
+    onCreated(sequence);
+}
+
 const sequenceSelectorHelp = Help.key("Sequence selector", "Select the sequence to display. Choose \"New\" to create a new sequence (last position)");
 
 const SequenceSelector = connect(()=>{
@@ -46,7 +56,15 @@ const SequenceSelector = connect(()=>{
 
     const controls = createSelector(
             (store: Store.Content, ownProps: OwnProps)=>ownProps.onCreated,
-            (onCreated)=> [{
+            (store: Store.Content, ownProps: OwnProps)=>atPath(store, ownProps.currentPath),
+            (onCreated, existing)=> [
+            {
+                id: 'duplicate',
+                title: '✨ Copy',
+                disabled: !existing,
+                run: ()=>copySequence(existing, onCreated)
+            },
+            {
                 id:'new',
                 title:'✏️ New',
                 run: ()=>newSequence(onCreated)

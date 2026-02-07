@@ -164,6 +164,7 @@ export type CameraAPI = {
 
 export type SequenceAPI = {
     newSequence: (payload: {})=>string;
+    copySequence: (payload: {sequenceUid: string})=>string;
     startSequence: (payload: {sequenceUid: string})=>void;
     stopSequence: (payload: {sequenceUid: string})=>void;
     resetSequence: (payload: {sequenceUid: string})=>void;
