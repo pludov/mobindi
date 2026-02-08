@@ -256,10 +256,19 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
 
                 if (!stopped) {
-                    const newDistanceWithInertia = PolarAlignmentWizard.raDistance(newRa 
-                            + settings.slewInertiaFactor *  accelerationDetector.getExpectedInertia()
-                            + settings.slewStopDuration * accelerationDetector.getSpeed(),
+                    // The speed is from the initial error to 0.
+                    const dynamicCorrection = -1 * settings.slewInertiaFactor * accelerationDetector.getExpectedInertia();
+                    const staticCorrection = -1 * settings.slewStopDuration * accelerationDetector.getSpeed();
+                    const newDistanceWithInertia = PolarAlignmentWizard.raDistance(newRa
+                            + dynamicCorrection
+                            + staticCorrection,
                             targetRa);
+                    logger.info(`estimated stop position`, {
+                        newRa,
+                        dynamicCorrection,
+                        staticCorrection,
+                        targetRa
+                    });
 
                     if (Math.sign(newDistanceWithInertia) != Math.sign(initialDistance)) {
                         logger.info('Stopping scope early to account stop inertia');
