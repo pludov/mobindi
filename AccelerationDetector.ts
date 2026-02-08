@@ -6,7 +6,7 @@ export class AccelerationDetector {
     maxSpeed: number|undefined;
     startSample: number;
     lastSample: number;
-    accelPhaseSamples: number|undefined;
+    accelPhaseLastSample: number|undefined;
     lastTime: number;
     sampleCount: number;
     done: boolean;
@@ -18,7 +18,7 @@ export class AccelerationDetector {
         this.lastSample = firstSample;
         this.startSample = firstSample;
         this.maxSpeed = undefined;
-        this.accelPhaseSamples = undefined;
+        this.accelPhaseLastSample = undefined;
         this.sampleCount = 1;
         this.done = false;
         this.startDelay = 0;
@@ -42,7 +42,8 @@ export class AccelerationDetector {
 
         const newSpeed = (newSample - this.lastSample) / (duration - this.lastTime);
         this.lastTime = duration;
-        
+        this.sampleCount++;
+
         logger.info(`Instantaneous speed is ${newSpeed}`);
         if (this.done) {
             if (this.maxSpeed == undefined || Math.abs(this.maxSpeed) < Math.abs(newSpeed)) {
@@ -55,7 +56,7 @@ export class AccelerationDetector {
             logger.info(`Still accelerating after ${(duration).toFixed(3)}s - ${this.sampleCount} samples for ${Math.abs(newSample - this.startSample)} ${this.unit}`);
         } else {
             logger.info(`Acceleration stopped after ${(duration).toFixed(3)}s - ${this.sampleCount} samples, over a distance of ${Math.abs(this.lastSample - this.startSample)}`);
-            this.accelPhaseSamples = this.lastSample;
+            this.accelPhaseLastSample = this.lastSample;
             this.done = true;
         }
         this.lastSample = newSample;
@@ -65,8 +66,8 @@ export class AccelerationDetector {
     }
 
     getExpectedInertia() {
-        if (this.accelPhaseSamples !== undefined) {
-            return this.accelPhaseSamples;
+        if (this.accelPhaseLastSample !== undefined) {
+            return this.accelPhaseLastSample - this.startSample;
         }
         // Not yet finished
         return this.lastSample - this.startSample;
