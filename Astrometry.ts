@@ -34,6 +34,7 @@ const defaultSettings = ():AstrometrySettings=> ({
         slewRate: "SLEW_FIND",
         slewInertiaFactor: 0.0,
         slewStopDuration: 0.5,
+        slewDelay: 0.5,
         sampleCount: 5,
         angle: 60,
         meridianGuard: 2,

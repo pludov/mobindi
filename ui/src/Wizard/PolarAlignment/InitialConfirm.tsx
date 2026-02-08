@@ -28,6 +28,7 @@ class InitialConfirm extends React.PureComponent<Props> {
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
     static slewInertiaFactorHelp = Help.key("Inertia from acceleration", "Tries to evaluate the delay for stopping from the acceleration. This factor (0-1) is applied to this estimation. Lower this if scope is stopping before reaching its target");
     static slewStopDurationHelp = Help.key("Fixed time inertia", "Consider that stop really occurs after this ammount of seconds when considering inertia. 0 to disable");
+    static slewDelayHelp = Help.key("Mount calm delay (s)", "After a slew, wait at least this ammount of seconds after the mount stopped and before taking the next photo, to let the mount calm down.");
     static skipPhotosHelp = Help.key("Debug mode", "Disable actual photos. Use to troubleshoot/finetune the mount movement, to validate accuracy of the slew logic");
 
     accessor: RecursiveBackendAccessor<PolarAlignSettings>;
@@ -78,6 +79,10 @@ class InitialConfirm extends React.PureComponent<Props> {
                         vecName="TELESCOPE_SLEW_RATE"
                         helpKey={InitialConfirm.slewRateHelp}
                         />
+                </div>
+                <div>
+                    {InitialConfirm.slewDelayHelp.title}:
+                    <Float accessor={this.accessor.child(AccessPath.For((e)=>e.slewDelay))} min={0} max={99} helpKey={InitialConfirm.slewDelayHelp}/>
                 </div>
                 <div>
                     Fixed inertia factor:

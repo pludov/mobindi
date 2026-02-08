@@ -199,8 +199,13 @@ export default class PolarAlignmentWizard extends Wizard {
 
         const direction = bestDistance > 0 ? 'MOTION_EAST' : 'MOTION_WEST';
         logger.info('Starting ra slew', {targetRa, direction});
+        let motionTerminatedAt:number|undefined = undefined;
         const motion = createTask<void>(ct, async (task)=> {
-            await this.astrometry.indiManager.pulseParam(task.cancellation, this.getScope(), 'TELESCOPE_MOTION_WE', direction);
+            try {
+                await this.astrometry.indiManager.pulseParam(task.cancellation, this.getScope(), 'TELESCOPE_MOTION_WE', direction);
+            } finally {
+                motionTerminatedAt = Date.now();
+            }
         });
         const pilot = createTask<void>(ct, async (task)=> {
             logger.debug('Pilot task started');
@@ -209,8 +214,13 @@ export default class PolarAlignmentWizard extends Wizard {
             let lastTime = startTime;
 
             let lastRa = startRa;
+            let lastMoveRa = startRa;
             let stopped = false;
             let stopTimeLimit : number|undefined = undefined;
+
+            let lastMoveTime = startTime;
+
+            const idleDelay = 1000 * settings.slewDelay;
             while(true) {
                 await Sleep(task.cancellation, 10);
                 const {ra: newRa, rev: newRaRev} = this.readRa();
@@ -224,20 +234,24 @@ export default class PolarAlignmentWizard extends Wizard {
 
                 if (newRaRev == lastRaRev) {
                     // No need to rush, unless we stopped and a long time elapsed
-                    if (stopped && (now - lastTime) > 2000) {
-                        logger.info('No message for 2000ms. Telescope seems stopped.');
+                    if (stopped && motionTerminatedAt && (now - Math.max(lastTime, motionTerminatedAt) > idleDelay)) {
+                        logger.info(`Scope is idle for ${idleDelay}s. Telescope seems stopped.`);
                         break;
                     }
                     continue;
                 }
+                logger.info(`New sample`, {newRa, lastRa});
+                lastRa = newRa;
                 lastRaRev = newRaRev;
                 lastTime = now;
-                logger.info(`New sample`, {newRa, lastRa});
+                if (Math.abs(PolarAlignmentWizard.raDistance(newRa, lastMoveRa)) > (2 / (15*60*60))) {
+                    lastMoveTime = now;
+                    lastMoveRa = newRa;
+                }
 
                 // Checking if it's time to stop
 
                 const newDistance = PolarAlignmentWizard.raDistance(newRa, targetRa);
-                finalDistance = newDistance;
 
                 accelerationDetector.addStep(newDistance, (now - startTime) / 1000);
 
@@ -287,19 +301,18 @@ export default class PolarAlignmentWizard extends Wizard {
 
                     }
                 } else {
-                    if (Math.abs(PolarAlignmentWizard.raDistance(newRa, lastRa)) < 5 / (15 * 60 * 60)) {
-                        // Consider the scope is not moving anymore under 5''
-                        if (newDistance < this.epsilon) {
-                            logger.info(`Scope stopped at h distance: ${newDistance}`);
-                        } else {
-                            logger.warn(`Scope stopped at large h distance: ${newDistance}`);
-                        }
-                        lastRa = newRa;
+                    if (motionTerminatedAt && Math.max(lastMoveTime, motionTerminatedAt) > idleDelay) {
+                        logger.info(`Scope didn't move much for ${idleDelay}s after stopping motion. Telescope seems stopped.`);
                         break;
                     }
                 }
+            }
 
-                lastRa = newRa;
+            finalDistance = PolarAlignmentWizard.raDistance(lastRa, targetRa);
+            if (Math.abs(finalDistance) < this.epsilon) {
+                logger.info(`Scope stopped at h distance: ${finalDistance}`);
+            } else {
+                logger.warn(`Scope stopped at large h distance: ${finalDistance}`);
             }
             logger.info('Pilot task finished');
         });
