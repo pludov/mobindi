@@ -130,27 +130,31 @@ class AccelerationDetector {
     }
 
     addStep(newSample: number, duration: number) {
-        if (this.done) {
-            return;
-        }
         if (duration <= 0) {
             return;
         }
-        this.sampleCount++;
         const newSpeed = Math.abs((newSample - this.startSample) / duration);
-
+        this.maxSpeed = newSpeed;
+        if (this.done) {
+            return;
+        }
+        this.sampleCount++;
         if (Math.abs(newSpeed) > this.maxSpeed *1.05) {
-            logger.info(`Still accelerating after ${(duration/1000).toFixed(3)}s - ${this.sampleCount} samples for ${Math.abs(newSample - this.startSample)} ${this.unit}`);
+            logger.info(`Still accelerating after ${(duration).toFixed(3)}s - ${this.sampleCount} samples for ${Math.abs(newSample - this.startSample)} ${this.unit}`);
             this.lastSample = newSample;
-            this.maxSpeed = newSpeed;
+            // this.maxSpeed = newSpeed;
         } else {
-            logger.info(`Acceleration stopped after ${(duration/1000).toFixed(3)}s - ${this.sampleCount} samples, over a distance of ${Math.abs(this.lastSample - this.startSample)}`);
+            logger.info(`Acceleration stopped after ${(duration).toFixed(3)}s - ${this.sampleCount} samples, over a distance of ${Math.abs(this.lastSample - this.startSample)}`);
             this.done = true;
         }
     }
 
     getExpectedInertia() {
         return this.lastSample - this.startSample;
+    }
+
+    getSpeed() {
+        return this.maxSpeed;
     }
 }
 
@@ -245,39 +249,50 @@ export default class PolarAlignmentWizard extends Wizard {
         });
         const pilot = createTask<void>(ct, async (task)=> {
             logger.debug('Pilot task started');
-            const accelerationDetector = new AccelerationDetector(startRa, 'h');
-            let startTime = Date.now();
+            const accelerationDetector = new AccelerationDetector(initialDistance, 'h');
+            const startTime = Date.now();
             let lastTime = startTime;
 
             let lastRa = startRa;
             let stopped = false;
+            let stopTimeLimit : number|undefined = undefined;
             while(true) {
                 await Sleep(task.cancellation, 10);
                 const {ra: newRa, rev: newRaRev} = this.readRa();
                 const now = Date.now();
 
+                if (!stopped && stopTimeLimit && stopTimeLimit <= now) {
+                    logger.info(`Stopping slew at computed prediction time + ${((now-stopTimeLimit)/1000).toFixed(3)}s`);
+                    motion.cancel();
+                    stopped = true;
+                }
+
                 if (newRaRev == lastRaRev) {
                     // No need to rush, unless we stopped and a long time elapsed
-                    if (stopped && (lastTime - now) > 500) {
-                        logger.info('No message for 500ms. Telescope seems stopped.');
+                    if (stopped && (now - lastTime) > 2000) {
+                        logger.info('No message for 2000ms. Telescope seems stopped.');
                         break;
                     }
                     continue;
                 }
+                lastRaRev = newRaRev;
+                lastTime = now;
+                logger.info(`New sample`, {newRa, lastRa});
 
-                accelerationDetector.addStep(newRa, now - startTime);
                 // Checking if it's time to stop
 
                 const newDistance = PolarAlignmentWizard.raDistance(newRa, targetRa);
                 finalDistance = newDistance;
 
+                accelerationDetector.addStep(newDistance, (now - startTime) / 1000);
+
                 logger.debug('Distance updated', {newRa, newDistance});
-                if ((Math.abs(newDistance) < this.epsilon)
+                if ((Math.abs(newDistance) < 0.2 * this.epsilon)
                     || (Math.abs(newDistance) > Math.abs(bestDistance))
                     || (Math.sign(newDistance) != Math.sign(bestDistance)))
                 {
                     if (!stopped) {
-                        logger.info('Stopping scope before it reaches the target position');
+                        logger.info('Stopping scope because it reaches the target position');
                         motion.cancel();
                         stopped = true;
                     }
@@ -286,11 +301,23 @@ export default class PolarAlignmentWizard extends Wizard {
                 }
 
                 if (!stopped) {
-                    const newDistanceWithInertia = PolarAlignmentWizard.raDistance(newRa + accelerationDetector.getExpectedInertia(), targetRa);
-                    if (Math.sign(newDistanceWithInertia) != Math.sign(bestDistance)) {
-                        logger.info('Stopping scope to account stop inertia');
+                    const newDistanceWithInertia = PolarAlignmentWizard.raDistance(newRa + settings.slewInertiaFactor *  accelerationDetector.getExpectedInertia(), targetRa);
+
+                    if (Math.sign(newDistanceWithInertia) != Math.sign(initialDistance)) {
+                        logger.info('Stopping scope early to account stop inertia');
                         motion.cancel();
                         stopped = true;
+                    } else {
+                        if (Math.abs(accelerationDetector.getSpeed()) > 0) {
+                            const currentSpeed = Math.abs(accelerationDetector.getSpeed());
+                            const timeLeftToSlew = Math.abs(newDistanceWithInertia / currentSpeed);
+                            logger.info(`Estimated time left: ${timeLeftToSlew.toFixed(3)}s at speed: ${currentSpeed.toFixed(3)}h/s`);
+                            stopTimeLimit = now + 1000 * timeLeftToSlew;
+                        } else {
+                            logger.info('Not able to compute theorical time left');
+                            stopTimeLimit = undefined;
+                        }
+
                     }
                 } else {
                     if (Math.abs(PolarAlignmentWizard.raDistance(newRa, lastRa)) < 5 / (15 * 60 * 60)) {

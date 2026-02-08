@@ -528,6 +528,7 @@ export type PolarAlignAxisSettings = {
 
 export type PolarAlignSettings = {
     slewRate: string;
+    slewInertiaFactor: number;
     sampleCount: number;
     skipPhotos: boolean;
     angle: number;

@@ -32,6 +32,7 @@ const defaultSettings = ():AstrometrySettings=> ({
     narrowedFieldPercent: 25,
     polarAlign: {
         slewRate: "SLEW_FIND",
+        slewInertiaFactor: 0.8,
         sampleCount: 5,
         angle: 60,
         meridianGuard: 2,

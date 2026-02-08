@@ -26,6 +26,7 @@ class InitialConfirm extends React.PureComponent<Props> {
     static meridianGuardHelp = Help.key("Meridian guard", "Don't go too close from the meridian (°). This is useful to avoid the mount to change pier side.");
     static minAltitudeHelp = Help.key("Minimum altitude", "Ensure exposure below are not taken at altitude below that angle (°).");
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
+    static slewInertiaFactorHelp = Help.key("Inertia", "Factor applied to estimated inertia. It tries to evaluate the delay for stopping from the acceleration. Lower this if scope is stopping before reaching its target");
     static skipPhotosHelp = Help.key("Debug mode", "Disable actual photos. Use to troubleshoot/finetune the mount movement, to validate accuracy of the slew logic");
 
     accessor: RecursiveBackendAccessor<PolarAlignSettings>;
@@ -76,6 +77,10 @@ class InitialConfirm extends React.PureComponent<Props> {
                         vecName="TELESCOPE_SLEW_RATE"
                         helpKey={InitialConfirm.slewRateHelp}
                         />
+                </div>
+                <div>
+                    Slew inertia factor:
+                    <Float accessor={this.accessor.child(AccessPath.For((e)=>e.slewInertiaFactor))} min={0} max={2} helpKey={InitialConfirm.slewInertiaFactorHelp}/>
                 </div>
                 <div>
                     Debug mode:
