@@ -257,7 +257,7 @@ export default class PolarAlignmentWizard extends Wizard {
 
                 logger.debug('Distance updated', {newRa, newDistance});
                 if ((Math.abs(newDistance) < 0.2 * this.epsilon)
-                    || (Math.abs(newDistance) > Math.abs(bestDistance))
+                    /*|| (Math.abs(newDistance) > Math.abs(bestDistance))*/
                     || (Math.sign(newDistance) != Math.sign(bestDistance)))
                 {
                     if (!stopped) {
