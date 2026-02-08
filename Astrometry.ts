@@ -38,6 +38,7 @@ const defaultSettings = ():AstrometrySettings=> ({
         minAltitude: 10,
         alt: defaultAxis(),
         az: defaultAxis(),
+        skipPhotos: false,
     },
     meridianFlip: {
         clearPhdCalibration: false,

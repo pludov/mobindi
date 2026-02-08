@@ -112,6 +112,48 @@ class ImpreciseDirectionChecker {
     }
 }
 
+class AccelerationDetector {
+    maxSpeed: number;
+    startSample: number;
+    lastSample: number;
+    sampleCount: number;
+    done: boolean;
+    unit: string;
+
+    constructor(firstSample: number, unit: string) {
+        this.unit = unit;
+        this.lastSample = firstSample;
+        this.startSample = firstSample;
+        this.maxSpeed = 0;
+        this.sampleCount = 1;
+        this.done = false;
+    }
+
+    addStep(newSample: number, duration: number) {
+        if (this.done) {
+            return;
+        }
+        if (duration <= 0) {
+            return;
+        }
+        this.sampleCount++;
+        const newSpeed = Math.abs((newSample - this.startSample) / duration);
+
+        if (Math.abs(newSpeed) > this.maxSpeed *1.05) {
+            logger.info(`Still accelerating after ${(duration/1000).toFixed(3)}s - ${this.sampleCount} samples for ${Math.abs(newSample - this.startSample)} ${this.unit}`);
+            this.lastSample = newSample;
+            this.maxSpeed = newSpeed;
+        } else {
+            logger.info(`Acceleration stopped after ${(duration/1000).toFixed(3)}s - ${this.sampleCount} samples, over a distance of ${Math.abs(this.lastSample - this.startSample)}`);
+            this.done = true;
+        }
+    }
+
+    getExpectedInertia() {
+        return this.lastSample - this.startSample;
+    }
+}
+
 export default class PolarAlignmentWizard extends Wizard {
     sessionStartTimeStamp : string = "";
 
@@ -123,12 +165,13 @@ export default class PolarAlignmentWizard extends Wizard {
         return scope;
     }
 
-    readRa():number {
+    readRa():{ra: number, rev:number} {
         // Inserts a sleep to ensure data is up to date ?
         const vec = this.astrometry.indiManager.getValidConnection().getDevice(this.getScope()).getVector("EQUATORIAL_EOD_COORD");
         const ra = parseFloat(vec.getPropertyValue("RA"));
-        logger.debug('current ra', {ra});
-        return ra;
+        const rev = vec.getRev()
+        logger.debug('current ra', {ra, rev});
+        return {ra, rev};
     }
 
     // Read jnow scope position
@@ -179,16 +222,21 @@ export default class PolarAlignmentWizard extends Wizard {
     }
 
     // Stop at 1°
-    private epsilon: number = 1/15;
+    private epsilon: number = 0.2 * 1/15;
 
-    async slew(ct: CancellationToken, settings:PolarAlignSettings, targetRa:number) {
+    // Return error in hours, in range [-12h, 12h]
+    async slew(ct: CancellationToken, settings:PolarAlignSettings, targetRa:number) : Promise<number> {
         // Read RA
-        const startRa = this.readRa();
+        const {ra: startRa, rev: startRaRev}  = this.readRa();
+        let lastRaRev = startRaRev;
         const initialDistance = PolarAlignmentWizard.raDistance(startRa, targetRa);
         if (Math.abs(initialDistance) < this.epsilon) {
-            return;
+            return initialDistance;
         }
         let bestDistance = initialDistance;
+        let finalDistance = initialDistance;
+        // Count the acceleration phase.
+        // The acceleration phase last while move gets bigger
 
         const direction = bestDistance > 0 ? 'MOTION_EAST' : 'MOTION_WEST';
         logger.info('Starting ra slew', {targetRa, direction});
@@ -197,30 +245,78 @@ export default class PolarAlignmentWizard extends Wizard {
         });
         const pilot = createTask<void>(ct, async (task)=> {
             logger.debug('Pilot task started');
+            const accelerationDetector = new AccelerationDetector(startRa, 'h');
+            let startTime = Date.now();
+            let lastTime = startTime;
+
+            let lastRa = startRa;
+            let stopped = false;
             while(true) {
-                await Sleep(task.cancellation, 100);
-                const newRa = this.readRa();
+                await Sleep(task.cancellation, 10);
+                const {ra: newRa, rev: newRaRev} = this.readRa();
+                const now = Date.now();
+
+                if (newRaRev == lastRaRev) {
+                    // No need to rush, unless we stopped and a long time elapsed
+                    if (stopped && (lastTime - now) > 500) {
+                        logger.info('No message for 500ms. Telescope seems stopped.');
+                        break;
+                    }
+                    continue;
+                }
+
+                accelerationDetector.addStep(newRa, now - startTime);
+                // Checking if it's time to stop
+
                 const newDistance = PolarAlignmentWizard.raDistance(newRa, targetRa);
+                finalDistance = newDistance;
+
                 logger.debug('Distance updated', {newRa, newDistance});
-                if (Math.abs(newDistance) < this.epsilon) {
-                    break;
+                if ((Math.abs(newDistance) < this.epsilon)
+                    || (Math.abs(newDistance) > Math.abs(bestDistance))
+                    || (Math.sign(newDistance) != Math.sign(bestDistance)))
+                {
+                    if (!stopped) {
+                        logger.info('Stopping scope before it reaches the target position');
+                        motion.cancel();
+                        stopped = true;
+                    }
+                } else {
+                    bestDistance = newDistance;
                 }
-                if (Math.abs(newDistance) > Math.abs(bestDistance)) {
-                    // FIXME: throw error if distance is big
-                    break;
+
+                if (!stopped) {
+                    const newDistanceWithInertia = PolarAlignmentWizard.raDistance(newRa + accelerationDetector.getExpectedInertia(), targetRa);
+                    if (Math.sign(newDistanceWithInertia) != Math.sign(bestDistance)) {
+                        logger.info('Stopping scope to account stop inertia');
+                        motion.cancel();
+                        stopped = true;
+                    }
+                } else {
+                    if (Math.abs(PolarAlignmentWizard.raDistance(newRa, lastRa)) < 5 / (15 * 60 * 60)) {
+                        // Consider the scope is not moving anymore under 5''
+                        if (newDistance < this.epsilon) {
+                            logger.info(`Scope stopped at h distance: ${newDistance}`);
+                        } else {
+                            logger.warn(`Scope stopped at large h distance: ${newDistance}`);
+                        }
+                        lastRa = newRa;
+                        break;
+                    }
                 }
-                if (Math.sign(newDistance) != Math.sign(bestDistance)) {
-                    // FIXME: throw error if distance is big
-                    break;
-                }
-                bestDistance = newDistance;
+
+                lastRa = newRa;
             }
             logger.info('Pilot task finished');
         });
         // FIXME: if parent token was interrupted...
         let error = undefined;
         try {
-            motion.catch((e)=>pilot.cancel());
+            motion.catch((e)=> {
+                if (!(e instanceof CancellationToken.CancellationError)) {
+                    pilot.cancel();
+                }
+            });
             pilot.catch((e)=>motion.cancel());
             await pilot;
             logger.info('Done with pilot task');
@@ -250,6 +346,7 @@ export default class PolarAlignmentWizard extends Wizard {
             throw error;
         }
         ct.throwIfCancelled();
+        return finalDistance;
     }
 
     // Return coords of the axis in deg rel to zenith coords.
@@ -455,6 +552,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     // then do a regression to compute error
                     // TODO: put the real code for polar alignment...
                     // TODO: deep copy parameters on the first pass
+                    let slewDistances: Array<number> = [];
                     try {
                         while(true) {
                             const geoCoords = this.readGeoCoords();
@@ -494,39 +592,43 @@ export default class PolarAlignmentWizard extends Wizard {
 
                             try {
                                 wizardReport.scopeMoving = true;
-                                await this.slew(token, this.astrometry.currentStatus.settings.polarAlign, targetRa);
+                                let perf = await this.slew(token, this.astrometry.currentStatus.settings.polarAlign, targetRa);
+                                slewDistances.push(perf);
                                 // Settle before shoot
-                                await sleep(token, 500);
+                                await sleep(token, 200);
                             } finally {
                                 wizardReport.scopeMoving = false;
                             }
                             logger.info('Done slew', {targetRa, effectiveRa: this.readScopePos().ra});
-                            const frameType = "sampling";
-                            const { photo, photoTime } = await this.shoot(token, ++shootId, frameType);
-                            wizardReport.shootDone++;
+                            if (!this.astrometry.currentStatus.settings.polarAlign?.skipPhotos) {
 
-                            // FIXME: put in a resumable task queue
-                            try {
-                                wizardReport.astrometryRunning = true;
-                                const astrometry = await this.astrometry.compute(token, {imageUuid: photo.uuid, forceWide: false});
-                                // FIXME: convert to JNOW & put in queue
-                                logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType});
-                                if (astrometry.found) {
-                                    wizardReport.astrometrySuccess++;
-                                    const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
+                                const frameType = "sampling";
+                                const { photo, photoTime } = await this.shoot(token, ++shootId, frameType);
+                                wizardReport.shootDone++;
 
-                                    wizardReport.data[stortableStepId] = PolarAlignmentWizard.dataFromSamplingResult(astrometry, photoTime!, geoCoords);
-                                } else {
+                                // FIXME: put in a resumable task queue
+                                try {
+                                    wizardReport.astrometryRunning = true;
+                                    const astrometry = await this.astrometry.compute(token, {imageUuid: photo.uuid, forceWide: false});
+                                    // FIXME: convert to JNOW & put in queue
+                                    logger.info('Done astrometry', {astrometry, photoTime, geoCoords, frameType});
+                                    if (astrometry.found) {
+                                        wizardReport.astrometrySuccess++;
+                                        const stortableStepId = ("000000000000000" + status.stepId.toString(16)).substr(-16);
+
+                                        wizardReport.data[stortableStepId] = PolarAlignmentWizard.dataFromSamplingResult(astrometry, photoTime!, geoCoords);
+                                    } else {
+                                        wizardReport.astrometryFailed++;
+                                    }
+                                } catch(e) {
+                                    if (e instanceof CancellationToken.CancellationError) {
+                                        throw e;
+                                    }
+                                    logger.warn('Ignoring astrometry problem', e);
                                     wizardReport.astrometryFailed++;
+                                } finally {
+                                    wizardReport.astrometryRunning = false;
                                 }
-                            } catch(e) {
-                                if (e instanceof CancellationToken.CancellationError) {
-                                    throw e;
-                                }
-                                logger.warn('Ignoring astrometry problem', e);
-                                wizardReport.astrometryFailed++;
-                            } finally {
-                                wizardReport.astrometryRunning = false;
                             }
                             if (status.stepId >= status.maxStepId) {
                                 break;
@@ -534,9 +636,37 @@ export default class PolarAlignmentWizard extends Wizard {
                             status.stepId++;
                         }
 
+                        // Search errors above epsilons
+                        let outliers = 0;
+                        let rms = 0;
+                        let max = 0;
+                        for(const k of slewDistances) {
+                            if (Math.abs(k) > 2 * this.epsilon) {
+                                outliers++;
+                            }
+                            if (Math.abs(k) > max) {
+                                max = Math.abs(k);
+                            }
+                            rms +=  k*k;
+                        }
+                        if (slewDistances.length > 0) {
+                            rms /= slewDistances.length;
+                        }
+                        rms = Math.sqrt(rms);
+
+                        let slewStatusMessage= `${outliers} outliers out of ${slewDistances.length}. Max=${(15 * max).toFixed(2)}° RMS=${(15 * rms).toFixed(2)}°`;
+
+                        // For skip photo, terminate here
+                        if (this.astrometry.currentStatus.settings.polarAlign?.skipPhotos) {
+                            this.wizardStatus.polarAlignment!.status = "done";
+                            this.wizardStatus.polarAlignment!.fatalError = `Debug done. ${slewStatusMessage}`;
+                            return;
+                        }
+                        logger.info(`Done slewing: ${slewStatusMessage}`, {slewDistances});
+
                         // We are done. Compute the regression
                         logger.debug('Compute the regression', {data: wizardReport.data});
-                        
+
                         const path = Object.keys(wizardReport.data).map(k=>wizardReport.data[k]);
                         const mountAxis = PolarAlignmentWizard.findMountAxis(path);
                         const geoCoords = this.readGeoCoords();

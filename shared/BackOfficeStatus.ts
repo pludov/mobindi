@@ -529,6 +529,7 @@ export type PolarAlignAxisSettings = {
 export type PolarAlignSettings = {
     slewRate: string;
     sampleCount: number;
+    skipPhotos: boolean;
     angle: number;
     minAltitude: number;
     meridianGuard: number; // Don't go too close from the meridian (°)

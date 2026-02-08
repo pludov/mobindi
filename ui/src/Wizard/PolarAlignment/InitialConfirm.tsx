@@ -5,6 +5,7 @@ import * as Help from "../../Help";
 import * as AccessPath from '../../shared/AccessPath';
 import Panel from "../../Panel";
 import Int from '../../primitives/Int';
+import Bool from '../../primitives/Bool';
 import Float from '../../primitives/Float';
 import IndiSelectorEditor from '../../IndiSelectorEditor';
 import * as AstrometryStore from "../../AstrometryStore";
@@ -25,6 +26,8 @@ class InitialConfirm extends React.PureComponent<Props> {
     static meridianGuardHelp = Help.key("Meridian guard", "Don't go too close from the meridian (°). This is useful to avoid the mount to change pier side.");
     static minAltitudeHelp = Help.key("Minimum altitude", "Ensure exposure below are not taken at altitude below that angle (°).");
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
+    static skipPhotosHelp = Help.key("Debug mode", "Disable actual photos. Use to troubleshoot/finetune the mount movement, to validate accuracy of the slew logic");
+
     accessor: RecursiveBackendAccessor<PolarAlignSettings>;
     
     constructor(props:Props) {
@@ -73,6 +76,10 @@ class InitialConfirm extends React.PureComponent<Props> {
                         vecName="TELESCOPE_SLEW_RATE"
                         helpKey={InitialConfirm.slewRateHelp}
                         />
+                </div>
+                <div>
+                    Debug mode:
+                    <Bool accessor={this.accessor.child(AccessPath.For((e)=>e.skipPhotos))} helpKey={InitialConfirm.skipPhotosHelp}/>
                 </div>
             </Panel>
             <Panel guid="astrom:polaralign:scope">
