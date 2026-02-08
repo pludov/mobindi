@@ -235,7 +235,7 @@ export default class PolarAlignmentWizard extends Wizard {
                 if (newRaRev == lastRaRev) {
                     // No need to rush, unless we stopped and a long time elapsed
                     if (stopped && motionTerminatedAt && (now - Math.max(lastTime, motionTerminatedAt) > idleDelay)) {
-                        logger.info(`Scope is idle for ${idleDelay}s. Telescope seems stopped.`);
+                        logger.info(`Scope is idle for ${idleDelay}ms. Telescope seems stopped.`);
                         break;
                     }
                     continue;
@@ -257,7 +257,6 @@ export default class PolarAlignmentWizard extends Wizard {
 
                 logger.debug('Distance updated', {newRa, newDistance});
                 if ((Math.abs(newDistance) < 0.2 * this.epsilon)
-                    /*|| (Math.abs(newDistance) > Math.abs(bestDistance))*/
                     || (Math.sign(newDistance) != Math.sign(bestDistance)))
                 {
                     if (!stopped) {
@@ -302,7 +301,7 @@ export default class PolarAlignmentWizard extends Wizard {
                     }
                 } else {
                     if (motionTerminatedAt && Math.max(lastMoveTime, motionTerminatedAt) > idleDelay) {
-                        logger.info(`Scope didn't move much for ${idleDelay}s after stopping motion. Telescope seems stopped.`);
+                        logger.info(`Scope didn't move much for ${idleDelay}ms after stopping motion. Telescope seems stopped.`);
                         break;
                     }
                 }
@@ -601,8 +600,6 @@ export default class PolarAlignmentWizard extends Wizard {
                                 wizardReport.scopeMoving = true;
                                 let perf = await this.slew(token, this.astrometry.currentStatus.settings.polarAlign, targetRa);
                                 slewDistances.push(perf);
-                                // Settle before shoot
-                                await sleep(token, 200);
                             } finally {
                                 wizardReport.scopeMoving = false;
                             }
