@@ -119,6 +119,7 @@ export default class Phd
             DECDistancePeak: null,
             RADECDistancePeak: null,
             star:null,
+            starPositions: [],
             currentEquipment: {},
             exposure: null,
             exposureDurations: [],
@@ -677,6 +678,7 @@ export default class Phd
                                 this.clearServerConfiguration();
 
                                 this.currentStatus.star = null;
+                                this.currentStatus.starPositions = [];
                                 this.currentStatus.AppState = "NotConnected";
                                 this.currentStatus.AppStateProgress = null;
                                 this.currentStatus.connected = false;
@@ -804,6 +806,7 @@ export default class Phd
                                 this.currentStatus.AppStateProgress = null;
                             }
                             this.currentStatus.star = null;
+                            this.currentStatus.starPositions = [];
                             this.currentStatus.settling = null;
                             this.currentStatus.paused = null;
                             logger.debug('Initial status', {AppState: this.currentStatus.AppState});
@@ -837,6 +840,12 @@ export default class Phd
                         case "LockPositionLost":
                             {
                                 this.clearLockPosition();
+                                this.currentStatus.starPositions = [];
+                                break;
+                            }
+                        case "FrameStarPositionList":
+                            {
+                                this.currentStatus.starPositions = event.Stars;
                                 break;
                             }
                         case "LockPositionSet":
@@ -849,6 +858,7 @@ export default class Phd
                                     x: event.X,
                                     y: event.Y,
                                 }
+                                this.currentStatus.starPositions = [];
                                 break;
                             }
                         case "ConfigurationChange":
@@ -864,6 +874,7 @@ export default class Phd
                                 var oldStatus = this.currentStatus.AppState;
                                 if (oldStatus != newStatus) {
                                     this.currentStatus.star = null;
+                                    this.currentStatus.starPositions = [];
                                     this.currentStatus.AppState = newStatus;
                                     this.currentStatus.AppStateProgress = null;
                                     if (newStatus == 'Guiding' && oldStatus != 'Paused' && oldStatus != 'LostLock') {

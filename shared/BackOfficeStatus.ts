@@ -795,6 +795,12 @@ export type PhdGuideStats = {
     RADECDistancePeak: number|null;
 }
 
+export type PhdGuideStar = {
+    X: number;
+    Y: number;
+    good: boolean|null;
+}
+
 export type PhdStatus = PhdGuideStats & {
     phd_started: boolean;
     connected: boolean;
@@ -808,6 +814,7 @@ export type PhdStatus = PhdGuideStats & {
     configuration: PhdConfiguration;
     firstStepOfRun: string;
     star: PhdStar|null;
+    starPositions: PhdGuideStar[];
     currentEquipment: {
         camera?: PhdEquipmentStatus;
         mount?:PhdEquipmentStatus;

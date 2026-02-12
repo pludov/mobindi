@@ -20,6 +20,7 @@ type MappedProps = {
     AppState?: PhdStatus["AppState"];
     streamingCamera?: PhdStatus["streamingCamera"];
     lockPosition?: PhdStatus["lockPosition"];
+    starPositions?: PhdStatus["starPositions"];
     lastLockedPosition?: PhdStatus["lastLockedPosition"];
 } & Partial<CameraStream>
 
@@ -99,6 +100,19 @@ class PhdStream extends React.PureComponent<Props, State> {
                             :
                                 null
                         }
+                        {
+                            this.props.starPositions?.map((v, i) => {
+                                if (i === 0) {
+                                    return null;
+                                }
+                                const className =
+                                    v.good === null ? "SecondaryStarUnused" :
+                                    v.good ? "SecondaryStarOK" : "SecondaryStarNOK";
+                                return <FitsMarker x={v.X} y={v.Y}>
+                                    <div className={className}/>
+                                </FitsMarker>;
+                            })
+                        }
                     </div>
 
 
@@ -145,6 +159,7 @@ class PhdStream extends React.PureComponent<Props, State> {
             streamingCamera,
             lockPosition: phd.lockPosition,
             lastLockedPosition: phd.lastLockedPosition,
+            starPositions: phd.starPositions,
             AppState: phd.AppState,
             ...stream
         };

@@ -99,6 +99,39 @@ table.RADECTable tr td:first-child{
     border: 2px solid red;
 }
 
+.SecondaryStarUnused {
+    display: block;
+    position: absolute;
+    top: calc(-1.5 * var(--pct) - 1.5px);
+    left: calc(-1.5 * var(--pct) - 1.5px);
+    width: calc(3 * var(--pct));
+    height: calc(3 * var(--pct));
+    border: 1.5px solid grey;
+    border-radius: calc(1.5 * var(--pct) + 1.5px);
+}
+
+.SecondaryStarOK {
+    display: block;
+    position: absolute;
+    top: calc(-1.5 * var(--pct) - 1.5px);
+    left: calc(-1.5 * var(--pct) - 1.5px);
+    width: calc(3 * var(--pct));
+    height: calc(3 * var(--pct));
+    border: 1.5px solid green;
+    border-radius: calc(1.5 * var(--pct) + 1.5px);
+}
+
+.SecondaryStarNOK {
+    display: block;
+    position: absolute;
+    top: calc(-1.5 * var(--pct) - 1.5px);
+    left: calc(-1.5 * var(--pct) - 1.5px);
+    width: calc(3 * var(--pct));
+    height: calc(3 * var(--pct));
+    border: 1.5px solid red;
+    border-radius: calc(1.5 * var(--pct) + 1.5px);
+}
+
 .PhdViewChoose {
     flex-grow: 100;
     text-align: right;
