@@ -228,6 +228,8 @@ class PhdGraph extends React.PureComponent<Props, State> {
         const props = [
             {prop: 'RADistance', label: 'RA', color:'#ff0000'},
             {prop:'DECDistance', label: 'DEC', color:'#0000ff'},
+            {prop: 'SNR', label: 'SNR', color: '#2ecc71', yAxisID: 'snr', fill: false},
+            {prop: 'secondarySNR', label: 'Sec SNR', color: '#9b59b6', yAxisID: 'snr', fill: false},
             {prop: 'settling', color: '#808080',
                     yAxisID: 'settling',
                     backgroundColor: 'rgba(60,100,1,0.5)',
@@ -249,7 +251,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
                 stepped: false,
                 label: 'cal',
                 flipFlop: true
-            }
+            },
 
             ];
 
@@ -378,6 +380,18 @@ class PhdGraph extends React.PureComponent<Props, State> {
                         beginAtZero: true,
                         min: 0,
                         max: 1.0
+                    }
+                },
+                {
+                    id: 'snr',
+                    type: 'linear',
+                    position: 'right',
+                    gridLines: {
+                        display: false
+                    },
+                    ticks: {
+                        beginAtZero: true,
+                        min: 0,
                     }
                 }
                 ],
