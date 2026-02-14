@@ -798,7 +798,13 @@ export type PhdGuideStats = {
 export type PhdGuideStar = {
     X: number;
     Y: number;
-    good: boolean|null;
+    RefX: number;
+    RefY: number;
+    SNR: number;
+    Mass: number;
+    HDF: number;
+    used: boolean;
+    err: null|string;
 }
 
 export type PhdStatus = PhdGuideStats & {
@@ -815,6 +821,8 @@ export type PhdStatus = PhdGuideStats & {
     firstStepOfRun: string;
     star: PhdStar|null;
     starPositions: PhdGuideStar[];
+    multiStarRefined: boolean;
+    multiStarStabilizing: boolean;
     currentEquipment: {
         camera?: PhdEquipmentStatus;
         mount?:PhdEquipmentStatus;

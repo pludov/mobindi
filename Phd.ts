@@ -120,6 +120,8 @@ export default class Phd
             RADECDistancePeak: null,
             star:null,
             starPositions: [],
+            multiStarRefined : false,
+            multiStarStabilizing : false,
             currentEquipment: {},
             exposure: null,
             exposureDurations: [],
@@ -679,6 +681,8 @@ export default class Phd
 
                                 this.currentStatus.star = null;
                                 this.currentStatus.starPositions = [];
+                                this.currentStatus.multiStarRefined = false;
+                                this.currentStatus.multiStarStabilizing = false;
                                 this.currentStatus.AppState = "NotConnected";
                                 this.currentStatus.AppStateProgress = null;
                                 this.currentStatus.connected = false;
@@ -807,6 +811,8 @@ export default class Phd
                             }
                             this.currentStatus.star = null;
                             this.currentStatus.starPositions = [];
+                            this.currentStatus.multiStarRefined = false;
+                            this.currentStatus.multiStarStabilizing = false;
                             this.currentStatus.settling = null;
                             this.currentStatus.paused = null;
                             logger.debug('Initial status', {AppState: this.currentStatus.AppState});
@@ -841,11 +847,15 @@ export default class Phd
                             {
                                 this.clearLockPosition();
                                 this.currentStatus.starPositions = [];
+                                this.currentStatus.multiStarRefined = false;
+                                this.currentStatus.multiStarStabilizing = false;
                                 break;
                             }
-                        case "FrameStarPositionList":
+                        case "MultiStarReport":
                             {
                                 this.currentStatus.starPositions = event.Stars;
+                                this.currentStatus.multiStarRefined = !!event.Refined;
+                                this.currentStatus.multiStarStabilizing = !!event.Stabilizing;
                                 break;
                             }
                         case "LockPositionSet":
@@ -859,6 +869,8 @@ export default class Phd
                                     y: event.Y,
                                 }
                                 this.currentStatus.starPositions = [];
+                                this.currentStatus.multiStarRefined = false;
+                                this.currentStatus.multiStarStabilizing = false;
                                 break;
                             }
                         case "ConfigurationChange":
@@ -875,6 +887,8 @@ export default class Phd
                                 if (oldStatus != newStatus) {
                                     this.currentStatus.star = null;
                                     this.currentStatus.starPositions = [];
+                                    this.currentStatus.multiStarRefined = false;
+                                    this.currentStatus.multiStarStabilizing = false;
                                     this.currentStatus.AppState = newStatus;
                                     this.currentStatus.AppStateProgress = null;
                                     if (newStatus == 'Guiding' && oldStatus != 'Paused' && oldStatus != 'LostLock') {

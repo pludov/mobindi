@@ -106,8 +106,8 @@ class PhdStream extends React.PureComponent<Props, State> {
                                     return null;
                                 }
                                 const className =
-                                    v.good === null ? "SecondaryStarUnused" :
-                                    v.good ? "SecondaryStarOK" : "SecondaryStarNOK";
+                                    !v.used ? "SecondaryStarUnused" :
+                                    v.err === null ? "SecondaryStarOK" : "SecondaryStarNOK";
                                 return <FitsMarker x={v.X} y={v.Y}>
                                     <div className={className}/>
                                 </FitsMarker>;

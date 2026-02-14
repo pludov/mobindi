@@ -106,7 +106,7 @@ table.RADECTable tr td:first-child{
     left: calc(-1.5 * var(--pct) - 1.5px);
     width: calc(3 * var(--pct));
     height: calc(3 * var(--pct));
-    border: 1.5px solid grey;
+    border: 1.5px solid yellow;
     border-radius: calc(1.5 * var(--pct) + 1.5px);
 }
 
