@@ -48,6 +48,8 @@ describe("Json proxy", () => {
         assert.ok(!('a' in root), "Removed property not 'in'");
         assert.deepEqual(root, {}, "Structure reflect property removal");
 
+        assert.deepEqual(changeTracker.takeSerialSnapshot(), {serial: 0, childSerial: 3, props: {}}, "Deletion is visible via child serial");
+
     });
 
     it("keeps serial on primitive no-op assignment", ()=> {
