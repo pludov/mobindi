@@ -3,7 +3,7 @@ import { expect, assert } from 'chai';
 import * as util from 'util';
 import 'mocha';
 
-import JsonProxy, {has, WhiteList} from './shared/JsonProxy';
+import JsonProxy, {has, WhiteList, WhiteListWildcard, mergeWhiteList} from './shared/JsonProxy';
 
 /**
  * Created by ludovic on 21/07/17.
@@ -629,5 +629,182 @@ describe("Json proxy", () => {
         assert.strictEqual(JSON.stringify(root), JSON.stringify(reference), "Proxy not visible through JSON.stringify");
     });
 
+    describe("WhiteListWildcard", () => {
+        it("wildcard fallback in whiteListChild via fork", () => {
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.keep = { x: 1 };
+            root.also = { y: 2 };
+            root.skip = { z: 3 };
+
+            const wl: WhiteList = {
+                [WhiteListWildcard]: true,
+                skip: false,
+            };
+
+            const { data } = tracker.fork(wl);
+            assert.deepEqual(data.keep, { x: 1 }, "wildcard includes unlisted key 'keep'");
+            assert.deepEqual(data.also, { y: 2 }, "wildcard includes unlisted key 'also'");
+            assert.strictEqual(data.skip, undefined, "explicit false excludes 'skip'");
+        });
+
+        it("wildcard fallback in diff", () => {
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.a = 1;
+            root.b = 2;
+
+            const wl: WhiteList = { [WhiteListWildcard]: true, b: false };
+            const { serial } = tracker.fork(wl);
+
+            root.a = 10;
+            root.b = 20;
+            const patch = tracker.diff(serial, wl);
+            assert.deepEqual(patch, { update: { a: 10 } }, "wildcard propagates 'a'; 'b' is excluded");
+        });
+
+        it("named key overrides wildcard", () => {
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.named = 1;
+            root.other = 2;
+
+            const wl: WhiteList = { [WhiteListWildcard]: false, named: true };
+            const { data } = tracker.fork(wl);
+            assert.strictEqual(data.named, 1, "explicit true overrides wildcard=false");
+            assert.strictEqual(data.other, undefined, "wildcard=false excludes unlisted key");
+        });
+
+        it("nested wildcard excludes deep heavy fields", () => {
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.sequences = {
+                byuuid: {
+                    seq1: { title: "T1", images: [1, 2, 3] },
+                    seq2: { title: "T2", images: [4, 5] },
+                }
+            };
+
+            const wl: WhiteList = {
+                sequences: {
+                    byuuid: {
+                        [WhiteListWildcard]: { [WhiteListWildcard]: true, images: false },
+                    }
+                }
+            };
+
+            const { data } = tracker.fork(wl);
+            assert.strictEqual(data.sequences.byuuid.seq1.title, "T1", "title included via nested wildcard");
+            assert.strictEqual(data.sequences.byuuid.seq1.images, undefined, "images excluded by nested explicit false");
+            assert.strictEqual(data.sequences.byuuid.seq2.title, "T2", "second sequence title included");
+            assert.strictEqual(data.sequences.byuuid.seq2.images, undefined, "second sequence images excluded");
+        });
+    });
+
+    describe("mergeWhiteList", () => {
+        it("undefined (include-all) wins over anything", () => {
+            const wl: WhiteList = { a: true };
+            assert.strictEqual(mergeWhiteList(undefined, wl), undefined, "undefined + object => undefined");
+            assert.strictEqual(mergeWhiteList(wl, undefined), undefined, "object + undefined => undefined");
+            assert.strictEqual(mergeWhiteList(undefined, undefined), undefined, "undefined + undefined => undefined");
+        });
+
+        it("both empty => empty (exclude all)", () => {
+            const result = mergeWhiteList({}, {});
+            assert.deepEqual(result, {}, "empty + empty => empty");
+        });
+
+        it("union of non-overlapping keys", () => {
+            const a: WhiteList = { x: true };
+            const b: WhiteList = { y: true };
+            const result = mergeWhiteList(a, b);
+            assert.ok(result !== undefined);
+            const { data: da } = new JsonProxy<any>().fork(result);  // just test shape
+            // Easier: use fork on a real proxy
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.x = 1; root.y = 2; root.z = 3;
+            const { data } = tracker.fork(result);
+            assert.strictEqual(data.x, 1, "x from a");
+            assert.strictEqual(data.y, 2, "y from b");
+            assert.strictEqual(data.z, undefined, "z in neither");
+        });
+
+        it("permissive wins: one excludes, other includes", () => {
+            const a: WhiteList = { key: false };
+            const b: WhiteList = { key: true };
+            const result = mergeWhiteList(a, b)!;
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.key = 42;
+            const { data } = tracker.fork(result);
+            assert.strictEqual(data.key, 42, "include wins over exclude");
+        });
+
+        it("wildcard from one side propagates to unnamed keys", () => {
+            // a excludes all unnamed; b has wildcard=true
+            const a: WhiteList = { named: true };
+            const b: WhiteList = { [WhiteListWildcard]: true };
+            const result = mergeWhiteList(a, b)!;
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.named = 1; root.other = 2;
+            const { data } = tracker.fork(result);
+            assert.strictEqual(data.named, 1, "named key included");
+            assert.strictEqual(data.other, 2, "unnamed key included via b's wildcard");
+        });
+
+        it("merged wildcards: both false => excluded unnamed, any true => included", () => {
+            const a: WhiteList = { [WhiteListWildcard]: false };
+            const b: WhiteList = { [WhiteListWildcard]: false };
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.x = 1;
+            const res1 = mergeWhiteList(a, b)!;
+            assert.strictEqual(tracker.fork(res1).data.x, undefined, "both wildcards=false => excluded");
+
+            const c: WhiteList = { [WhiteListWildcard]: true };
+            const res2 = mergeWhiteList(a, c)!;
+            assert.strictEqual(tracker.fork(res2).data.x, 1, "one wildcard=true => included");
+        });
+
+        it("dynamic merge: base excludes heavy fields, dynamic adds one sequence", () => {
+            const base: WhiteList = {
+                [WhiteListWildcard]: true,
+                sequences: {
+                    list: true,
+                    byuuid: {
+                        [WhiteListWildcard]: { [WhiteListWildcard]: true, images: false },
+                    }
+                }
+            };
+            const dynamic: WhiteList = {
+                sequences: {
+                    byuuid: {
+                        seq1: { images: true }
+                    }
+                }
+            };
+
+            const merged = mergeWhiteList(base, dynamic)!;
+
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.sequences = {
+                list: ["seq1", "seq2"],
+                byuuid: {
+                    seq1: { title: "T1", images: [10, 11] },
+                    seq2: { title: "T2", images: [20, 21] },
+                }
+            };
+
+            const { data } = tracker.fork(merged);
+            assert.deepEqual(data.sequences.list, ["seq1", "seq2"], "list always included");
+            assert.strictEqual(data.sequences.byuuid.seq1.title, "T1", "seq1 title included");
+            assert.deepEqual(data.sequences.byuuid.seq1.images, [10, 11], "seq1 images included via dynamic");
+            assert.strictEqual(data.sequences.byuuid.seq2.title, "T2", "seq2 title included via wildcard");
+            assert.strictEqual(data.sequences.byuuid.seq2.images, undefined, "seq2 images excluded (not in dynamic)");
+        });
+    });
 
 });

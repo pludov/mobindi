@@ -89,6 +89,18 @@ function initWss(server: http.Server) {
         logger.warn('websocket server error', err);
     });
 
+    // Validate a dynamicWhiteList payload from the client (prevents injection of unexpected types).
+    // Only plain objects, boolean values, and null are accepted; depth is capped.
+    function isValidWhiteListPayload(v: any, maxDepth: number): boolean {
+        if (v === null || v === undefined) return true;
+        if (typeof v === 'boolean') return true;
+        if (typeof v !== 'object' || Array.isArray(v)) return false;
+        if (maxDepth <= 0) return false;
+        for (const key of Object.keys(v)) {
+            if (!isValidWhiteListPayload(v[key], maxDepth - 1)) return false;
+        }
+        return true;
+    }
 
     let clientId = 1;
 
@@ -118,6 +130,15 @@ function initWss(server: http.Server) {
             }
             if (message.type === "srvProbe") {
                 client.onProbeReceived(message);
+                return;
+            }
+            if (message.type === "dynamicWhiteList") {
+                if (!isValidWhiteListPayload(message.whiteList, 8)) {
+                    logger.warn('Invalid dynamicWhiteList payload', {clientUid});
+                    ws.terminate();
+                    return;
+                }
+                client.setDynamicWhiteList(message.whiteList);
                 return;
             }
             if (message.type === "interrupt") {

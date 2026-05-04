@@ -1,6 +1,6 @@
 import * as WebSocket from 'ws';
 import Log from './Log';
-import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList } from './shared/JsonProxy';
+import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList, mergeWhiteList } from './shared/JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import ClientRequest from './ClientRequest';
 
@@ -41,6 +41,7 @@ export default class Client {
     private jsonListenerId: string;
     private sendDiffTimer: {id: NodeJS.Timeout}|undefined;
     private whiteList: WhiteList;
+    private dynamicWhiteList: WhiteList = {};
     private pingTo: undefined|NodeJS.Timeout;
     private sendQueue:Array<SendQueueItem>;
 
@@ -59,7 +60,7 @@ export default class Client {
         this.jsonListener = this.jsonListener.bind(this);
 
         this.jsonProxy = jsonProxy;
-        const initialState = this.jsonProxy.fork(whiteList);
+        const initialState = this.jsonProxy.fork(this.effectiveWhiteList());
         this.jsonSerial = initialState.serial;
         this.sendDiffTimer = undefined;
         this.enqueue({
@@ -175,12 +176,24 @@ export default class Client {
         this.flushSendQueue();
     }
 
+    private effectiveWhiteList(): WhiteList {
+        return mergeWhiteList(this.whiteList, this.dynamicWhiteList);
+    }
+
+    /** Called by the message handler when the client sends a dynamicWhiteList message. */
+    public setDynamicWhiteList(wl: WhiteList): void {
+        this.dynamicWhiteList = wl;
+        logger.debug('Dynamic whitelist updated', {...this.logContext()});
+        // Schedule an immediate diff so newly-subscribed paths are pushed without waiting for a state change.
+        this.jsonListener();
+    }
+
     private getPendingDiff=()=>{
         if (this.sendDiffTimer !== undefined) {
             clearTimeout(this.sendDiffTimer.id);
             this.sendDiffTimer = undefined;
         }
-        const patch = this.jsonProxy.diff(this.jsonSerial, this.whiteList);
+        const patch = this.jsonProxy.diff(this.jsonSerial, this.effectiveWhiteList());
         if (patch !== undefined) {
             return {type: 'update', status: "ok", diff: patch};
         } else {

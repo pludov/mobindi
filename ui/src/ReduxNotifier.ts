@@ -4,8 +4,44 @@ import * as Actions from './Actions';
 import * as BackendStore from './BackendStore';
 import * as Store from './Store';
 import Notifier from "./Notifier";
+import { WhiteList, WhiteListWildcard } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
+
+/**
+ * Base whitelist: include all state except the large data sections that are
+ * loaded on demand once the relevant UI component is mounted.
+ *
+ * Excluded paths:
+ *   camera.images.byuuid        — individual image metadata (path, astrometry…)
+ *   sequence.sequences.byuuid[*].images     — per-sequence captured image UUIDs
+ *   sequence.sequences.byuuid[*].imageStats — per-image stats objects
+ *
+ * Everything else (sequence titles, step trees, INDI state, …) is always synced.
+ */
+const BASE_WHITELIST: WhiteList = {
+    [WhiteListWildcard]: true,
+    camera: {
+        [WhiteListWildcard]: true,
+        images: {
+            list: true,
+            byuuid: false,
+        },
+    },
+    sequence: {
+        [WhiteListWildcard]: true,
+        sequences: {
+            list: true,
+            byuuid: {
+                [WhiteListWildcard]: {
+                    [WhiteListWildcard]: true,
+                    images: false,
+                    imageStats: false,
+                },
+            },
+        },
+    },
+};
 
 
 function detectScreenStatusByAnimationFrame(cb:(status: boolean)=>(void))
@@ -54,7 +90,7 @@ export default class ReduxNotifier extends Notifier {
     private focusStatus: boolean | undefined = undefined;
 
     constructor() {
-        super(undefined);
+        super(BASE_WHITELIST);
 
         if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support
             this.hidden = "hidden";

@@ -659,28 +659,40 @@ type UpdateDiff = {
     delete?: string[];
 }
 
-export type WhiteList = undefined | {
-    [id: string]: boolean|WhiteList
-};
+// Symbol key used as a wildcard default in WhiteList objects.
+// Matches any child key that is not explicitly listed.
+export const WhiteListWildcard: unique symbol = Symbol("WhiteListWildcard");
+
+export type WhiteList = undefined | (
+    { [id: string]: boolean | WhiteList } &
+    { [WhiteListWildcard]?: boolean | WhiteList }
+);
 
 function whiteListAcceptProps(whiteList : WhiteList, key: string) {
     if (whiteList === undefined) {
         return true;
     }
-    if (!has(whiteList, key)) {
-        return false;
+    if (has(whiteList, key)) {
+        return whiteList[key];
     }
-    return whiteList[key];
+    if (Object.prototype.hasOwnProperty.call(whiteList, WhiteListWildcard)) {
+        return whiteList[WhiteListWildcard]!;
+    }
+    return false;
 }
 
 function whiteListChild(whiteList : WhiteList, key: string) : WhiteList | null {
     if (whiteList === undefined) {
         return undefined;
     }
-    if (!has(whiteList, key)) {
+    let ret: boolean | WhiteList;
+    if (has(whiteList, key)) {
+        ret = whiteList[key];
+    } else if (Object.prototype.hasOwnProperty.call(whiteList, WhiteListWildcard)) {
+        ret = whiteList[WhiteListWildcard]!;
+    } else {
         return null;
     }
-    const ret = whiteList[key];
     if (ret === false) {
         return null;
     }
@@ -688,6 +700,63 @@ function whiteListChild(whiteList : WhiteList, key: string) : WhiteList | null {
         return undefined;
     }
     return ret;
+}
+
+/**
+ * Returns the permissive union of two WhiteLists.
+ * For any given path, if either whitelist says "include", the result includes it.
+ * undefined (include-all) beats everything; false (exclude) loses to any non-null.
+ */
+export function mergeWhiteList(a: WhiteList, b: WhiteList): WhiteList {
+    if (a === undefined || b === undefined) {
+        return undefined;
+    }
+
+    // Merge two resolved whiteListChild results into a stored boolean|WhiteList value.
+    function mergeResolved(av: WhiteList | null, bv: WhiteList | null): boolean | WhiteList {
+        if (av === undefined || bv === undefined) {
+            return true; // include-all wins
+        }
+        if (av === null && bv === null) {
+            return false; // both exclude
+        }
+        if (av === null) {
+            // b includes (partially); permissive wins
+            return bv as WhiteList;
+        }
+        if (bv === null) {
+            return av as WhiteList;
+        }
+        // Both are WhiteList objects — recurse
+        const merged = mergeWhiteList(av, bv);
+        return merged === undefined ? true : merged;
+    }
+
+    const result: { [id: string]: boolean | WhiteList } & { [WhiteListWildcard]?: boolean | WhiteList } = {};
+
+    // Merge all string keys explicitly present in either whitelist
+    const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const key of allKeys) {
+        result[key] = mergeResolved(whiteListChild(a, key), whiteListChild(b, key));
+    }
+
+    // Merge the wildcard (default for any key not explicitly named)
+    function getWildcard(wl: NonNullable<WhiteList>): WhiteList | null {
+        if (!Object.prototype.hasOwnProperty.call(wl, WhiteListWildcard)) {
+            return null; // no wildcard => exclude unnamed keys
+        }
+        const v = wl[WhiteListWildcard]!;
+        if (v === false) return null;
+        if (v === true) return undefined;
+        return v;
+    }
+
+    const mergedWild = mergeResolved(getWildcard(a), getWildcard(b));
+    if (mergedWild !== false) {
+        result[WhiteListWildcard] = mergedWild;
+    }
+
+    return result;
 }
 
 export type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;

@@ -105,6 +105,7 @@ export default class Notifier {
     private xmitTimeout: number | undefined;
 
     private readonly whiteList: WhiteList;
+    private pendingDynamicWhiteList: WhiteList;
 
     constructor(whiteList: WhiteList) {
         this.socket = undefined;
@@ -122,7 +123,6 @@ export default class Notifier {
         // Request are sent using uid: clientId:uniqRequestId
         this.clientId = undefined;
 
-
         // Received on welcome. Used to detect server restarts.
         this.serverId = undefined;
 
@@ -132,6 +132,7 @@ export default class Notifier {
 
         this.resendTimer = undefined;
 
+        this.pendingDynamicWhiteList = {};
     }
 
 
@@ -226,6 +227,14 @@ export default class Notifier {
         }
    }
 
+
+    /** Update the dynamic whitelist and send it to the backend immediately if connected. */
+    public setDynamicWhiteList(wl: WhiteList): void {
+        this.pendingDynamicWhiteList = wl;
+        if (this.handshakeOk) {
+            this.write({type: 'dynamicWhiteList', whiteList: wl});
+        }
+    }
 
     // Returns a promise that will execute the request
     // Except an object with at least target and method property set
@@ -486,6 +495,13 @@ export default class Notifier {
                     this.serverId = data.serverId;
 
                     this.handleNotifications({data: data.data});
+
+                    // Re-send pending dynamic whitelist so the backend applies it
+                    // without waiting for the next state change.
+                    if (this.pendingDynamicWhiteList !== undefined &&
+                            Object.keys(this.pendingDynamicWhiteList).length > 0) {
+                        this.write({type: 'dynamicWhiteList', whiteList: this.pendingDynamicWhiteList});
+                    }
                 }
                 if (data.type === 'srvProbe') {
                     // Just forward back the probe.
