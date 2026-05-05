@@ -19,8 +19,16 @@ import FocuserSettingsPanel from './FocuserSettingsPanel';
 import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
 import FitsViewerFineSlewUI from './FitsViewerFineSlewUI';
 import { Rectangle, SubFrame } from './FitsViewer/Types';
+import stateSubscriptionManager, { IsReadyFn } from './StateSubscriptionManager';
+import { WhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
+
+const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { props: { byuuid: true } } } } } };
+const cameraImagesReady: IsReadyFn = (backend) =>
+    backend.camera?.images?.byuuid !== undefined;
+
+let cameraViewSubCount = 0;
 
 type InputProps = {
     imagingSetupIdAccessor: Store.Accessor<string|null>;
@@ -44,12 +52,21 @@ type State = {
 };
 
 class CameraView extends React.PureComponent<Props, State> {
+    private readonly subId = `cameraView-${cameraViewSubCount++}`;
 
     constructor(props: Props) {
         super(props);
         this.state = {
             loadedImage: undefined
         }
+    }
+
+    componentDidMount() {
+        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId, cameraImagesReady);
+    }
+
+    componentWillUnmount() {
+        stateSubscriptionManager.unsubscribe('cameraImages', this.subId);
     }
 
     private readonly defaultImageLoadingPathAccessor = CameraStore.defaultImageLoadingPathAccessor();
@@ -175,7 +192,7 @@ class CameraView extends React.PureComponent<Props, State> {
 
             if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.lastUuidByDevices, cameraDevice)) {
                 const imageUuid = store.backend.camera!.lastUuidByDevices[cameraDevice];
-                const path = store.backend.camera!.images.byuuid[imageUuid]?.path;
+                const path = store.backend.camera!.images.byuuid?.[imageUuid]?.path;
                 if (imageUuid !== undefined && path !== undefined) {
                     return {
                         imagingSetup,

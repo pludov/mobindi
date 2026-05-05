@@ -96,7 +96,7 @@ function adjuster(store:Store.Content):Store.Content {
         const currentSequence = store.sequence.currentSequence;
 
         const sequence = Utils.getOwnProp(store.backend.sequence.sequences.byuuid, currentSequence);
-        if (sequence !== undefined && sequence.images.length) {
+        if (sequence !== undefined && sequence.images !== undefined && sequence.images.length) {
             const lastImage = sequence.images[sequence.images.length - 1];
             if (lastImage !== store.sequence.currentImage) {
                 store = {
@@ -122,7 +122,7 @@ const setCurrentImage=(state: Store.Content, payload: {image: string})=>{
 
     let currentIsLast = false;
     const sequence = Utils.getOwnProp(state.backend.sequence?.sequences.byuuid, currentSequence);
-    if (sequence) {
+    if (sequence && sequence.images !== undefined) {
         if (sequence.images.length && payload.image === sequence.images[sequence.images.length - 1]) {
             currentIsLast = true;
         }

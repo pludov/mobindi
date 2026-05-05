@@ -1,6 +1,6 @@
 import * as WebSocket from 'ws';
 import Log from './Log';
-import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList, mergeWhiteList } from './shared/JsonProxy';
+import JsonProxy, { ComposedSerialSnapshot, SerialSnapshot, WhiteList, mergeWhiteList, updateSnapshotWhitelist } from './shared/JsonProxy';
 import { BackofficeStatus } from './shared/BackOfficeStatus';
 import ClientRequest from './ClientRequest';
 
@@ -229,7 +229,10 @@ export default class Client {
 
     /** Called by the message handler when the client sends a dynamicWhiteList message. */
     public setDynamicWhiteList(wl: WhiteList): void {
+        const oldEffectiveWhiteList = this.effectiveWhiteList();
         this.dynamicWhiteList = wl;
+        const newEffectiveWhiteList = this.effectiveWhiteList();
+        updateSnapshotWhitelist(this.jsonSerial, oldEffectiveWhiteList, newEffectiveWhiteList);
         logger.debug('Dynamic whitelist updated', {...this.logContext()});
         // Schedule an immediate diff so newly-subscribed paths are pushed without waiting for a state change.
         this.jsonListener();

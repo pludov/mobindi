@@ -16,10 +16,9 @@
  * transit from the backend.
  */
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WhiteList } from './shared/JsonProxy';
 import stateSubscriptionManager, { IsReadyFn } from './StateSubscriptionManager';
-import * as Store from './Store';
 
 let nextId = 1;
 
@@ -53,13 +52,17 @@ export function useBackendSubscription(
  * The component re-renders automatically when the loading state changes.
  */
 export function useSubscriptionLoading(key: string): boolean {
-    // useSyncExternalStore needs a subscribe + getSnapshot pair.
-    // We subscribe to the manager's change listeners so React knows when to
-    // re-check, and snapshot the generation counter so identity changes on
-    // every real loading-state update (React uses === to skip re-renders).
-    useSyncExternalStore(
-        (cb) => stateSubscriptionManager.subscribeToLoadingChanges(cb),
-        () => stateSubscriptionManager.getLoadingGeneration(),
-    );
+    // React 16 doesn't have useSyncExternalStore, so we use useState + useEffect.
+    // Subscribe to the manager's generation counter to trigger re-renders when
+    // loading state changes.
+    const [, setGeneration] = useState(stateSubscriptionManager.getLoadingGeneration());
+
+    useEffect(() => {
+        const unsubscribe = stateSubscriptionManager.subscribeToLoadingChanges(() => {
+            setGeneration(stateSubscriptionManager.getLoadingGeneration());
+        });
+        return unsubscribe;
+    }, []);
+
     return stateSubscriptionManager.isLoading(key);
 }

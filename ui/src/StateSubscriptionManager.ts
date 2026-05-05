@@ -142,12 +142,18 @@ class StateSubscriptionManager {
     }
 
     private checkLoadingKeys(state: Store.Content): void {
-        if (this.loadingKeys.size === 0) return;
         let changed = false;
-        for (const key of Array.from(this.loadingKeys)) {
-            const entry = this.subscriptions.get(key);
-            if (entry?.isReady?.(state.backend)) {
+        for (const [key, entry] of this.subscriptions.entries()) {
+            if (!entry.isReady) continue;
+            const ready = entry.isReady(state.backend);
+            const wasLoading = this.loadingKeys.has(key);
+            if (ready && wasLoading) {
+                // Data arrived
                 this.loadingKeys.delete(key);
+                changed = true;
+            } else if (!ready && !wasLoading) {
+                // Data disappeared (e.g. reconnect reset the store)
+                this.loadingKeys.add(key);
                 changed = true;
             }
         }

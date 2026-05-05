@@ -498,9 +498,10 @@ export default class Notifier {
 
                     // Re-send pending dynamic whitelist so the backend applies it
                     // without waiting for the next state change.
-                    if (this.pendingDynamicWhiteList !== undefined &&
-                            Object.keys(this.pendingDynamicWhiteList).length > 0) {
-                        this.write({type: 'dynamicWhiteList', whiteList: this.pendingDynamicWhiteList});
+                    const pwl = this.pendingDynamicWhiteList;
+                    if (pwl !== undefined && pwl !== false
+                            && (pwl === true || Object.keys(pwl).length > 0)) {
+                        this.write({type: 'dynamicWhiteList', whiteList: pwl});
                     }
                 }
                 if (data.type === 'srvProbe') {

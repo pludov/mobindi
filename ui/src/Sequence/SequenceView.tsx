@@ -24,6 +24,10 @@ import AccessorSelector from '../primitives/AccessorSelector';
 import SequenceActivityMonitoringView from './SequenceActivityMonitoringView';
 import SequenceFwhmMonitoringView from './SequenceFwhmMonitoringView';
 import SequenceBackgroundMonitoringView from './SequenceBackgroundMonitoringView';
+import DataLoader from '../primitives/DataLoader';
+import stateSubscriptionManager, { IsReadyFn } from '../StateSubscriptionManager';
+import { WhiteList } from '../shared/JsonProxy';
+import * as BackendStore from '../BackendStore';
 
 
 type SequenceViewDatabaseObject = {
@@ -104,6 +108,36 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
 const fields = fieldList.reduce((c, a)=>{c[a.id]=a; return c}, {} as {[id:string]:FieldDefinition});
 const defaultHeader:HeaderItem[] = fieldList.map(e=>({id: e.id}));
 
+const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { props: { byuuid: true } } } } } };
+
+function sequenceImagesWL(uid: string): WhiteList {
+    return {
+        props: {
+            sequence: {
+                props: {
+                    sequences: {
+                        props: {
+                            byuuid: {
+                                props: { [uid]: { props: { images: true, imageStats: true } } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+}
+
+const cameraImagesReady: IsReadyFn = (backend) =>
+    backend.camera?.images?.byuuid !== undefined;
+
+function sequenceImagesReady(uid: string): IsReadyFn {
+    return (backend) =>
+        backend.sequence?.sequences?.byuuid?.[uid]?.images !== undefined;
+}
+
+let seqViewSubCount = 0;
+
 class AccessorFactory {
     currentMonitoring= defaultMemoize(
         ()=>new SequenceStore.SequenceStoreContentAccessor().child(AccessPath.For((e)=>e.currentMonitoringView))
@@ -128,9 +162,38 @@ class AccessorFactory {
 }
 
 class SequenceView extends PureComponent<SequenceViewProps> {
+    private readonly subId = `seqView-${seqViewSubCount++}`;
+
     constructor(props:SequenceViewProps) {
         super(props);
         this.state = {
+        }
+    }
+
+    componentDidMount() {
+        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId, cameraImagesReady);
+        const uid = this.props.uid;
+        if (uid) {
+            stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId, sequenceImagesReady(uid));
+        }
+    }
+
+    componentDidUpdate(prevProps: SequenceViewProps) {
+        const uid = this.props.uid;
+        if (uid !== prevProps.uid) {
+            if (prevProps.uid) {
+                stateSubscriptionManager.unsubscribe(`sequence:${prevProps.uid}`, this.subId);
+            }
+            if (uid) {
+                stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId, sequenceImagesReady(uid));
+            }
+        }
+    }
+
+    componentWillUnmount() {
+        stateSubscriptionManager.unsubscribe('cameraImages', this.subId);
+        if (this.props.uid) {
+            stateSubscriptionManager.unsubscribe(`sequence:${this.props.uid}`, this.subId);
         }
     }
 
@@ -198,7 +261,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
             </div>
 
             {this.props.currentMonitoring === undefined ?
-                <>
+                <DataLoader loadingKey="cameraImages">
                     <div className="SequenceViewDisplay">
                         <ImageDetail
                             currentPath='$.sequence.currentImage'
@@ -206,35 +269,64 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                         />
                     </div>
                     <div className="SequenceViewTable">
-                        <Table statePath="$.sequenceView.list"
-                            itemHeight="1.20em"
-                            fields={fields}
-                            defaultHeader={defaultHeader}
-                            getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>
-                                {
-                                    const currentSequenceId = store.sequence.currentSequence;
-                                    const currentSequence = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, currentSequenceId);
-                                    return {
-                                        images: store.backend.camera?.images.byuuid,
-                                        imageList: currentSequence?.images,
-                                        imageStats: currentSequence?.imageStats,
-                                        astrometryRefImageUuid: currentSequence?.astrometryRefImageUuid || null,
-                                    };
+                        {this.props.uid
+                            ? <DataLoader loadingKey={`sequence:${this.props.uid}`}>
+                                <Table statePath="$.sequenceView.list"
+                                    itemHeight="1.20em"
+                                    fields={fields}
+                                    defaultHeader={defaultHeader}
+                                    getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>
+                                        {
+                                            const currentSequenceId = store.sequence.currentSequence;
+                                            const currentSequence = Utils.getOwnProp(store.backend.sequence?.sequences?.byuuid, currentSequenceId);
+                                            return {
+                                                images: store.backend.camera?.images?.byuuid,
+                                                imageList: currentSequence?.images,
+                                                imageStats: currentSequence?.imageStats,
+                                                astrometryRefImageUuid: currentSequence?.astrometryRefImageUuid || null,
+                                            };
+                                        }
+                                    }
+                                    getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
+                                    getItem={(db:SequenceViewDatabaseObject,uid:string):BackOfficeStatus.ImageStatus&Partial<BackOfficeStatus.ImageStats>&AdditionalImageStatus=>
+                                        ({
+                                            ...Utils.getOwnProp(db.images, uid)!,
+                                            ...Utils.getOwnProp(db.imageStats, uid),
+                                            isAstrometryRef: db.astrometryRefImageUuid === uid,
+                                        })}
+                                    currentPath='$.sequence.currentImage'
+                                    currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
+                                    onItemClick={this.setCurrentImage}
+                                />
+                              </DataLoader>
+                            : <Table statePath="$.sequenceView.list"
+                                itemHeight="1.20em"
+                                fields={fields}
+                                defaultHeader={defaultHeader}
+                                getDatabases={(store:Store.Content):SequenceViewDatabaseObject=>
+                                    {
+                                        return {
+                                            images: undefined,
+                                            imageList: undefined,
+                                            imageStats: undefined,
+                                            astrometryRefImageUuid: null,
+                                        };
+                                    }
                                 }
-                            }
-                            getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
-                            getItem={(db:SequenceViewDatabaseObject,uid:string):BackOfficeStatus.ImageStatus&Partial<BackOfficeStatus.ImageStats>&AdditionalImageStatus=>
-                                ({
-                                    ...Utils.getOwnProp(db.images, uid)!,
-                                    ...Utils.getOwnProp(db.imageStats, uid),
-                                    isAstrometryRef: db.astrometryRefImageUuid === uid,
-                                })}
-                            currentPath='$.sequence.currentImage'
-                            currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
-                            onItemClick={this.setCurrentImage}
-                        />
+                                getItemList={(db:SequenceViewDatabaseObject)=>(db.imageList||[])}
+                                getItem={(db:SequenceViewDatabaseObject,uid:string):BackOfficeStatus.ImageStatus&Partial<BackOfficeStatus.ImageStats>&AdditionalImageStatus=>
+                                    ({
+                                        ...Utils.getOwnProp(db.images, uid)!,
+                                        ...Utils.getOwnProp(db.imageStats, uid),
+                                        isAstrometryRef: db.astrometryRefImageUuid === uid,
+                                    })}
+                                currentPath='$.sequence.currentImage'
+                                currentAutoSelectSerialPath='$.sequence.currentImageAutoSelectSerial'
+                                onItemClick={this.setCurrentImage}
+                            />
+                        }
                     </div>
-                </>
+                </DataLoader>
             :null}
 
             {this.props.currentMonitoring === 'activity' && this.props.uid !== undefined ?
