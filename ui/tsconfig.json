@@ -11,6 +11,7 @@
     "moduleResolution": "node",
     "rootDir": "../",
     "rootDirs": ["./src"],
+    "downlevelIteration": true,
 
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true,
