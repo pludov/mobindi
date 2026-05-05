@@ -274,7 +274,7 @@ try {
         }
     }
     const location = (self as any).location;
-    notifier = new WorkerNotifier({notification: true});
+    notifier = new WorkerNotifier({ props: { notification: true } });
     notifier.connect(location.protocol + '//' + location.hostname  + ':' + location.port + '/');
 
 } catch(e) {

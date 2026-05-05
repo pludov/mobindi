@@ -90,14 +90,24 @@ function initWss(server: http.Server) {
     });
 
     // Validate a dynamicWhiteList payload from the client (prevents injection of unexpected types).
-    // Only plain objects, boolean values, and null are accepted; depth is capped.
+    // Only the JSON-safe WhiteList shape is accepted: undefined/null, boolean, or
+    // { props?: { [key]: WhiteList }, wildcard?: WhiteList } with no extra keys.
     function isValidWhiteListPayload(v: any, maxDepth: number): boolean {
         if (v === null || v === undefined) return true;
         if (typeof v === 'boolean') return true;
         if (typeof v !== 'object' || Array.isArray(v)) return false;
         if (maxDepth <= 0) return false;
         for (const key of Object.keys(v)) {
-            if (!isValidWhiteListPayload(v[key], maxDepth - 1)) return false;
+            if (key !== 'props' && key !== 'wildcard') return false;
+        }
+        if (v.props !== undefined) {
+            if (typeof v.props !== 'object' || Array.isArray(v.props)) return false;
+            for (const key of Object.keys(v.props)) {
+                if (!isValidWhiteListPayload(v.props[key], maxDepth - 1)) return false;
+            }
+        }
+        if (v.wildcard !== undefined) {
+            if (!isValidWhiteListPayload(v.wildcard, maxDepth - 1)) return false;
         }
         return true;
     }

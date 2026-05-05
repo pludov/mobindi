@@ -10,6 +10,53 @@ const clients: {[id:string]:Client} = {};
 
 const pingDelay = 60000;
 
+/**
+ * Base whitelist: include all state except the large data sections that are
+ * loaded on demand once the relevant UI component is mounted.
+ *
+ * Excluded paths:
+ *   camera.images.byuuid        — individual image metadata (path, astrometry…)
+ *   sequence.sequences.byuuid[*].images     — per-sequence captured image UUIDs
+ *   sequence.sequences.byuuid[*].imageStats — per-image stats objects
+ *
+ * Everything else (sequence titles, step trees, INDI state, …) is always synced.
+ */
+const BASE_WHITELIST: WhiteList = {
+    wildcard: true,
+    props: {
+        camera: {
+            wildcard: true,
+            props: {
+                images: {
+                    props: {
+                        list: true,
+                        byuuid: false,
+                    },
+                },
+            },
+        },
+        sequence: {
+            wildcard: true,
+            props: {
+                sequences: {
+                    props: {
+                        list: true,
+                        byuuid: {
+                            wildcard: {
+                                wildcard: true,
+                                props: {
+                                    images: false,
+                                    imageStats: false,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+};
+
 
 type SendQueueItem = {
     // Perform a sendDiff before sending the payload

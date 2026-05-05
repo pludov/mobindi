@@ -4,7 +4,7 @@ import * as Actions from './Actions';
 import * as BackendStore from './BackendStore';
 import * as Store from './Store';
 import Notifier from "./Notifier";
-import { WhiteList, WhiteListWildcard } from './shared/JsonProxy';
+import { WhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 
@@ -20,23 +20,35 @@ const logger = Log.logger(__filename);
  * Everything else (sequence titles, step trees, INDI state, …) is always synced.
  */
 const BASE_WHITELIST: WhiteList = {
-    [WhiteListWildcard]: true,
-    camera: {
-        [WhiteListWildcard]: true,
-        images: {
-            list: true,
-            byuuid: false,
+    wildcard: true,
+    props: {
+        camera: {
+            wildcard: true,
+            props: {
+                images: {
+                    props: {
+                        list: true,
+                        byuuid: false,
+                    },
+                },
+            },
         },
-    },
-    sequence: {
-        [WhiteListWildcard]: true,
-        sequences: {
-            list: true,
-            byuuid: {
-                [WhiteListWildcard]: {
-                    [WhiteListWildcard]: true,
-                    images: false,
-                    imageStats: false,
+        sequence: {
+            wildcard: true,
+            props: {
+                sequences: {
+                    props: {
+                        list: true,
+                        byuuid: {
+                            wildcard: {
+                                wildcard: true,
+                                props: {
+                                    images: false,
+                                    imageStats: false,
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },

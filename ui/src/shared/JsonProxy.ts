@@ -659,104 +659,176 @@ type UpdateDiff = {
     delete?: string[];
 }
 
-// Symbol key used as a wildcard default in WhiteList objects.
-// Matches any child key that is not explicitly listed.
-export const WhiteListWildcard: unique symbol = Symbol("WhiteListWildcard");
+/**
+ * WhiteList — JSON-safe filter structure for selective state synchronisation.
+ *
+ * - undefined : include everything (no filtering)
+ * - true      : include everything (equivalent to undefined; useful as a leaf value)
+ * - false     : exclude everything
+ * - { props?, wildcard? } : structured filter
+ *     props    — named-child overrides (each value is a nested WhiteList)
+ *     wildcard — default WhiteList applied to any key not listed in props
+ *                (absent = false: unnamed keys are excluded by default)
+ *
+ * The format is JSON-safe: no Symbol keys are used, so the structure can be
+ * serialised / deserialised over WebSocket without loss of information.
+ */
+export type WhiteList = undefined | boolean | {
+    props?: { [id: string]: WhiteList };
+    wildcard?: WhiteList;
+};
 
-export type WhiteList = undefined | (
-    { [id: string]: boolean | WhiteList } &
-    { [WhiteListWildcard]?: boolean | WhiteList }
-);
-
-function whiteListAcceptProps(whiteList : WhiteList, key: string) {
-    if (whiteList === undefined) {
-        return true;
+function whiteListAcceptProps(whiteList: WhiteList, key: string): boolean | WhiteList {
+    if (whiteList === undefined || whiteList === true) return true;
+    if (whiteList === false) return false;
+    const props = whiteList.props;
+    if (props !== undefined && Object.prototype.hasOwnProperty.call(props, key)) {
+        const v = props[key];
+        return v === undefined ? false : v;
     }
-    if (has(whiteList, key)) {
-        return whiteList[key];
-    }
-    if (Object.prototype.hasOwnProperty.call(whiteList, WhiteListWildcard)) {
-        return whiteList[WhiteListWildcard]!;
-    }
-    return false;
+    const wildcard = whiteList.wildcard;
+    return wildcard !== undefined ? wildcard : false;
 }
 
-function whiteListChild(whiteList : WhiteList, key: string) : WhiteList | null {
-    if (whiteList === undefined) {
-        return undefined;
-    }
-    let ret: boolean | WhiteList;
-    if (has(whiteList, key)) {
-        ret = whiteList[key];
-    } else if (Object.prototype.hasOwnProperty.call(whiteList, WhiteListWildcard)) {
-        ret = whiteList[WhiteListWildcard]!;
+function whiteListChild(whiteList: WhiteList, key: string): WhiteList | null {
+    if (whiteList === undefined || whiteList === true) return undefined;
+    if (whiteList === false) return null;
+    const props = whiteList.props;
+    let ret: WhiteList;
+    if (props !== undefined && Object.prototype.hasOwnProperty.call(props, key)) {
+        ret = props[key];
     } else {
-        return null;
+        const wildcard = whiteList.wildcard;
+        if (wildcard === undefined) return null;
+        ret = wildcard;
     }
-    if (ret === false) {
-        return null;
-    }
-    if (ret === true) {
-        return undefined;
-    }
+    if (ret === false) return null;
+    if (ret === true || ret === undefined) return undefined;
     return ret;
 }
 
 /**
  * Returns the permissive union of two WhiteLists.
  * For any given path, if either whitelist says "include", the result includes it.
- * undefined (include-all) beats everything; false (exclude) loses to any non-null.
+ * undefined/true (include-all) beats everything; false/absent (exclude) loses to any non-null.
  */
 export function mergeWhiteList(a: WhiteList, b: WhiteList): WhiteList {
-    if (a === undefined || b === undefined) {
-        return undefined;
-    }
+    if (a === undefined || a === true) return undefined;
+    if (b === undefined || b === true) return undefined;
 
-    // Merge two resolved whiteListChild results into a stored boolean|WhiteList value.
-    function mergeResolved(av: WhiteList | null, bv: WhiteList | null): boolean | WhiteList {
-        if (av === undefined || bv === undefined) {
-            return true; // include-all wins
-        }
-        if (av === null && bv === null) {
-            return false; // both exclude
-        }
-        if (av === null) {
-            // b includes (partially); permissive wins
-            return bv as WhiteList;
-        }
-        if (bv === null) {
-            return av as WhiteList;
-        }
+    type WLObj = { props?: { [id: string]: WhiteList }; wildcard?: WhiteList };
+    const aObj: WLObj = (a === false) ? {} : (a as WLObj);
+    const bObj: WLObj = (b === false) ? {} : (b as WLObj);
+
+    // Merge two resolved whiteListChild results into a stored WhiteList value.
+    function mergeResolved(av: WhiteList | null, bv: WhiteList | null): WhiteList {
+        if (av === undefined || bv === undefined) return true; // include-all wins
+        if (av === null && bv === null) return false;           // both exclude
+        if (av === null) return bv!;                            // b wins
+        if (bv === null) return av!;                            // a wins
         // Both are WhiteList objects — recurse
         const merged = mergeWhiteList(av, bv);
         return merged === undefined ? true : merged;
     }
 
-    const result: { [id: string]: boolean | WhiteList } & { [WhiteListWildcard]?: boolean | WhiteList } = {};
-
-    // Merge all string keys explicitly present in either whitelist
-    const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
-    for (const key of allKeys) {
-        result[key] = mergeResolved(whiteListChild(a, key), whiteListChild(b, key));
+    // Extract wildcard as WhiteList | null (null = absent = exclude unnamed keys)
+    function getWildcard(wl: WLObj): WhiteList | null {
+        const w = wl.wildcard;
+        if (w === undefined || w === false) return null;
+        if (w === true) return undefined;
+        return w;
     }
 
-    // Merge the wildcard (default for any key not explicitly named)
-    function getWildcard(wl: NonNullable<WhiteList>): WhiteList | null {
-        if (!Object.prototype.hasOwnProperty.call(wl, WhiteListWildcard)) {
-            return null; // no wildcard => exclude unnamed keys
-        }
-        const v = wl[WhiteListWildcard]!;
-        if (v === false) return null;
-        if (v === true) return undefined;
-        return v;
+    // Collect all explicitly named keys from both sides
+    const allKeys = new Set([...Object.keys(aObj.props || {}), ...Object.keys(bObj.props || {})]);
+    const resultProps: { [id: string]: WhiteList } = {};
+    for (const key of Array.from(allKeys)) {
+        resultProps[key] = mergeResolved(whiteListChild(aObj as WhiteList, key), whiteListChild(bObj as WhiteList, key));
     }
 
-    const mergedWild = mergeResolved(getWildcard(a), getWildcard(b));
+    const mergedWild = mergeResolved(getWildcard(aObj), getWildcard(bObj));
+    const result: WLObj = {};
+    if (Object.keys(resultProps).length > 0) {
+        result.props = resultProps;
+    }
     if (mergedWild !== false) {
-        result[WhiteListWildcard] = mergedWild;
+        result.wildcard = mergedWild;
+    }
+    return result;
+}
+
+function wildcardOf(whiteList: WhiteList): WhiteList | null {
+    if (whiteList === undefined || whiteList === true) return undefined;
+    if (whiteList === false) return null;
+    const w = whiteList.wildcard;
+    if (w === undefined || w === false) return null;
+    if (w === true) return undefined;
+    return w;
+}
+
+function whiteListEquivalent(a: WhiteList | null, b: WhiteList | null): boolean {
+    const kind = (v: WhiteList | null) => {
+        if (v === undefined || v === true) return 'all';
+        if (v === null || v === false) return 'none';
+        return 'obj';
+    };
+    const ak = kind(a);
+    const bk = kind(b);
+    if (ak !== bk) return false;
+    if (ak !== 'obj') return true;
+
+    const aObj = a as { props?: { [id: string]: WhiteList }; wildcard?: WhiteList };
+    const bObj = b as { props?: { [id: string]: WhiteList }; wildcard?: WhiteList };
+
+    const keys = new Set<string>([
+        ...Object.keys(aObj.props || {}),
+        ...Object.keys(bObj.props || {}),
+    ]);
+
+    for (const key of Array.from(keys)) {
+        if (!whiteListEquivalent(whiteListChild(aObj as WhiteList, key), whiteListChild(bObj as WhiteList, key))) {
+            return false;
+        }
     }
 
-    return result;
+    return whiteListEquivalent(wildcardOf(aObj as WhiteList), wildcardOf(bObj as WhiteList));
+}
+
+/**
+ * Update an existing serial snapshot when whitelist rules change.
+ *
+ * For every changed whitelist branch, clear childSerial from the affected node up to
+ * the root so the next diff() performs a deep walk and can discover newly included data.
+ */
+export function updateSnapshotWhitelist(snapshot: ComposedSerialSnapshot, oldWhiteList: WhiteList, newWhiteList: WhiteList): void {
+    function ensureComposed(s: SerialSnapshot): ComposedSerialSnapshot | null {
+        return typeof s === 'object' ? s : null;
+    }
+
+    function walk(node: ComposedSerialSnapshot, oldW: WhiteList, newW: WhiteList): boolean {
+        let changed = !whiteListEquivalent(oldW, newW);
+
+        for (const key of Object.keys(node.props)) {
+            const oldChild = whiteListChild(oldW, key);
+            const newChild = whiteListChild(newW, key);
+
+            const childSnapshot = ensureComposed(node.props[key]);
+            if (childSnapshot !== null) {
+                const oldChildW: WhiteList = oldChild === null ? false : oldChild;
+                const newChildW: WhiteList = newChild === null ? false : newChild;
+                if (walk(childSnapshot, oldChildW, newChildW)) {
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) {
+            node.childSerial = undefined;
+        }
+        return changed;
+    }
+
+    walk(snapshot, oldWhiteList, newWhiteList);
 }
 
 export type Diff = number | string | boolean | null | NewArrayDiff | NewObjectDiff | UpdateDiff;
@@ -1058,15 +1130,11 @@ export default class JsonProxy<CONTENTTYPE> {
                     props: {}
                 };
                 for(var k of Object.keys(desc.value)) {
-                    const childWhitelist =
-                        whiteList === undefined
-                            ? undefined
-                            : has(whiteList, k) ? whiteList[k] : false;
-
-                    if (childWhitelist === false) {
+                    const childWhitelist = whiteListChild(whiteList, k);
+                    if (childWhitelist === null) {
                         continue;
                     }
-                    (result.props as any)[k] = forObject(desc.value[k], childWhitelist === true ? undefined : childWhitelist);
+                    (result.props as any)[k] = forObject(desc.value[k], childWhitelist);
                 }
                 return result;
             } else {

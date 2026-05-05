@@ -3,7 +3,7 @@ import { expect, assert } from 'chai';
 import * as util from 'util';
 import 'mocha';
 
-import JsonProxy, {has, WhiteList, WhiteListWildcard, mergeWhiteList} from './shared/JsonProxy';
+import JsonProxy, {has, WhiteList, mergeWhiteList, updateSnapshotWhitelist} from './shared/JsonProxy';
 
 /**
  * Created by ludovic on 21/07/17.
@@ -527,7 +527,7 @@ describe("Json proxy", () => {
 
     it('performs partial streaming replication', ()=>{
 
-        const whiteList : WhiteList = {a: true};
+        const whiteList: WhiteList = { props: { a: true } };
         
         function whiteListedClone(e:any) {
             if (! Object.prototype.hasOwnProperty.call(e, "a")) {
@@ -606,6 +606,112 @@ describe("Json proxy", () => {
         previousData = checkConst(data);
     });
 
+    it('includes newly-whitelisted path even if only unrelated changes happened since snapshot', ()=> {
+        const initialWhiteList: WhiteList = { props: { stable: true } };
+        const expandedWhiteList: WhiteList = { props: { stable: true, missing: true } };
+
+        const changeTracker = new JsonProxy<any>();
+        const root = changeTracker.getTarget();
+        root.stable = { value: 1 };
+        root.missing = { payload: { deep: 42 } };
+        root.unrelated = { counter: 0 };
+
+        const { serial } = changeTracker.fork(initialWhiteList);
+
+        // Mutations happened, but only on a branch unrelated to the newly-whitelisted path.
+        root.unrelated.counter = 1;
+        root.unrelated.extra = true;
+
+        updateSnapshotWhitelist(serial, initialWhiteList, expandedWhiteList);
+
+        const patch = changeTracker.diff(serial, expandedWhiteList);
+        const expectedPatch: any = {
+            update: {
+                missing: {
+                    newObject: {
+                        payload: {
+                            newObject: {
+                                deep: 42,
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        assert.deepEqual(
+            patch,
+            expectedPatch,
+            'Expanding whitelist must push current value of newly-included path'
+        );
+    });
+
+    describe('updateSnapshotWhitelist', ()=> {
+        it('clears root childSerial when root whitelist changes', ()=> {
+            const initialWhiteList: WhiteList = { props: { only: true } };
+            const expandedWhiteList: WhiteList = { props: { only: true, added: true } };
+
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.only = 1;
+            root.added = 2;
+
+            const { serial } = tracker.fork(initialWhiteList);
+            assert.notStrictEqual(serial.childSerial, undefined, 'precondition: childSerial initially set');
+
+            updateSnapshotWhitelist(serial, initialWhiteList, expandedWhiteList);
+
+            assert.strictEqual(serial.childSerial, undefined, 'root childSerial is cleared');
+        });
+
+        it('clears childSerial from changed nested path up to root', ()=> {
+            const oldWhiteList: WhiteList = {
+                props: {
+                    top: {
+                        props: {
+                            child: {
+                                wildcard: true,
+                                props: {
+                                    target: false,
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+            const newWhiteList: WhiteList = {
+                props: {
+                    top: {
+                        props: {
+                            child: {
+                                wildcard: true,
+                                props: {
+                                    target: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+
+            const tracker = new JsonProxy<any>();
+            const root = tracker.getTarget();
+            root.top = { child: { target: { deep: 9 }, other: 1 } };
+
+            const { serial } = tracker.fork(oldWhiteList);
+            const topSnapshot: any = serial.props.top;
+            const childSnapshot: any = topSnapshot.props.child;
+            assert.notStrictEqual(serial.childSerial, undefined, 'precondition: root childSerial initially set');
+            assert.notStrictEqual(topSnapshot.childSerial, undefined, 'precondition: top childSerial initially set');
+            assert.notStrictEqual(childSnapshot.childSerial, undefined, 'precondition: child childSerial initially set');
+
+            updateSnapshotWhitelist(serial, oldWhiteList, newWhiteList);
+
+            assert.strictEqual(serial.childSerial, undefined, 'root childSerial cleared');
+            assert.strictEqual(topSnapshot.childSerial, undefined, 'ancestor childSerial cleared');
+            assert.strictEqual(childSnapshot.childSerial, undefined, 'changed node childSerial cleared');
+        });
+    });
+
 
     it('inspect/stringify correctly', ()=>{
         function initObj(obj:any) {
@@ -629,7 +735,7 @@ describe("Json proxy", () => {
         assert.strictEqual(JSON.stringify(root), JSON.stringify(reference), "Proxy not visible through JSON.stringify");
     });
 
-    describe("WhiteListWildcard", () => {
+    describe("WhiteList wildcard", () => {
         it("wildcard fallback in whiteListChild via fork", () => {
             const tracker = new JsonProxy<any>();
             const root = tracker.getTarget();
@@ -638,8 +744,8 @@ describe("Json proxy", () => {
             root.skip = { z: 3 };
 
             const wl: WhiteList = {
-                [WhiteListWildcard]: true,
-                skip: false,
+                wildcard: true,
+                props: { skip: false },
             };
 
             const { data } = tracker.fork(wl);
@@ -654,7 +760,7 @@ describe("Json proxy", () => {
             root.a = 1;
             root.b = 2;
 
-            const wl: WhiteList = { [WhiteListWildcard]: true, b: false };
+            const wl: WhiteList = { wildcard: true, props: { b: false } };
             const { serial } = tracker.fork(wl);
 
             root.a = 10;
@@ -669,10 +775,10 @@ describe("Json proxy", () => {
             root.named = 1;
             root.other = 2;
 
-            const wl: WhiteList = { [WhiteListWildcard]: false, named: true };
+            const wl: WhiteList = { props: { named: true } };
             const { data } = tracker.fork(wl);
             assert.strictEqual(data.named, 1, "explicit true overrides wildcard=false");
-            assert.strictEqual(data.other, undefined, "wildcard=false excludes unlisted key");
+            assert.strictEqual(data.other, undefined, "wildcard=false (absent) excludes unlisted key");
         });
 
         it("nested wildcard excludes deep heavy fields", () => {
@@ -686,9 +792,13 @@ describe("Json proxy", () => {
             };
 
             const wl: WhiteList = {
-                sequences: {
-                    byuuid: {
-                        [WhiteListWildcard]: { [WhiteListWildcard]: true, images: false },
+                props: {
+                    sequences: {
+                        props: {
+                            byuuid: {
+                                wildcard: { wildcard: true, props: { images: false } },
+                            }
+                        }
                     }
                 }
             };
@@ -703,7 +813,7 @@ describe("Json proxy", () => {
 
     describe("mergeWhiteList", () => {
         it("undefined (include-all) wins over anything", () => {
-            const wl: WhiteList = { a: true };
+            const wl: WhiteList = { props: { a: true } };
             assert.strictEqual(mergeWhiteList(undefined, wl), undefined, "undefined + object => undefined");
             assert.strictEqual(mergeWhiteList(wl, undefined), undefined, "object + undefined => undefined");
             assert.strictEqual(mergeWhiteList(undefined, undefined), undefined, "undefined + undefined => undefined");
@@ -715,12 +825,9 @@ describe("Json proxy", () => {
         });
 
         it("union of non-overlapping keys", () => {
-            const a: WhiteList = { x: true };
-            const b: WhiteList = { y: true };
+            const a: WhiteList = { props: { x: true } };
+            const b: WhiteList = { props: { y: true } };
             const result = mergeWhiteList(a, b);
-            assert.ok(result !== undefined);
-            const { data: da } = new JsonProxy<any>().fork(result);  // just test shape
-            // Easier: use fork on a real proxy
             const tracker = new JsonProxy<any>();
             const root = tracker.getTarget();
             root.x = 1; root.y = 2; root.z = 3;
@@ -731,8 +838,8 @@ describe("Json proxy", () => {
         });
 
         it("permissive wins: one excludes, other includes", () => {
-            const a: WhiteList = { key: false };
-            const b: WhiteList = { key: true };
+            const a: WhiteList = { props: { key: false } };
+            const b: WhiteList = { props: { key: true } };
             const result = mergeWhiteList(a, b)!;
             const tracker = new JsonProxy<any>();
             const root = tracker.getTarget();
@@ -742,9 +849,8 @@ describe("Json proxy", () => {
         });
 
         it("wildcard from one side propagates to unnamed keys", () => {
-            // a excludes all unnamed; b has wildcard=true
-            const a: WhiteList = { named: true };
-            const b: WhiteList = { [WhiteListWildcard]: true };
+            const a: WhiteList = { props: { named: true } };
+            const b: WhiteList = { wildcard: true };
             const result = mergeWhiteList(a, b)!;
             const tracker = new JsonProxy<any>();
             const root = tracker.getTarget();
@@ -755,33 +861,43 @@ describe("Json proxy", () => {
         });
 
         it("merged wildcards: both false => excluded unnamed, any true => included", () => {
-            const a: WhiteList = { [WhiteListWildcard]: false };
-            const b: WhiteList = { [WhiteListWildcard]: false };
+            const a: WhiteList = { wildcard: false };
+            const b: WhiteList = { wildcard: false };
             const tracker = new JsonProxy<any>();
             const root = tracker.getTarget();
             root.x = 1;
             const res1 = mergeWhiteList(a, b)!;
             assert.strictEqual(tracker.fork(res1).data.x, undefined, "both wildcards=false => excluded");
 
-            const c: WhiteList = { [WhiteListWildcard]: true };
+            const c: WhiteList = { wildcard: true };
             const res2 = mergeWhiteList(a, c)!;
             assert.strictEqual(tracker.fork(res2).data.x, 1, "one wildcard=true => included");
         });
 
         it("dynamic merge: base excludes heavy fields, dynamic adds one sequence", () => {
             const base: WhiteList = {
-                [WhiteListWildcard]: true,
-                sequences: {
-                    list: true,
-                    byuuid: {
-                        [WhiteListWildcard]: { [WhiteListWildcard]: true, images: false },
+                wildcard: true,
+                props: {
+                    sequences: {
+                        props: {
+                            list: true,
+                            byuuid: {
+                                wildcard: { wildcard: true, props: { images: false } },
+                            }
+                        }
                     }
                 }
             };
             const dynamic: WhiteList = {
-                sequences: {
-                    byuuid: {
-                        seq1: { images: true }
+                props: {
+                    sequences: {
+                        props: {
+                            byuuid: {
+                                props: {
+                                    seq1: { props: { images: true } }
+                                }
+                            }
+                        }
                     }
                 }
             };
