@@ -16,9 +16,10 @@
 import { WhiteList, mergeWhiteList } from './shared/JsonProxy';
 import * as Store from './Store';
 
+export type SubscriptionHandle = string;
+
 type SubscriptionEntry = {
     whiteList: WhiteList;
-    subscribers: Set<string>;
     loading: boolean;
     waitingTag?: number;
 };
@@ -26,7 +27,8 @@ type SubscriptionEntry = {
 type ChangeListener = () => void;
 
 class StateSubscriptionManager {
-    private subscriptions: Map<string, SubscriptionEntry> = new Map();
+    private subscriptions: Map<SubscriptionHandle, SubscriptionEntry> = new Map();
+    private nextHandleId = 1;
     private nextPendingTag = 0;
     private flushTimer: NodeJS.Timeout | undefined;
     private lastSentWhiteListJson: string | undefined;
@@ -35,46 +37,33 @@ class StateSubscriptionManager {
     private loadingGeneration: number = 0;
     private changeListeners: Set<ChangeListener> = new Set();
 
-    /**
-     * Register interest in the given whitelist fragment under a logical key.
-     *
-     * @param key        Logical name for this subscription (e.g. "cameraImages").
-     * @param whiteList  The whitelist fragment to merge into the dynamic whitelist.
-     * @param id         Unique subscriber id (e.g. a component instance id).
-     */
-    subscribe(key: string, whiteList: WhiteList, id: string): void {
-        let entry = this.subscriptions.get(key);
-        if (!entry) {
-            entry = { whiteList, subscribers: new Set(), loading: true, waitingTag: this.nextPendingTag };
-            this.subscriptions.set(key, entry);
+    /** Register interest in a whitelist fragment and return a subscription handle. */
+    subscribe(whiteList: WhiteList): SubscriptionHandle {
+        const handle: SubscriptionHandle = `sub-${this.nextHandleId++}`;
+        const entry: SubscriptionEntry = { whiteList, loading: true, waitingTag: this.nextPendingTag };
+        this.subscriptions.set(handle, entry);
+        this.loadingGeneration++;
+        this.notifyChangeListeners();
+        this.scheduleFlush();
+        return handle;
+    }
+
+    /** Release a previously registered subscription handle. */
+    unsubscribe(handle: SubscriptionHandle): void {
+        const entry = this.subscriptions.get(handle);
+        if (!entry) return;
+        this.subscriptions.delete(handle);
+        if (entry.loading) {
             this.loadingGeneration++;
             this.notifyChangeListeners();
         }
-        entry.subscribers.add(id);
         this.scheduleFlush();
     }
 
-    /**
-     * Release a previously registered subscription.
-     * When no subscribers remain for a key, the whitelist fragment is removed.
-     */
-    unsubscribe(key: string, id: string): void {
-        const entry = this.subscriptions.get(key);
-        if (!entry) return;
-        entry.subscribers.delete(id);
-        if (entry.subscribers.size === 0) {
-            this.subscriptions.delete(key);
-            if (entry.loading) {
-                this.loadingGeneration++;
-                this.notifyChangeListeners();
-            }
-        }
-        this.scheduleFlush();
-    }
-
-    /** Returns true while the backend has not yet sent data for this key. */
-    isLoading(key: string): boolean {
-        const entry = this.subscriptions.get(key);
+    /** Returns true while the backend has not yet sent data for this handle. */
+    isLoading(handle: SubscriptionHandle | null | undefined): boolean {
+        if (handle === null || handle === undefined) return true;
+        const entry = this.subscriptions.get(handle);
         return entry !== undefined && entry.loading;
     }
 

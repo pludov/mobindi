@@ -12,39 +12,38 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { WhiteList } from './shared/JsonProxy';
-import stateSubscriptionManager from './StateSubscriptionManager';
-
-let nextId = 1;
+import stateSubscriptionManager, { SubscriptionHandle } from './StateSubscriptionManager';
 
 export function useBackendSubscription(
-    key: string,
     whiteList: WhiteList,
-): void {
-    // Stable subscriber id for the lifetime of this component instance
-    const idRef = useRef<string | null>(null);
-    if (idRef.current === null) {
-        idRef.current = `sub-${nextId++}`;
-    }
-    const id = idRef.current;
+): SubscriptionHandle | null {
+    const handleRef = useRef<SubscriptionHandle | null>(null);
+    const [, setGeneration] = useState(0);
 
     useEffect(() => {
-        stateSubscriptionManager.subscribe(key, whiteList, id);
+        handleRef.current = stateSubscriptionManager.subscribe(whiteList);
+        setGeneration((x) => x + 1);
         return () => {
-            stateSubscriptionManager.unsubscribe(key, id);
+            if (handleRef.current !== null) {
+                stateSubscriptionManager.unsubscribe(handleRef.current);
+                handleRef.current = null;
+            }
         };
         // whiteList is intentionally excluded from deps: it is expected to be
-        // expected to be stable module-level constants.
+        // stable module-level constants.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [key, id]);
+    }, []);
+
+    return handleRef.current;
 }
 
 /**
- * Returns true while the given subscription key has not yet received data from
- * the backend.  Suitable for showing a loading indicator.
+ * Returns true while the given subscription handle has not yet received data
+ * from the backend. Suitable for showing a loading indicator.
  *
  * The component re-renders automatically when the loading state changes.
  */
-export function useSubscriptionLoading(key: string): boolean {
+export function useSubscriptionLoading(handle: SubscriptionHandle | null | undefined): boolean {
     // React 16 doesn't have useSyncExternalStore, so we use useState + useEffect.
     // Subscribe to the manager's generation counter to trigger re-renders when
     // loading state changes.
@@ -57,5 +56,5 @@ export function useSubscriptionLoading(key: string): boolean {
         return unsubscribe;
     }, []);
 
-    return stateSubscriptionManager.isLoading(key);
+    return stateSubscriptionManager.isLoading(handle);
 }

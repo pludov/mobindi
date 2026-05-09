@@ -25,7 +25,7 @@ import SequenceActivityMonitoringView from './SequenceActivityMonitoringView';
 import SequenceFwhmMonitoringView from './SequenceFwhmMonitoringView';
 import SequenceBackgroundMonitoringView from './SequenceBackgroundMonitoringView';
 import DataLoader from '../primitives/DataLoader';
-import stateSubscriptionManager from '../StateSubscriptionManager';
+import stateSubscriptionManager, { SubscriptionHandle } from '../StateSubscriptionManager';
 import { WhiteList } from '../shared/JsonProxy';
 import * as BackendStore from '../BackendStore';
 
@@ -128,8 +128,6 @@ function sequenceImagesWL(uid: string): WhiteList {
     };
 }
 
-let seqViewSubCount = 0;
-
 class AccessorFactory {
     currentMonitoring= defaultMemoize(
         ()=>new SequenceStore.SequenceStoreContentAccessor().child(AccessPath.For((e)=>e.currentMonitoringView))
@@ -154,7 +152,8 @@ class AccessorFactory {
 }
 
 class SequenceView extends PureComponent<SequenceViewProps> {
-    private readonly subId = `seqView-${seqViewSubCount++}`;
+    private cameraSubscription: SubscriptionHandle | null = null;
+    private sequenceSubscription: SubscriptionHandle | null = null;
 
     constructor(props:SequenceViewProps) {
         super(props);
@@ -163,29 +162,36 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     }
 
     componentDidMount() {
-        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId);
+        this.cameraSubscription = stateSubscriptionManager.subscribe(CAMERA_IMAGES_WL);
         const uid = this.props.uid;
         if (uid) {
-            stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId);
+            this.sequenceSubscription = stateSubscriptionManager.subscribe(sequenceImagesWL(uid));
         }
+        this.forceUpdate();
     }
 
     componentDidUpdate(prevProps: SequenceViewProps) {
         const uid = this.props.uid;
         if (uid !== prevProps.uid) {
-            if (prevProps.uid) {
-                stateSubscriptionManager.unsubscribe(`sequence:${prevProps.uid}`, this.subId);
+            if (this.sequenceSubscription !== null) {
+                stateSubscriptionManager.unsubscribe(this.sequenceSubscription);
+                this.sequenceSubscription = null;
             }
             if (uid) {
-                stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId);
+                this.sequenceSubscription = stateSubscriptionManager.subscribe(sequenceImagesWL(uid));
             }
+            this.forceUpdate();
         }
     }
 
     componentWillUnmount() {
-        stateSubscriptionManager.unsubscribe('cameraImages', this.subId);
-        if (this.props.uid) {
-            stateSubscriptionManager.unsubscribe(`sequence:${this.props.uid}`, this.subId);
+        if (this.cameraSubscription !== null) {
+            stateSubscriptionManager.unsubscribe(this.cameraSubscription);
+            this.cameraSubscription = null;
+        }
+        if (this.sequenceSubscription !== null) {
+            stateSubscriptionManager.unsubscribe(this.sequenceSubscription);
+            this.sequenceSubscription = null;
         }
     }
 
@@ -253,7 +259,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
             </div>
 
             {this.props.currentMonitoring === undefined ?
-                <DataLoader loadingKey="cameraImages">
+                <DataLoader loadingHandle={this.cameraSubscription}>
                     <div className="SequenceViewDisplay">
                         <ImageDetail
                             currentPath='$.sequence.currentImage'
@@ -262,7 +268,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     </div>
                     <div className="SequenceViewTable">
                         {this.props.uid
-                            ? <DataLoader loadingKey={`sequence:${this.props.uid}`}>
+                            ? <DataLoader loadingHandle={this.sequenceSubscription}>
                                 <Table statePath="$.sequenceView.list"
                                     itemHeight="1.20em"
                                     fields={fields}

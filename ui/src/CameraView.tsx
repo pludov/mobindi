@@ -19,14 +19,12 @@ import FocuserSettingsPanel from './FocuserSettingsPanel';
 import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
 import FitsViewerFineSlewUI from './FitsViewerFineSlewUI';
 import { Rectangle, SubFrame } from './FitsViewer/Types';
-import stateSubscriptionManager from './StateSubscriptionManager';
+import stateSubscriptionManager, { SubscriptionHandle } from './StateSubscriptionManager';
 import { WhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 
 const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { props: { byuuid: true } } } } } };
-
-let cameraViewSubCount = 0;
 
 type InputProps = {
     imagingSetupIdAccessor: Store.Accessor<string|null>;
@@ -50,7 +48,7 @@ type State = {
 };
 
 class CameraView extends React.PureComponent<Props, State> {
-    private readonly subId = `cameraView-${cameraViewSubCount++}`;
+    private cameraSubscription: SubscriptionHandle | null = null;
 
     constructor(props: Props) {
         super(props);
@@ -60,11 +58,14 @@ class CameraView extends React.PureComponent<Props, State> {
     }
 
     componentDidMount() {
-        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId);
+        this.cameraSubscription = stateSubscriptionManager.subscribe(CAMERA_IMAGES_WL);
     }
 
     componentWillUnmount() {
-        stateSubscriptionManager.unsubscribe('cameraImages', this.subId);
+        if (this.cameraSubscription !== null) {
+            stateSubscriptionManager.unsubscribe(this.cameraSubscription);
+            this.cameraSubscription = null;
+        }
     }
 
     private readonly defaultImageLoadingPathAccessor = CameraStore.defaultImageLoadingPathAccessor();
