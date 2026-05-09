@@ -17,11 +17,14 @@ import CancellationToken from 'cancellationtoken';
 import ContextMenuItem from './FitsViewer/ContextMenuItem';
 import { ImageSize } from './FitsViewer/Types';
 import { getOwnProp, fallback } from './Utils';
+import { WhiteList } from './shared/JsonProxy';
+import withBackendSubscriptionToProp from './StateSubscriptionToProp';
 
 const logger = Log.logger(__filename);
 
 type InputProps = {
     imageUuid: string|null;
+    imageUuidReady: boolean;
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
@@ -225,7 +228,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     render() {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
             <FitsViewerInContext 
-                        loading={false}
+                        loading={this.props.imageUuid !== null && !this.props.imageUuidReady}
                         contextKey={this.props.contextKey}
                         path={this.props.path}
                         streamId={this.props.streamId}
@@ -444,4 +447,39 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
     }
 };
 
-export default Connect<FitsViewerWithAstrometry, InputProps, {}, MappedProps>(FitsViewerWithAstrometry);
+function imageUuidLoader() {
+    let previousImageUuid: string|null = null;
+    let previousWhitelist: WhiteList|undefined = undefined;
+    return (props: {imageUuid: string|null}): WhiteList|undefined => {
+        const imageUuid = props.imageUuid;
+        if (imageUuid === null || imageUuid === undefined) {
+            return undefined;
+        }
+        if (imageUuid === previousImageUuid) {
+            return undefined;
+        }
+        const whitelist = {
+            props: {
+                camera: {
+                    props: {
+                        images: {
+                            props: {
+                                byuuid: {
+                                    props: {
+                                        [imageUuid]: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        previousImageUuid = imageUuid;
+        previousWhitelist = whitelist;
+        return whitelist;
+    };
+}
+
+// Need to inject a astrometry available flag in the property or the state
+export default withBackendSubscriptionToProp<InputProps, "imageUuidReady">(Connect<FitsViewerWithAstrometry, InputProps, {}, MappedProps>(FitsViewerWithAstrometry), imageUuidLoader, "imageUuidReady");

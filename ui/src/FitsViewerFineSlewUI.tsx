@@ -7,7 +7,6 @@ import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
-import {UnmappedFitsViewerInContext} from './FitsViewerInContext';
 import * as FineSlewLogic from './shared/FineSlewLogic';
 import * as Store from './Store';
 import * as Help from "./Help";
