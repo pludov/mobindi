@@ -103,7 +103,13 @@ export default class Notifier {
     private xmitTimeout: number | undefined;
 
     private readonly whiteList: WhiteList;
-    private pendingDynamicWhiteList: { whiteList: WhiteList; dataTag?: string };
+    /**
+     * Last requested dynamic whitelist from the UI layer.
+     *
+     * This is not strictly "pending": it represents the desired dynamic
+     * whitelist configuration we keep across reconnects until superseded.
+     */
+    private requestedDynamicWhiteList: { whiteList: WhiteList; dataTag: string };
     private lastSentDynamicWhiteListJson: string | undefined;
     private dataTagListeners: Set<(tag: string)=>void>;
 
@@ -132,7 +138,7 @@ export default class Notifier {
 
         this.resendTimer = undefined;
 
-        this.pendingDynamicWhiteList = { whiteList: {} };
+        this.requestedDynamicWhiteList = { whiteList: {}, dataTag: 'wl-0' };
         this.dataTagListeners = new Set();
     }
 
@@ -240,8 +246,8 @@ export default class Notifier {
     }
 
     /** Update the dynamic whitelist and send it to the backend immediately if connected. */
-    public setDynamicWhiteList(wl: WhiteList, dataTag?: string): void {
-        this.pendingDynamicWhiteList = { whiteList: wl, dataTag };
+    public setDynamicWhiteList(wl: WhiteList, dataTag: string): void {
+        this.requestedDynamicWhiteList = { whiteList: wl, dataTag };
         if (this.handshakeOk) {
             this.write({type: 'dynamicWhiteList', whiteList: wl, dataTag});
             this.lastSentDynamicWhiteListJson = JSON.stringify(wl);
@@ -492,13 +498,12 @@ export default class Notifier {
                 resetInactivityTimeout();
 
                 // Merge dynamic whitelist into auth message with dataTag
-                const pwl = this.pendingDynamicWhiteList.whiteList;
+                const requestedWl = this.requestedDynamicWhiteList.whiteList;
                 let mergedWhiteList = this.whiteList;
-                let authDataTag: string | undefined;
-                if (pwl !== undefined && pwl !== false && (pwl === true || Object.keys(pwl).length > 0)) {
-                    mergedWhiteList = mergeWhiteList(this.whiteList, pwl);
-                    authDataTag = this.pendingDynamicWhiteList.dataTag;
-                    this.lastSentDynamicWhiteListJson = JSON.stringify(pwl);
+                const authDataTag: string = this.requestedDynamicWhiteList.dataTag;
+                if (requestedWl !== undefined && requestedWl !== false && (requestedWl === true || Object.keys(requestedWl).length > 0)) {
+                    mergedWhiteList = mergeWhiteList(this.whiteList, requestedWl);
+                    this.lastSentDynamicWhiteListJson = JSON.stringify(requestedWl);
                 }
                 
                 this.write({
@@ -521,15 +526,15 @@ export default class Notifier {
                     this.notifyDataTag(data.dataTag);
 
                     // Re-send pending dynamic whitelist only if it has changed since auth
-                    const pwl = this.pendingDynamicWhiteList.whiteList;
-                    const pwlJson = JSON.stringify(pwl);
+                    const requestedWl = this.requestedDynamicWhiteList.whiteList;
+                    const requestedWlJson = JSON.stringify(requestedWl);
                     const lastSentJson = this.lastSentDynamicWhiteListJson;
-                    if (pwlJson !== lastSentJson && pwl !== undefined && pwl !== false
-                            && (pwl === true || Object.keys(pwl).length > 0)) {
+                    if (requestedWlJson !== lastSentJson && requestedWl !== undefined && requestedWl !== false
+                            && (requestedWl === true || Object.keys(requestedWl).length > 0)) {
                         this.write({
                             type: 'dynamicWhiteList',
-                            whiteList: pwl,
-                            dataTag: this.pendingDynamicWhiteList.dataTag,
+                            whiteList: requestedWl,
+                            dataTag: this.requestedDynamicWhiteList.dataTag,
                         });
                     }
                 }
