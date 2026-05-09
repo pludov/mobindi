@@ -45,6 +45,7 @@ export type ContextMenuEvent = {
 let uid:number = 0;
 
 export type Props = {
+    loading: boolean;
     path: string|null;
     streamId: string|null;
     streamSerial: string|null;
@@ -152,7 +153,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
     static readonly ViewContext = React.createContext<FitsViewerContext>({declareChild:()=>undefined});
 
     componentDidUpdate(prevProps: Props) {
-        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
+        this.imageDisplay.setFullState(this.props.loading, this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
         this.fireAutoCropCb();
     }
 
@@ -162,7 +163,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
             this.openContextMenu.bind(this),
             this.closeContextMenu.bind(this),
             this.onViewMoved);
-        this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
+        this.imageDisplay.setFullState(this.props.loading, this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
     }
 
     private markers: {[uid:string]: MarkerToken} = {};

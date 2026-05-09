@@ -224,7 +224,9 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
 
     render() {
         return <div className={"FitsViewer FitsViewContainer" + (this.state.fs ? " FitsViewFullScreen" : "")}>
-            <FitsViewerInContext contextKey={this.props.contextKey}
+            <FitsViewerInContext 
+                        loading={false}
+                        contextKey={this.props.contextKey}
                         path={this.props.path}
                         streamId={this.props.streamId}
                         streamSerial={this.props.streamSerial}

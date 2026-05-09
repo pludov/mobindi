@@ -6,6 +6,7 @@ import * as FitsViewerStore from "./FitsViewerStore";
 import FitsViewer, {Props as FitsViewerProps, FullState as FitsViewerFullState} from './FitsViewer/FitsViewer';
 
 export type InputProps = {
+    loading: boolean;
     path: FitsViewerProps["path"];
     streamId: FitsViewerProps["streamId"];
     streamSerial: FitsViewerProps["streamSerial"];
@@ -37,6 +38,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
 
     render() {
         return <FitsViewer ref={this.fitsViewer}
+                            loading={this.props.loading}
                             path={this.props.path}
                             directPort={this.props.directPort}
                             streamId={this.props.streamId}

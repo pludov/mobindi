@@ -10,7 +10,7 @@ const logger = Log.logger(__filename);
 
 const imageReleaseUrl = "about:blank";
 
-type ImageParameter = {
+export type ImageLoaderParam = {
     // Path to the image
     path: string;
     // Serial (for streams)
@@ -27,11 +27,28 @@ type ImageParameter = {
     imageDetails: ImageDetails|undefined;
 }
 
-type ImageExposure = {
+export type ImageLoaderExposure = {
     // Target display area
     displaySize: ImageSize;
     // Actual portion of the image beeing displayed
     imagePos: Rectangle;
+}
+
+export interface IImageLoader {
+    param: ImageLoaderParam;
+    exposure: ImageLoaderExposure | undefined;
+    frameDetails: ImageDetails | null;
+    events: EventEmitter;
+    root: HTMLSpanElement;
+
+    samePath(other: IImageLoader): boolean;
+    sameGeometry(other: IImageLoader): boolean;
+    prepare(previousLoader?: IImageLoader): void;
+    dispose(): void;
+    abortLoading(): void;
+    expose(exposure: ImageLoaderExposure): void;
+    hadLoadingError(): boolean;
+    isLoading(): boolean;
 }
 
 type TileStatus = {
@@ -175,12 +192,9 @@ type CanvasAsyncUpdateRequest = {full?: boolean, bin?:number, tiles?:Array<Tile>
 
 /* Load a canvas element, scaled to the source image (1 CSS px = 1 adu)
  */
-export class ImageLoader {
-    param: ImageParameter;
-    exposure: ImageExposure|undefined;
-
-    // True when loading to display
-    loadingToDisplay: boolean;
+export class ImageLoader implements IImageLoader {
+    param: ImageLoaderParam;
+    exposure: ImageLoaderExposure|undefined;
 
     // Will be set during loading
     details: ImageDetails | null;
@@ -211,17 +225,17 @@ export class ImageLoader {
     // URL to fitsviewer.cgi
     cgiUrl: string;
 
-    constructor(param: ImageParameter, cgiUrl: string) {
+    constructor(param: ImageLoaderParam, cgiUrl: string) {
         this.param = param;
         this.cgiUrl = cgiUrl;
         this.root = document.createElement("span");
     }
 
-    samePath(other: ImageLoader) {
+    samePath(other: IImageLoader) {
         return this.param.path === other.param.path;
     }
 
-    sameGeometry(other: ImageLoader) {
+    sameGeometry(other: IImageLoader) {
         if (!this.frameDetails) {
             return false;
         }
@@ -235,10 +249,11 @@ export class ImageLoader {
 
     // Prepare a new rending. Take from previousLoader what can be taken
     // FIXME: what if previousLoader is visible ?
-    prepare(previousLoader?: ImageLoader)
+    prepare(previousLoader?: IImageLoader)
     {
         if (!this.param.imageDetails
             && previousLoader
+            && previousLoader instanceof ImageLoader
             && previousLoader.param.path === this.param.path
             && previousLoader.param.serial === this.param.serial)
         {
@@ -393,7 +408,7 @@ export class ImageLoader {
     // Ensure a rendered is dispatched as soon as all visible tiles get loaded
     private waitingForRendered: boolean = false;
 
-    expose = (exposure: ImageExposure)=> {
+    expose = (exposure: ImageLoaderExposure)=> {
         // Change exposure for subframe
         if (this.param.window) {
             const newPos = {...exposure.imagePos};

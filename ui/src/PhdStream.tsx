@@ -75,6 +75,7 @@ class PhdStream extends React.PureComponent<Props, State> {
         return (
             <div className={"FitsViewer FitsViewContainer"}>
                 <FitsViewerInContext
+                        loading={false}
                         contextKey="phdview"
                         path={null}
                         streamId={this.props.streamId || null}

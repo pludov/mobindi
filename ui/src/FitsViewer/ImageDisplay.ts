@@ -4,7 +4,8 @@ import * as Obj from '../shared/Obj';
 import MouseMoveListener from '../MouseMoveListener';
 import Crosshair from './Crosshair';
 import { getBestFitForSize } from './ImageUtils';
-import { ImageLoader } from './ImageLoader';
+import { ForeverLoader } from './ForeverLoader';
+import { IImageLoader, ImageLoader, ImageLoaderParam } from './ImageLoader';
 import { FullState, ImageDetails, ImageSize, Levels, Rectangle, SubFrame } from './Types';
 
 const logger = Log.logger(__filename);
@@ -21,17 +22,14 @@ type CompleteImagePos = ImagePos & {
 export class ImageDisplay {
 
     // A completely loaded view that is currently displayed
-    currentView: ImageLoader | null = null;
+    currentView: IImageLoader | null = null;
     // A loading view, possibly displayed during loading.
     // (!loadingView) || (!currentView) && loadingView.sameGeometry(currentView)
-    loadingView: ImageLoader | null = null;
+    loadingView: IImageLoader | null = null;
 
     // View to load once loading view is ready
-    nextView: ImageLoader | null = null;
+    nextView: IImageLoader | null = null;
 
-
-    // The path (without cgi settings)
-    loadingToDisplay?:boolean = false;
     
     child:JQuery<HTMLDivElement>;
     root: HTMLSpanElement;
@@ -186,7 +184,8 @@ export class ImageDisplay {
     }
 
     // imageSize is expected only for streams
-    setFullState(file: string|null, streamId:string|null, streamSerial: string|null, window: SubFrame|null, directPort: number, params?:FullState, imageDetails?: ImageDetails) {
+    // loading = true is a special case to keep the ImageDisplay in loading state without any image
+    setFullState(loading: boolean, file: string|null, streamId:string|null, streamSerial: string|null, window: SubFrame|null, directPort: number, params?:FullState, imageDetails?: ImageDetails) {
         // Don't display stream until ready
         if (streamId !== null && !imageDetails) {
             streamId = null;
@@ -194,7 +193,7 @@ export class ImageDisplay {
 
         ImageDisplay.directPort = directPort;
 
-        const path = file ? "file:" + file : streamId ? "stream:" + streamId : null;
+        const path = loading ? "loading" : file ? "file:" + file : streamId ? "stream:" + streamId : null;
 
         if (params?.levels) {
             this.levels = params.levels;
@@ -218,7 +217,7 @@ export class ImageDisplay {
         // Otherwise, the current loading is aborted. 
 
         
-        const loaderParam = {
+        const loaderParam: ImageLoaderParam = {
             path: path || "file:void",
             serial: streamSerial,
             levels: params?.levels || {low: 0, medium: 0.5, high: 1},
@@ -238,7 +237,9 @@ export class ImageDisplay {
         }
         
         // Create a new loader from the most recent available
-        const newLoader = new ImageLoader(loaderParam, this.getCgiUrl());
+        const newLoader: IImageLoader = loading
+            ? new ForeverLoader(loaderParam)
+            : new ImageLoader(loaderParam, this.getCgiUrl());
         this.root.appendChild(newLoader.root);
     
 
@@ -302,7 +303,7 @@ export class ImageDisplay {
         this.updateViewStyle();
     }
 
-    private disposeView(v:ImageLoader) {
+    private disposeView(v:IImageLoader) {
         v.events.removeListener('statusChanged', this.updateViewStyle);
         v.events.removeListener('sized', this.viewSized);
         v.events.removeListener('rendered', this.viewRendered);
