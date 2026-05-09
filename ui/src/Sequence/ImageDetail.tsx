@@ -12,7 +12,6 @@ const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { prop
 
 type InputProps = {
     currentPath: string;
-    detailPath: string;
 }
 
 type MappedProps = {
@@ -21,6 +20,8 @@ type MappedProps = {
 }
 
 type Props = InputProps & MappedProps
+
+const CAMERA_IMAGE_DETAILS_PATH = '$.backend.camera.images.byuuid';
 
 class ImageDetail extends React.PureComponent<Props> {
     private cameraSubscription: SubscriptionHandle | null = null;
@@ -57,7 +58,7 @@ class ImageDetail extends React.PureComponent<Props> {
                 imageUuid: null
             };
         }
-        const details = atPath(store, ownProps.detailPath + '[' + JSON.stringify(selected) + ']');
+        const details = atPath(store, CAMERA_IMAGE_DETAILS_PATH + '[' + JSON.stringify(selected) + ']');
         if (details === undefined) {
             return {path: null, imageUuid: null};
         }

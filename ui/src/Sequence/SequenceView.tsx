@@ -263,7 +263,6 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                     <div className="SequenceViewDisplay">
                         <ImageDetail
                             currentPath='$.sequence.currentImage'
-                            detailPath='$.backend.camera.images.byuuid'
                         />
                     </div>
                     <div className="SequenceViewTable">
