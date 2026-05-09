@@ -112,6 +112,10 @@ function initWss(server: http.Server) {
         return true;
     }
 
+    function isValidOptionalDataTag(v: any): boolean {
+        return v === undefined || typeof v === 'string';
+    }
+
     let clientId = 1;
 
     wss.on('connection', (ws:WebSocket)=>{
@@ -131,7 +135,12 @@ function initWss(server: http.Server) {
 
             if (client === undefined) {
                 if (message.type === "auth") {
-                    client = new Client(ws, appStateManager, serverId, clientUid, message.whiteList);
+                    if (!isValidOptionalDataTag(message.dataTag)) {
+                        logger.warn('Invalid auth dataTag payload', {clientUid});
+                        ws.terminate();
+                        return;
+                    }
+                    client = new Client(ws, appStateManager, serverId, clientUid, message.whiteList, message.dataTag);
                 } else {
                     logger.warn('Unautorized websocket message', {clientUid});
                     ws.terminate();
@@ -148,7 +157,12 @@ function initWss(server: http.Server) {
                     ws.terminate();
                     return;
                 }
-                client.setDynamicWhiteList(message.whiteList);
+                if (!isValidOptionalDataTag(message.dataTag)) {
+                    logger.warn('Invalid dynamicWhiteList dataTag payload', {clientUid});
+                    ws.terminate();
+                    return;
+                }
+                client.setDynamicWhiteList(message.whiteList, message.dataTag);
                 return;
             }
             if (message.type === "interrupt") {

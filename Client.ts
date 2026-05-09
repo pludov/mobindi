@@ -89,11 +89,15 @@ export default class Client {
     private sendDiffTimer: {id: NodeJS.Timeout}|undefined;
     private whiteList: WhiteList;
     private dynamicWhiteList: WhiteList = {};
+    private dataTag: string | undefined;
+    // The pending dataTag is kept for cases where the whitelist changes yield no diff,
+    // but the client needs to be informed of the new dataTag to know which data version it has.
+    private pendingDataTagAck: string | undefined;
     private pingTo: undefined|NodeJS.Timeout;
     private sendQueue:Array<SendQueueItem>;
 
     requests: Map<string, ClientRequest> = new Map();
-    constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList)
+    constructor(socket:WebSocket, jsonProxy: JsonProxy<BackofficeStatus>, serverId: string, clientUid: string, whiteList: WhiteList, dataTag?: string)
     {
         this.uid = clientUid;
         clients[this.uid] = this;
@@ -102,6 +106,8 @@ export default class Client {
 
         this.sendQueue = [];
         this.whiteList = whiteList;
+        this.dataTag = dataTag;
+        this.pendingDataTagAck = undefined;
         this.socket = socket;
         this.disposed = false;
         this.jsonListener = this.jsonListener.bind(this);
@@ -112,7 +118,7 @@ export default class Client {
         this.sendDiffTimer = undefined;
         this.enqueue({
             sendDiff: false,
-            payload: {type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data}
+            payload: {type: 'welcome', status: "ok", serverId: serverId, clientId: this.uid, data: initialState.data, dataTag: this.dataTag}
         });
         this.jsonListenerId = this.jsonProxy.addListener(this.jsonListener);
     }
@@ -228,12 +234,14 @@ export default class Client {
     }
 
     /** Called by the message handler when the client sends a dynamicWhiteList message. */
-    public setDynamicWhiteList(wl: WhiteList): void {
+    public setDynamicWhiteList(wl: WhiteList, dataTag?: string): void {
         const oldEffectiveWhiteList = this.effectiveWhiteList();
         this.dynamicWhiteList = wl;
+        this.dataTag = dataTag;
+        this.pendingDataTagAck = dataTag;
         const newEffectiveWhiteList = this.effectiveWhiteList();
         updateSnapshotWhitelist(this.jsonSerial, oldEffectiveWhiteList, newEffectiveWhiteList);
-        logger.debug('Dynamic whitelist updated', {...this.logContext()});
+        logger.debug('Dynamic whitelist updated', {...this.logContext(), dataTag: this.dataTag});
         // Schedule an immediate diff so newly-subscribed paths are pushed without waiting for a state change.
         this.jsonListener();
     }
@@ -245,8 +253,14 @@ export default class Client {
         }
         const patch = this.jsonProxy.diff(this.jsonSerial, this.effectiveWhiteList());
         if (patch !== undefined) {
-            return {type: 'update', status: "ok", diff: patch};
+            this.pendingDataTagAck = undefined;
+            return {type: 'update', status: "ok", diff: patch, dataTag: this.dataTag};
         } else {
+            if (this.pendingDataTagAck !== undefined) {
+                const tag = this.pendingDataTagAck;
+                this.pendingDataTagAck = undefined;
+                return {type: 'update', status: "ok", dataTag: tag};
+            }
             return undefined;
         }
     }
