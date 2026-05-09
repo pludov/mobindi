@@ -6,26 +6,19 @@
  * sequence image stats).  The hook subscribes on mount and unsubscribes
  * automatically on unmount.
  *
- * Usage:
- *   useBackendSubscription("cameraImages", { camera: { images: { byuuid: true } } },
- *       (backend) => Object.keys(backend.camera?.images?.byuuid ?? {}).length > 0);
- *
- * The third argument is an optional `isReady` predicate.  When provided,
- * `useSubscriptionLoading(key)` returns true until the predicate returns true.
- * This lets UI components render a loading indicator while the data is in
- * transit from the backend.
+ * Loading completion is driven by backend `dataTag` acknowledgements produced
+ * by dynamic whitelist updates.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { WhiteList } from './shared/JsonProxy';
-import stateSubscriptionManager, { IsReadyFn } from './StateSubscriptionManager';
+import stateSubscriptionManager from './StateSubscriptionManager';
 
 let nextId = 1;
 
 export function useBackendSubscription(
     key: string,
     whiteList: WhiteList,
-    isReady?: IsReadyFn,
 ): void {
     // Stable subscriber id for the lifetime of this component instance
     const idRef = useRef<string | null>(null);
@@ -35,11 +28,11 @@ export function useBackendSubscription(
     const id = idRef.current;
 
     useEffect(() => {
-        stateSubscriptionManager.subscribe(key, whiteList, id, isReady);
+        stateSubscriptionManager.subscribe(key, whiteList, id);
         return () => {
             stateSubscriptionManager.unsubscribe(key, id);
         };
-        // whiteList and isReady are intentionally excluded from deps: they are
+        // whiteList is intentionally excluded from deps: it is expected to be
         // expected to be stable module-level constants.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key, id]);

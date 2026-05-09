@@ -2,7 +2,7 @@
 import CancellationToken from "cancellationtoken";
 import Log from './shared/Log';
 import { BackendStatus, BackendStatusValue } from './BackendStore';
-import { WhiteList } from './shared/JsonProxy';
+import { WhiteList, mergeWhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 
@@ -99,13 +99,13 @@ export default class Notifier {
     private resendTimer: NodeJS.Timeout|undefined;
     private handshakeOk: boolean|undefined;
 
-    private pendingMessageCount: number;
-    private pendingUpdateAsk: {};
     // FIXME: not used
     private xmitTimeout: number | undefined;
 
     private readonly whiteList: WhiteList;
-    private pendingDynamicWhiteList: WhiteList;
+    private pendingDynamicWhiteList: { whiteList: WhiteList; dataTag?: string };
+    private lastSentDynamicWhiteListJson: string | undefined;
+    private dataTagListeners: Set<(tag: string)=>void>;
 
     constructor(whiteList: WhiteList) {
         this.socket = undefined;
@@ -132,7 +132,8 @@ export default class Notifier {
 
         this.resendTimer = undefined;
 
-        this.pendingDynamicWhiteList = {};
+        this.pendingDynamicWhiteList = { whiteList: {} };
+        this.dataTagListeners = new Set();
     }
 
 
@@ -167,8 +168,6 @@ export default class Notifier {
     private resetHandshakeStatus(status:boolean, clientId?:string)
     {
         this.handshakeOk = status;
-        this.pendingUpdateAsk = {};
-        this.pendingMessageCount = 0;
         if (status) {
             this.clientId = clientId;
         }
@@ -228,11 +227,24 @@ export default class Notifier {
    }
 
 
+    public subscribeToDataTag(listener: (tag: string)=>void): ()=>void {
+        this.dataTagListeners.add(listener);
+        return () => this.dataTagListeners.delete(listener);
+    }
+
+    private notifyDataTag(tag: string | undefined): void {
+        if (tag === undefined) return;
+        for (const listener of this.dataTagListeners) {
+            listener(tag);
+        }
+    }
+
     /** Update the dynamic whitelist and send it to the backend immediately if connected. */
-    public setDynamicWhiteList(wl: WhiteList): void {
-        this.pendingDynamicWhiteList = wl;
+    public setDynamicWhiteList(wl: WhiteList, dataTag?: string): void {
+        this.pendingDynamicWhiteList = { whiteList: wl, dataTag };
         if (this.handshakeOk) {
-            this.write({type: 'dynamicWhiteList', whiteList: wl});
+            this.write({type: 'dynamicWhiteList', whiteList: wl, dataTag});
+            this.lastSentDynamicWhiteListJson = JSON.stringify(wl);
         }
     }
 
@@ -479,9 +491,20 @@ export default class Notifier {
                 logger.info('Websocket: connected');
                 resetInactivityTimeout();
 
+                // Merge dynamic whitelist into auth message with dataTag
+                const pwl = this.pendingDynamicWhiteList.whiteList;
+                let mergedWhiteList = this.whiteList;
+                let authDataTag: string | undefined;
+                if (pwl !== undefined && pwl !== false && (pwl === true || Object.keys(pwl).length > 0)) {
+                    mergedWhiteList = mergeWhiteList(this.whiteList, pwl);
+                    authDataTag = this.pendingDynamicWhiteList.dataTag;
+                    this.lastSentDynamicWhiteListJson = JSON.stringify(pwl);
+                }
+                
                 this.write({
                     type: "auth",
-                    whiteList: this.whiteList,
+                    whiteList: mergedWhiteList,
+                    dataTag: authDataTag,
                 });
             };
             this.socket.onmessage = (event)=>{
@@ -495,13 +518,19 @@ export default class Notifier {
                     this.serverId = data.serverId;
 
                     this.handleNotifications({data: data.data});
+                    this.notifyDataTag(data.dataTag);
 
-                    // Re-send pending dynamic whitelist so the backend applies it
-                    // without waiting for the next state change.
-                    const pwl = this.pendingDynamicWhiteList;
-                    if (pwl !== undefined && pwl !== false
+                    // Re-send pending dynamic whitelist only if it has changed since auth
+                    const pwl = this.pendingDynamicWhiteList.whiteList;
+                    const pwlJson = JSON.stringify(pwl);
+                    const lastSentJson = this.lastSentDynamicWhiteListJson;
+                    if (pwlJson !== lastSentJson && pwl !== undefined && pwl !== false
                             && (pwl === true || Object.keys(pwl).length > 0)) {
-                        this.write({type: 'dynamicWhiteList', whiteList: pwl});
+                        this.write({
+                            type: 'dynamicWhiteList',
+                            whiteList: pwl,
+                            dataTag: this.pendingDynamicWhiteList.dataTag,
+                        });
                     }
                 }
                 if (data.type === 'srvProbe') {
@@ -558,7 +587,10 @@ export default class Notifier {
                 }
 
                 if (data.type=="update") {
-                    pushNotification(data.diff);
+                    if (data.diff !== undefined) {
+                        pushNotification(data.diff);
+                    }
+                    this.notifyDataTag(data.dataTag);
                 }
             };
             this.socket.onclose = (data)=>{

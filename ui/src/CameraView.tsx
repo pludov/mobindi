@@ -19,14 +19,12 @@ import FocuserSettingsPanel from './FocuserSettingsPanel';
 import ImageOrImagingSetupSelector from './ImageOrImagingSetupSelector';
 import FitsViewerFineSlewUI from './FitsViewerFineSlewUI';
 import { Rectangle, SubFrame } from './FitsViewer/Types';
-import stateSubscriptionManager, { IsReadyFn } from './StateSubscriptionManager';
+import stateSubscriptionManager from './StateSubscriptionManager';
 import { WhiteList } from './shared/JsonProxy';
 
 const logger = Log.logger(__filename);
 
 const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { props: { byuuid: true } } } } } };
-const cameraImagesReady: IsReadyFn = (backend) =>
-    backend.camera?.images?.byuuid !== undefined;
 
 let cameraViewSubCount = 0;
 
@@ -62,7 +60,7 @@ class CameraView extends React.PureComponent<Props, State> {
     }
 
     componentDidMount() {
-        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId, cameraImagesReady);
+        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId);
     }
 
     componentWillUnmount() {

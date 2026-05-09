@@ -7,34 +7,33 @@
  * When the set of active subscriptions changes, the merged dynamic whitelist
  * is recomputed and pushed to the backend via the Notifier.
  *
- * An optional `isReady` predicate can be supplied with each subscription key.
- * The manager watches the Redux store after the subscription is registered;
- * once the predicate returns true the key is removed from the loading set and
- * UI components rendering a loading indicator will hide it.
+ * Loading is driven by dataTag acknowledgements from the backend.
+ * Each dynamic whitelist flush sends a monotonically increasing tag; once the
+ * backend replies with the same (or newer) tag in welcome/update messages,
+ * all keys waiting on that tag are marked as loaded.
  */
 
 import { WhiteList, mergeWhiteList } from './shared/JsonProxy';
 import * as Store from './Store';
 
-/** Predicate called after each Redux state change to detect when data arrived. */
-export type IsReadyFn = (backend: Store.Content["backend"]) => boolean;
-
 type SubscriptionEntry = {
     whiteList: WhiteList;
-    isReady?: IsReadyFn;
     subscribers: Set<string>;
+    loading: boolean;
+    waitingTag?: number;
 };
 
 type ChangeListener = () => void;
 
 class StateSubscriptionManager {
     private subscriptions: Map<string, SubscriptionEntry> = new Map();
-    /** Keys whose data has not yet arrived from the backend. */
-    private loadingKeys: Set<string> = new Set();
+    private nextPendingTag = 0;
+    private flushTimer: NodeJS.Timeout | undefined;
+    private lastSentWhiteListJson: string | undefined;
+    private notifierDataTagUnsubscribe: (() => void) | undefined;
     /** Monotonically increasing counter — bumped whenever loadingKeys changes. */
     private loadingGeneration: number = 0;
     private changeListeners: Set<ChangeListener> = new Set();
-    private storeUnsubscribe: (() => void) | undefined;
 
     /**
      * Register interest in the given whitelist fragment under a logical key.
@@ -42,23 +41,17 @@ class StateSubscriptionManager {
      * @param key        Logical name for this subscription (e.g. "cameraImages").
      * @param whiteList  The whitelist fragment to merge into the dynamic whitelist.
      * @param id         Unique subscriber id (e.g. a component instance id).
-     * @param isReady    Optional predicate: returns true once data for this key
-     *                   is present in the Redux store backend slice.
      */
-    subscribe(key: string, whiteList: WhiteList, id: string, isReady?: IsReadyFn): void {
+    subscribe(key: string, whiteList: WhiteList, id: string): void {
         let entry = this.subscriptions.get(key);
         if (!entry) {
-            entry = { whiteList, isReady, subscribers: new Set() };
+            entry = { whiteList, subscribers: new Set(), loading: true, waitingTag: this.nextPendingTag };
             this.subscriptions.set(key, entry);
-            if (isReady) {
-                this.loadingKeys.add(key);
-                this.loadingGeneration++;
-                this.ensureStoreSubscription();
-                this.notifyChangeListeners();
-            }
+            this.loadingGeneration++;
+            this.notifyChangeListeners();
         }
         entry.subscribers.add(id);
-        this.flush();
+        this.scheduleFlush();
     }
 
     /**
@@ -71,17 +64,18 @@ class StateSubscriptionManager {
         entry.subscribers.delete(id);
         if (entry.subscribers.size === 0) {
             this.subscriptions.delete(key);
-            if (this.loadingKeys.delete(key)) {
+            if (entry.loading) {
                 this.loadingGeneration++;
                 this.notifyChangeListeners();
             }
         }
-        this.flush();
+        this.scheduleFlush();
     }
 
     /** Returns true while the backend has not yet sent data for this key. */
     isLoading(key: string): boolean {
-        return this.loadingKeys.has(key);
+        const entry = this.subscriptions.get(key);
+        return entry !== undefined && entry.loading;
     }
 
     /**
@@ -112,11 +106,36 @@ class StateSubscriptionManager {
         return merged;
     }
 
+    private scheduleFlush(): void {
+        if (this.flushTimer !== undefined) return;
+        this.flushTimer = setTimeout(() => {
+            this.flushTimer = undefined;
+            this.flush();
+        }, 0);
+    }
+
     /** Push the current merged whitelist to the backend. */
     private flush(): void {
         try {
             const notifier = Store.getNotifier();
-            notifier.setDynamicWhiteList(this.getDynamicWhiteList());
+            this.ensureNotifierDataTagSubscription(notifier);
+            const merged = this.getDynamicWhiteList();
+            const mergedJson = JSON.stringify(merged);
+            
+            // Check if we have entries waiting for the next tag to be acknowledged
+            const hasPendingTags = Array.from(this.subscriptions.values()).some(
+                entry => entry.waitingTag === this.nextPendingTag
+            );
+            
+            // Skip only if content hasn't changed AND there are no pending tags waiting
+            if (mergedJson === this.lastSentWhiteListJson && !hasPendingTags) {
+                return;
+            }
+            this.lastSentWhiteListJson = mergedJson;
+
+            const dataTag = `wl-${this.nextPendingTag}`;
+            this.nextPendingTag++;
+            notifier.setDynamicWhiteList(merged, dataTag);
         } catch {
             // Store not yet initialised (e.g. during tests) — ignore
         }
@@ -128,32 +147,23 @@ class StateSubscriptionManager {
         }
     }
 
-    /** Set up a one-time Redux store subscription to detect when data arrives. */
-    private ensureStoreSubscription(): void {
-        if (this.storeUnsubscribe) return;
-        try {
-            const store = Store.getStore();
-            this.storeUnsubscribe = store.subscribe(() => {
-                this.checkLoadingKeys(store.getState());
-            });
-        } catch {
-            // Store not yet ready — will retry next time subscribe() is called
-        }
+    private ensureNotifierDataTagSubscription(notifier: { subscribeToDataTag: (listener: (tag: string)=>void)=>()=>void }): void {
+        if (this.notifierDataTagUnsubscribe) return;
+        this.notifierDataTagUnsubscribe = notifier.subscribeToDataTag((tag: string) => {
+            this.onDataTagReceived(tag);
+        });
     }
 
-    private checkLoadingKeys(state: Store.Content): void {
+    private onDataTagReceived(tag: string): void {
+        const m = /^wl-(\d+)$/.exec(tag);
+        if (!m) return;
+        const acked = parseInt(m[1], 10);
         let changed = false;
-        for (const [key, entry] of this.subscriptions.entries()) {
-            if (!entry.isReady) continue;
-            const ready = entry.isReady(state.backend);
-            const wasLoading = this.loadingKeys.has(key);
-            if (ready && wasLoading) {
-                // Data arrived
-                this.loadingKeys.delete(key);
-                changed = true;
-            } else if (!ready && !wasLoading) {
-                // Data disappeared (e.g. reconnect reset the store)
-                this.loadingKeys.add(key);
+        for (const entry of this.subscriptions.values()) {
+            const waitingTag = entry.waitingTag;
+            if (entry.loading && waitingTag !== undefined && waitingTag <= acked) {
+                entry.loading = false;
+                delete entry.waitingTag;
                 changed = true;
             }
         }

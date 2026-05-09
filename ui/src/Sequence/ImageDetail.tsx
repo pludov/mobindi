@@ -5,12 +5,10 @@ import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import FitsViewerWithAstrometry from '../FitsViewerWithAstrometry';
-import stateSubscriptionManager, { IsReadyFn } from '../StateSubscriptionManager';
+import stateSubscriptionManager from '../StateSubscriptionManager';
 import { WhiteList } from '../shared/JsonProxy';
 
 const CAMERA_IMAGES_WL: WhiteList = { props: { camera: { props: { images: { props: { byuuid: true } } } } } };
-const cameraImagesReady: IsReadyFn = (backend) =>
-    backend.camera?.images?.byuuid !== undefined;
 
 let imageDetailSubCount = 0;
 
@@ -30,7 +28,7 @@ class ImageDetail extends React.PureComponent<Props> {
     private readonly subId = `imageDetail-${imageDetailSubCount++}`;
 
     componentDidMount() {
-        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId, cameraImagesReady);
+        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId);
     }
 
     componentWillUnmount() {

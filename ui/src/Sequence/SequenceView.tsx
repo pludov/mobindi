@@ -25,7 +25,7 @@ import SequenceActivityMonitoringView from './SequenceActivityMonitoringView';
 import SequenceFwhmMonitoringView from './SequenceFwhmMonitoringView';
 import SequenceBackgroundMonitoringView from './SequenceBackgroundMonitoringView';
 import DataLoader from '../primitives/DataLoader';
-import stateSubscriptionManager, { IsReadyFn } from '../StateSubscriptionManager';
+import stateSubscriptionManager from '../StateSubscriptionManager';
 import { WhiteList } from '../shared/JsonProxy';
 import * as BackendStore from '../BackendStore';
 
@@ -128,14 +128,6 @@ function sequenceImagesWL(uid: string): WhiteList {
     };
 }
 
-const cameraImagesReady: IsReadyFn = (backend) =>
-    backend.camera?.images?.byuuid !== undefined;
-
-function sequenceImagesReady(uid: string): IsReadyFn {
-    return (backend) =>
-        backend.sequence?.sequences?.byuuid?.[uid]?.images !== undefined;
-}
-
 let seqViewSubCount = 0;
 
 class AccessorFactory {
@@ -171,10 +163,10 @@ class SequenceView extends PureComponent<SequenceViewProps> {
     }
 
     componentDidMount() {
-        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId, cameraImagesReady);
+        stateSubscriptionManager.subscribe('cameraImages', CAMERA_IMAGES_WL, this.subId);
         const uid = this.props.uid;
         if (uid) {
-            stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId, sequenceImagesReady(uid));
+            stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId);
         }
     }
 
@@ -185,7 +177,7 @@ class SequenceView extends PureComponent<SequenceViewProps> {
                 stateSubscriptionManager.unsubscribe(`sequence:${prevProps.uid}`, this.subId);
             }
             if (uid) {
-                stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId, sequenceImagesReady(uid));
+                stateSubscriptionManager.subscribe(`sequence:${uid}`, sequenceImagesWL(uid), this.subId);
             }
         }
     }
