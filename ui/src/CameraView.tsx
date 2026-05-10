@@ -31,7 +31,6 @@ type InputProps = {
 }
 
 type MappedProps = {
-    path: string|null;
     imageUuid: string|null;
     imagingSetup: string|null;
     streamId: string|null;
@@ -74,7 +73,6 @@ class CameraView extends React.PureComponent<Props, State> {
         if (this.props.imageUuid === null) {
             throw new Error("Astrometry require a fits file");
         }
-        logger.debug('Start astrometry', {path: this.props.path});
         await BackendRequest.RootInvoker("astrometry")("compute")(
             CancellationToken.CONTINUE,
             {
@@ -143,7 +141,7 @@ class CameraView extends React.PureComponent<Props, State> {
                 <FitsViewerWithAstrometry
                     contextKey="default"
                     imageUuid={this.props.imageUuid}
-                    path={this.state.loadedImage || this.props.path}
+                    path={this.state.loadedImage || null}
                     streamId={this.props.streamId}
                     streamSerial={this.props.streamSerial}
                     streamDetails={this.props.streamDetails}
@@ -178,7 +176,6 @@ class CameraView extends React.PureComponent<Props, State> {
                 if (stream.streamId && stream.serial !== null) {
                     return {
                         imagingSetup,
-                        path: null,
                         imageUuid: null,
                         streamId: stream.streamId,
                         streamSerial: "" + stream.serial,
@@ -191,12 +188,10 @@ class CameraView extends React.PureComponent<Props, State> {
 
             if (cameraDevice !== null && Object.prototype.hasOwnProperty.call(store.backend.camera!.lastUuidByDevices, cameraDevice)) {
                 const imageUuid = store.backend.camera!.lastUuidByDevices[cameraDevice];
-                const path = store.backend.camera!.images.byuuid?.[imageUuid]?.path;
-                if (imageUuid !== undefined && path !== undefined) {
+                if (imageUuid !== undefined) {
                     return {
                         imagingSetup,
                         imageUuid,
-                        path,
                         streamId: null,
                         streamSerial: null,
                         streamDetails: null,
@@ -207,7 +202,6 @@ class CameraView extends React.PureComponent<Props, State> {
             }
             return {
                 imagingSetup,
-                path: null,
                 imageUuid: null,
                 streamId: null,
                 streamSerial: null,

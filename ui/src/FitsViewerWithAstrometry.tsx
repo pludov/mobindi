@@ -310,11 +310,10 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
         const selector = createSelector (
             [
                 (store:Store.Content)=>store.backend.astrometry,
-                (store:Store.Content, ownProps:InputProps)=>ownProps.path,
                 (store:Store.Content, ownProps:InputProps)=>ownProps.imageUuid,
                 (store:Store.Content, ownProps:InputProps)=>getOwnProp(store.backend.camera?.images.byuuid, ownProps.imageUuid!)?.astrometry
             ],
-            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null, currentImageUuid: string|null,astrometryResult: AstrometryResult|undefined):AstrometryProps =>  {
+            (astrometry:BackOfficeStatus.AstrometryStatus, currentImageUuid: string|null,astrometryResult: AstrometryResult|undefined):AstrometryProps =>  {
                 if (astrometry === undefined) {
                     return {
                         status: "empty",
