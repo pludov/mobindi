@@ -1,0 +1,21 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    wget \
+    vim \
+    cmake \
+    joe
+
+
+# Install node.js and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt-get install -y nodejs
+
+
+# Indilib dependencies
+RUN apt-get install -y libindi-dev indi-bin
+
+# Mobindi deps
+RUN apt-get install -y libpng-dev libjpeg-dev libcgicc-dev pkg-config udev

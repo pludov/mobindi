@@ -1,0 +1,28 @@
+{
+  "name": "Custom Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile-distro",
+    "args": {
+      "INDI_VERSION": "v2.2.2"
+    }
+  },
+  "remoteUser": "root",
+  "containerUser": "root",
+  "updateRemoteUserUID": false,
+
+  "customizations": {
+    "vscode": {
+    }
+  },
+
+  "mounts": [
+    /* Map global gitconfig */
+    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached,readonly",
+    /* Map ssh config */
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached,readonly"
+  ],
+
+  /* Forward port 3000 and 8080 for the web server */
+  "forwardPorts": [3000, 8080]
+
+}
