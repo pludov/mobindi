@@ -96,7 +96,7 @@ function initWss(server: http.Server) {
         const clientUid = "#" + (clientId++);
         let client : Client;
         ws.on('message', function incoming(messageData:WebSocket.Data) {
-            logger.debug('received websocket message', {clientUid, messageData});
+            logger.trace('received websocket message', {clientUid, messageData});
 
             let message: any;
             try {

@@ -12,6 +12,7 @@ export interface AbstractLogger {
     warn: LogMethod;
     info: LogMethod;
     debug: LogMethod;
+    trace: LogMethod;
 }
 
 export interface RootLogger extends AbstractLogger {
@@ -62,6 +63,7 @@ function initClientSide(opts: {source?: string|undefined}):RootLogger {
         warn: consoleLogWrap(source, console.warn),
         info: consoleLogWrap(source, console.info),
         debug: uiConditional(consoleLogWrap(source, console.debug)),
+        trace: uiConditional(consoleLogWrap(source, console.trace)),
         child: initClientSide,
     }
 }
@@ -85,7 +87,7 @@ function envSubst(t:any):any {
     return t.replace(/\${([^}]*)}/g, (m:string, p1:string)=>(process.env[p1] || ""));
 }
 
-function initServerSide() {
+function initServerSide() : RootLogger {
     const timeStamp = winston.format.timestamp({
         format:"YY-MM-DD HH:mm:ss.SSS"
     });
@@ -203,7 +205,20 @@ function initServerSide() {
         rootLogger.end();
     });
 
-    return rootLogger;
+    function toAbstractLogger(logger: Logger): AbstractLogger {
+        return {
+            debug: logger.debug.bind(logger),
+            error: logger.error.bind(logger),
+            info: logger.info.bind(logger),
+            warn: logger.warn.bind(logger),
+            trace: logger.silly.bind(logger),
+        }
+    }
+
+    return {
+        ...toAbstractLogger(rootLogger),
+        child: (options: Object) => toAbstractLogger(rootLogger.child(options))
+    };
 }
 
 function isUi() {

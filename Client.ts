@@ -157,7 +157,7 @@ export default class Client {
 
         let now = new Date().getTime();
         if ((this.writes >= maxOffset) || ((this.lastProbeSent?.time || 0) + 500 < now)) {
-            logger.debug("Sending probe", {...this.logContext(), writes: this.writes, lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked, queueLength: this.sendQueue.length, bufferedAmount: this.socket.bufferedAmount});
+            logger.trace("Sending probe", {...this.logContext(), writes: this.writes, lastProbeSent: this.lastProbeSent, lastProbeAcked: this.lastProbeAcked, queueLength: this.sendQueue.length, bufferedAmount: this.socket.bufferedAmount});
             this.lastProbeSent = {
                 time: now,
                 offset: this.writes,
