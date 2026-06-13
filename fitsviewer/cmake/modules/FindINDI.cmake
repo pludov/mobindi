@@ -15,6 +15,9 @@
 #
 # The following variables will be defined for your use:
 #   - INDI_FOUND             : were all of your specified components found (include dependencies)?
+#   - INDI_WEBSOCKET         : was INDI compiled with websocket support?
+#   - INDI_JSONLIB           : was INDI compiled with bundled json library?
+#   - INDI_HIDAPILIB         : was INDI compiled with bundled hid library?
 #   - INDI_INCLUDE_DIR       : INDI include directory
 #   - INDI_DATA_DIR          : INDI include directory
 #   - INDI_LIBRARIES         : INDI libraries
@@ -55,10 +58,11 @@
 # Using Components:
 #
 # You can search for specific components. Currently, the following components are available
-# * driver
-# * align
-# * client
-# * clientqt5
+# * driver: to build INDI hardware drivers.
+# * align: to build drivers that use INDI Alignment Subsystem.
+# * client: to build pure C++ INDI clients.
+# * clientqt5: to build Qt5-based INDI clients.
+# * lx200: To build LX200-based 3rd party drivers (you must link with driver above as well).
 #
 # By default, if you do not specify any components, driver and align components are searched.
 #
@@ -66,17 +70,28 @@
 #
 # To use INDI Qt5 Client library only in your application:
 #
-# find_package(INDI CLIENTQT5 REQUIRED)
+# find_package(INDI COMPONENTS clientqt5 REQUIRED)
 #
 #   if(INDI_FOUND)
 #      include_directories(${INDI_INCLUDE_DIR})
 #      add_executable(myapp myapp.cpp)
-#      target_link_libraries(myapp ${INDI_CLIENTQT5_LIBRARIES})
+#      target_link_libraries(myapp ${INDI_LIBRARIES})
 #   endif(INDI_FOUND)
 #
-#=============================================================================
+# To use INDI driver + lx200 component in your application:
+#
+# find_package(INDI COMPONENTS driver lx200 REQUIRED)
+#
+#   if(INDI_FOUND)
+#      include_directories(${INDI_INCLUDE_DIR})
+#      add_executable(myapp myapp.cpp)
+#      target_link_libraries(myapp ${INDI_LIBRARIES})
+#   endif(INDI_FOUND)
+#
+# Notice we still use ${INDI_LIBRARIES} which now should contain both driver & lx200 libraries.
+#==============================================================================================
 # Copyright (c) 2011-2013, julp
-# Copyright (c) 2017 Jasem Mutlaq
+# Copyright (c) 2017-2019 Jasem Mutlaq
 #
 # Distributed under the OSI-approved BSD License
 #
@@ -135,6 +150,7 @@ INDI_declare_component(driver  indidriver)
 INDI_declare_component(align   indiAlignmentDriver)
 INDI_declare_component(client  indiclient)
 INDI_declare_component(clientqt5 indiclientqt5)
+INDI_declare_component(lx200  indilx200)
 
 ########## Public ##########
 set(${INDI_PUBLIC_VAR_NS}_FOUND TRUE)
@@ -162,13 +178,58 @@ endif(NOT ${INDI_PUBLIC_VAR_NS}_FIND_COMPONENTS)
 find_path(
     ${INDI_PUBLIC_VAR_NS}_INCLUDE_DIR
     indidevapi.h
-    PATH_SUFFIXES libindi
+    PATH_SUFFIXES libindi include/libindi
     ${PC_INDI_INCLUDE_DIR}
     ${_obIncDir}
     ${GNUWIN32_DIR}/include
     HINTS ${${INDI_PRIVATE_VAR_NS}_ROOT}
     DOC "Include directory for INDI"
 )
+
+find_path(
+    WEBSOCKET_HEADER
+    indiwsserver.h
+    PATH_SUFFIXES libindi
+    ${PC_INDI_INCLUDE_DIR}
+    ${_obIncDir}
+    ${GNUWIN32_DIR}/include
+)
+
+if (WEBSOCKET_HEADER)
+    SET(INDI_WEBSOCKET TRUE)
+else()
+    SET(INDI_WEBSOCKET FALSE)
+endif()
+
+find_path(
+    BUNDLED_JSONLIB
+    indijson.hpp
+    PATH_SUFFIXES libindi
+    ${PC_INDI_INCLUDE_DIR}
+    ${_obIncDir}
+    ${GNUWIN32_DIR}/include
+)
+
+if (BUNDLED_JSONLIB)
+    SET(INDI_JSONLIB TRUE)
+else()
+    SET(INDI_JSONLIB FALSE)
+endif()
+
+find_path(
+    BUNDLED_HIDAPILIB
+    indi_hidapi.h
+    PATH_SUFFIXES libindi
+    ${PC_INDI_INCLUDE_DIR}
+    ${_obIncDir}
+    ${GNUWIN32_DIR}/include
+)
+
+if (BUNDLED_HIDAPILIB)
+    SET(INDI_HIDAPILIB TRUE)
+else()
+    SET(INDI_HIDAPILIB FALSE)
+endif()
 
 find_path(${INDI_PUBLIC_VAR_NS}_DATA_DIR
     drivers.xml
@@ -183,10 +244,10 @@ if(${INDI_PUBLIC_VAR_NS}_INCLUDE_DIR)
         message(FATAL_ERROR "INDI version header not found")
     endif()
 
-    if(${INDI_PRIVATE_VAR_NS}_VERSION_HEADER_CONTENTS MATCHES ".*INDI_VERSION ([0-9]+).([0-9]+).([0-9]+)")
-            set(${INDI_PUBLIC_VAR_NS}_MAJOR_VERSION "${CMAKE_MATCH_1}")
-            set(${INDI_PUBLIC_VAR_NS}_MINOR_VERSION "${CMAKE_MATCH_2}")
-            set(${INDI_PUBLIC_VAR_NS}_RELEASE_VERSION "${CMAKE_MATCH_3}")
+    if(${INDI_PRIVATE_VAR_NS}_VERSION_HEADER_CONTENTS MATCHES "INDI_VERSION[ ]+\"?([0-9]+)\\.([0-9]+)\\.([0-9]+)\"?")
+        set(${INDI_PUBLIC_VAR_NS}_MAJOR_VERSION "${CMAKE_MATCH_1}")
+        set(${INDI_PUBLIC_VAR_NS}_MINOR_VERSION "${CMAKE_MATCH_2}")
+        set(${INDI_PUBLIC_VAR_NS}_RELEASE_VERSION "${CMAKE_MATCH_3}")
     else()
         message(FATAL_ERROR "failed to detect INDI version")
     endif()
@@ -260,6 +321,7 @@ endif(${INDI_PUBLIC_VAR_NS}_INCLUDE_DIR)
 mark_as_advanced(
     ${INDI_PUBLIC_VAR_NS}_INCLUDE_DIR
     ${INDI_PUBLIC_VAR_NS}_LIBRARIES
+    INDI_WEBSOCKET
 )
 
 # IN (args)
@@ -274,6 +336,7 @@ indidebug("SERVER_FOUND")
 indidebug("DRIVERS_FOUND")
 indidebug("CLIENT_FOUND")
 indidebug("QT5CLIENT_FOUND")
+indidebug("LX200_FOUND")
 
 # Linking
 indidebug("INCLUDE_DIR")
