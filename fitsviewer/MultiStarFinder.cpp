@@ -70,7 +70,7 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
     auto zones = notBlack.calcConnexityGroups();
 
     // Taille maxi d'une étoile (32 x 32)
-    int maxSurface = 2048;
+    unsigned int maxSurface = 2048;
     double maxStddev = 8;
 
     std::vector<std::shared_ptr<StarCandidate>> stars;
@@ -83,7 +83,7 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
         int adusum = 0;
         double xmoy = 0;
         double ymoy = 0;
-        for(int i = 0; i < zone->size(); i += 2)
+        for(unsigned int i = 0; i < zone->size(); i += 2)
         {
             int x = (*zone)[i];
             int y = (*zone)[i + 1];
@@ -107,7 +107,7 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
 
         double stddevVal = 0;
 
-        for(int i = 0; i < zone->size(); i += 2)
+        for(unsigned int i = 0; i < zone->size(); i += 2)
         {
             int x = (*zone)[i];
             int y = (*zone)[i + 1];
@@ -142,10 +142,8 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
                 return a->weight > b->weight;
             });
 
-    int cpt = 0;
     BitMask checkedArea(0, 0, content->w - 1, content->h - 1);
 
-    int left = maxCount;
     int satLeft = maxCount / 2;
     std::vector<StarOccurence> resultVec;
     resultVec.reserve(maxCount);
@@ -177,7 +175,7 @@ std::vector<StarOccurence> MultiStarFinder::proceed(int maxCount) {
     }
 
     std::vector<double> fwhm;
-    for(int i = 0; i < resultVec.size(); ++i) {
+    for(unsigned int i = 0; i < resultVec.size(); ++i) {
         fwhm.push_back(resultVec[i].fwhm);
     }
     std::sort(fwhm.begin(), fwhm.end(),

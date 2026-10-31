@@ -41,11 +41,17 @@ int main (int argc, char ** argv) {
 	}
 	json prettyResult;
 	if (((argc == 2) && (!strcmp(argv[1], "-r"))) || !contentRequest.asJsonResult(result, prettyResult, options)) {
-		write(1, result->data(), result->size());
+		if (write(1, result->data(), result->size()) != (long)result->size()) {
+			cerr << "Error writing result" << endl;
+			exit(1);
+		}
 	} else {
 		std::string t = prettyResult.dump();
 		if (t.length()) {
-			write(1, t.data(), t.length());
+			if (write(1, t.data(), t.length()) != (long)t.length()) {
+				cerr << "Error writing result" << endl;
+				exit(1);
+			}
 		}
 	}
 	result->release();

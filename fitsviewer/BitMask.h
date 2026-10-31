@@ -65,6 +65,7 @@ public:
 	{
 	}
 
+	BitMask(const BitMask & other) = default;
 	BitMask & operator=(const BitMask & other);
 
 	int getX0() const { return x0; }
@@ -79,8 +80,6 @@ public:
 
 	void set(int x, int y, bool v)
 	{
-		int off;
-		uint32_t mask;
 		content.set(offset(x, y), v);
 	}
 

@@ -12,7 +12,7 @@ std::vector<plop> flatten(const std::vector<std::shared_ptr<plop>> & from)
 {
     std::vector<plop> result;
     result.reserve(from.size());
-    for(int i = 0; i < from.size(); ++i)
+    for(unsigned int i = 0; i < from.size(); ++i)
     {
         result.push_back(plop(*(from[i])));
     }
@@ -38,8 +38,8 @@ static int cmpCouple(int x0, int y0, int x1, int y1)
 static std::vector<int> sortPointsXY(const std::vector<int> & points)
 {
     std::vector<int> result = points;
-    for(int i = 0; i < result.size(); i += 2) {
-        for(int j = i+2; j < result.size(); j += 2) {
+    for(unsigned int i = 0; i < result.size(); i += 2) {
+        for(unsigned int j = i+2; j < result.size(); j += 2) {
             if (cmpCouple(result[i], result[i + 1], result[j], result[j + 1]) > 0) {
                 int tx = result[i];
                 int ty = result[i + 1];
@@ -112,7 +112,7 @@ TEST_CASE( "BitMask representation is ok", "[BitMask]" ) {
     }
     SECTION("complex connexity") {
         auto points = mkv(0,0,0,1,1,1,1,2,2,2,3,2,3,1,4,1,4,0);
-        for(int i = 0; i < points.size(); i += 2) {
+        for(unsigned int i = 0; i < points.size(); i += 2) {
             bitmask.set(points[i], points[i + 1], 1);
         }
 

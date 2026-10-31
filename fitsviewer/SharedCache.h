@@ -310,6 +310,7 @@ namespace SharedCache {
 
 	class WriteableEntry {
 	public:
+		virtual ~WriteableEntry() = default;
 		virtual void allocate(unsigned long int size) = 0;
 		virtual void * data() = 0;
 		virtual unsigned long int size() = 0;
