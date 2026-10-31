@@ -1,7 +1,7 @@
 import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
 import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
-import uuid from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 
 import { SequenceStep, SequenceDitheringSettings, SequenceStepParameters, SequenceForeach, SequenceForeachItem, ImagingSetup } from '@bo/BackOfficeStatus';
@@ -351,7 +351,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     createForeachValue<K extends keyof SequenceStepParameters>(foreach: SequenceForeach<K>, v:SequenceStepParameters[K]):SequenceForeach<K> {
         const pid = foreach.param;
-        const newUuid = uuid.v4();
+        const newUuid = uuidv4();
         const newValue : SequenceForeachItem<K> = {
             [pid as K]: v
         } as any;

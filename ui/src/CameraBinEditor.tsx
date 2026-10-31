@@ -78,6 +78,6 @@ const CameraBinSelector = connect((store: Store.Content, ownProps: InputProps) =
             $stepy: desc?.childs?.VER_BIN?.["$step"],
         }
     };
-})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>);
+})(PromiseSelector.default) as unknown as new (props:InputProps)=>(React.PureComponent<InputProps>);
 
 export default CameraBinSelector;

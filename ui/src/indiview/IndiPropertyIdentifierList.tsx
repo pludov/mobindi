@@ -58,7 +58,7 @@ const DeviceSelector = connect((store: Store.Content, ownProps:DeviceSelectorOwn
             availables: deviceListGenerator(store)
         });
     })
-})(PromiseSelector) as new (props:Partial<DeviceSelectorOwnProps>)=>(React.PureComponent<Partial<DeviceSelectorOwnProps>>)
+})(PromiseSelector) as unknown as new (props:Partial<DeviceSelectorOwnProps>)=>(React.PureComponent<Partial<DeviceSelectorOwnProps>>)
 
 
 type VectorSelectorOwnProps = PromiseSelectorInputProps<string> & {
@@ -89,7 +89,7 @@ const VectorSelector = connect((store: Store.Content, ownProps:VectorSelectorOwn
             availables: vectorListGenerator(titles),
         });
     })
-})(PromiseSelector) as new (props:Partial<VectorSelectorOwnProps>)=>(React.PureComponent<Partial<VectorSelectorOwnProps>>)
+})(PromiseSelector) as unknown as new (props:Partial<VectorSelectorOwnProps>)=>(React.PureComponent<Partial<VectorSelectorOwnProps>>)
 
 type PropertySelectorOwnProps = PromiseSelectorInputProps<string> & {
     device: string;
@@ -115,7 +115,7 @@ const PropertySelector = connect((store: Store.Content, ownProps:PropertySelecto
             getTitle,
         });
     })
-})(PromiseSelector) as new (props:Partial<PropertySelectorOwnProps>)=>(React.PureComponent<Partial<PropertySelectorOwnProps>>)
+})(PromiseSelector) as unknown as new (props:Partial<PropertySelectorOwnProps>)=>(React.PureComponent<Partial<PropertySelectorOwnProps>>)
 
 
 

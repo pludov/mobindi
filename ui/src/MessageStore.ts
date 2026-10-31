@@ -220,7 +220,7 @@ if (typeof(SharedWorker) !== 'undefined') {
         }
 
         if (visibilityChange && hidden) {
-            let timer:NodeJS.Timer;
+            let timer:ReturnType<typeof setInterval>;
             const ping = ()=> {
                 logger.debug('worker ping');
                 const visible = !document[hidden];

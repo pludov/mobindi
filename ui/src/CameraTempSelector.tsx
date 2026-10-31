@@ -98,7 +98,7 @@ const CameraCCDTempEditor = connect((store: Store.Content, ownProps: InputProps)
         className: "CameraTempSelector"
 
     } as Partial<MappedProps>);
-})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>);
+})(PromiseSelector.default) as unknown as new (props:InputProps)=>(React.PureComponent<InputProps>);
 
 
 export default CameraCCDTempEditor;

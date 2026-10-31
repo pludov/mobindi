@@ -138,7 +138,7 @@ function buildNotificationsFromBackend() {
 
 
 let disconnectTime: undefined|number;
-let disconnectTimer: NodeJS.Timer|undefined;
+let disconnectTimer: ReturnType<typeof setInterval>|undefined;
 let disconnectedNotification: Notification|undefined;
 
 function emitNotifications() {

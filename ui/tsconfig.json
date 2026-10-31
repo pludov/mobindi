@@ -18,6 +18,8 @@
     "noImplicitAny": true,
     "importHelpers": true,
     "strictNullChecks": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "5.0",
     "suppressImplicitAnyIndexErrors": true,
     "noUnusedLocals": false,
     "esModuleInterop": true,
