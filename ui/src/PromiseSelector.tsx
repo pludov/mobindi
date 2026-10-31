@@ -20,7 +20,7 @@ type NumberStored = {
 
 type StringStored = {
     active: string|null;
-    setValue:(d:string)=>Promise<any>;
+    setValue:(d:any)=>Promise<any>;
 }
 
 type ValueOverride = {

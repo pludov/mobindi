@@ -67,6 +67,6 @@ const CameraExpEditor = connect((store: Store.Content, ownProps:InputProps) => {
         $max: indiDeviceDesc?.childs?.CCD_EXPOSURE_VALUE?.["$max"],
         helpKey: cameraExpEditorHelp,
     });
-})(PromiseSelector.default) as unknown as new (props:InputProps)=>(React.PureComponent<InputProps>)
+})(PromiseSelector.default<number>)
 
 export default CameraExpEditor;

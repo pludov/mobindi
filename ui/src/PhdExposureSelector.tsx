@@ -56,6 +56,6 @@ const PhdExposureSelector = connect((store: Store.Content, ownProps: InputProps)
         setValue,
         helpKey: phdExposureSelectorHelp,
     }
-})(PromiseSelector.default) as unknown as new (props:InputProps)=>(React.PureComponent<InputProps>);
+})(PromiseSelector.default<number|null>);
 
 export default PhdExposureSelector;

@@ -44,9 +44,12 @@ const vectorSelectorHelp = Help.key("Select INDI vector", "Select a INDI vector 
 const propertySelectorHelp = Help.key("Select INDI property", "Select the INDI property to use");
 const selectHelp = Help.key("Use the selected INDI property", "Use the selected INDI property and leave property selection");
 
-type DeviceSelectorOwnProps = PromiseSelectorInputProps<string> & {
-    possibles: string[]
+type SelectorBaseOwnProps = {
+    active: string|null;
+    setValue: (d:string)=>Promise<any>;
 };
+
+type DeviceSelectorOwnProps = SelectorBaseOwnProps;
 
 const DeviceSelector = connect((store: Store.Content, ownProps:DeviceSelectorOwnProps) => {
     const deviceListGenerator = ArrayReselect.createArraySelector(IndiManagerStore.getDeviceList);
@@ -58,17 +61,15 @@ const DeviceSelector = connect((store: Store.Content, ownProps:DeviceSelectorOwn
             availables: deviceListGenerator(store)
         });
     })
-})(PromiseSelector) as unknown as new (props:Partial<DeviceSelectorOwnProps>)=>(React.PureComponent<Partial<DeviceSelectorOwnProps>>)
+})(PromiseSelector<string>)
 
 
-type VectorSelectorOwnProps = PromiseSelectorInputProps<string> & {
+type VectorSelectorOwnProps = SelectorBaseOwnProps & {
     device: string;
-    availables: string[],
-    titles: {[id: string]:string},
 };
 
 const VectorSelector = connect((store: Store.Content, ownProps:VectorSelectorOwnProps) => {
-    function getTitle(id: string, ownProps:VectorSelectorOwnProps) {
+    function getTitle(id: string, ownProps:PromiseSelectorInputProps<string> & {titles?: {[id: string]:string}}) {
         return Utils.getOwnProp(ownProps.titles, id) || id;
     }
 
@@ -89,17 +90,15 @@ const VectorSelector = connect((store: Store.Content, ownProps:VectorSelectorOwn
             availables: vectorListGenerator(titles),
         });
     })
-})(PromiseSelector) as unknown as new (props:Partial<VectorSelectorOwnProps>)=>(React.PureComponent<Partial<VectorSelectorOwnProps>>)
+})(PromiseSelector<string>)
 
-type PropertySelectorOwnProps = PromiseSelectorInputProps<string> & {
+type PropertySelectorOwnProps = SelectorBaseOwnProps & {
     device: string;
     vector: string;
-    availables: string[],
-    titles: {[id: string]: string},
 };
 
 const PropertySelector = connect((store: Store.Content, ownProps:PropertySelectorOwnProps) => {
-    function getTitle(id: string, ownProps:PropertySelectorOwnProps) {
+    function getTitle(id: string, ownProps:PromiseSelectorInputProps<string> & {titles?: {[id: string]:string}}) {
         return Utils.getOwnProp(ownProps.titles, id) || id;
     }
 
@@ -115,7 +114,7 @@ const PropertySelector = connect((store: Store.Content, ownProps:PropertySelecto
             getTitle,
         });
     })
-})(PromiseSelector) as unknown as new (props:Partial<PropertySelectorOwnProps>)=>(React.PureComponent<Partial<PropertySelectorOwnProps>>)
+})(PromiseSelector<string>)
 
 
 
@@ -176,7 +175,7 @@ class IndiPropertySelector extends React.PureComponent<Props, State> {
     render() {
         return <>
             <div>
-                Device: <DeviceSelector active={this.state.device} helpKey={deviceSelectorHelp} setValue={this.setDevice}/>
+                Device: <DeviceSelector active={this.state.device} setValue={this.setDevice}/>
             </div>
             {this.state.device !== null
                 ? <>
