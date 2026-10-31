@@ -183,7 +183,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
     public getIndiServerAddr() : {host: string, port: number} {
         return {
             host: "127.0.0.1",
-            port: 7624,
+            port: parseInt(process.env.MOBINDI_INDI_PORT || "7624"),
         };
     }
 

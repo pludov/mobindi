@@ -92,7 +92,7 @@ class Notification extends React.PureComponent<Props, State> {
             }
         }
 
-        return <div className={"NotificationView " + (!this.props.visible ? "Dead": "")}>
+        return <div className={"e2e-ignore NotificationView " + (!this.props.visible ? "Dead": "")}>
             <div className="NotificationViewTitle">{details.title}</div>
             {details.buttons === null
                 ? <input type="button" value="x" onClick={this.dismiss} disabled={this.state.busy}/>

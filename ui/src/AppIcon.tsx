@@ -42,11 +42,11 @@ class AppIcon extends React.PureComponent<Props> {
                     if (notif === undefined) {
                         return null;
                     }
-                    return <span key={id} className={"Notification" + (notif.className ? " Notification_" + notif.className:"")}>{notif.text}</span>;
+                    return <span key={id} className={"e2e-ignore Notification" + (notif.className ? " Notification_" + notif.className:"")}>{notif.text}</span>;
                 });
         }
         return (
-            <div id={"AppIcon_" + appId} className={'Application' + (this.props.currentApp == appId ? ' Active' : '')} onClick={this.activate}>
+            <div id={"AppIcon_" + appId} data-testid={"app-" + appId} className={'Application' + (this.props.currentApp == appId ? ' Active' : '')} onClick={this.activate}>
                 <img  src={appId + ".png"} {...this.props.helpKey.dom()}></img>
                 {inner}
             </div>);

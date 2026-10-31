@@ -290,7 +290,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         {this.props.status === 'error' ? this.props.error : this.props.status}
                     </ScrollableText>
                     <div className="PhdGraph_Item FocuserGraph">
-                        <div className="PhdGraph_Container">
+                        <div className="PhdGraph_Container e2e-ignore">
                             <FocuserGraph focuser={this.props.focuser}/>
                         </div>
                     </div>

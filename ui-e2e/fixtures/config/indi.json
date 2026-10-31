@@ -1,0 +1,12 @@
+{
+  "indiServer": {
+    "autorun": true,
+    "devices": {
+      "CCD Simulator": { "driver": "indi_simulator_ccd", "config": "ccd_simul", "options": {} },
+      "Telescope Simulator": { "driver": "indi_simulator_telescope", "config": "telescope_simul", "options": {} },
+      "Focuser Simulator": { "driver": "indi_simulator_focus", "config": "focus_simul", "options": {} },
+      "Filter Simulator": { "driver": "indi_simulator_wheel", "config": "wheel_simul", "options": {} },
+      "Guide Simulator": { "driver": "indi_simulator_guide", "config": "guide_simul", "options": {} }
+    }
+  }
+}

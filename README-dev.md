@@ -18,3 +18,21 @@ Two Dockerfile are provided:
 
 
 
+
+# UI visual regression tests
+
+`ui-e2e/` contains Playwright tests that start the real backend (on dedicated ports, with a throw-away config dir and INDI simulators), click every application tab (Camera, Sequence, PHD, Focuser, Astrometry, INDI, Tools, Messages) and compare a screenshot of each with a committed baseline (desktop and mobile viewports).
+
+```
+# build backend and ui first
+npm run build && (cd ui && npm run build)
+cd ui-e2e
+npm install && npx playwright install --with-deps chromium
+npm test                # compare with baselines
+npm run test:update     # refresh baselines (review the diff of the png files!)
+```
+
+Notes:
+  * Baselines must be generated in the dev container (same fonts/chromium) to be repeatable.
+  * Content that varies between runs (times, notifications, charts, ...) must be flagged with the `e2e-ignore` CSS class (no style attached). Those elements are masked in screenshots. Add the class to any new volatile element.
+  * The backend honors `MOBINDI_CONFIG_DIR` (config directory, default `local`) and `MOBINDI_INDI_PORT` (indiserver port, default 7624), so tests do not interfere with a running dev instance.

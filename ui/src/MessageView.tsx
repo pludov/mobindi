@@ -30,7 +30,7 @@ class UnmappedItem extends React.PureComponent<ItemProps> {
             device = null;
         }
         return <div className="MessageItem">
-            <span className="MessageItemDate">{timestampToDate(this.props.data.$timestamp).toLocaleTimeString()}</span>
+            <span className="MessageItemDate e2e-ignore">{timestampToDate(this.props.data.$timestamp).toLocaleTimeString()}</span>
             {device}
             <span className="MessageItemMessage">{this.props.data.$message}</span>
         </div>;

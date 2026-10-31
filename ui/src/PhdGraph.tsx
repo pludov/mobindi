@@ -454,7 +454,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
 
         const currentZoom = this.getCurrentZoom();
         return (<div className="PhdGraph_Item">
-                    <div className="PhdGraph_Container">
+                    <div className="PhdGraph_Container e2e-ignore">
                         <ReactChartJS.Line  data={chartData} options={chartOptions} plugins={ChartJSZoomPlugin.plugins()}/>
                     </div>
                     <div className="PhdControlBlock">
