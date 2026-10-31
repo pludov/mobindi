@@ -34,3 +34,13 @@ RUN mkdir /build
 RUN mkdir /build/indi
 RUN cd /build/indi && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr /deps/indi
 RUN cd /build/indi && make -j$(nproc) && make install
+
+# GSC (Guide Star Catalog), required by the INDI CCD simulator. Built from upstream source.
+# Data goes to /usr/share/GSC, which is the default location (no GSCDAT needed).
+ARG GSC_VERSION=a0405c4257096a2a53763def1a617c15953ab7ff
+RUN git clone https://git.launchpad.net/gsc /deps/gsc \
+    && git -C /deps/gsc checkout ${GSC_VERSION} \
+    && mkdir -p /build/gsc && cd /build/gsc \
+    && cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr /deps/gsc \
+    && make -j$(nproc) && make install \
+    && rm -rf /deps/gsc /build/gsc
