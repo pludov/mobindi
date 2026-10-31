@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import BaseApp from './BaseApp';
 import * as Help from './Help';
 import MountView from './MountView';

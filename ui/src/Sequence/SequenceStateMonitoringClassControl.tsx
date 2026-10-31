@@ -4,7 +4,6 @@ import { defaultMemoize } from 'reselect';
 import { SequenceImageParameters, SequenceStepParameters, SequenceValueMonitoring, SequenceValueMonitoringPerClassSettings, SequenceValueMonitoringPerClassStatus } from '@bo/BackOfficeStatus';
 
 import * as Utils from '../Utils';
-import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
@@ -114,7 +113,7 @@ class AccessorFactory {
                         return false;
                     },
                     toStore: (b:boolean):number|undefined => {
-                        if (!b) throw "Unsupported";
+                        if (!b) throw new Error("Unsupported");
                         const last = this.perClassStatus(uid, prop, jscId).fromStore(Store.getStore().getState())?.lastValueTime;
                         if (last === null) return undefined;
                         return last;
@@ -195,9 +194,6 @@ export function exposureToString(exp: number) {
 class SequenceStatMonitoringClassControl extends React.PureComponent<Props, State> {
     private sequenceParamClassifier = new SequenceParamClassifier();
 
-    constructor(props: Props) {
-        super(props);
-    }
 
     private resetLearning = async()=> {
         return await BackendRequest.RootInvoker("sequence")("resetStatMonitoringLearning")(

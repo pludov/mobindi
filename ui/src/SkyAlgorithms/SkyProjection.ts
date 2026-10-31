@@ -2,7 +2,7 @@ import { IndiDevice } from '@bo/BackOfficeStatus';
 import { SucceededAstrometryResult } from '@bo/ProcessorTypes';
 import Aberration from './Aberration';
 //@ts-ignore
-const Quaternion = require("quaternion");
+const QuaternionLib = require("quaternion");
 
 
 // Definitions of various spaces:
@@ -29,14 +29,9 @@ export interface Quaternion {
 type RotationDefinition = {id: number; sign:number};
 
 const RAD_PER_DEG = Math.PI / 180;
-const DEG_PER_RAD = 180 / Math.PI;
 
 function deg2rad(x: number): number {
     return x * RAD_PER_DEG;
-}
-
-function rad2deg(x: number): number {
-    return x * DEG_PER_RAD;
 }
 
 // Radian ra/dec
@@ -69,16 +64,6 @@ const m31 = 8;
 const m32 = 9;
 const m33 = 10;
 const m34 = 11;
-
-const m11_99 = 0;
-const m12_99 = 1;
-const m13_99 = 2;
-const m21_99 = 3;
-const m22_99 = 4;
-const m23_99 = 5;
-const m31_99 = 6;
-const m32_99 = 7;
-const m33_99 = 8;
 
 class AffineTransform3D {
     matrice: number[];
@@ -417,7 +402,7 @@ export default class SkyProjection {
         const raDec = this.pixToRaDec(centerPix);
         const raDecEQ3D = SkyProjection.convertRaDecToEQ3D(raDec);
 
-        const goToCenterQuaternion = Quaternion.fromBetweenVectors(raDecEQ3D, [1,0,0]);
+        const goToCenterQuaternion = QuaternionLib.fromBetweenVectors(raDecEQ3D, [1,0,0]);
 
         const projectToReference = (xy:number[])=> {
             const eq3D = this.pixToEQ3D(xy);
@@ -474,7 +459,7 @@ export default class SkyProjection {
         // Center of the quaternion
         const pt3d = this.invertedTransform.convert([x3d, y3d, z3d]);
 
-        let center =  Quaternion.fromBetweenVectors([0,0,1], pt3d);
+        let center =  QuaternionLib.fromBetweenVectors([0,0,1], pt3d);
 
         const toLocal = center.inverse();
         // const xpt3d = this.invertedTransform.convert([1000, y3d, z3d]);
@@ -489,7 +474,7 @@ export default class SkyProjection {
         const angle = Math.atan2(localxpt3d[1], localxpt3d[0]);
         // const angleFrom = Quaternion.fromBetweenVectors([1, 0, 0], localxpt3d);
 
-        const rotatedCenter = center.mul(Quaternion.fromAxisAngle([0, 0, 1], angle));
+        const rotatedCenter = center.mul(QuaternionLib.fromAxisAngle([0, 0, 1], angle));
         
         // fromAxisAngle imprecis ? 
         // const rotatedCenter = center.mul(angleFrom, angle);
@@ -519,29 +504,29 @@ export default class SkyProjection {
         if (m22 < 0) {
             if (m00 >m11) {
                 t = 1 + m00 -m11 -m22;
-                q = Quaternion( t, m01+m10, m20+m02, m12-m21 );
+                q = QuaternionLib( t, m01+m10, m20+m02, m12-m21 );
             }
             else {
                 t = 1 -m00 + m11 -m22;
-                q = Quaternion( m01+m10, t, m12+m21, m20-m02 );
+                q = QuaternionLib( m01+m10, t, m12+m21, m20-m02 );
             }
         }
         else {
             if (m00 < -m11) {
                 t = 1 -m00 -m11 + m22;
-                q = Quaternion( m20+m02, m12+m21, t, m01-m10 );
+                q = QuaternionLib( m20+m02, m12+m21, t, m01-m10 );
             }
             else {
                 t = 1 + m00 + m11 + m22;
-                q = Quaternion( m12-m21, m20-m02, m01-m10, t );
+                q = QuaternionLib( m12-m21, m20-m02, m01-m10, t );
             }
         }
-        q = q .scale(0.5 / Math.sqrt(t));
+        q = q.scale(0.5 / Math.sqrt(t));
         
 
-        let axisQuat = Quaternion.fromBetweenVectors([0,0,1],[1,0,0]);
+        let axisQuat = QuaternionLib.fromBetweenVectors([0,0,1],[1,0,0]);
 
-        const quat = Quaternion.fromAxisAngle([0,1,0], Math.PI/2)
+        const quat = QuaternionLib.fromAxisAngle([0,1,0], Math.PI/2)
                     .mul(q.inverse())
                     .mul(axisQuat);
         return quat;
@@ -583,7 +568,6 @@ export default class SkyProjection {
         let r22 = rz;
 
         let pixelRadX = Math.sqrt(r00 * r00 + r10 * r10 + r20 * r20);
-        let pixelRadY = Math.sqrt(r01 * r01 + r11 * r11 + r21 * r21);
         //			double scaleZ = Math.sqrt(r02 * r02 + r12 * r12 + r22 * r22);
         // System.out.println("got pixel rad x= " + pixelRadX + " soit " + rad2deg(pixelRadX) * 3600 + " arcsec");
         // System.out.println("got pixel rad y= " + pixelRadY + " soit " + rad2deg(pixelRadY) * 3600 + " arcsec");
@@ -606,7 +590,7 @@ export default class SkyProjection {
         let A, B, C, D, jd, day;
 
         day = nd + ut / 24.0;
-        if ((nm == 1) || (nm == 2)) {
+        if ((nm === 1) || (nm === 2)) {
             ny = ny - 1;
             nm = nm + 12;
         }
@@ -663,8 +647,6 @@ export default class SkyProjection {
         let zeta, z, theta;
         let T, t;
         let jdfixed;
-        let radec: number[] = [0, 0];
-
         /* Fetch the input values for ra and dec */
 
         ra_in = raDecIn[0];
@@ -755,8 +737,6 @@ export default class SkyProjection {
         let zeta, z, theta;
         let T, t;
         let jdfixed;
-        let radec = [0, 0];
-
         /* Fetch the input values for ra and dec and save in radians */
 
         ra_in = raDecIn[0];
@@ -1320,10 +1300,10 @@ export default class SkyProjection {
          * In this projection, north pole is toward z axis (0,0,1). and ra=0 point to the x axis
          */
         const zenithRaDeg = SkyProjection.getLocalSideralTime(msTime, geoCoords.long);
-        const q1 = Quaternion.fromAxisAngle([0,0,1], deg2rad(-zenithRaDeg));
+        const q1 = QuaternionLib.fromAxisAngle([0,0,1], deg2rad(-zenithRaDeg));
 
         // Now rotate the pole according to latitude
-        const q2 = Quaternion.fromAxisAngle([0,1,0], deg2rad(geoCoords.lat));
+        const q2 = QuaternionLib.fromAxisAngle([0,1,0], deg2rad(geoCoords.lat));
 
         return q2.mul(q1).neg();
     }
@@ -1334,8 +1314,8 @@ export default class SkyProjection {
      */
     public static getEQ3DQuaternion(raDec: number[])
     {
-        const decQ = Quaternion.fromAxisAngle([0,1,0], deg2rad(-raDec[1]));
-        const raQ = Quaternion.fromAxisAngle([0,0,1], deg2rad(raDec[0]));
+        const decQ = QuaternionLib.fromAxisAngle([0,1,0], deg2rad(-raDec[1]));
+        const raQ = QuaternionLib.fromAxisAngle([0,0,1], deg2rad(raDec[0]));
         return raQ.mul(decQ);
     }
 
@@ -1345,9 +1325,9 @@ export default class SkyProjection {
      */
     public static getALTAZ3DMountCorrectionQuaternion(axe1AltAz: number[], axe2AltAz : number[])
     {
-        const cleanAz = Quaternion.fromAxisAngle([1,0,0], deg2rad(axe1AltAz[1]));
-        const applyAlt = Quaternion.fromAxisAngle([0,1,0], deg2rad(axe2AltAz[0] - axe1AltAz[0]));
-        const resetAz = Quaternion.fromAxisAngle([1,0,0], deg2rad(-axe2AltAz[1]));
+        const cleanAz = QuaternionLib.fromAxisAngle([1,0,0], deg2rad(axe1AltAz[1]));
+        const applyAlt = QuaternionLib.fromAxisAngle([0,1,0], deg2rad(axe2AltAz[0] - axe1AltAz[0]));
+        const resetAz = QuaternionLib.fromAxisAngle([1,0,0], deg2rad(-axe2AltAz[1]));
 
         return resetAz.mul(applyAlt).mul(cleanAz);
     }
@@ -1430,10 +1410,7 @@ export default class SkyProjection {
 
         // ra in hour
         const ra = getPropertyNumber('EQUATORIAL_EOD_COORD', 'RA');
-        const dec = getPropertyNumber('EQUATORIAL_EOD_COORD', 'DEC');
-
         if (lst === null) {
-            const lat = getPropertyNumber('GEOGRAPHIC_COORD', 'LAT');
             const long = getPropertyNumber('GEOGRAPHIC_COORD', 'LONG');
 
 

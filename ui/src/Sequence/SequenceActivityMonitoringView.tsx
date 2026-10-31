@@ -8,7 +8,6 @@ import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 import * as Store from '../Store';
 import * as SequenceStore from '../SequenceStore';
-import CancellationToken from 'cancellationtoken';
 import Bool from '../primitives/Bool';
 import Float from '../primitives/Float';
 

@@ -21,9 +21,6 @@ type MessageViewControlsProps = MessageViewControlsInputProps & MessageViewContr
 class UnmappedMessageViewControls extends React.PureComponent<MessageViewControlsProps> {
     private modal = React.createRef<Modal>();
 
-    constructor(props:MessageViewControlsProps) {
-        super(props);
-    }
 
     render() {
         console.log('render with ', this.props);

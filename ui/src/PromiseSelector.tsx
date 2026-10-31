@@ -39,7 +39,7 @@ export type Props<TYPE> = Stored & {
     valueOverride?: ValueOverride;
     className?: string;
 };
-type State<TYPE> = {
+type State = {
     forcedValue: string|null;
     runningPromise: Promise<any>|undefined;
 };
@@ -49,7 +49,7 @@ type State<TYPE> = {
  * 
  * Supported values: numbers, strings, booleans, null
  */
-export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYPE>, State<TYPE>> {
+export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYPE>, State> {
     static defaultProps = {
         getTitle: (e:any)=>'' + e,
         getId: (e:any)=>e,
@@ -107,7 +107,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             disabled = false;
         } else {
             let active = this.getActiveString();
-            if (active == undefined) active = null;
+            if ((active === null || active === undefined)) active = null;
             if (this.state.forcedValue !== null) {
                 active = this.state.forcedValue;
                 logger.debug('Using forced value', {active});
@@ -170,7 +170,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             var id = JSON.parse(value.substring(5));
             if (this.props.controls) {
                 for(const v of this.props.controls) {
-                    if (v.id == id) {
+                    if (v.id === id) {
                         logger.debug('select entry', {id});
                         this.selectEntry(null, v.run);
                     }
@@ -220,4 +220,3 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         }
     }
 }
-

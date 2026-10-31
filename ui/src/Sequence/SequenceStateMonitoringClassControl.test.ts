@@ -1,6 +1,6 @@
 import "source-map-support/register";
-import { expect, assert } from 'chai';
-import React from 'react';
+import { assert } from 'chai';
+
 import { exposureToString } from './SequenceStateMonitoringClassControl';
 
 it('render exposure duration', () => {

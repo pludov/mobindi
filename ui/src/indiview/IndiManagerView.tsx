@@ -72,7 +72,7 @@ class IndiManagerView extends React.PureComponent<Props> {
 
     render() {
         var bs = this.props.indiManager;
-        if (bs == undefined || bs == null) {
+        if ((bs === null || bs === undefined) || bs == null) {
             return null;
         }
 
@@ -98,7 +98,7 @@ class IndiManagerView extends React.PureComponent<Props> {
                 for(let group of groupIds) {
                     const groupDesc = groups[group];
                     let childs = [];
-                    const keys = Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group == group}).sort();
+                    const keys = Object.keys(deviceProps).filter((e)=>{return deviceProps[e].$group === group}).sort();
                     for(const key of keys) {
                         childs.push(<IndiVectorView key={currentDevice +':vector:' +key} decorator={decorator} dev={currentDevice} vec={key}/>);
                     }

@@ -1,13 +1,7 @@
-import { deepEqual } from '../shared/Obj';
 import React from 'react';
 import * as Store from "../Store";
 import * as IndiStore from "../IndiStore";
 import SkyProjection from '../SkyAlgorithms/SkyProjection';
-import * as PolarAlignment from '../SkyAlgorithms/PolarAlignment';
-import * as IndiUtils from '../IndiUtils';
-import { defaultMemoize } from 'reselect';
-import ScopeJoystick from '../ScopeJoystick';
-import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
 import Marker from './Marker';
 
 type InputProps = {
@@ -52,9 +46,6 @@ class ScopeMarker extends React.PureComponent<Props> {
         return scopeAltAz;
     }
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         if (this.props.alt === undefined || this.props.az === undefined) {

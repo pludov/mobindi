@@ -1,13 +1,11 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { connect } from 'react-redux';
 import Log from '../shared/Log';
 import * as Help from "../Help";
 import * as Utils from "../Utils";
-import { atPath } from '../shared/JsonPath';
 import * as Store from "../Store";
 import ArrayReselect from '../utils/ArrayReselect';
 import ObjectReselect from '../utils/ObjectReselect';
-import * as Actions from "../Actions";
 import * as IndiManagerStore from "../IndiManagerStore";
 
 import "./IndiManagerView.css";

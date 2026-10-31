@@ -1,13 +1,11 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { createSelector } from 'reselect'
 
-import Log from './shared/Log';
 import { Connect } from './utils/Connect';
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
-import {UnmappedFitsViewerInContext} from './FitsViewerInContext';
 import * as FineSlewLogic from './shared/FineSlewLogic';
 import * as Store from './Store';
 import * as Help from "./Help";
@@ -15,12 +13,8 @@ import CancellationToken from 'cancellationtoken';
 import ContextMenuItem from './FitsViewer/ContextMenuItem';
 import FitsMarker from './FitsViewer/FitsMarker';
 import "./FitsViewerFineSlewUI.css";
-import { SlewDirection } from '@bo/BackOfficeAPI';
-import SlewButtonController from './SlewButtonControler';
 import { ContextMenuEvent } from './FitsViewer/FitsViewer';
 import ScopeJoystick from './ScopeJoystick';
-
-const logger = Log.logger(__filename);
 
 type InputProps = {
     imagingSetup: string|null;

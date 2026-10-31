@@ -1,15 +1,12 @@
 import * as React from 'react';
 import CancellationToken from 'cancellationtoken';
-import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
 
 import Log from '../shared/Log';
 import { SequenceStep, ImagingSetup } from '@bo/BackOfficeStatus';
-import * as Utils from '../Utils';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
 import ArrayReselect from '../utils/ArrayReselect';
 
-import { hasKey } from '../shared/Obj';
 
 import "./SequenceStepEdit.css";
 import { ForcedParams } from './SequenceStepEdit';

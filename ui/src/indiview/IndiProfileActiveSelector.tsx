@@ -22,16 +22,13 @@ class IndiProfileActiveSelector extends React.PureComponent<Props> {
     private static selectorHelp = Help.key("Indi profile(s) selector", "Indi profiles can be used to apply indi values, possibly depending on external conditions. They will display locks for each property to represent its state (controlled, conform or not)");
     private dialog = React.createRef<Modal>();
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         const activeProfiles = this.props.indiManagerProfiles.list
                     .filter((e)=>this.props.indiManagerProfiles.byUid[e]?.active);
 
         return <>
-            <select value={"current"} onChange={this.openDialog} className={activeProfiles.length == 0 ? "IndiNoPropfileSelector" : ""} 
+            <select value={"current"} onChange={this.openDialog} className={activeProfiles.length === 0 ? "IndiNoPropfileSelector" : ""}
                 {...IndiProfileActiveSelector.selectorHelp.dom()}
             >
                 <option value="current">

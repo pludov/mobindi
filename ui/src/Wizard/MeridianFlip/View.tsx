@@ -1,17 +1,13 @@
 import React from 'react';
-import Log from '../../shared/Log';
 import '../BaseView.css';
 import * as Store from '../../Store';
 import InitialConfirm from "./InitialConfirm";
 import "../PolarAlignment/PolarAlignment.css";
-import { createSelector, defaultMemoize } from 'reselect';
+import { createSelector } from 'reselect';
 import ArrayReselect from '../../utils/ArrayReselect';
 import StepListItem from './StepListItem';
-import AstrometryBackendAccessor from '../../AstrometryStore';
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import "./View.css";
-
-const logger = Log.logger(__filename);
 
 type InputProps = {};
 type MappedProps = {

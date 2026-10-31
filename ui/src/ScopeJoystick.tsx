@@ -1,6 +1,5 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 
-import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
@@ -9,8 +8,6 @@ import "./FitsViewerFineSlewUI.css";
 import { SlewDirection } from '@bo/BackOfficeAPI';
 import SlewButtonController from './SlewButtonControler';
 
-
-const logger = Log.logger(__filename);
 
 type InputProps = {
     imagingSetup: string|null;
@@ -40,9 +37,6 @@ export default class ScopeJoystick extends React.PureComponent<Props> {
         ),
     };
 
-    constructor(props:Props) {
-        super(props);
-    }
 
 
     private readonly cancel = async () => {

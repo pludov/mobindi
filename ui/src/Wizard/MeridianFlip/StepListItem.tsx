@@ -1,9 +1,8 @@
 import React from 'react';
 import Collapsible from 'react-collapsible';
-import Log from '../../shared/Log';
 import '../BaseView.css';
 import * as Store from '../../Store';
-import { MeridianFlipStatus, MeridianFlipStep, MeridianFlipStepBase, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import { MeridianFlipStep } from '@bo/BackOfficeStatus';
 import "../PolarAlignment/PolarAlignment.css";
 import StepDetails from './StepDetails';
 
@@ -49,7 +48,7 @@ class StepListItem extends React.PureComponent<Props, State> {
     }
 
     static getDerivedStateFromProps(newProps:Props, state:State) {
-        if (newProps.opened != state.prevOpened) {
+        if (newProps.opened !== state.prevOpened) {
 
             if (state.explicitOpenStatus !== undefined) {
                 return {
@@ -106,7 +105,7 @@ class StepListItem extends React.PureComponent<Props, State> {
         if (!Object.prototype.hasOwnProperty.call(steps, props.id)) {
             return {};
         }
-        const {id, status, error, title} = steps[props.id];
+        const {status, error, title} = steps[props.id];
         return {status, error, title, opened};
     }
 }

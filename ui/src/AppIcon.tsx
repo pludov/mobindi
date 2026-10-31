@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { connect } from 'react-redux';
 import * as Utils from './Utils';
 import * as Help from './Help';
@@ -23,10 +23,6 @@ export type MappedProps = {
 export type Props = InputProps & MappedProps;
 
 class AppIcon extends React.PureComponent<Props> {
-    constructor(props:Props)
-    {
-        super(props);
-    }
 
     render() {
         var appId = this.props.appid;
@@ -46,8 +42,8 @@ class AppIcon extends React.PureComponent<Props> {
                 });
         }
         return (
-            <div id={"AppIcon_" + appId} data-testid={"app-" + appId} className={'Application' + (this.props.currentApp == appId ? ' Active' : '')} onClick={this.activate}>
-                <img  src={appId + ".png"} {...this.props.helpKey.dom()}></img>
+            <div id={"AppIcon_" + appId} data-testid={"app-" + appId} className={'Application' + (this.props.currentApp === appId ? ' Active' : '')} onClick={this.activate}>
+                <img alt={appId} src={appId + ".png"} {...this.props.helpKey.dom()}></img>
                 {inner}
             </div>);
     }

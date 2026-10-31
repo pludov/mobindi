@@ -20,9 +20,6 @@ export default class FocuserSettingsView extends React.PureComponent<Props> {
     static targetCurrentPosHelp = Help.key("Start from current pos", "Start the sequence from the current focuser position. Usefull to perform a focus check when already close to focus. If not set, a starting position is asked.");
     static targetPosHelp = Help.key("Target pos", "Target focuser position (center of the sequence).");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         // Range size

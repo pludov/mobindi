@@ -4,6 +4,7 @@ import help from './system-help.svg';
 import apply from './dialog-ok-apply.svg';
 
 
-export default {
+const icons = {
     dialogOk, dialogCancel, help, apply
 };
+export default icons;

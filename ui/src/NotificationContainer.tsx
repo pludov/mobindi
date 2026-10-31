@@ -13,9 +13,6 @@ type Props = InputProps & MappedProps;
 
 class NotificationContainer extends React.PureComponent<Props> {
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     public renderChild = (uuid:string)=> {
         return <Notification uuid={uuid}/>

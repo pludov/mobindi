@@ -1,7 +1,7 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import * as Help from "../Help";
 import * as Store from "../Store";
 import * as IndiStore from "../IndiStore";
@@ -30,9 +30,6 @@ type Props = InputProps & MappedProps;
 class IndiDriverSelector extends React.Component<Props> {
     static help = Help.key("INDI driver selector", "Select which INDI device or driver to view details for.");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     updateDriver = (e:React.ChangeEvent<HTMLSelectElement>)=> {
         const target = e.target.value;
@@ -76,7 +73,7 @@ class IndiDriverSelector extends React.Component<Props> {
         let currentDeviceFound= false;
 
         let currentDevice = selectedDevice;
-        if (currentDevice == undefined) currentDevice = "";
+        if ((currentDevice === null || currentDevice === undefined)) currentDevice = "";
 
         // Search for the devices
         const found = {};

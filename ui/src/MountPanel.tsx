@@ -1,25 +1,21 @@
 import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
-import React, { Component, PureComponent} from 'react';
+import React, { PureComponent} from 'react';
 import numeral from 'numeral';
 import * as Help from "./Help";
 import * as Store from './Store';
 import PromiseSelector from './PromiseSelector';
 import DeviceConnectBton from './DeviceConnectBton';
-import DeviceGeolocBton from './DeviceGeolocBton';
 import * as BackendRequest from "./BackendRequest";
 import DeviceSettingsBton from './DeviceSettingsBton';
 
 import * as AccessPath from './shared/AccessPath';
 import "./MountPanel.css"
 import IndiSelectorPropertyView from './indiview/IndiSelectorPropertyView';
-import ScopePositionSelector from './Wizard/PolarAlignment/ScopePositionSelector';
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { getMountRichPosFromStore, MountRichPos } from './MountStore';
 import MountParkButton from './MountParkButton';
 import MountTrackButton from './MountTrackButton';
-import AstrometrySettingsView from './AstrometrySettingsView';
-import AstrometryStatusView from './AstrometryStatusView';
 import MiniMap from './MiniMap/MiniMap';
 import UniformBackground from './MiniMap/UniformBackground';
 import ScopeMarker from './MiniMap/ScopeMarker';
@@ -31,6 +27,7 @@ const ScopeSelector = connect((store:Store.Content)=> ({
     active: store.backend?.astrometry?.selectedScope,
     availables: store.backend?.indiManager?.availableScopes || []
 }))(PromiseSelector);
+const ForActiveDevice = DeviceConnectBton.forActivePath;
 
 type InputProps = {
 }
@@ -105,9 +102,6 @@ class ScopePanel extends PureComponent<Props> {
 
     private astrometryAccessor = AstrometryStore.astrometrySettingsAccessor();
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     private setScope = async(deviceId:string)=> {
         return await BackendRequest.RootInvoker("astrometry")("setScope")(
@@ -130,7 +124,7 @@ class ScopePanel extends PureComponent<Props> {
         <div className="ScopeView">
 
                 <ScopeSelector setValue={this.setScope} helpKey={ScopePanel.scopeSelectorHelp}/>
-                <DeviceConnectBton.forActivePath
+                <ForActiveDevice
                         activePath="$.backend.astrometry.selectedScope"
                         />
                 <DeviceSettingsBton deviceId={this.props.currentScope || null}/>

@@ -1,6 +1,5 @@
-import React, { Component, PureComponent, CSSProperties, RefObject} from 'react';
+import React, { PureComponent, CSSProperties, RefObject} from 'react';
 import Log from '../shared/Log';
-import * as Help from '../Help';
 import { ContextMenuEntry } from './FitsViewer';
 import { LevelId } from './Types';
 
@@ -17,9 +16,6 @@ export type Props = {
 export default class ContextMenu extends PureComponent<Props> {
     private readonly itemRef: RefObject<HTMLDivElement> = React.createRef();
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     adjust() {
         // ensure that the menu does not go outside the container

@@ -1,13 +1,9 @@
 import * as React from 'react';
 
-import * as Help from './Help';
 import * as Store from "./Store";
 import { defaultMemoize } from 'reselect';
 
-import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as ImageSetupSelectorItem} from './ImagingSetupSelector';
-import PromiseSelector, {Props as PromiseSelectorProps} from './PromiseSelector';
-import ImagingSetupEditor from './ImagingSetupEditor';
-import { BackendAccessor } from './utils/BackendAccessor';
+import {InputProps as ImagingSetupSelectorProps} from './ImagingSetupSelector';
 import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import Modal from './Modal';
 import FitsFileChooser from './FitsFileChooser';

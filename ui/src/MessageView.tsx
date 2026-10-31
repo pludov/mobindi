@@ -3,7 +3,6 @@ import * as React from 'react';
 import { IndiMessageWithUid } from '@bo/BackOfficeStatus';
 import { timestampToDate } from './IndiUtils';
 import * as Store from "./Store";
-import * as MessageStore from "./MessageStore";
 import MessageViewControls from "./MessageViewControls";
 import './MessageView.css'
 
@@ -18,9 +17,6 @@ type ItemMappedProps = {
 type ItemProps = ItemInputProps & ItemMappedProps;
 
 class UnmappedItem extends React.PureComponent<ItemProps> {
-    constructor(props:ItemProps) {
-        super(props);
-    }
 
     render() {
         let device;
@@ -57,9 +53,6 @@ type MessageListProps = MessageListInputProps & MessageListMappedProps;
 const emptyObject = {};
 
 class UnmappedMessageList extends React.PureComponent<MessageListProps> {
-    constructor(props:MessageListProps) {
-        super(props);
-    }
 
     render() {
         const messagesUids = Object.keys(this.props.messages).sort().reverse();
@@ -81,9 +74,6 @@ type Props = {
 };
 
 export default class MessageView extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         return(<React.Fragment>

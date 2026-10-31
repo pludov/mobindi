@@ -1,11 +1,10 @@
 /**
  * Created by ludovic on 21/07/17.
 */
-import React, { } from 'react';
+
 import { connect } from 'react-redux';
 import * as Store from "../Store";
 import * as Help from '../Help';
-import IndiProfileDialog from './IndiProfileDialog';
 import * as PromiseSelector from '../PromiseSelector';
 
 type InputProps = {
@@ -14,12 +13,6 @@ type InputProps = {
     helpKey?: Help.Key;
     setValue: (e:string)=>Promise<void>;
 }
-
-type MappedProps = PromiseSelector.Props<string|null> & {
-    items:{[id: string]: string};
-}
-
-type Props = InputProps & MappedProps;
 
 type Item = {
     uid: string,

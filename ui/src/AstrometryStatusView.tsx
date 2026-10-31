@@ -1,4 +1,3 @@
-import { connect } from 'react-redux';
 import React, { PureComponent} from 'react';
 
 import * as Store from './Store';
@@ -13,9 +12,6 @@ type MappedProps = Partial<AstrometryStatus>;
 type Props = InputProps & MappedProps;
 
 class AstrometryStatusView extends PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
 
     public render() {

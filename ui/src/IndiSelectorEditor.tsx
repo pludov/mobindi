@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { connect } from 'react-redux';
 import { atPath } from './shared/JsonPath';
 import * as PromiseSelector from './PromiseSelector';
@@ -6,8 +6,7 @@ import * as Utils from './Utils';
 import * as Help from './Help';
 import * as Store from './Store';
 import * as IndiUtils from './IndiUtils';
-import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
-import { has } from './shared/JsonProxy';
+import { IndiVector } from '@bo/BackOfficeStatus';
 
 export type InputProps = {
     // name of the device (indi id)

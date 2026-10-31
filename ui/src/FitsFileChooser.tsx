@@ -1,8 +1,6 @@
 import * as React from 'react';
 
-import * as Utils from "./Utils";
 
-import * as Help from "./Help";
 import Log from './shared/Log';
 import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
@@ -117,7 +115,7 @@ class FitsFileChooser extends React.PureComponent<Props, State> {
     }
 
     componentDidUpdate(prevProps:Props, prevState:State) {
-        if (this.state.path != prevState.path) {
+        if (this.state.path !== prevState.path) {
             this.cancelLoadData();
             this.loadData();
         }

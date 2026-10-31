@@ -7,7 +7,6 @@ import * as Utils from '../Utils';
 import * as Help from '../Help';
 import * as Store from '../Store';
 import * as BackendRequest from '../BackendRequest';
-import { atPath } from '../shared/JsonPath';
 import TextEdit from "../TextEdit";
 import Modal from '../Modal';
 import * as SequenceStepParameter from "./SequenceStepParameter";

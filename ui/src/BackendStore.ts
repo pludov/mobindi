@@ -2,7 +2,6 @@ import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import * as Actions from "./Actions";
 import * as Store from "./Store";
 import * as JsonProxy from './shared/JsonProxy';
-import { time } from 'console';
 
 export type Content = {
     backendStatus: number;
@@ -95,7 +94,7 @@ const notification : Actions.Handler<{data?:BackofficeStatus, time: number, diff
     = (state, action) => {
         // Mettre le status du backend
         state = Object.assign({}, state);
-        if (state.backendStatus != BackendStatus.Connected || state.backendError != null) {
+        if (state.backendStatus !== BackendStatus.Connected || state.backendError != null) {
             state.backendStatus = BackendStatus.Connected;
             state.backendError = null;
             state.backend = {};

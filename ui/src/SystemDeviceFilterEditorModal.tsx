@@ -2,12 +2,10 @@
  * Created by ludovic on 21/07/17.
  */
 import React, { ChangeEvent } from 'react';
-import * as Store from "./Store";
 import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
-import { IndiProfileConfiguration, IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
-import { defaultMemoize } from 'reselect';
-import { SystemDeviceList, SystemDevicePartialList } from '@bo/BackOfficeAPI';
+import { IndiProfileConfiguration } from '@bo/BackOfficeStatus';
+import { SystemDevicePartialList } from '@bo/BackOfficeAPI';
 
 
 type HandledProps = {

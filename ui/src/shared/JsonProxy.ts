@@ -1,4 +1,4 @@
-'use strict';
+
 
 import { WildcardAccessPath } from './AccessPath';
 import * as util from 'util';
@@ -95,7 +95,7 @@ function emptyObjectFor(v:any) {
 }
 
 function compatibleStorage(a:any, b:any) {
-    return Array.isArray(a) == Array.isArray(b);
+    return Array.isArray(a) === Array.isArray(b);
 }
 
 export type ComposedSerialSnapshot = {
@@ -225,7 +225,7 @@ class SynchronizerTrigger {
 
 
     getChild(propName: string):SynchronizerTrigger {
-        if (this.callback !== undefined) throw "getChild not available on final node";
+        if (this.callback !== undefined) throw new Error("getChild not available on final node");
 
         if (!Object.prototype.hasOwnProperty.call(this.childsByProp, propName)) {
             this.childsByProp![propName] = new SynchronizerTrigger(undefined);
@@ -262,7 +262,7 @@ class SynchronizerTrigger {
             this.minSerial = -1;
         }
 
-        if (startAt == path.length) {
+        if (startAt === path.length) {
             // Add a listener
             const nv = new SynchronizerTrigger(cb, callbackWildcardPath);
             this.listeners!.push(nv);
@@ -352,7 +352,7 @@ class SynchronizerTrigger {
     // Return true if the node may have become empty
     removeListener(cb: SynchronizerTriggerCallback, path:any, startAt:number) {
         let ret: boolean = false;
-        if (startAt == path.length) {
+        if (startAt === path.length) {
             return this.killListenersOf(this.listeners!, cb);
         }
 
@@ -427,7 +427,7 @@ class SynchronizerTrigger {
     }
 
     getContentChilds(content: JsonProxyNode) {
-        if (content == undefined) {
+        if ((content === null || content === undefined)) {
             return [];
         }
         var contentObj = content.value;
@@ -479,13 +479,13 @@ class SynchronizerTrigger {
         var result = [];
 
         for (var k of Object.keys(this.childsByProp!)) {
-            for(var path of this.childsByProp![k].getEmptyPath()) {
+            for(const path of this.childsByProp![k].getEmptyPath()) {
                 result.push(k + "/" + path);
             }
         }
         for (var w of this.wildcardChilds!) {
-            for(var path of w.getEmptyPath()) {
-                result.push('*/' + path);
+            for(const wildcardPath of w.getEmptyPath()) {
+                result.push('*/' + wildcardPath);
             }
         }
         if (this.listeners!.length || this.childsByProp!.length || this.wildcardChilds!.length) {
@@ -576,7 +576,7 @@ class SynchronizerTrigger {
                             changed = changed || !!wildcardChanged;
 
                             // Nothing left. probably done with wildcardChilds !
-                            if (wildcardChanged == 2) {
+                            if (wildcardChanged === 2) {
                                 delete this.childsByProp![childId];
                                 // Could break, but continue in case of empty wildcard
                             }
@@ -601,7 +601,10 @@ class SynchronizerTrigger {
         var isEmpty = true;
         var sthChanged = false;
         for(var i = 0; i < this.listeners!.length; ) {
-            if (this.listeners![i].wildcardOrigin == originToRemove) {
+            const wildcardOrigin = this.listeners![i].wildcardOrigin;
+            if (wildcardOrigin === originToRemove
+                    || (wildcardOrigin === undefined && originToRemove === null)
+                    || (wildcardOrigin === null && originToRemove === undefined)) {
                 this.listeners![i] = this.listeners![this.listeners!.length - 1];
                 this.listeners!.splice(-1, 1);
                 sthChanged = true;
@@ -616,7 +619,7 @@ class SynchronizerTrigger {
             var childRemoveResult = child.removeFromWildcard(originToRemove);
             if (childRemoveResult) {
                 sthChanged = true;
-                if (childRemoveResult == 2) {
+                if (childRemoveResult === 2) {
                     delete this.childsByProp![o];
                 } else {
                     isEmpty = false;
@@ -627,7 +630,10 @@ class SynchronizerTrigger {
         }
 
         for(let i = 0; i < this.wildcardChilds!.length; ) {
-            if( this.wildcardChilds![i].wildcardOrigin == originToRemove) {
+            const wildcardOrigin = this.wildcardChilds![i].wildcardOrigin;
+            if (wildcardOrigin === originToRemove
+                    || (wildcardOrigin === undefined && originToRemove === null)
+                    || (wildcardOrigin === null && originToRemove === undefined)) {
                 this.wildcardChilds![i] = this.wildcardChilds![this.wildcardChilds!.length - 1];
                 this.wildcardChilds!.splice(-1, 1);
                 sthChanged = true;
@@ -839,7 +845,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 if (has(details.value, nom)) {
                     var desc = details.value[nom];
 
-                    if (Array.isArray(target) && nom == "length") {
+                    if (Array.isArray(target) && nom === "length") {
                         return desc;
                     }
 
@@ -859,7 +865,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 return true;
             },
             set: function(target:any, nom:string, newValue:any, receiver:any) {
-                if (Array.isArray(target) && nom == "length") {
+                if (Array.isArray(target) && nom === "length") {
                     target[nom] = newValue;
                     return true;
                 }
@@ -887,7 +893,7 @@ export default class JsonProxy<CONTENTTYPE> {
                     }
                     // Update existing value.
                     if (!valueHasChild(newValue)) {
-                        if (currentDesc.proxy != undefined) {
+                        if ((currentDesc.proxy !== null && currentDesc.proxy !== undefined)) {
                             self.toSimpleNode(currentDesc);
                             currentDesc.value = null;
                             self.markDirty(currentDesc);
@@ -926,7 +932,7 @@ export default class JsonProxy<CONTENTTYPE> {
         details.serial = this.currentSerial;
         while(details.parent != null) {
             details = details.parent;
-            if (details.childSerial == this.currentSerial) return;
+            if (details.childSerial === this.currentSerial) return;
             details.childSerial = this.currentSerial;
         }
     }
@@ -945,19 +951,18 @@ export default class JsonProxy<CONTENTTYPE> {
         } else {
             // Assure que intoProxy contient bien toutes les propriété de from, ...
             // if (typeof intoProxy == 'array') throw new Error("Not implemented");
-            for(var k of Object.keys(from)) {
+            for(const k of Object.keys(from)) {
                 intoProxy[k] = from[k];
             }
-            for(var k of Object.keys(intoProxy)) {
-                if (!(k in from)) {
-                    delete intoProxy[k];
+            for(const key of Object.keys(intoProxy)) {
+                if (!(key in from)) {
+                    delete intoProxy[key];
                 }
             }
         }
     }
 
     constructor() {
-        var self = this;
         this.currentSerial = 0;
         this.currentSerialUsed = false;
         this.notifyPending = false;
@@ -974,7 +979,6 @@ export default class JsonProxy<CONTENTTYPE> {
 
     takeSerialSnapshot(whiteList?:  WhiteList):ComposedSerialSnapshot
     {
-        var self = this;
         if (this.currentSerialUsed) {
             this.currentSerial++;
             this.currentSerialUsed = false;
@@ -1027,7 +1031,7 @@ export default class JsonProxy<CONTENTTYPE> {
             let emptyResult = true;
             // Ignorer objVersion si il n'est pas compatible
             // Pas de changement
-            if (objVersion.serial != objDesc.serial) {
+            if (objVersion.serial !== objDesc.serial) {
                 whereToStoreProps = {};
                 if (Array.isArray(objDesc.value)) {
                     result = {newArray : whereToStoreProps};
@@ -1040,7 +1044,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 objVersion.props = {};
                 emptyResult = false;
             } else {
-                if (objVersion.childSerial == objDesc.childSerial) {
+                if (objVersion.childSerial === objDesc.childSerial) {
                     // Same serials
                     return undefined;
                 }
@@ -1058,7 +1062,7 @@ export default class JsonProxy<CONTENTTYPE> {
                     }
                 }
 
-                if (toDelete.length != 0) {
+                if (toDelete.length !== 0) {
                     emptyResult = false;
                     for(var i = 0; i < toDelete.length; ++i) {
                         delete objVersion.props[toDelete[i]];
@@ -1067,7 +1071,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 }
             }
 
-            for(var key of Object.keys(objDesc.value)) {
+            for(const key of Object.keys(objDesc.value)) {
                 const childWhiteList = whiteListChild(whiteList, key);
                 if (childWhiteList === null) {
                     continue;
@@ -1088,7 +1092,7 @@ export default class JsonProxy<CONTENTTYPE> {
                         }
                     }
 
-                    if (propObjVersion == undefined) {
+                    if ((propObjVersion === null || propObjVersion === undefined)) {
                         propObjVersion = {serial: null, childSerial: null, props: {}}
                         objVersion.props[key] = propObjVersion;
                     }
@@ -1122,7 +1126,7 @@ export default class JsonProxy<CONTENTTYPE> {
                 versionSerial = undefined;
             }
 
-            if (objDesc.serial == versionSerial) {
+            if (objDesc.serial === versionSerial) {
                 return undefined;
             }
 
@@ -1230,22 +1234,22 @@ export default class JsonProxy<CONTENTTYPE> {
                 var toDelete = (diff as UpdateDiff).delete!;
                 if (Array.isArray(from)) {
                     var lowestDelete = from.length;
-                    for(var i = 0; i < toDelete.length; ++i) {
+                    for(let i = 0; i < toDelete.length; ++i) {
                         var id = parseInt(toDelete[i]);
-                        if (i == 0 || id < lowestDelete) {
+                        if (i === 0 || id < lowestDelete) {
                             lowestDelete = id;
                         }
                     }
                     from.splice(lowestDelete);
                 } else {
-                    for(var i = 0; i < toDelete.length; ++i) {
+                    for(let i = 0; i < toDelete.length; ++i) {
                         delete from[toDelete[i]];
                     }
                 }
             }
         }
 
-        if (updateProps != undefined) {
+        if ((updateProps !== null && updateProps !== undefined)) {
             for(var k of Object.keys(updateProps)) {
                 if (has(updateProps, k)) {
                     from[k] = JsonProxy.applyDiff(has(from, k) ? from[k] : undefined, updateProps[k]);
@@ -1255,6 +1259,3 @@ export default class JsonProxy<CONTENTTYPE> {
         return from;
     }
 }
-
-
-

@@ -48,9 +48,6 @@ class SequenceAccessor extends BackendAccessorImpl<Sequence> {
 
 export class SequenceStoreContentAccessor extends StorePatchAccessor<SequenceStoreContent>
 {
-    constructor() {
-        super();
-    }
 
     protected async apply(jsonDiff: Diff) {
         Actions.dispatch<SequenceActions>()("patchSequenceStoreContent", {diff: jsonDiff});

@@ -452,7 +452,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
 
     private moveSteps=async (param: {oldIndex:number, newIndex:number})=>{
         const {oldIndex, newIndex} = param;
-        if (oldIndex == newIndex) return;
+        if (oldIndex === newIndex) return;
 
         const originalList = this.getChildList(true);
         const childList = this.getChildList(false);
@@ -722,7 +722,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                                 && !hasKey(this.state.newItems, param.id))) {
                 return null;
             }
-            const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial == this.lastNewItemId);
+            const isTheLastNew = (param.id === this.state.lastNewItem) && (this.state.lastNewItemSerial === this.lastNewItemId);
             const moreThanOne = details.foreach?.param === param.id && details.foreach.list?.length > 1;
 
             const renderer = param.render(this);
@@ -829,9 +829,9 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
                     onSortEnd={this.moveSteps}
                     pressDelay={200}
                     helperClass="sortableHelper"
-                    lastNewItem={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.state.lastNewItem: undefined}
-                    lastNewItemRef={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.lastNewItemRef: undefined}
-                    lastNewItemFocusRef={(this.state.lastNewItemSerial == this.lastNewItemId) ? this.lastNewItemFocusRef: undefined}
+                    lastNewItem={(this.state.lastNewItemSerial === this.lastNewItemId) ? this.state.lastNewItem: undefined}
+                    lastNewItemRef={(this.state.lastNewItemSerial === this.lastNewItemId) ? this.lastNewItemRef: undefined}
+                    lastNewItemFocusRef={(this.state.lastNewItemSerial === this.lastNewItemId) ? this.lastNewItemFocusRef: undefined}
                     />
                 : null
             }
@@ -881,7 +881,7 @@ class SequenceStepEdit extends React.PureComponent<Props, State> {
         }
         const detailsStackMem = ArrayReselect.createArraySelector(detailsStackFn);
         return (store:Store.Content, ownProps:InputProps)=> ({
-            detailsStack: detailsStackFn(store, ownProps)
+            detailsStack: detailsStackMem(store, ownProps)
         })
     }
 }

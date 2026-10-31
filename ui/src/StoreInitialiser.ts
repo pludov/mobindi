@@ -76,9 +76,9 @@ export function start() {
             if (('' + type).startsWith('@@redux/INIT')) {
                 return state;
             }
-            if (type == "update") {
+            if (type === "update") {
                 state = update(state, action.op);
-            } else  if (type == "appAction") {
+            } else  if (type === "appAction") {
                 var nvArgs = action.args.slice();
                 nvArgs.unshift(state);
                 try {
@@ -128,15 +128,6 @@ export function start() {
     const notifier = new ReduxNotifier();
 
     notifier.attachToStore(store);
-
-    // Connect notifier to websocket
-    function stripLastPart(url:string)
-    {
-        var str = "" + url;
-        var lastSlash = str.lastIndexOf('/');
-        if (lastSlash == -1) return str;
-        return str.substring(0, lastSlash + 1);
-    }
 
     const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
         (window.location.protocol + '//' + window.location.hostname  + ':' + window.location.port + '/');

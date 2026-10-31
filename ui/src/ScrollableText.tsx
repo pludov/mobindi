@@ -6,7 +6,7 @@ type Props = {
     className?: string;
 };
 
-export default class extends React.PureComponent<Props> {
+class ScrollableText extends React.PureComponent<Props> {
     render() {
         const children = React.Children.toArray(this.props.children);
         return <div className={(this.props.className ? this.props.className + ' ' : '') + 'ScrollableText'} title={children.join(' ')}>
@@ -15,5 +15,5 @@ export default class extends React.PureComponent<Props> {
             </div>
         </div>
     }
-
 }
+export default ScrollableText;

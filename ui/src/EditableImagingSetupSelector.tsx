@@ -4,7 +4,7 @@ import * as Help from './Help';
 import * as Store from "./Store";
 
 import ImagingSetupSelector, {InputProps as ImagingSetupSelectorProps, Item as ImageSetupSelectorItem} from './ImagingSetupSelector';
-import PromiseSelector, {Props as PromiseSelectorProps} from './PromiseSelector';
+import PromiseSelector from './PromiseSelector';
 import ImagingSetupEditor from './ImagingSetupEditor';
 import * as BackendRequest from "./BackendRequest";
 

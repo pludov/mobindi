@@ -1,14 +1,11 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
-import * as Actions from "../Actions";
 import * as BackendRequest from "../BackendRequest";
-import * as IndiManagerStore from "../IndiManagerStore";
 import * as IndiUtils from '../IndiUtils';
-import * as Utils from "../Utils";
 import "./IndiManagerView.css";
 import { createSelector } from 'reselect';
 import { IndiVector } from '@bo/BackOfficeStatus';
@@ -36,7 +33,7 @@ class IndiSelectorPropertyView extends React.PureComponent<Props> {
             var child = this.props.childs[childId];
 
             options.push(<option key={child.$name} value={child.$name}>{child.$label}</option>);
-            if (child.$_ == 'On') {
+            if (child.$_ === 'On') {
                 currentOption = childId;
             }
         }

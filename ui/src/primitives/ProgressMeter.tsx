@@ -1,7 +1,6 @@
 import * as React from 'react';
 import * as Help from '../Help';
 import * as Store from '../Store';
-import * as BaseText from './BaseText';
 
 type InputProps = {
     current: Store.Accessor<number>;

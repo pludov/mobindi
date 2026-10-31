@@ -1,5 +1,4 @@
 // Detecter l'état de visibilité de la page
-import CancellationToken from "cancellationtoken";
 import Log from './shared/Log';
 import { BackendStatus, BackendStatusValue } from './BackendStore';
 import { WhiteList } from './shared/JsonProxy';
@@ -187,15 +186,12 @@ export default class Notifier {
     }
 
     private sendAsap() {
-        if (this.resendTimer != undefined) {
+        if ((this.resendTimer !== null && this.resendTimer !== undefined)) {
             clearTimeout(this.resendTimer);
             this.resendTimer = undefined;
         }
 
-        let sthSent = false;
         while((this.pendingComms.length ) && this.sendingQueueReady()) {
-            sthSent = true;
-
             const commItem = this.pendingComms.splice(0, 1)[0];
 
             if (commItem.cancelRequest) {
@@ -234,7 +230,7 @@ export default class Notifier {
     public sendRequest<Q,R>(content:Q, type?: string):Promise<R> {
         return new Promise<R>((resolve, reject) => {
             if (!this.handshakeOk) {
-                throw "Backend not connected";
+                throw new Error("Backend not connected");
             }
             const request = new Request(this, {
                 requestData: {...content},
@@ -356,7 +352,7 @@ export default class Notifier {
     }
 
     private clearXmitTimeout() {
-        if (this.xmitTimeout != undefined) {
+        if ((this.xmitTimeout !== null && this.xmitTimeout !== undefined)) {
             clearTimeout(this.xmitTimeout);
             this.xmitTimeout = undefined;
         }
@@ -480,7 +476,7 @@ export default class Notifier {
                 resetInactivityTimeout();
 
                 const data = JSON.parse(event.data);
-                if (data.type == 'welcome') {
+                if (data.type === 'welcome') {
                     logger.info('Websocket: welcomed', {data});
                     this.resetHandshakeStatus(true, data.clientId);
                     this.serverId = data.serverId;
@@ -492,7 +488,7 @@ export default class Notifier {
                     this.write(data);
                 }
 
-                if (data.type == 'requestStream') {
+                if (data.type === 'requestStream') {
                     flushNotifications();
                     const uid = data.uid;
                     const payload = data.payload;
@@ -509,7 +505,7 @@ export default class Notifier {
                     }
                 }
 
-                if (data.type == 'requestEnd') {
+                if (data.type === 'requestEnd') {
                     flushNotifications();
                     const uid = data.uid;
                     if (Object.prototype.hasOwnProperty.call(this.activeRequests, uid)) {
@@ -540,7 +536,7 @@ export default class Notifier {
                     }
                 }
 
-                if (data.type=="update") {
+                if (data.type==="update") {
                     pushNotification(data.diff);
                 }
             };
@@ -574,7 +570,7 @@ export default class Notifier {
     }
 
     private _close() {
-        if (this.socket == undefined) return;
+        if ((this.socket === null || this.socket === undefined)) return;
 
         logger.info('Websocket: disconnecting');
         try {

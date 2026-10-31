@@ -27,7 +27,7 @@ class PhdStats extends React.PureComponent<Props, State> {
     render() {
         function formatNumber(n:number|undefined|null)
         {
-            if (n == undefined || n == null) return n;
+            if ((n === null || n === undefined) || n == null) return n;
             if (typeof(n) == 'number') {
                 return n.toFixed(2);
             }

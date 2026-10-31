@@ -1,11 +1,8 @@
 import React from 'react';
-import CancellationToken from 'cancellationtoken';
 import chartjs from "chart.js";
 import * as ReactChartJS from "react-chartjs-2";
 import '../BaseView.css';
-import * as BackendRequest from "../../BackendRequest";
 import * as Store from "../../Store";
-import * as Utils from "../../Utils";
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
 import Panel from '../../Panel';
@@ -17,9 +14,6 @@ type MappedProps = PolarAlignStatus & {
 type Props = InputProps & MappedProps;
 
 class Progress extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
     getStatusClass = ()=> {
         if (this.props.fatalError !== null) {

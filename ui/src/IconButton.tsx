@@ -4,6 +4,7 @@ export type Props = {
     visible?: boolean;
     onClick: ()=>(void);
     src: string;
+    alt: string;
 }
 
 export default class IconButton extends React.PureComponent<Props> {
@@ -14,6 +15,6 @@ export default class IconButton extends React.PureComponent<Props> {
             className += " hidden";
         }
 
-        return <img className={className} src={this.props.src} onClick={this.props.onClick}/>
+        return <img className={className} src={this.props.src} alt={this.props.alt} onClick={this.props.onClick}/>
     }
 }

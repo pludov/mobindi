@@ -119,7 +119,7 @@ class Notification extends React.PureComponent<Props, State> {
         }
         return {
             visible: true,
-            ... notification.byuuid[props.uuid],
+            ...notification.byuuid[props.uuid],
             screenVisible
         };
     }

@@ -4,12 +4,9 @@ import * as Store from "../../Store";
 import * as Help from "../../Help";
 import * as AccessPath from '../../shared/AccessPath';
 import Panel from "../../Panel";
-import Int from '../../primitives/Int';
-import Float from '../../primitives/Float';
-import IndiSelectorEditor from '../../IndiSelectorEditor';
 import * as AstrometryStore from "../../AstrometryStore";
 import { RecursiveBackendAccessor } from "../../utils/BackendAccessor";
-import { MeridianFlipSettings, PolarAlignSettings } from '@bo/BackOfficeStatus';
+import { MeridianFlipSettings } from '@bo/BackOfficeStatus';
 import ImageControl from '../ImageControl';
 
 type InputProps = {};

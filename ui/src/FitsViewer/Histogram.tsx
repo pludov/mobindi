@@ -1,9 +1,9 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import Log from '../shared/Log';
 import * as BackendRequest from "../BackendRequest";
 
-import { Stage, Layer, Shape, Circle, Line } from 'react-konva';
+import { Stage, Layer, Shape } from 'react-konva';
 
 import {Props as FitsViewerProps} from './FitsViewer';
 import { ProcessorHistogramResult, ProcessorHistogramChannel } from '@bo/ProcessorTypes';
@@ -106,7 +106,7 @@ export default class Histogram extends React.PureComponent<Props, State> {
     }
 
     async _loadData() {
-        if (this.props.path === this.state.path && this.props.streamId == this.state.streamId) {
+        if (this.props.path === this.state.path && this.props.streamId === this.state.streamId) {
             return;
         }
         // Start a new loading.
@@ -118,8 +118,6 @@ export default class Histogram extends React.PureComponent<Props, State> {
             value: null,
             loading: true
         });
-        const self = this;
-
         try {
             const e = await BackendRequest.ImageProcessor(
                 CancellationToken.CONTINUE,
@@ -219,4 +217,3 @@ export default class Histogram extends React.PureComponent<Props, State> {
         </div>;
     }
 };
-

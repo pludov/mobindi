@@ -4,7 +4,7 @@ import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage, PolarAlignAxisSettings } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignAxisSettings } from '@bo/BackOfficeStatus';
 import TextEdit from '../../TextEdit';
 import Modal from '../../Modal';
 import PolarAlignAxisEditor from './PolarAlignAxisEditor';

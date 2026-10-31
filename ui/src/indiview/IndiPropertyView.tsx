@@ -1,12 +1,10 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
-import CancellationToken from 'cancellationtoken';
+import React, { PureComponent} from 'react';
 import * as Store from "../Store";
 import * as IndiUtils from '../IndiUtils';
 import "./IndiManagerView.css";
-import { createSelector } from 'reselect';
 import { IndiVector, IndiProperty } from '@bo/BackOfficeStatus';
 import TextEdit from '../TextEdit';
 
@@ -104,8 +102,8 @@ class IndiPropertyView extends PureComponent<Props> {
                 var xlatPattern = "";
                 for(var i = pattern.length - 1; i >= 0; --i) {
                     var c = pattern[i];
-                    if (c == '#' || c == '6') {
-                        var div = (c == '#' ? 10 : 6);
+                    if (c === '#' || c === '6') {
+                        var div = (c === '#' ? 10 : 6);
                         var v = Math.floor(ivalue % div);
                         ivalue = Math.floor(ivalue / div);
                         c = v.toFixed(0);
@@ -115,10 +113,10 @@ class IndiPropertyView extends PureComponent<Props> {
                     xlatPattern = c + xlatPattern;
                 }
                 while (ivalue >= 0.5) {
-                    var v = Math.floor(ivalue % 10);
+                    var digit = Math.floor(ivalue % 10);
                     ivalue = Math.floor(ivalue / 10);
 
-                    xlatPattern = v.toFixed(0) + xlatPattern;
+                    xlatPattern = digit.toFixed(0) + xlatPattern;
                 }
                 str += xlatPattern;
                 return str;
@@ -139,7 +137,7 @@ class IndiPropertyView extends PureComponent<Props> {
             if (format.match(sexaFormatRe)) {
                 // Parse a float
                 var sep;
-                if ((sep = value.indexOf(':')) != -1) {
+                if ((sep = value.indexOf(':')) !== -1) {
                     var head = value.substr(0, sep).trim();
                     head = head.replace(' ', '');
 
@@ -149,13 +147,13 @@ class IndiPropertyView extends PureComponent<Props> {
                     }
                     var left = value.substr(sep + 1).trim();
                     var divider = 60;
-                    if (head[0] == '-') {
+                    if (head[0] === '-') {
                         divider = -60;
                     }
                     while(left.length) {
                         var toParse;
                         sep = left.indexOf(':');
-                        if (sep != -1) {
+                        if (sep !== -1) {
                             toParse = left.substr(0, sep).trim();
                             left = left.substr(sep + 1).trim();
                         } else {
@@ -186,7 +184,7 @@ class IndiPropertyView extends PureComponent<Props> {
             return null;
         }
         let label = this.props.propLabel;
-        if (this.props.vecLabel != undefined && label != this.props.vecLabel) {
+        if ((this.props.vecLabel !== null && this.props.vecLabel !== undefined) && label !== this.props.vecLabel) {
             label = this.props.vecLabel + ": " + label;
         }
 
@@ -203,8 +201,8 @@ class IndiPropertyView extends PureComponent<Props> {
             }
         }
 */
-        if (this.props.vecType == 'Switch' && this.props.vecPerm != 'ro') {
-            if (this.props.vecRule == 'AtMostOne') {
+        if (this.props.vecType === 'Switch' && this.props.vecPerm !== 'ro') {
+            if (this.props.vecRule === 'AtMostOne') {
                 return <>
                     <input
                         type="button"
@@ -214,7 +212,7 @@ class IndiPropertyView extends PureComponent<Props> {
                             this.props.onChange(
                                 this.props.prop,
                                 true,
-                                this.props.value == 'On' ? 'Off' : 'On')
+                                this.props.value === 'On' ? 'Off' : 'On')
                             }}
                             />
                     {this.props.children}
@@ -225,7 +223,7 @@ class IndiPropertyView extends PureComponent<Props> {
                     <input
                         className={busyClassName}
                         type="checkbox"
-                        checked={this.props.value == 'On'}
+                        checked={this.props.value === 'On'}
                         onChange={(e) => {
                             this.props.onChange(
                                 this.props.prop,
@@ -235,7 +233,7 @@ class IndiPropertyView extends PureComponent<Props> {
                     ></input>
                     {label}{this.props.children}</div>
             }
-        } else if (this.props.vecPerm != 'ro') {
+        } else if (this.props.vecPerm !== 'ro') {
             return <div className={className}>
                         {!this.props.compact ? label + ":" : "" }
                         <TextEdit
@@ -278,7 +276,7 @@ class IndiPropertyView extends PureComponent<Props> {
                 vecRule: vec.$rule,
                 vecPerm: vec.$perm,
                 propLabel : ownProps.showVecLabel ? vec.$label : prop.$label,
-                value: ownProps.forcedValue != undefined ? ownProps.forcedValue: prop.$_,
+                value: (ownProps.forcedValue !== null && ownProps.forcedValue !== undefined) ? ownProps.forcedValue: prop.$_,
                 format: prop.$format
             } as MappedProps;
         }

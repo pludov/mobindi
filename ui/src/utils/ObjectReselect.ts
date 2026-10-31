@@ -43,5 +43,5 @@ function createObjectSelector<Args extends any[],Result>(selector: (...args:Args
         (a:any)=>a);
 }
 
-export default {createObjectSelector};
-
+const ObjectReselect = {createObjectSelector};
+export default ObjectReselect;

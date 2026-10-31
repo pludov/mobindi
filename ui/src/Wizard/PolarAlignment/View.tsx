@@ -1,5 +1,4 @@
 import React from 'react';
-import CancellationToken from 'cancellationtoken';
 import Log from '../../shared/Log';
 import '../BaseView.css';
 import * as Store from '../../Store';

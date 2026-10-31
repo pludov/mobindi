@@ -1,4 +1,3 @@
-import $ from 'jquery';
 import Log from '../shared/Log';
 import * as Obj from '../shared/Obj';
 import MouseMoveListener from '../MouseMoveListener';
@@ -453,7 +452,6 @@ export class ImageDisplay {
         let transform;
         if (referenceView && referenceView!.frameDetails) {
             const scaleFactorX = e.w / referenceView.frameDetails!.width;
-            const scaleFactorY = e.h / referenceView.frameDetails!.height;
             transform = `translate(${e.x}px, ${e.y}px) scale(${scaleFactorX})`;
 
             // TODO: apply window here - so window is not a parameter of image loader

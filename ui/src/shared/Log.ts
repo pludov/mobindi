@@ -245,13 +245,13 @@ function childLogger(source:string, opts?: object): AbstractLogger {
     }
     // Remove common part
     let cut = 0;
-    while(cut < source.length && cut < strip.length && source[cut] == strip[cut]) {
+    while(cut < source.length && cut < strip.length && source[cut] === strip[cut]) {
         cut++;
     }
     source = source.substr(cut);
     // Add ".." for every parent path
     while(cut < strip.length) {
-        if (strip[cut++] == '/') {
+        if (strip[cut++] === '/') {
             source = '../' + source;
         }
     }
@@ -264,4 +264,5 @@ const logger:AbstractLogger = childLogger(__filename);
 
 logger.info('Starting');
 
-export default {logger: childLogger};
+const Log = {logger: childLogger};
+export default Log;

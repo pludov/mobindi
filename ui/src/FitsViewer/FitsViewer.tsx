@@ -1,4 +1,4 @@
-import React, { Component, PureComponent, ReactElement} from 'react';
+import React from 'react';
 import $ from 'jquery';
 import Log from '../shared/Log';
 import * as Obj from '../shared/Obj';
@@ -41,8 +41,6 @@ export type ContextMenuEvent = {
     imageHeight?: number;
 }
 
-
-let uid:number = 0;
 
 export type Props = {
     path: string|null;

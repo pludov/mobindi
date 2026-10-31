@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import * as Help from './Help';
 import BaseApp from './BaseApp';
 import PhdView from './PhdView';

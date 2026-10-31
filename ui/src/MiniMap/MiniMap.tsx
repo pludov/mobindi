@@ -1,12 +1,5 @@
-import { deepEqual } from '../shared/Obj';
 import React from 'react';
 import * as Store from "../Store";
-import SkyProjection from '../SkyAlgorithms/SkyProjection';
-import * as PolarAlignment from '../SkyAlgorithms/PolarAlignment';
-import * as IndiUtils from '../IndiUtils';
-import { defaultMemoize } from 'reselect';
-import ScopeJoystick from '../ScopeJoystick';
-import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
 
 import "./MiniMap.css";
 
@@ -21,9 +14,6 @@ type Props = InputProps & MappedProps;
 class MiniMap extends React.PureComponent<Props> {
 
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         return (<div className={`MiniMapContainer ${this.props.className || ''}`}>

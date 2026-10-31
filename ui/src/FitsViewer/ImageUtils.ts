@@ -53,10 +53,10 @@ export function getBestFitForSize(imageSize:ImageSize, viewSize: ImageSize) {
         zoomToBestfit: 1.0,
     }
 
-    if (imageSize.width == 0
-        || imageSize.height == 0
-        || viewSize.width == 0
-        || viewSize.height == 0)
+    if (imageSize.width === 0
+        || imageSize.height === 0
+        || viewSize.width === 0
+        || viewSize.height === 0)
     {
         // Don't bother
         return {x: 0, y:0, w: viewSize.width, h: viewSize.height, ...defaults};

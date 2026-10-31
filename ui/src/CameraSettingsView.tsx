@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as Store from './Store';
-import { atPath } from './shared/JsonPath';
 import StatePropCond from './StatePropCond';
 import CameraBinEditor from './CameraBinEditor';
 import CameraIsoEditor from './CameraIsoEditor';
@@ -22,9 +21,6 @@ type Props = InputProps & MappedProps;
 
 
 class CameraSettingsView extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
     setValue<K extends keyof CameraDeviceSettings>(prop:K) {
         return async (value:CameraDeviceSettings[K])=> {

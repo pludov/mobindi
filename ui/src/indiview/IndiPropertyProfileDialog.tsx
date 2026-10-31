@@ -6,7 +6,7 @@ import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
 import * as Help from '../Help';
 import * as BackendRequest from "../BackendRequest";
-import { IndiProfilePropertyConfiguration, IndiProfilesConfiguration, ProfilePropertyAssociation } from '@bo/BackOfficeStatus';
+import { IndiProfilesConfiguration, ProfilePropertyAssociation } from '@bo/BackOfficeStatus';
 import "./IndiManagerView.css";
 import { get3D } from '../shared/Obj';
 import { defaultMemoize } from 'reselect';
@@ -42,9 +42,6 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
     private static forgetBtonHelp = Help.key("Remove from profile", "Forget the value in this profile");
     private static addBtonHelp = Help.key("Add to profile", "Record the current value in this profile");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     lockProperty = async (profileUid: string)=>{
         await BackendRequest.RootInvoker("indi")("addToProfile")(

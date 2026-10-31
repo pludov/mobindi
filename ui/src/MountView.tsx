@@ -4,7 +4,6 @@ import Log from './shared/Log';
 import './MountView.css';
 import AstrometryWizardBaseView from './Wizard/BaseView';
 import * as Store from './Store';
-import * as IndiManagerStore from './IndiManagerStore';
 import * as BackendRequest from "./BackendRequest";
 import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import {default as PolarAlignementView} from "./Wizard/PolarAlignment/View";

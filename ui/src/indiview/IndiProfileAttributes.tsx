@@ -2,7 +2,7 @@
  * Created by ludovic on 21/07/17.
  */
 import React, { } from 'react';
-import { IndiProfileConfiguration, IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
+import { IndiProfileConfiguration } from '@bo/BackOfficeStatus';
 import * as Help from '../Help';
 import TextEdit from '../TextEdit';
 import { getProfileList } from '../IndiProfileStore';

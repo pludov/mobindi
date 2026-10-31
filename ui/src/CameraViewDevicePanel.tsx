@@ -19,9 +19,6 @@ type MappedProps = {
 type Props = InputProps & MappedProps;
 
 class CameraViewDevicePanel extends React.PureComponent<Props> {
-    constructor(props: Props) {
-        super(props);
-    }
 
     render() {
         let className, title;

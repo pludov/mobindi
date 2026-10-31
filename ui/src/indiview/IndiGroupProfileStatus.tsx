@@ -35,7 +35,7 @@ function getVectorProps(vector: IndiVector) {
         return [];
     }
 
-    if (vector.$type == 'Switch' && vector.$rule == 'OneOfMany' && vector.$perm != "ro") {
+    if (vector.$type === 'Switch' && vector.$rule === 'OneOfMany' && vector.$perm !== "ro") {
         return ["...whole_vector..."];
     }
     return vector.childNames;

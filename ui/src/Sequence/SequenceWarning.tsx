@@ -37,9 +37,6 @@ function sequenceRequireLight(sequence: SequenceStep)
 }
 
 class SequenceWarning extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
 
     render() {

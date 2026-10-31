@@ -1,4 +1,4 @@
-import * as React from 'react';
+
 import { connect } from 'react-redux';
 import * as Store from './Store';
 import * as Help from './Help';

@@ -13,5 +13,5 @@ function createArraySelector<Args extends any[],Result>(selector: (...args:Args)
         (a:any)=>a);
 }
 
-export default {arraySelectorCreator, createArraySelector, isArrayEqual};
-
+const ArrayReselect = {arraySelectorCreator, createArraySelector, isArrayEqual};
+export default ArrayReselect;

@@ -6,7 +6,6 @@ import * as React from 'react';
 import chartjs from "chart.js";
 import * as ReactChartJS from "react-chartjs-2";
 import * as ChartJSZoomPlugin from "./utils/ChartJSZoomPlugin";
-import moment from 'moment';
 
 import Log from './shared/Log';
 import * as Obj from './shared/Obj';
@@ -317,7 +316,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
                 data: []
             }
             for(var o of Object.keys(propDef)) {
-                if ((o == "prop" || o == "color")) continue;
+                if ((o === "prop" || o === "color")) continue;
                 data[o] = propDef[o];
             }
 

@@ -23,9 +23,6 @@ class UnmappedWatchSettingsView extends React.PureComponent<WatchSettingsViewPro
     static tictacHelp = Help.key("Emit tic tac", "Keep on emiting a clock like sound while supervision is active. This helps in ensuring that the monitoring doesn't stop when browser is hidden/screen is off.");
     static tictacHoursHelp = Help.key("Chime hours", "Chime at every hour.");
 
-    constructor(props:WatchSettingsViewProps) {
-        super(props);
-    }
 
     private readonly tictacAccessor = defaultMemoize(()=>NotificationStore.WatchConfigurationAccessor().child(For((e)=>e.tictac)));
     private readonly tictacHoursAccessor = defaultMemoize(()=>NotificationStore.WatchConfigurationAccessor().child(For((e)=>e.tictacHours)));

@@ -2,13 +2,10 @@ import CancellationToken from 'cancellationtoken';
 import * as React from 'react';
 import { connect } from 'react-redux';
 import * as BackendRequest from "./BackendRequest";
-import * as Help from './Help';
 import { atPath } from './shared/JsonPath';
 import * as PromiseSelector from './PromiseSelector';
-import * as Utils from './Utils';
 import * as Store from './Store';
 import * as IndiUtils from './IndiUtils';
-import { updateVectorProp } from './IndiStore';
 import "./CameraTempSelector.css";
 
 type InputProps = {

@@ -22,7 +22,6 @@ let currentConfig : WatchConfiguration = {
 };
 
 let currentRunnerId: number = 0;
-let currentRunner: Promise<void>|undefined;
 let currentRunnerConfUpdate : undefined|(()=>void) = undefined;
 
 export function setConfiguration(w : WatchConfiguration) {
@@ -37,12 +36,11 @@ export function setConfiguration(w : WatchConfiguration) {
         const todo = currentRunnerConfUpdate;
         currentRunnerId++;
         currentRunnerConfUpdate = undefined;
-        currentRunner = undefined;
 
         if (todo) todo();
 
         if (currentConfig.active) {
-            currentRunner = run(currentRunnerId);
+            run(currentRunnerId);
         }
 
     } else {
@@ -91,7 +89,7 @@ async function loadSound(url: string): Promise<AudioBuffer> {
 
 
 function audioNow() {
-    if (audioContext == undefined) {
+    if ((audioContext === null || audioContext === undefined)) {
         return new Date().getTime();
     }
     return audioContext.currentTime;
@@ -165,7 +163,7 @@ async function run(uniqueId: number) {
         loadIfMissing('finish', 'finish.mp3'),
     ]);
 
-    if (currentRunnerId != uniqueId) {
+    if (currentRunnerId !== uniqueId) {
         return;
     }
     currentRunnerConfUpdate = onConfUpdate;

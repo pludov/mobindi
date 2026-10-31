@@ -1,5 +1,4 @@
 import * as React from 'react';
-import CancellationToken from 'cancellationtoken';
 
 import { DitheringSettings } from '@bo/BackOfficeStatus';
 import TextEdit from '../TextEdit';
@@ -20,9 +19,6 @@ export default class DitheringSettingEdit extends React.PureComponent<Props, {}>
     static timeHelp = Help.key("Time", "Minimum time to be in-range before considering guiding to be stable.");
     static timeoutHelp = Help.key("Timeout", "Time limit before settling is considered to have failed");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         return <div>

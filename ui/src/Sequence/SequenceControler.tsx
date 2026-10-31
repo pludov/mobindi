@@ -8,7 +8,6 @@ import * as Help from '../Help';
 import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 
-import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import StatusLabel from './StatusLabel';
 import CancellationToken from 'cancellationtoken';
 import Modal from '../Modal';
@@ -120,15 +119,10 @@ export class SequenceControler extends React.PureComponent<Props, State> {
             }
         }
 
-        const monitoringActive = this.props.current?.backgroundMonitoring.enabled
-                        || this.props.current?.fwhmMonitoring.enabled
-                        || this.props.current?.activityMonitoring.enabled;
-        const monitoring = monitoringActive ? '🔔' : '🔕';
-
         const statusStr:string = !this.props.current
                 ? ("")
                 : (
-                    this.props.current.status == 'error'
+                    this.props.current.status === 'error'
                     ? '' + this.props.current.errorMessage
                     :  this.props.current.status);
         return(<>

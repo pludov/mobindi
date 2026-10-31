@@ -1,6 +1,5 @@
-import { connect } from 'react-redux';
 import CancellationToken from 'cancellationtoken';
-import React, { Component, PureComponent} from 'react';
+import React, { PureComponent} from 'react';
 
 import * as Help from "./Help";
 import * as Store from './Store';
@@ -8,10 +7,7 @@ import Bool from './primitives/Bool';
 import Int from './primitives/Int';
 import Float from './primitives/Float';
 import Conditional from './primitives/Conditional';
-import PromiseSelector from './PromiseSelector';
 import { RecursiveBackendAccessor } from './utils/BackendAccessor';
-import DeviceConnectBton from './DeviceConnectBton';
-import DeviceGeolocBton from './DeviceGeolocBton';
 import * as AccessPath from './shared/AccessPath';
 import * as BackendRequest from "./BackendRequest";
 import * as AstrometryStore from "./AstrometryStore";

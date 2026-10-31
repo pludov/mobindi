@@ -1,6 +1,5 @@
 import * as React from 'react';
 import Log from './shared/Log';
-import IconButton from './IconButton';
 import Icons from './Icons';
 import * as Help from './Help';
 import './HelpOverlay.css';
@@ -109,13 +108,13 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
 
     render() {
         return <>
-                <img key="button" className="HelpButton" src={Icons.help} onClick={this.openHelp}
+                <img key="button" className="HelpButton" src={Icons.help} alt="Show help" onClick={this.openHelp}
                     style={this.state.open ? {visibility: "hidden"} : {}}
                     />
 
                 {(!this.state.open) ||
                     <div className="HelpOverlay" onClick={(e)=>this.activateZone(undefined)}>
-                        <img key="button" className="HelpButton HelpButtonClose" src={Icons.apply} onClick={this.closeHelp}/>
+                        <img key="button" className="HelpButton HelpButtonClose" src={Icons.apply} alt="Close help" onClick={this.closeHelp}/>
 
                         {this.state.zones.map((zone)=>
                             zone.areas.map((area)=>
@@ -137,7 +136,7 @@ export default class HelpOverlayView extends React.PureComponent<Props, State> {
                             || <div className={"HelpBubble HelpBubble_" + this.state.bubblePos}>
                                     {HelpOverlayView.getHelpForKey(zone.id)}
                                     <div className="HelpControlBar">
-                                        <img className="closeHelpBubbleButton" src={Icons.apply} onClick={this.closeBubble}/>
+                                        <img className="closeHelpBubbleButton" src={Icons.apply} alt="Close help details" onClick={this.closeBubble}/>
                                     </div>
                                 </div>
                         )}
@@ -169,8 +168,6 @@ function getHelpZones() {
     const elements = document.querySelectorAll("[data-help]");
     for(let i = 0 ; i < elements.length; ++i) {
         const element = elements[i];
-        const width = element.clientWidth;
-        const height = element.clientHeight;
         const visibleArea = element.getClientRects();
         let visible = false;
 

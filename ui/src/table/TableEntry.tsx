@@ -1,11 +1,9 @@
 import * as React from 'react';
 // import { createSelector } from 'reselect';
-import ArrayReselect from '../utils/ArrayReselect';
-import * as Store from '../Store';
 import * as Table from "./Table";
 import ScrollableText from '../ScrollableText';
 
-export type Props<DatabaseObject> = {
+export type Props = {
     height: string;
     cellStyles: Array<React.CSSProperties>;
     header: Array<Table.HeaderItem>;
@@ -19,12 +17,9 @@ export type Props<DatabaseObject> = {
     onItemClick: (uid:string, e:React.MouseEvent<HTMLTableRowElement>)=>void;
 };
 
-class TableEntry<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>> {
+class TableEntry extends React.PureComponent<Props> {
     private tr = React.createRef<HTMLTableRowElement>();
 
-    constructor(props:Props<DatabaseObject>) {
-        super(props);
-    }
 
     render() {
         var content = [];

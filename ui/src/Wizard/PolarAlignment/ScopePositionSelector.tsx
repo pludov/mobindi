@@ -5,7 +5,6 @@ import * as Store from "../../Store";
 import SkyProjection from '../../SkyAlgorithms/SkyProjection';
 import * as PolarAlignment from '../../SkyAlgorithms/PolarAlignment';
 import './ScopePositionSelector.css';
-import * as IndiUtils from '../../IndiUtils';
 import * as IndiStore from '../../IndiStore';
 import { defaultMemoize } from 'reselect';
 import ScopeJoystick from '../../ScopeJoystick';
@@ -33,9 +32,6 @@ type PolarAlignSettingsForSteps = Pick<PolarAlignSettings, "angle"|"minAltitude"
 
 class ScopePositionSelector extends React.PureComponent<Props> {
     
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         return <>

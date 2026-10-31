@@ -32,9 +32,6 @@ type Props = InputProps & MappedProps;
 class IndiPropertyProfileStatus extends React.PureComponent<Props> {
     private advancedEditDialog = React.createRef<Modal>();
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     lockProperty = async ()=>{
         if (this.props.restriction !== undefined) {

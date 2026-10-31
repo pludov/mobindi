@@ -1,11 +1,9 @@
-import * as React from 'react';
+
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
-import CancellationToken from 'cancellationtoken';
 
 import * as Help from './Help';
 import * as Store from './Store';
-import * as BackendRequest from "./BackendRequest";
 import PromiseSelector, { Props as PromiseSelectorProps } from './PromiseSelector';
 
 type CustomProps = {
@@ -41,9 +39,9 @@ const ImagingSetupSelector = connect(()=> {
         (store: Store.Content, ownProps: CustomProps)=>store.backend?.imagingSetup?.availableImagingSetups,
         (byuuid, availables)=> {
             const ret = [];
-            if (availables == undefined) availables = [];
+            if ((availables === null || availables === undefined)) availables = [];
             for(const key of Object.keys(byuuid || {})) {
-                ret.push({key, title: byuuid![key].name, enabled: availables.indexOf(key) != -1});
+                ret.push({key, title: byuuid![key].name, enabled: availables.indexOf(key) !== -1});
             }
             ret.sort((a, b)=>(a.title.localeCompare(b.title)));
             return ret;

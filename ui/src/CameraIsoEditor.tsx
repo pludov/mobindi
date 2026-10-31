@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+
 import { connect } from 'react-redux';
 import * as Help from './Help';
 import { atPath } from './shared/JsonPath';

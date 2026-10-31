@@ -1,10 +1,8 @@
-import * as React from 'react';
+
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 
-import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
-import * as Utils from '../Utils';
 import * as Actions from '../Actions';
 import * as Store from '../Store';
 import * as Help from '../Help';
@@ -71,7 +69,7 @@ const SequenceSelector = connect(()=>{
             }]);
 
     return (store:Store.Content, ownProps:OwnProps)=> ({
-        ... sequenceSelectorBaseProps,
+        ...sequenceSelectorBaseProps,
         controls: controls(store, ownProps),
         active: atPath(store, ownProps.currentPath),
         availables: store.backend.sequence?.sequences.list || [],

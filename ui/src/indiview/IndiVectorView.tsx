@@ -1,14 +1,12 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
-import * as Actions from "../Actions";
 import * as BackendRequest from "../BackendRequest";
-import * as IndiManagerStore from "../IndiManagerStore";
 import * as IndiUtils from '../IndiUtils';
-import { IndiVector, IndiProperty } from '@bo/BackOfficeStatus';
+import { IndiVector } from '@bo/BackOfficeStatus';
 import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import IndiSelectorPropertyView from "./IndiSelectorPropertyView";
 import IndiPropertyView from "./IndiPropertyView";
@@ -173,7 +171,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
         };
 
         let content;
-        if (this.props.type == 'Switch' && this.props.rule == 'OneOfMany' && this.props.perm != "ro") {
+        if (this.props.type === 'Switch' && this.props.rule === 'OneOfMany' && this.props.perm !== "ro") {
             content = <div className="IndiProperty">{this.props.label}:
                 <IndiSelectorPropertyView dev={this.props.dev} vec={this.props.vec}/>
                 {decorate(null)}
@@ -182,7 +180,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
             content = this.props.childs.map(
                 (id) =>
                     <IndiPropertyView dev={this.props.dev}
-                                showVecLabel={this.props.childs.length == 1}
+                                showVecLabel={this.props.childs.length === 1}
                                 onChange={this.changeCallback}
                                 vec={this.props.vec} prop={id} key={'child_' + id}
                                 forcedValue={this.state["forced_" + id]}>
@@ -195,15 +193,17 @@ class IndiVectorView extends React.PureComponent<Props, State> {
                             key='$$$title$$$'
                             className="IndiVectorTitle">
                                 {this.props.label}
-                                {this.props.perm == 'ro' ? null :
+                                {this.props.perm === 'ro' ? null :
                                     <IconButton
                                         src={Icons.dialogOk}
+                                        alt="Apply changes"
                                         onClick={this.pushMultiValue}
                                         visible={this.state.pendingChange}/>
                                 }
-                                {this.props.perm == 'ro' ? null :
+                                {this.props.perm === 'ro' ? null :
                                     <IconButton
                                         src={Icons.dialogCancel}
+                                        alt="Cancel changes"
                                         onClick={this.cancelPendingChanges}
                                         visible={this.state.pendingChange}/>
                                 }
@@ -221,7 +221,7 @@ class IndiVectorView extends React.PureComponent<Props, State> {
         let rslt:MappedProps;
         const vec = IndiUtils.getVectorDesc(store, ownProps.dev, ownProps.vec);
 
-        if (vec != undefined) {
+        if ((vec !== null && vec !== undefined)) {
             rslt = {
                 label: vec.$label,
                 state: vec.$state,

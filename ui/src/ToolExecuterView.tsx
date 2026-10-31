@@ -7,7 +7,6 @@ import * as BackendRequest from "./BackendRequest";
 import * as Store from "./Store";
 
 import './ToolExecuterView.css'
-import { InputProps } from './AppIcon';
 import CertLink from './CertLink';
 
 type ToolDisplayInputProps = {

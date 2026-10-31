@@ -1,6 +1,5 @@
 import * as Store from './Store';
 import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
-import { has } from './shared/JsonProxy';
 import { getOwnProp } from './Utils';
 
 export function getDeviceDesc(store:Store.Content, device:string) : IndiDevice|undefined

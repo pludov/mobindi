@@ -3,13 +3,8 @@ import '../BaseView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
-import * as DegreeDistanceDisplay from '../../utils/DegreeDistanceDisplay';
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage, PolarAlignAxisSettings } from '@bo/BackOfficeStatus';
-import StatusLabel from '../../Sequence/StatusLabel';
-import ImageControl from '../ImageControl';
-import ScopeJoystick from '../../ScopeJoystick';
-import TextEdit from '../../TextEdit';
+import { PolarAlignSettings, PolarAlignAxisSettings } from '@bo/BackOfficeStatus';
 
 type InputProps = {
     axis: "az"|"alt";

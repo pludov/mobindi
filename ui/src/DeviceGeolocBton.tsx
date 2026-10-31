@@ -3,7 +3,6 @@ import Log from './shared/Log';
 import * as Store from "./Store";
 import * as Help from "./Help";
 import * as BackendRequest from "./BackendRequest";
-import { atPath } from './shared/JsonPath';
 import CancellationToken from 'cancellationtoken';
 import * as GeolocStore from "./GeolocStore";
 import * as Utils from './Utils';
@@ -49,7 +48,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
     }
 
     render() {
-        var title, enabled = false;
+        var title;
         if (this.props.state === "NotFound") {
             return null;
         }
@@ -57,7 +56,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
         switch(this.props.state) {
             case 'Busy':
                 title='Switching...';
-                enabled = false;
+                break;
             default:
                 title = 'Connect';
                 good = this.props.acquired
@@ -65,7 +64,6 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
                             && goodDelta(this.props.latitude, this.props.LAT, 0.01)         // ~1 km
                             && goodDelta(this.props.longitude, this.props.LONG, 0.01, 360)  // ~1 km at equator
                             && goodDelta(this.props.altitude, this.props.ELEV, 10)          // 10 meters
-                enabled = false;
         }
         title = "\u{1F4CD}"
         return <input type="button"
@@ -124,7 +122,6 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
         }
 
 
-        var prop;
         try {
             const vec = store.backend.indiManager!.deviceTree[currentDevice].GEOGRAPHIC_COORD;
             if (vec === undefined) {
@@ -133,7 +130,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
                     state: "NotFound"
                 }
             }
-            if (vec.$state == "Busy") {
+            if (vec.$state === "Busy") {
                 return {
                     ...geoloc,
                     state: "Busy"

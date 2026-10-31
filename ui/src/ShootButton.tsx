@@ -3,7 +3,6 @@ import CancellationToken from 'cancellationtoken';
 
 import Log from './shared/Log';
 import * as Help from './Help';
-import { atPath } from "./shared/JsonPath";
 import * as Store from "./Store";
 import * as Utils from './Utils';
 import * as IndiUtils from './IndiUtils';
@@ -46,9 +45,6 @@ class ShootBton extends React.PureComponent<Props> {
     static loopBtonHelp = Help.key("Loop", "Continously take exposure (for the selected INDI camera device).");
     static abortBtonHelp = Help.key("Abort", "Abort the current frame capture on the selected INDI camera device.");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         var progress = 60;

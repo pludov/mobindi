@@ -1,5 +1,5 @@
-import React, { Component, PureComponent} from 'react';
-import ContextMenuContext, {ContextMenuLink, ContextMenuReference, OpenTrigger} from './ContextMenuContext';
+import React from 'react';
+import ContextMenuContext, {ContextMenuLink, ContextMenuReference} from './ContextMenuContext';
 import { ContextMenuEntry } from './FitsViewer';
 
 type Props = {
@@ -49,13 +49,13 @@ class ContextMenuItemDeclarator extends React.PureComponent<Props> {
  */
 export default class ContextMenuItem extends React.PureComponent<ContextMenuEntry> {
     render() {
-        return <ContextMenuContext.declareMenu.Consumer>
+        return <ContextMenuContext.DeclareMenu.Consumer>
             {
                 menuLink=> (menuLink === null
                     ? null
                     : <ContextMenuItemDeclarator menuLink={menuLink}>{this.props}</ContextMenuItemDeclarator>
                 )
             }
-        </ContextMenuContext.declareMenu.Consumer>
+        </ContextMenuContext.DeclareMenu.Consumer>
     }
 }
