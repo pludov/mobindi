@@ -11,7 +11,7 @@ type InputProps = {
     id: string;
 };
 
-type MappedProps = Pick<MeridianFlipStep, "status"|"error"|"title"> & {
+type MappedProps = Partial<Pick<MeridianFlipStep, "status"|"error"|"title">> & {
     opened?: boolean;
 };
 
@@ -71,7 +71,7 @@ class StepListItem extends React.PureComponent<Props, State> {
                 <div className="MeridianFlipStepItemFirstRow">
                     <div className="MeridianFlipStepTitle">
                         <span className="MeridianFlipStepStatus">
-                            {statusDesc[this.props.status]}
+                            {this.props.status !== undefined ? statusDesc[this.props.status] : null}
                         </span>
                         <span className="MeridianFlipStepTitle">
                             {this.props.title}
@@ -99,7 +99,7 @@ class StepListItem extends React.PureComponent<Props, State> {
         </>
     }
 
-    static mapStateToProps(store: Store.Content, props: InputProps) {
+    static mapStateToProps(store: Store.Content, props: InputProps): MappedProps {
         const wizard = store.backend.astrometry?.runningWizard?.meridianFlip;
         const opened = wizard?.activeStep === props.id;
         const steps = wizard?.steps.byuuid||{};

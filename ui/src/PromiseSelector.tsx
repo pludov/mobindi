@@ -8,19 +8,16 @@ type Control = {
     id: string;
     title: string;
     disabled?: boolean;
-    run: ()=>Promise<any>;
+    run: ()=>any;
 }
 
-type NumberStored = {
-    setValue?: undefined;
-    active?: undefined;
-    activeNumber: number|null;
-    setNumber:(d:number)=>Promise<any>;
-}
-
-type StringStored = {
-    active: string|null;
-    setValue:(d:any)=>Promise<any>;
+// Either (activeNumber, setNumber) or (active, setValue) must be provided.
+// Kept as a plain object (not a union) so that react-redux's connect typing can infer it.
+type Stored = {
+    activeNumber?: number|null;
+    setNumber?: (d:number)=>any;
+    active?: string|null;
+    setValue?: (d:any)=>any;
 }
 
 type ValueOverride = {
@@ -28,13 +25,14 @@ type ValueOverride = {
     title: string;
 }
 
-export type Props<TYPE> = (NumberStored | StringStored) & {
+export type Props<TYPE> = Stored & {
     nullAlwaysPossible?: boolean;
     placeholder?: string;
-    availablesGenerator?: (props: Props<TYPE>)=>Array<TYPE>;
-    getId?: (o: TYPE, props: Props<TYPE>)=>string;
-    getTitle?: (o: TYPE, props: Props<TYPE>)=>string;
-    getEnabled?: (o: TYPE, props: Props<TYPE>)=>boolean;
+    // method syntax: callers declare these with their own, narrower props type
+    availablesGenerator?(props: Props<TYPE>): Array<TYPE>;
+    getId?(o: TYPE, props: Props<TYPE>): string;
+    getTitle?(o: TYPE, props: Props<TYPE>): string;
+    getEnabled?(o: TYPE, props: Props<TYPE>): boolean;
     controls?: Array<Control>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
@@ -69,25 +67,25 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
     }
 
     getActiveString() {
-        const numberStored = (this.props as NumberStored);
+        const numberStored = this.props;
         if (numberStored.activeNumber !== undefined) {
             if (numberStored.activeNumber === null) {
                 return null;
             }
             return "" + numberStored.activeNumber;
         }
-        return (this.props as StringStored).active;
+        return this.props.active;
     }
 
     setValueString() {
-        const numberStored = (this.props as NumberStored);
+        const numberStored = this.props;
         if (numberStored.setNumber !== undefined) {
             const setNumber = numberStored.setNumber;
             return async (d:string)=> {
                 return await setNumber(parseFloat(d));
             }
         }
-        return (this.props as StringStored).setValue;
+        return this.props.setValue;
     }
 
     render() {
@@ -199,7 +197,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
     // FIXME: ici on veut des task
     // Est-ce qu'on peut garder un promise + un CT ?
-    async selectEntry(d:string|null, generator:(d:string|null)=>Promise<any>) {
+    async selectEntry(d:string|null, generator:((d:any)=>any)|undefined) {
         if (generator === undefined) return;
 
         if (this.state.runningPromise) {

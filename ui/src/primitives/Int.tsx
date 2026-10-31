@@ -10,7 +10,7 @@ type Props = {
     helpKey?: Help.Key;
 }
 
-const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, {}>(BaseText.default);
+const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, BaseText.MappedProps<number|null>>(BaseText.default);
 
 class Int extends React.PureComponent<Props> {
     render() {

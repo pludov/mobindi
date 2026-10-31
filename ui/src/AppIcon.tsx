@@ -15,7 +15,7 @@ export type InputProps = {
 };
 
 export type MappedProps = {
-    apps: BackofficeStatus["apps"];
+    apps: BackofficeStatus["apps"]|undefined;
     currentApp: Store.Content["currentApp"];
     notification: {[notifId: string]: Notification|undefined};
 }
@@ -61,7 +61,7 @@ const mapStateToProps = function(store:Store.Content, ownProps:InputProps) {
     var result = {
         apps: store.backend.apps,
         currentApp: store.currentApp,
-        notification: Utils.getOwnProp(store.notifs.byApp, ownProps.appid) || {error:true},
+        notification: Utils.getOwnProp(store.notifs.byApp, ownProps.appid) || {},
     };
     return result;
 }

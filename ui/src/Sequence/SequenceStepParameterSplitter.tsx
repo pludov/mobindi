@@ -25,7 +25,7 @@ type InputProps = {
     imagingSetup: ImagingSetup,
     imagingSetupId: string,
     onClose: ()=>(void);
-    onSplit: (removeFromParent: string, p:ForcedParams)=>(void);
+    onSplit: (removeFromParent: keyof SequenceStep, p:ForcedParams)=>(void);
 }
 
 type MappedProps = {

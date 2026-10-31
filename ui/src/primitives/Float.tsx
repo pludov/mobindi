@@ -11,7 +11,7 @@ type Props = {
     digits?: number;
 }
 
-const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, {}>(BaseText.default);
+const MappedNumber = Store.Connect<BaseText.default<number|null>, BaseText.InputProps<number|null>, {}, BaseText.MappedProps<number|null>>(BaseText.default);
 
 class Float extends React.PureComponent<Props> {
     render() {

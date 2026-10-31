@@ -82,27 +82,22 @@ class IndiProfileEditDialog extends React.PureComponent<Props> {
 
     static mapStateToProps = () =>{
 
-        const mapFromProfile = defaultMemoize((profile: IndiProfilesConfiguration|undefined, uid: string)=> {
+        const mapFromProfile = defaultMemoize((profile: IndiProfilesConfiguration|undefined, uid: string): Pick<MappedProps, "name"|"systemDeviceIdentifier"|"systemDeviceLogic">=> {
             if (profile && Object.prototype.hasOwnProperty.call(profile.byUid, uid)) {
-                const ret : Partial<IndiProfileConfiguration> = {...profile.byUid[uid]}
-                delete ret.uid;
-                delete ret.active;
-                delete ret.keys;
-
-                const exclusionGroup = ret.exclusionGroup;
-                delete ret.exclusionGroup;
-
-                return ret;
+                const {name, systemDeviceIdentifier, systemDeviceLogic} = profile.byUid[uid];
+                return {name, systemDeviceIdentifier, systemDeviceLogic};
             }
             return {
-                name: ""
+                name: "",
+                systemDeviceIdentifier: null,
+                systemDeviceLogic: null,
             };
         });
 
         const peers = getProfileExclusionGroup();
         const potentialPeers = getExclusionGroupPotentialPeers();
 
-        return (store:Store.Content, ownProps: InputProps) => {
+        return (store:Store.Content, ownProps: InputProps): MappedProps => {
             const profile = store.backend.indiManager?.configuration?.profiles ;
             return {
                 ...mapFromProfile(profile, ownProps.uid),

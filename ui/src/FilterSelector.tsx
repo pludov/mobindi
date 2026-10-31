@@ -16,7 +16,7 @@ type InputProps = {
     // Where to store the choosen filter
     getFilter(store: Store.Content, filterWheelDeviceId: string|undefined): string | null;
     isBusy?:(store:Store.Content, filterWheelDeviceId: string)=>boolean;
-    setFilter: (filterWheelDeviceId: string, filterId: string|null) => Promise<void>;
+    setFilter: (filterWheelDeviceId: string, filterId: string) => Promise<void>;
 
     focusRef?: React.RefObject<HTMLSelectElement>
 }
@@ -96,12 +96,10 @@ class FilterSelector extends React.PureComponent<Props> {
         </>
     }
 
-    static mapStateToProps = function (store: Store.Content, ownProps: InputProps) {
+    static mapStateToProps = function (store: Store.Content, ownProps: InputProps): MappedProps {
         const currentFilterWheel = ownProps.filterWheelDevice;
 
         return ({
-            currentFilterWheel,
-
             busy:
                 !currentFilterWheel || !ownProps.isBusy
                     ? false

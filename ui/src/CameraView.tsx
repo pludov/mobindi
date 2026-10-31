@@ -99,7 +99,7 @@ class CameraView extends React.PureComponent<Props, State> {
         logger.debug('crop result', {rslt});
     };
 
-    loadImage = (path: string)=>{
+    loadImage = (path: string|undefined)=>{
         this.setState({loadedImage: path});
     }
 

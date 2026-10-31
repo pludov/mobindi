@@ -20,8 +20,8 @@ type InputProps = {
 }
 
 type MappedProps = {
-    lockGoTo: string|undefined;
-    restriction: undefined|IndiProfilePropertyConfiguration;
+    lockGoTo?: string;
+    restriction?: IndiProfilePropertyConfiguration;
     mismatch?: boolean;
 }
 
@@ -85,7 +85,7 @@ class IndiPropertyProfileStatus extends React.PureComponent<Props> {
         const statusGenerator = defaultMemoize((
                         dev:string, vec:string, prop:string|null,
                         profiles: IndiProfilesConfiguration|undefined,
-                        status: ProfilePropertyAssociation<{wanted: string, profile: string}>|undefined)=>{
+                        status: ProfilePropertyAssociation<{wanted: string, profile: string}>|undefined): MappedProps =>{
             if (!profiles) {
                 return {};
             }

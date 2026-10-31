@@ -328,7 +328,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
 
     static mapStateToProps=()=> {
 
-        return (store: Store.Content, ownProps: Props) => {
+        return (store: Store.Content, ownProps: InputProps) => {
             let imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
 
             const imagingSetupConfig = ImagingSetupStore.getImagingSetup(store, imagingSetup);

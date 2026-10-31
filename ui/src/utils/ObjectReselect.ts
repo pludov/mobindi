@@ -36,9 +36,9 @@ const objectSelectorCreator = createSelectorCreator(
 );
 
 // Perform swallow equality on result
-function createObjectSelector<State,Optional,Result>(selector: (state:State, arg?:Optional, arg2?:Optional)=>Result):(state:State,arg?:Optional, arg2?:Optional)=>Result
+function createObjectSelector<Args extends any[],Result>(selector: (...args:Args)=>Result):(...args:Args)=>Result
 {
-    return objectSelectorCreator(
+    return (objectSelectorCreator as any)(
         [selector],
         (a:any)=>a);
 }

@@ -260,4 +260,4 @@ class Table<DatabaseObject> extends React.PureComponent<Props<DatabaseObject>, S
     }
 }
 
-export default Store.Connect(Table);
+export default Store.Connect(Table) as unknown as new <DatabaseObject>(props: InputProps<DatabaseObject>)=>React.PureComponent<InputProps<DatabaseObject>>;

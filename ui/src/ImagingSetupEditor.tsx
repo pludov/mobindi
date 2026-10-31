@@ -41,13 +41,13 @@ function getAvailableDevices(rawAvailable:(store: Store.Content)=>string[]|undef
     return () => {
         const availableSelector = createSelector(
             [rawAvailable, (store:Store.Content, props:PromiseSelectorProps<IndiDeviceListItem>)=>props.active],
-            (availables:string[]|undefined, active: string|null)=> {
+            (availables:string[]|undefined, active: string|null|undefined)=> {
                 if (availables === undefined) {
                     availables = [];
                 }
                 const ret = availables.map((id:string)=>({id, title: id}));
 
-                if (active !== null && availables.indexOf(active) === -1) {
+                if (active !== null && active !== undefined && availables.indexOf(active) === -1) {
                     ret.push({
                         id: active,
                         title: active + " (missing)",

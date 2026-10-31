@@ -16,7 +16,7 @@ type InputProps = {
     backendAccessor: RecursiveBackendAccessor<CameraDeviceSettings>
 }
 type MappedProps = {
-    current: string;
+    current: string | undefined | null;
 }
 type Props = InputProps & MappedProps;
 
@@ -33,7 +33,7 @@ class CameraSettingsView extends React.PureComponent<Props> {
     }
 
     render() {
-        if (this.props.current === null) {
+        if (this.props.current === null || this.props.current === undefined) {
             return null;
         }
         const devicePath = '$.backend' + this.props.backendAccessor.getPath().map(e=>"["+JSON.stringify(e)+"]").join('');

@@ -288,7 +288,7 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
                 (store:Store.Content)=>store.backend?.astrometry?.fineSlew,
                 (store:Store.Content, ownProps:InputProps)=>ownProps.imagingSetup,
             ],
-            (status:BackOfficeStatus.FineSlewStatus, imagingSetup:string|null):MappedProps =>  {
+            (status:BackOfficeStatus.FineSlewStatus|undefined, imagingSetup:string|null):MappedProps =>  {
                 if (!status || !imagingSetup) {
                     return {
                         canLearn: false,
@@ -308,4 +308,4 @@ class FitsViewerFineSlewUI extends React.PureComponent<Props, State> {
     }
 };
 
-export default Connect(FitsViewerFineSlewUI);
+export default Connect<FitsViewerFineSlewUI, InputProps, {}, MappedProps>(FitsViewerFineSlewUI);

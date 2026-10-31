@@ -31,8 +31,8 @@ function getId(x:number|null) {
     return "" + x;
 }
 
-function availablesGenerator(i: SelectorProps):Array<number|null> {
-    return i.availables || [];
+function availablesGenerator(i: PromiseSelector.Props<number|null>):Array<number|null> {
+    return (i as SelectorProps).availables || [];
 }
 
 async function setValue(d:string) {

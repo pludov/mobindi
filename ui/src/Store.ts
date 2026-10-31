@@ -39,7 +39,7 @@ function fork(state:Content, path?:string[], fn?:(t:any)=>any)
     var orgState = state;
     state = Object.assign({}, state);
     if (path != undefined) {
-        var current = state;
+        var current = state as any;
         for(var i = 0; i < path.length; ++i)
         {
             var key = path[i];
@@ -89,21 +89,25 @@ export function getNotifier(): ReduxNotifier {
 
 type mapStateToPropsDirectFunc<TOwnProps, TStateProps> = (state: Content, ownProps: TOwnProps)=>TStateProps;
 
-interface IMapStateToProps<TOwnProps, TStateProps> {
-    mapStateToProps : mapStateToPropsDirectFunc<TOwnProps, TStateProps> | (()=>(mapStateToPropsDirectFunc<TOwnProps, TStateProps>));
-}
+type ConnectableComponent<TOwnProps, TStateProps, State> = new (props:NoInfer<TOwnProps & TStateProps>)=>(React.PureComponent<NoInfer<TOwnProps & TStateProps>,State>);
 
+// NoInfer: TOwnProps/TStateProps must come from mapStateToProps only, the component props are merely checked against them
+// Overloads (factory first): a single union type would let a factory `()=>fn` be inferred as a direct mapStateToProps returning `fn`
 export function Connect<Class, TOwnProps, State, TStateProps >(
-            ctor : (new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>))&IMapStateToProps<TOwnProps, TStateProps>
-        )
-            : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>)
+            ctor : ConnectableComponent<TOwnProps, TStateProps, State> & { mapStateToProps: ()=>mapStateToPropsDirectFunc<TOwnProps, TStateProps> }
+        ) : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>);
+export function Connect<Class, TOwnProps, State, TStateProps >(
+            ctor : ConnectableComponent<TOwnProps, TStateProps, State> & { mapStateToProps: mapStateToPropsDirectFunc<TOwnProps, TStateProps> }
+        ) : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>);
+// Implementation signature: react-redux's connect typing can't express the overloads above, hence the casts
+export function Connect(ctor : any) : any
 {
-    return ReactRedux.connect(ctor.mapStateToProps, null, null, {forwardRef: true} as any)(ctor as any) as any;
+    return ReactRedux.connect(ctor.mapStateToProps, null, null, {forwardRef: true} as any)(ctor);
 }
 
 export type Accessor<TYPE>={
     fromStore: (s:Content)=>TYPE;
-    send: (t:TYPE)=>Promise<void>;
+    send(t:TYPE):Promise<void>;
 }
 
 export interface RecursiveAccessor<TYPE> extends Accessor<TYPE> {

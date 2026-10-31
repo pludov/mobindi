@@ -56,8 +56,8 @@ export default class SystemDeviceFilterEditor extends React.PureComponent<Props,
         this.setState({editing: false, systemDeviceIdentifier: [], systemDeviceLogic:null });
     }
 
-    updateSystemDevice=(e: Pick<State, 'systemDeviceIdentifier'|'systemDeviceLogic'>) => {
-        this.setState(e);
+    updateSystemDevice=(e: Partial<Pick<State, 'systemDeviceIdentifier'|'systemDeviceLogic'>>) => {
+        this.setState((state)=>({...state, ...e}));
     }
 
     apply = ()=> {

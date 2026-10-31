@@ -10,7 +10,7 @@ type InputProps = {
     id: string;
 };
 
-type MappedProps = MeridianFlipStep;
+type MappedProps = Partial<MeridianFlipStep>;
 
 type Props = InputProps & MappedProps;
 

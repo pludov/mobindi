@@ -175,7 +175,7 @@ class AccessorFactory {
                 this.perClassSettings(uid, prop, jscId).child(AccessPath.For((e) => e.disable)),
                 {
                     toStore: (b: boolean | undefined) => !b,
-                    fromStore: (b: boolean) => !b
+                    fromStore: (b: boolean | undefined) => !b
                 }
             )
     );
