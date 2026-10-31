@@ -192,8 +192,8 @@ module.exports = function (webpackEnv) {
     // Webpack noise constrained to errors and warnings
     stats: 'errors-warnings',
     mode: isEnvProduction ? 'production' : isEnvDevelopment && 'development',
-    // Stop compilation early in production
-    bail: isEnvProduction,
+    // Don't stop at the first error so that all errors are reported
+    bail: false,
     devtool: isEnvProduction
       ? shouldUseSourceMap
         ? 'source-map'
