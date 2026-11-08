@@ -37,6 +37,8 @@ for (const app of apps) {
         await expect(icon).toHaveClass(/Active/);
         await selections[app]?.(page);
         await settle(page);
+        // Keep the background and markers visible while excluding components marked e2e-hide.
+        await page.addStyleTag({ content: '.e2e-hide { visibility: hidden !important; }' });
         await expect(page).toHaveScreenshot(`${app}.png`, {
             // Volatile parts (times, charts, notifications) are flagged with the e2e-ignore css class
             mask: [page.locator('.e2e-ignore')],

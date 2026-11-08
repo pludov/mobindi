@@ -1216,7 +1216,8 @@ export default class SkyProjection {
         ha *= Math.PI/12.;
         const phi = geoCoords.lat  *Math.PI/180.;
         const dec = lstRelRaDec.dec*Math.PI/180.;
-        let altitude = Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(ha));
+        const sinAltitude = Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(ha);
+        let altitude = Math.asin(Math.max(-1, Math.min(1, sinAltitude)));
         altitude *= 180.0/Math.PI;
         let azimuth = Math.atan2(-Math.cos(dec)*Math.sin(ha), Math.sin(dec)*Math.cos(phi)-Math.sin(phi)*Math.cos(dec)*Math.cos(ha));
         azimuth *= 180.0/Math.PI;

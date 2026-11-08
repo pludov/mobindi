@@ -14,6 +14,7 @@ import UniformBackground from '../../MiniMap/UniformBackground';
 import Marker from '../../MiniMap/Marker';
 import ComplexBackground from '../../MiniMap/ComplexBackground';
 import ScopeMarker from '../../MiniMap/ScopeMarker';
+import SkyOverlay from '../../MiniMap/SkyOverlay';
 
 type InputProps = {
     moveAllowed: boolean;
@@ -30,7 +31,7 @@ type Props = InputProps & MappedProps;
 
 type PolarAlignSettingsForSteps = Pick<PolarAlignSettings, "angle"|"minAltitude"|"sampleCount"|"meridianGuard">;
 
-class ScopePositionSelector extends React.PureComponent<Props> {
+export class ScopePositionSelector extends React.PureComponent<Props> {
     
 
     render() {
@@ -44,6 +45,7 @@ class ScopePositionSelector extends React.PureComponent<Props> {
                             :
                                 <UniformBackground/>
                             }
+                            <SkyOverlay device={this.props.currentScope} />
                             {
                                 this.props.steps ?
                                     this.props.steps.map((e,i) => 

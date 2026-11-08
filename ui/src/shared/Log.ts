@@ -96,7 +96,7 @@ function initServerSide() : RootLogger {
     });
     const printf = winston.format.printf(
         info => {
-            const t = info[SPLAT as any];
+            const t = info[SPLAT] as unknown[] | undefined;
             const message = format(info.message, ...(t || []));
             const level = ((info.level || "???") + '').padEnd(5, ' ');
             return `${info.timestamp} ${level} [${info.source}] ${message}`;

@@ -19,6 +19,7 @@ import MountTrackButton from './MountTrackButton';
 import MiniMap from './MiniMap/MiniMap';
 import UniformBackground from './MiniMap/UniformBackground';
 import ScopeMarker from './MiniMap/ScopeMarker';
+import SkyOverlay from './MiniMap/SkyOverlay';
 import ScopeJoystick from './ScopeJoystick';
 import IndiSelectorEditor from './IndiSelectorEditor';
 import * as AstrometryStore from "./AstrometryStore";
@@ -96,7 +97,7 @@ function format_longitude(longitude: number | undefined): string {
 }
 
 
-class ScopePanel extends PureComponent<Props> {
+export class ScopePanel extends PureComponent<Props> {
     static scopeSelectorHelp = Help.key("INDI mount device", "The coordinates of this INDI mount device will be used/adjusted during astrometry process.");
     static slewRateHelp = Help.key("Slew rate", "Choose slew rate for the mount moves. Refer to the INDI driver of the mount for actual meaning.");
 
@@ -181,6 +182,7 @@ class ScopePanel extends PureComponent<Props> {
                         <div>
                             <MiniMap className="scope_minimap_big">
                                 <UniformBackground className="scope_minimap_big"/>
+                                {this.props.currentScope ? <SkyOverlay device={this.props.currentScope} /> : null}
                                 {this.props.currentScope ?
                                     <ScopeMarker
                                         device={this.props.currentScope}
