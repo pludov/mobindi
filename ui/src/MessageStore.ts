@@ -1,9 +1,7 @@
 import Log from './shared/Log';
 import * as Store from "./Store";
-import * as Utils from "./Utils";
 import * as Actions from "./Actions";
 import * as NotificationStore from './NotificationStore';
-import { BackofficeStatus } from '@bo/BackOfficeStatus';
 
 const logger = Log.logger(__filename);
 
@@ -117,7 +115,7 @@ function askAuthAdjuster(state:Store.Content):Store.Content {
     const wantedNotification = (state.messages.notificationAuth !== true && state.currentApp !== "messages");
 
     const currentStatus = state.notifs.byApp.messages && !!state.notifs.byApp.messages.auth;
-    if (currentStatus == wantedNotification) {
+    if (currentStatus === wantedNotification) {
         return state;
     }
 
@@ -169,7 +167,7 @@ export function adjusters() {
 
 const UpdateNotificationAuth: Actions.Handler<{ value: boolean|undefined }>
     = (state, action) => {
-        if (state.messages.notificationAuth ==  action.value) return state;
+        if (state.messages.notificationAuth ===  action.value) return state;
         return {
             ...state,
             messages: {
@@ -220,7 +218,7 @@ if (typeof(SharedWorker) !== 'undefined') {
         }
 
         if (visibilityChange && hidden) {
-            let timer:NodeJS.Timer;
+            let timer:ReturnType<typeof setInterval>;
             const ping = ()=> {
                 logger.debug('worker ping');
                 const visible = !document[hidden];

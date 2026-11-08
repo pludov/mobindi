@@ -5,6 +5,9 @@ import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
 import * as BackofficeStatus from '@bo/BackOfficeStatus';
+import DeviceGeolocBton from './DeviceGeolocBton';
+import AstrometrySettingsView from './AstrometrySettingsView';
+import AstrometryStatusView from './AstrometryStatusView';
 
 
 type InputProps = {
@@ -16,6 +19,7 @@ type MappedProps = {
     details?: BackofficeStatus.IndiDeviceConfiguration["options"];
     cameraList: string[] | undefined;
     filterWheelList: string[] | undefined;
+    mountList: string[] | undefined;
 }
 
 type Props = InputProps & MappedProps;
@@ -99,9 +103,25 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
         </>;
     }
 
+    renderScope() {
+        return <>
+            <div>
+                Geoloc:
+                    <DeviceGeolocBton
+                        currentDevice={this.props.driverId}
+                        />
+
+            </div>
+            <AstrometrySettingsView selectedScope={this.props.driverId} />
+            <AstrometryStatusView/>
+
+        </>;
+    }
+
     render() {
         const isCamera = this.props.cameraList && this.props.cameraList.indexOf(this.props.driverId) !== -1;
         const isFilterWheel = this.props.filterWheelList && this.props.filterWheelList.indexOf(this.props.driverId) !== -1;
+        const isMount = this.props.mountList && this.props.mountList.indexOf(this.props.driverId) !== -1;
         return <div>
             <div>{this.props.driverId}</div>
 
@@ -115,6 +135,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
             </div>
             {isCamera ? this.renderCamera() : null}
             {isFilterWheel ? this.renderFilterWheel() : null}
+            {isMount ? this.renderScope() : null}
         </div>
     }
     static mapStateToProps (store:Store.Content, ownProps: InputProps):MappedProps {
@@ -122,6 +143,7 @@ class IndiDriverConfig extends React.PureComponent<Props, State> {
             driver: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.driver || "",
             cameraList: store.backend.indiManager?.availableCameras,
             filterWheelList: store.backend.indiManager?.availableFilterWheels,
+            mountList: store.backend.indiManager?.availableScopes,
             details: Utils.getOwnProp(store.backend.indiManager?.configuration.indiServer.devices, ownProps.driverId)?.options,
         };
         return result;

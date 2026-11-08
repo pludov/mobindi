@@ -7,10 +7,10 @@ import { BackofficeStatus } from "./shared/BackOfficeStatus";
 
 const logger = Log.logger(__filename);
 
-var configDir = 'local';
+var configDir = process.env.MOBINDI_CONFIG_DIR || 'local';
 
 if (!fs.existsSync(configDir)){
-    fs.mkdirSync(configDir);
+    fs.mkdirSync(configDir, {recursive: true});
 }
 
 export default class ConfigStore<T extends object, STORED=T> {

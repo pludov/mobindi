@@ -218,7 +218,6 @@ namespace SharedCache {
 		void to_json(nlohmann::json&j, const WorkRequest & i)
 		{
 			j = nlohmann::json::object();
-			j.object();
 		}
 
 		void from_json(const nlohmann::json& j, WorkRequest & p) {

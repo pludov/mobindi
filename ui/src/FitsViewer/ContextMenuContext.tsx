@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import * as Obj from '../shared/Obj';
 import { ContextMenuEntry } from './FitsViewer';
 
@@ -55,9 +55,9 @@ class ContextMenuReferenceImpl implements ContextMenuReference{
 }
 
 export default class ContextMenuContext extends React.PureComponent<Props, State> {
-    public static readonly declareMenu = React.createContext<ContextMenuLink|null>(null);
-    public static readonly opened = React.createContext<OpenTrigger|null>(null);
-    public static readonly entries = React.createContext<ContextMenuEntry[]>([]);
+    public static readonly DeclareMenu = React.createContext<ContextMenuLink|null>(null);
+    public static readonly Opened = React.createContext<OpenTrigger|null>(null);
+    public static readonly Entries = React.createContext<ContextMenuEntry[]>([]);
 
     menus: Set<ContextMenuReferenceImpl> = new Set();
     prevEntries : ContextMenuEntry[];
@@ -98,13 +98,13 @@ export default class ContextMenuContext extends React.PureComponent<Props, State
     render() {
 
         return <>
-            <ContextMenuContext.declareMenu.Provider value={this.contextMenuLink}>
-                <ContextMenuContext.opened.Provider value={this.props.open}>
-                    <ContextMenuContext.entries.Provider value={this.state.entries}>
+            <ContextMenuContext.DeclareMenu.Provider value={this.contextMenuLink}>
+                <ContextMenuContext.Opened.Provider value={this.props.open}>
+                    <ContextMenuContext.Entries.Provider value={this.state.entries}>
                         {this.props.children}
-                    </ContextMenuContext.entries.Provider>
-                </ContextMenuContext.opened.Provider>
-            </ContextMenuContext.declareMenu.Provider>
+                    </ContextMenuContext.Entries.Provider>
+                </ContextMenuContext.Opened.Provider>
+            </ContextMenuContext.DeclareMenu.Provider>
         </>;
     }
 

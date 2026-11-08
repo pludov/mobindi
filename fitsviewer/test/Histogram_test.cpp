@@ -54,7 +54,6 @@ static RawDataStorage * buildBayerRDS(int w, int h, uint16_t* data)
 
 TEST_CASE( "Histogram scanning", "[Histogram.cpp]" ) {
     for(int i = 0; testedSize[i]; ++i) {
-        int size = testedSize[i];
         SECTION("Full size 1ch") {
             std::unique_ptr<RawDataStorage> rds(buildRDS(5,7,pixels5x7));
 

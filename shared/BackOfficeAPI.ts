@@ -1,9 +1,13 @@
 import * as jsonpatch from 'json-patch';
 
 import * as ProcessorTypes from "./ProcessorTypes";
-import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle, IndiProfileConfiguration } from './BackOfficeStatus';
+import { SequenceStep, SequenceDitheringSettings, SequenceForeach, SequenceStepParameters, SequenceFocuserSettings, Rectangle, IndiProfileConfiguration, IndiProfileExclusionGroupConfig } from './BackOfficeStatus';
 import { Json } from './Json';
 import { Diff } from '../shared/JsonProxy';
+
+export interface AsyncStream<T> {
+    next:()=>Promise<T|undefined>;
+}
 
 export type ToolExecuterAPI = {
     startTool: (message:{uid: string})=>void;
@@ -41,8 +45,10 @@ export type UpdateIndiVectorRequest = {
 }
 
 export type IndiProfileAPI = {
-    createProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>)=>void;
+    createProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys"|"uid">>)=>string;
     updateProfile: (payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string})=>void;
+    updateProfileExclusionGroup: (payload: IndiProfileExclusionGroupConfig)=>void;
+    moveProfile: (payload: {uid: string, direction: number})=>void;
     deleteProfile: (payload: {uid:string})=>void;
     addToProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
     removeFromProfile: (payload: {uid: string; dev: string; vec: string; prop: string|null })=>void;
@@ -130,6 +136,8 @@ export type ImagingSetupManagerAPI = {
     setDevice: (payload: {imagingSetupUuid: string, device: "cameraDevice"|"focuserDevice"|"filterWheelDevice", value: string|null})=>void;
     setName:(payload: {imagingSetupUuid: string, name: string})=>void;
     updateCurrentSettings: (payload: {imagingSetupUuid: string, diff: any})=>void;
+    newImagingSetup:(payload: {name: string}) => string;
+    deleteImagingSetup: (payload: {imagingSetupUuid: string}) => void;
 }
 
 export type FilterWheelAPI = {
@@ -156,6 +164,7 @@ export type CameraAPI = {
 
 export type SequenceAPI = {
     newSequence: (payload: {})=>string;
+    copySequence: (payload: {sequenceUid: string})=>string;
     startSequence: (payload: {sequenceUid: string})=>void;
     stopSequence: (payload: {sequenceUid: string})=>void;
     resetSequence: (payload: {sequenceUid: string})=>void;
@@ -171,6 +180,17 @@ export type SequenceAPI = {
     deleteSequenceStep: (payload: DeleteSequenceStepRequest)=>void;
     resetStatMonitoringLearning: (payload: ResetStatMonitoringRequest)=>void,
     resetStatMonitoringCurrent: (payload: ResetStatMonitoringRequest)=>void,
+}
+
+export type SystemDeviceList = Array<{[id: string]: string}>;
+export type SystemDevicePartialList = {
+    items: SystemDeviceList,
+    more: boolean,
+    props: {[props:string]: Array<string>},
+}
+
+export type SystemDeviceManagerAPI = {
+    watchDevice: (payload: { criteria: {[id: string]: string} }) => AsyncStream<SystemDevicePartialList>;
 }
 
 export type ExposedNotificationRequest = {
@@ -226,7 +246,7 @@ export type AstrometryAPI = AstrometryWizards & {
     updateCurrentSettings: (payload: {diff: any})=>void;
     compute: (payload: AstrometryComputeRequest)=>ProcessorTypes.AstrometryResult;
     cancel: (payload: {})=>void;
-    setScope: (payload: {deviceId: string})=>void;
+    setScope: (payload: {deviceId: string|null})=>void;
     goto: (payload:AstrometryGotoScopeRequest)=>void;
     sync: (payload:AstrometrySyncScopeRequest)=>void;
     wizardQuit: (payload:{})=>void;
@@ -279,4 +299,5 @@ export type BackOfficeAPI = {
     phd: PhdAPI;
     notification: NotificationAPI;
     imagingSetupManager: ImagingSetupManagerAPI;
+    systemDeviceManager: SystemDeviceManagerAPI;
 }

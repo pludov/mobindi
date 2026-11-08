@@ -3,7 +3,7 @@ import ObjectReselect from './ObjectReselect';
 
 describe("ObjectReselect", ()=> {
     it('is ok', () => {
-        const objectSelector = ObjectReselect.createObjectSelector<any,void,any>(
+        const objectSelector = ObjectReselect.createObjectSelector<[any, any?], any>(
             (arr:Array<any>)=>{
                 const ret:any = {a: arr[0], b:arr[1]};
                 if (arr.length === 3) {

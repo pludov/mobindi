@@ -2,8 +2,8 @@ import Log from './shared/Log';
 import { update } from './shared/Obj'
 import * as Store from './Store';
 import * as Actions from './Actions';
-import { compose, createStore } from 'redux';
-import persistState from 'redux-localstorage'
+import { createStore } from 'redux';
+import { persistState } from './utils/LocalStoragePersist';
 import ReduxNotifier from './ReduxNotifier';
 
 import * as AppStore from './AppStore';
@@ -76,9 +76,9 @@ export function start() {
             if (('' + type).startsWith('@@redux/INIT')) {
                 return state;
             }
-            if (type == "update") {
+            if (type === "update") {
                 state = update(state, action.op);
-            } else  if (type == "appAction") {
+            } else  if (type === "appAction") {
                 var nvArgs = action.args.slice();
                 nvArgs.unshift(state);
                 try {
@@ -102,43 +102,32 @@ export function start() {
         return reducer;
     }();
 
-    const enhancer = compose(
-        (persistState as any)(undefined, {
-                slicer: (paths:any)=> (state:any) => {
-                    var rslt = Object.assign({}, state);
+    const enhancer = persistState<any>({
+        slicer: (state:any) => {
+            var rslt = Object.assign({}, state);
 
-                    // do not save useless data
-                    for(const childOnExport of onExport) {
-                        childOnExport(rslt);
-                    }
-                    return rslt;
-                },
-                deserialize: (data:string)=>{
-                    const ret = JSON.parse(data) || {};
-                    // ensure no missing property / no unsaved properties
-                    for(const childOnImport of onImport) {
-                        childOnImport(ret);
-                    }
+            // do not save useless data
+            for(const childOnExport of onExport) {
+                childOnExport(rslt);
+            }
+            return rslt;
+        },
+        deserialize: (data:string)=>{
+            const ret = JSON.parse(data) || {};
+            // ensure no missing property / no unsaved properties
+            for(const childOnImport of onImport) {
+                childOnImport(ret);
+            }
 
-                    return ret;
-                }
-            })
-    );
+            return ret;
+        }
+    });
 
     const store = createStore(reducer, initialState, enhancer);
 
     const notifier = new ReduxNotifier();
 
     notifier.attachToStore(store);
-
-    // Connect notifier to websocket
-    function stripLastPart(url:string)
-    {
-        var str = "" + url;
-        var lastSlash = str.lastIndexOf('/');
-        if (lastSlash == -1) return str;
-        return str.substring(0, lastSlash + 1);
-    }
 
     const apiRoot = //((window.location+'').indexOf('pludov') == -1) ?
         (window.location.protocol + '//' + window.location.hostname  + ':' + window.location.port + '/');

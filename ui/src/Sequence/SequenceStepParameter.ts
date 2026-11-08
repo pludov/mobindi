@@ -2,7 +2,6 @@ import {SequenceStepEdit} from "./SequenceStepEdit";
 import * as Store from '../Store';
 import * as IndiManagerStore from "../IndiManagerStore";
 import * as ImagingSetupStore from "../ImagingSetupStore";
-import * as FilterWheelStore from "../FilterWheelStore";
 import { deepEqual } from '../shared/Obj';
 import { SequenceStep } from '@bo/BackOfficeStatus';
 
@@ -169,7 +168,7 @@ export const parameters:GroupDesc[] = [
                         // Don't remove parent
                         && !(stack[stack.length - 1].childs && stack[stack.length - 1].childs!.list.length)
                         // Don't remove non empty
-                        && (Object.keys(stack[stack.length - 1]).filter(e=>e!="childs").length == 0)
+                        && (Object.keys(stack[stack.length - 1]).filter(e=>e!=="childs").length === 0)
             }
         ]
     }

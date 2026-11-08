@@ -3,7 +3,6 @@ import { connect } from 'react-redux';
 import * as Help from './Help';
 import { atPath } from './shared/JsonPath';
 import * as PromiseSelector from './PromiseSelector';
-import * as Utils from './Utils';
 import * as Store from './Store';
 import * as IndiUtils from './IndiUtils';
 
@@ -32,7 +31,7 @@ type Props = InputProps & MappedProps;
 
 function BinValueGenerator(props: Props) {
     const result:number[] = [];
-    if (props.$minx !== undefined && parseFloat(props.$stepx) == 1 && parseFloat(props.$stepy) == 1) {
+    if (props.$minx !== undefined && parseFloat(props.$stepx) === 1 && parseFloat(props.$stepy) === 1) {
         var step =  parseFloat(props.$stepx);
         var min = Math.max(parseFloat(props.$minx), parseFloat(props.$miny));
         var max = Math.min(parseFloat(props.$maxx), parseFloat(props.$maxy));
@@ -69,7 +68,7 @@ const CameraBinSelector = connect((store: Store.Content, ownProps: InputProps) =
          }
     } else {
         return {
-            ... root,
+            ...root,
             $minx: desc?.childs?.HOR_BIN?.["$min"],
             $maxx: desc?.childs?.HOR_BIN?.["$max"],
             $stepx: desc?.childs?.HOR_BIN?.["$step"],
@@ -78,6 +77,6 @@ const CameraBinSelector = connect((store: Store.Content, ownProps: InputProps) =
             $stepy: desc?.childs?.VER_BIN?.["$step"],
         }
     };
-})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>);
+})(PromiseSelector.default<number>);
 
 export default CameraBinSelector;

@@ -104,9 +104,12 @@ public:
         fits_write_key_longstr(file.fptr, "ANCORR", corrFile.c_str(), "Correspondences output filename", &status);
         fits_write_key_longstr(file.fptr, "ANWCS", wcsFile.c_str(), "wcs filename", &status);
 
-        char * types[] = { "X", "Y", "FLUX" };
-        char * forms[] = { "E", "E", "E" };
-        char * units[] = { "pix", "pix", "unknown" };
+        char types0[] = "X", types1[] = "Y", types2[] = "FLUX";
+        char forms0[] = "E", forms1[] = "E", forms2[] = "E";
+        char units0[] = "pix", units1[] = "pix", units2[] = "unknown";
+        char * types[] = { types0, types1, types2 };
+        char * forms[] = { forms0, forms1, forms2 };
+        char * units[] = { units0, units1, units2 };
 
         fits_create_hdu(file.fptr, &status);
         fits_write_btblhdr(file.fptr, starfield.stars.size(), 3, types, forms, units, "SOURCES", 0, &status); 
@@ -135,7 +138,7 @@ public:
             fits_write_col_flt(file.fptr, col, 1, 1, starfield.stars.size(), values, &status);
         }
 
-        delete(values);
+        delete[] values;
 
         file.close();
     }
@@ -235,7 +238,6 @@ void SharedCache::Messages::Astrometry::produce(SharedCache::Entry* entry)
         starField->release();
 		throw WorkerError(std::string("Source error : ") + starField->getErrorDetails());
 	}
-	RawDataStorage * contentStorage = (RawDataStorage *)starField->data();
     std::string source((const char*)starField->data(), starField->size());
 
     AstrometryProcessor processor(this, source);

@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { connect } from 'react-redux';
 import * as Help from './Help';
 import { atPath } from './shared/JsonPath';
@@ -67,6 +67,6 @@ const CameraExpEditor = connect((store: Store.Content, ownProps:InputProps) => {
         $max: indiDeviceDesc?.childs?.CCD_EXPOSURE_VALUE?.["$max"],
         helpKey: cameraExpEditorHelp,
     });
-})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>)
+})(PromiseSelector.default<number>)
 
 export default CameraExpEditor;

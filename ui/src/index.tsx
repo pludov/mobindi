@@ -6,8 +6,6 @@ import Screen from './Screen';
 import App from './App';
 import * as Store from './Store';
 
-
-
 ReactDOM.render(
         <Provider store={Store.getStore()}>
             <Screen>

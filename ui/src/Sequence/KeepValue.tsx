@@ -1,10 +1,9 @@
 /**
  * Created by ludovic on 21/07/17.
  */
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { atPath } from '../shared/JsonPath';
 import * as Store from "../Store";
-import * as Actions from "../Actions";
 
 type InputProps = {
     valuePath: string;
@@ -37,7 +36,6 @@ class KeepValue extends React.PureComponent<Props, State> {
     }
 
     changeState(to:boolean) {
-        var self = this;
         if (to) {
             this.setState({forceVisibility: true});
         } else {
@@ -56,4 +54,3 @@ class KeepValue extends React.PureComponent<Props, State> {
 }
 
 export default Store.Connect(KeepValue);
-

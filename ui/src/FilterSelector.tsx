@@ -1,14 +1,9 @@
 import * as React from 'react';
 import * as Help from './Help';
 import * as Store from './Store';
-import { noErr } from './Utils';
-import * as BackendRequest from "./BackendRequest";
-import * as DeviceIdMapper from './indiview/DeviceIdMapper';
 import * as FilterWheelStore from "./FilterWheelStore";
-import CancellationToken from 'cancellationtoken';
 
 import './CameraView.css'
-import DeviceConnectBton from './DeviceConnectBton';
 
 type InputProps = {
     filterWheelDevice: string|undefined;
@@ -16,7 +11,7 @@ type InputProps = {
     // Where to store the choosen filter
     getFilter(store: Store.Content, filterWheelDeviceId: string|undefined): string | null;
     isBusy?:(store:Store.Content, filterWheelDeviceId: string)=>boolean;
-    setFilter: (filterWheelDeviceId: string, filterId: string|null) => Promise<void>;
+    setFilter: (filterWheelDeviceId: string, filterId: string) => Promise<void>;
 
     focusRef?: React.RefObject<HTMLSelectElement>
 }
@@ -32,9 +27,6 @@ type Props = InputProps & MappedProps;
 
 class FilterSelector extends React.PureComponent<Props> {
     static filterSelectorHelp = Help.key("Filter selector", "Select filterwheel device and filter. Use options from the \"switch filterwheel\" section to change device");
-    constructor(props: Props) {
-        super(props);
-    }
 
     forceOption(valid: string[], possiblyMissing: string | null) {
         let ret = valid.map(v => ({ title: v, value: v }));
@@ -96,12 +88,10 @@ class FilterSelector extends React.PureComponent<Props> {
         </>
     }
 
-    static mapStateToProps = function (store: Store.Content, ownProps: InputProps) {
+    static mapStateToProps = function (store: Store.Content, ownProps: InputProps): MappedProps {
         const currentFilterWheel = ownProps.filterWheelDevice;
 
         return ({
-            currentFilterWheel,
-
             busy:
                 !currentFilterWheel || !ownProps.isBusy
                     ? false

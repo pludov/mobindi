@@ -46,13 +46,13 @@ export function bestFit(points : Array<Array<number>>):PlaneEquation|null
     let dir: { x: number; y: number; z: number; };
 
     // Pick path with best conditioning:
-    if (det_max == det_x) {
+    if (det_max === det_x) {
         dir = {
             x: det_x,
             y: xz*yz - xy*zz,
             z: xy*yz - xz*yy,
         }
-    } else if (det_max == det_y) {
+    } else if (det_max === det_y) {
         dir = {
             x: xz*yz - xy*zz,
             y: det_y,

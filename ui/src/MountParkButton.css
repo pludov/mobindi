@@ -1,0 +1,44 @@
+input.ParkButton {
+    width: 12ch;
+}
+
+input.ParkButton.parked {
+    background-color: red;
+    color: white;
+    
+}
+
+input.ParkButton.unparked {
+    background-color: green;
+    color: white;
+}
+
+input.ParkButton:disabled {
+    filter: unset;
+    color: #303030;
+}
+
+input.ParkButton.parking,
+input.ParkButton.unparking {
+  background-clip: border-box;
+  background-image:
+  repeating-linear-gradient(
+      -45deg,
+      #0000ff10,
+      #0000ffff 5px,
+      #0000ff10 10px,
+      #e0e0e000 10px,
+      #e0e0e000 20px /* determines size */
+  );
+  background-size: 28px 28px;
+  animation: ParkButtonInfiniteMove 1s linear infinite;
+}
+
+@keyframes ParkButtonInfiniteMove {
+  0% {
+  background-position: 0 0;
+  }
+  100% {
+  background-position: 28px 0;
+  }
+}

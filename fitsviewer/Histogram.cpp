@@ -104,7 +104,7 @@ uint32_t HistogramChannelData::findFirstWithAtLeast(u_int32_t wantedCount) const
 
 	if (data[min - this->min] >= wantedCount) return min;
 	while (min < max) {
-		int med = (max + min) / 2;
+		uint32_t med = (max + min) / 2;
 		if (data[med - this->min] < wantedCount) {
 			if (med == min) {
 				return max;

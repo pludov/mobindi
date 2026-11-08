@@ -31,7 +31,6 @@ export default class TextEdit extends React.PureComponent<Props, State> {
 
     render() {
         const lines = (this.props.value || "").split(/\r\n|\r|\n/);
-        const rows = lines.length;
         const cols = lines.map(v=>Math.min(Math.max(v.length+3, 5), 16)).reduce((a,b)=>Math.max(a,b), 0);
 
         return <span >
@@ -44,6 +43,7 @@ export default class TextEdit extends React.PureComponent<Props, State> {
                                     ? this.props.value
                                     : this.state.editorValue}
                             onChange={(e)=>this.setState({editorValue: e.target.value})}
+                            {...this.props.helpKey?.dom() }
                             />
                 {/* <textarea ref={this.textArea}
                             style={{clear: this.state.editor === 0 ? "none" : "right"}}

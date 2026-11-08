@@ -1,10 +1,8 @@
-import * as React from 'react';
+
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect'
 
-import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 
-import * as Utils from '../Utils';
 import * as Actions from '../Actions';
 import * as Store from '../Store';
 import * as Help from '../Help';
@@ -33,6 +31,16 @@ async function newSequence(onCreated: (uid:string)=>void) {
     onCreated(sequence);
 }
 
+async function copySequence(existing: string, onCreated: (uid:string)=>void) {
+    const sequence = await BackendRequest.RootInvoker("sequence")("copySequence")(
+        CancellationToken.CONTINUE,
+        {
+            sequenceUid: existing,
+        });
+    Actions.dispatch<SequenceStore.SequenceActions>()("setCurrentSequence", {sequence});
+    onCreated(sequence);
+}
+
 const sequenceSelectorHelp = Help.key("Sequence selector", "Select the sequence to display. Choose \"New\" to create a new sequence (last position)");
 
 const SequenceSelector = connect(()=>{
@@ -46,14 +54,22 @@ const SequenceSelector = connect(()=>{
 
     const controls = createSelector(
             (store: Store.Content, ownProps: OwnProps)=>ownProps.onCreated,
-            (onCreated)=> [{
+            (store: Store.Content, ownProps: OwnProps)=>atPath(store, ownProps.currentPath),
+            (onCreated, existing)=> [
+            {
+                id: 'duplicate',
+                title: '✨ Copy',
+                disabled: !existing,
+                run: ()=>copySequence(existing, onCreated)
+            },
+            {
                 id:'new',
                 title:'✏️ New',
                 run: ()=>newSequence(onCreated)
             }]);
 
     return (store:Store.Content, ownProps:OwnProps)=> ({
-        ... sequenceSelectorBaseProps,
+        ...sequenceSelectorBaseProps,
         controls: controls(store, ownProps),
         active: atPath(store, ownProps.currentPath),
         availables: store.backend.sequence?.sequences.list || [],

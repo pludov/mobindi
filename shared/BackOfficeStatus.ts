@@ -27,6 +27,12 @@ export type ImagingSetup = {
 
     dynState: ImagingSetupDynState;
     refFocus: FocuserPoint|null;
+
+    // This imagingSetup is available only when this profile is active
+    // Ignored if the profile is unknown
+    controlIndiProfileUid: null|string;
+    // Name of the last controlIndiProfileUid (use when the profile is gone)
+    controlIndiProfileName: null|string;
 }
 
 export type CameraDeviceSettings = {
@@ -233,9 +239,23 @@ export type IndiProfileConfiguration = {
     uid: string;
     name: string;
     active: boolean;
+    // Exclusive groups will not be allowed to be active at the same time
+    exclusionGroup: string|null;
+
+    // Activate when this device appear
+    systemDeviceIdentifier: null|{[id: string]:string};
+    // true if profile is to be activated when the device is present
+    // false for the opposite logic
+    // null disable automatic change
+    systemDeviceLogic: null|boolean;
 
     // Keys are Stringified of { dev, vec, prop }
     keys: ProfilePropertyAssociation<IndiProfilePropertyConfiguration>;
+}
+
+export type IndiProfileExclusionGroupConfig = {
+    uid: string;
+    otherUids: string[];
 }
 
 export type IndiProfilesConfiguration = {
@@ -508,7 +528,11 @@ export type PolarAlignAxisSettings = {
 
 export type PolarAlignSettings = {
     slewRate: string;
+    slewInertiaFactor: number;
+    slewStopDuration: number;
+    slewDelay: number;
     sampleCount: number;
+    skipPhotos: boolean;
     angle: number;
     minAltitude: number;
     meridianGuard: number; // Don't go too close from the meridian (°)
@@ -771,6 +795,18 @@ export type PhdGuideStats = {
     RADECDistancePeak: number|null;
 }
 
+export type PhdGuideStar = {
+    X: number;
+    Y: number;
+    RefX: number;
+    RefY: number;
+    SNR: number;
+    Mass: number;
+    HDF: number;
+    used: boolean;
+    err: null|string;
+}
+
 export type PhdStatus = PhdGuideStats & {
     phd_started: boolean;
     connected: boolean;
@@ -784,6 +820,9 @@ export type PhdStatus = PhdGuideStats & {
     configuration: PhdConfiguration;
     firstStepOfRun: string;
     star: PhdStar|null;
+    starPositions: PhdGuideStar[];
+    multiStarRefined: boolean;
+    multiStarStabilizing: boolean;
     currentEquipment: {
         camera?: PhdEquipmentStatus;
         mount?:PhdEquipmentStatus;

@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import { createSelector } from 'reselect'
 
 import Log from './shared/Log';
@@ -8,7 +8,7 @@ import * as BackendRequest from "./BackendRequest";
 
 import './FitsViewerWithAstrometry.css';
 import FitsViewerInContext, {UnmappedFitsViewerInContext, InputProps as FitsViewerInContextInputProps} from './FitsViewerInContext';
-import {Props as FitsViewerProps, ContextMenuEntry, ContextMenuEvent} from './FitsViewer/FitsViewer';
+import {ContextMenuEvent} from './FitsViewer/FitsViewer';
 import SkyProjection from './SkyAlgorithms/SkyProjection';
 import * as Store from './Store';
 import * as Help from "./Help";
@@ -309,7 +309,7 @@ class FitsViewerWithAstrometry extends React.PureComponent<Props, State> {
                 (store:Store.Content, ownProps:InputProps)=>ownProps.imageUuid,
                 (store:Store.Content, ownProps:InputProps)=>getOwnProp(store.backend.camera?.images.byuuid, ownProps.imageUuid!)?.astrometry
             ],
-            (astrometry:BackOfficeStatus.AstrometryStatus, path:string|null, currentImageUuid: string|null,astrometryResult: AstrometryResult|undefined):AstrometryProps =>  {
+            (astrometry:BackOfficeStatus.AstrometryStatus|undefined, path:string|null, currentImageUuid: string|null,astrometryResult: AstrometryResult|undefined):AstrometryProps =>  {
                 if (astrometry === undefined) {
                     return {
                         status: "empty",

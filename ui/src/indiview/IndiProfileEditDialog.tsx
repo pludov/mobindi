@@ -6,13 +6,17 @@ import * as Store from "../Store";
 import * as BackendRequest from "../BackendRequest";
 import IndiProfileAttributes, {HandledProps} from './IndiProfileAttributes';
 import CancellationToken from 'cancellationtoken';
-import { IndiProfileConfiguration } from '@bo/BackOfficeStatus';
+import { IndiProfileConfiguration, IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
+import { defaultMemoize } from 'reselect';
+import { getProfileList, getProfileExclusionGroup, getExclusionGroupPotentialPeers } from '../IndiProfileStore';
 
 type InputProps = {
     uid: string;
 }
 
-type MappedProps = HandledProps;
+type MappedProps = HandledProps & {
+    exclusionGroupPotentials: ReturnType<ReturnType<typeof getProfileList>>;
+}
 
 type Props = InputProps & MappedProps;
 
@@ -37,6 +41,25 @@ class IndiProfileEditDialog extends React.PureComponent<Props> {
             });
     }
 
+    readonly updateSystemDevice = async(e: Pick<IndiProfileConfiguration, "systemDeviceLogic"|"systemDeviceIdentifier">) => {
+        console.log('Updating system device', e);
+        await BackendRequest.RootInvoker("indi")("updateProfile")(
+            CancellationToken.CONTINUE,
+            {
+                uid: this.props.uid,
+                ...e
+            });
+    }
+
+    readonly updateExclusionGroup = async(otherUids: Array<string>) => {
+        await BackendRequest.RootInvoker("indi")("updateProfileExclusionGroup")(
+            CancellationToken.CONTINUE,
+            {
+                uid: this.props.uid,
+                otherUids
+            });
+    }
+
     render() {
         return (
             <>
@@ -45,24 +68,43 @@ class IndiProfileEditDialog extends React.PureComponent<Props> {
                 </div>
                 <IndiProfileAttributes
                     name={this.props.name}
+                    exclusionGroupPeers={this.props.exclusionGroupPeers}
+                    systemDeviceIdentifier={this.props.systemDeviceIdentifier}
+                    systemDeviceLogic={this.props.systemDeviceLogic}
                     nameChanged={this.updateName}
+                    exclusionGroupChanged={this.updateExclusionGroup}
+                    exclusionGroupPotentials={this.props.exclusionGroupPotentials}
+                    systemDeviceChanged={this.updateSystemDevice}
                     />
             </>
         );
     }
 
-    static mapStateToProps = (store:Store.Content, ownProps: InputProps)=>{
-        const profile = store.backend.indiManager?.configuration?.profiles;
-        if (profile && Object.prototype.hasOwnProperty.call(profile.byUid, ownProps.uid)) {
-            const ret : Partial<IndiProfileConfiguration> = {...profile.byUid[ownProps.uid]}
-            delete ret.uid;
-            delete ret.active;
-            delete ret.keys;
-            return ret;
+    static mapStateToProps = () =>{
+
+        const mapFromProfile = defaultMemoize((profile: IndiProfilesConfiguration|undefined, uid: string): Pick<MappedProps, "name"|"systemDeviceIdentifier"|"systemDeviceLogic">=> {
+            if (profile && Object.prototype.hasOwnProperty.call(profile.byUid, uid)) {
+                const {name, systemDeviceIdentifier, systemDeviceLogic} = profile.byUid[uid];
+                return {name, systemDeviceIdentifier, systemDeviceLogic};
+            }
+            return {
+                name: "",
+                systemDeviceIdentifier: null,
+                systemDeviceLogic: null,
+            };
+        });
+
+        const peers = getProfileExclusionGroup();
+        const potentialPeers = getExclusionGroupPotentialPeers();
+
+        return (store:Store.Content, ownProps: InputProps): MappedProps => {
+            const profile = store.backend.indiManager?.configuration?.profiles ;
+            return {
+                ...mapFromProfile(profile, ownProps.uid),
+                exclusionGroupPeers: peers(store, ownProps.uid),
+                exclusionGroupPotentials: potentialPeers(store, ownProps.uid),
+            }
         }
-        return {
-            name: ""
-        };
     }
 };
 

@@ -8,29 +8,6 @@ import Notifier from "./Notifier";
 const logger = Log.logger(__filename);
 
 
-function detectScreenStatusByAnimationFrame(cb:(status: boolean)=>(void))
-{
-    let status:boolean|undefined = undefined;
-    let handle:number|undefined;
-    setInterval(()=> {
-        if (handle !== undefined) {
-            window.cancelAnimationFrame(handle);
-            handle = undefined;
-            if (status !== undefined) {
-                status = false;
-                cb(status);
-            }
-        }
-        window.requestAnimationFrame(()=> {
-            handle = undefined;
-            if (status !== true) {
-                status = true;
-                cb(status);
-            }
-        });
-    }, 5000);
-}
-
 function detectScreenStatusByFocusEvents(cb:(status: boolean)=>(void))
 {
     // This is not valid for desktop app where blur just mean window switch
@@ -87,7 +64,7 @@ export default class ReduxNotifier extends Notifier {
 
     protected onStatusChanged(backendStatus: BackendStore.BackendStatusValue, backendError?: string)
     {
-        if (this.store == undefined) return;
+        if ((this.store === null || this.store === undefined)) return;
         Actions.dispatch<BackendStore.BackendActions>(this.store)("backendStatus", {
             backendStatus: backendStatus,
             backendError: backendError,
@@ -97,7 +74,7 @@ export default class ReduxNotifier extends Notifier {
     }
 
     private cancelHidingTimeout() {
-        if (this.hidingTimeout != undefined) {
+        if ((this.hidingTimeout !== null && this.hidingTimeout !== undefined)) {
             window.clearTimeout(this.hidingTimeout);
             this.hidingTimeout = undefined;
         }

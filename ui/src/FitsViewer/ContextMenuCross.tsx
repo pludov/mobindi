@@ -1,5 +1,5 @@
 
-import React, { Component, PureComponent} from 'react';
+import React, { PureComponent} from 'react';
 import './FitsViewer.css'
 
 export type Props = {
@@ -8,9 +8,6 @@ export type Props = {
 }
 
 export default class ContextMenuCross extends PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
 
     render() {
         return <React.Fragment>

@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { connect } from 'react-redux';
 import * as Utils from './Utils';
 import * as Help from './Help';
@@ -15,7 +15,7 @@ export type InputProps = {
 };
 
 export type MappedProps = {
-    apps: BackofficeStatus["apps"];
+    apps: BackofficeStatus["apps"]|undefined;
     currentApp: Store.Content["currentApp"];
     notification: {[notifId: string]: Notification|undefined};
 }
@@ -23,10 +23,6 @@ export type MappedProps = {
 export type Props = InputProps & MappedProps;
 
 class AppIcon extends React.PureComponent<Props> {
-    constructor(props:Props)
-    {
-        super(props);
-    }
 
     render() {
         var appId = this.props.appid;
@@ -42,12 +38,12 @@ class AppIcon extends React.PureComponent<Props> {
                     if (notif === undefined) {
                         return null;
                     }
-                    return <span key={id} className={"Notification" + (notif.className ? " Notification_" + notif.className:"")}>{notif.text}</span>;
+                    return <span key={id} className={"e2e-ignore Notification" + (notif.className ? " Notification_" + notif.className:"")}>{notif.text}</span>;
                 });
         }
         return (
-            <div id={"AppIcon_" + appId} className={'Application' + (this.props.currentApp == appId ? ' Active' : '')} onClick={this.activate}>
-                <img  src={appId + ".png"} {...this.props.helpKey.dom()}></img>
+            <div id={"AppIcon_" + appId} data-testid={"app-" + appId} className={'Application' + (this.props.currentApp === appId ? ' Active' : '')} onClick={this.activate}>
+                <img alt={appId} src={appId + ".png"} {...this.props.helpKey.dom()}></img>
                 {inner}
             </div>);
     }
@@ -61,7 +57,7 @@ const mapStateToProps = function(store:Store.Content, ownProps:InputProps) {
     var result = {
         apps: store.backend.apps,
         currentApp: store.currentApp,
-        notification: Utils.getOwnProp(store.notifs.byApp, ownProps.appid) || {error:true},
+        notification: Utils.getOwnProp(store.notifs.byApp, ownProps.appid) || {},
     };
     return result;
 }

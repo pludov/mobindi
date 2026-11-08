@@ -1,61 +1,54 @@
 /**
  * Created by ludovic on 21/07/17.
- */
-import React, { } from 'react';
+*/
+
+import { connect } from 'react-redux';
 import * as Store from "../Store";
-import { IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
-import Modal from '../Modal';
-import IndiProfileDialog from './IndiProfileDialog';
+import * as Help from '../Help';
+import * as PromiseSelector from '../PromiseSelector';
 
 type InputProps = {
+    activeUid: string|null;
+    activeName: string|null;
+    helpKey?: Help.Key;
+    setValue: (e:string)=>Promise<void>;
 }
 
-type MappedProps = {
-    indiManagerProfiles: IndiProfilesConfiguration;
+type Item = {
+    uid: string,
+    name: string,
 }
 
-type Props = InputProps & MappedProps;
+const IndiProfileSelector = connect((store:Store.Content, ownProps:InputProps) => {
+    let profileList =  store.backend?.indiManager?.configuration?.profiles?.list || [];
+    let profileByUid =  store.backend?.indiManager?.configuration?.profiles?.byUid || {};
 
-
-class IndiProfileSelector extends React.PureComponent<Props> {
-    private dialog = React.createRef<Modal>();
-
-    constructor(props:Props) {
-        super(props);
-    }
-
-    render() {
-        const activeProfiles = this.props.indiManagerProfiles.list
-                    .filter((e)=>this.props.indiManagerProfiles.byUid[e]?.active);
-
-        return <>
-            <select value={"current"} onChange={this.openDialog} className={activeProfiles.length == 0 ? "IndiNoPropfileSelector" : ""}>
-                <option value="current">
-                    {activeProfiles.length > 0 ?
-                        (activeProfiles.length === 1 ? "Profile: " : "Profiles: ")
-                         +  activeProfiles.map(
-                                (e)=>(this.props.indiManagerProfiles.byUid[e]?.name || e)
-                            ).join(", ")
-                        : "No profile selected"
-                    }
-                </option>
-                <option value="switch">✏️ Choose...</option>
-            </select>
-            <Modal ref={this.dialog} closeOnChange={""}>
-                <IndiProfileDialog/>
-            </Modal>
-        </>
-    }
-
-    openDialog = ()=> {
-        this.dialog.current!.open();
-    }
-
-    static mapStateToProps = (store:Store.Content, ownProps: InputProps)=>{
+    let profiles: Array<Item> = profileList.map((uid)=> {
         return {
-            indiManagerProfiles: store.backend.indiManager?.configuration.profiles,
-        } as MappedProps;
-    }
-};
+            uid,
+            name:
+                Object.prototype.hasOwnProperty.call(profileByUid, uid)
+                    ?
+                        profileByUid[uid].name
+                    :
+                        `???${uid}???`
+        }
+    });
 
-export default Store.Connect(IndiProfileSelector);
+    profiles = [ ...profiles];
+
+
+    const root = ({
+        placeholder: 'None...',
+        nullAlwaysPossible: true,
+        active: ownProps.activeUid,
+        availablesGenerator: ()=>profiles,
+        getTitle: (e: Item)=> e.name,
+        getId: (e: Item)=>e.uid,
+        $itemCount: 0,
+    });
+
+    return root;
+})(PromiseSelector.default)
+
+export default IndiProfileSelector;

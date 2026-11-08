@@ -3,7 +3,7 @@ import * as Store from '../Store';
 
 type InputProps<TYPE> = {
     accessor: Store.Accessor<TYPE>;
-    condition?: (t:TYPE)=>boolean
+    condition?(t:TYPE): boolean
 }
 
 type MappedProps<TYPE> = {

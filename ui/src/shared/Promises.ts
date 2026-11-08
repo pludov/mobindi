@@ -60,7 +60,6 @@ export class Cancelable<Input, Output> {
     public cancel:()=>Cancelable<Input, Output>;
 
     constructor(doStart: StartFunction<Input, Output>) {
-        const self = this;
         const onDoneList: ThenCallback<Output>[] = [];
         const onErrorList: OnErrorCallback[] = [];
         const onCanceledList: OnCancelCallback[] = [];
@@ -232,7 +231,6 @@ export class Timeout<Input, Output> extends Cancelable<Input, Output> {
 
         super((n, a) => {
             next = n;
-            arg = arg;
             n.setCancelFunc(()=> {
                 cancelTimer();
                 promise.cancel();
@@ -276,6 +274,11 @@ export class Concurrent<Input> extends Cancelable<Input, any[]> {
         let error:any;
         let done:boolean = true;
         const status:ConcurrentItemStatus[] = [];
+        const handleError = (item: ConcurrentItemStatus) => (err: any) => {
+            item.running = false;
+            if (error === undefined) error = err;
+            progress();
+        };
         for(let i = 0; i < childs.length; ++i) {
             const s = {
                 running: false,
@@ -288,13 +291,7 @@ export class Concurrent<Input> extends Cancelable<Input, any[]> {
                 s.result = rslt;
                 progress();
             });
-            childs[i].onError(err=> {
-                s.running = false;
-                if (error === undefined) {
-                    error = err;
-                }
-                progress();
-            });
+            childs[i].onError(handleError(s));
             childs[i].onCancel(()=> {
                 s.running = false;
                 progress();
@@ -390,33 +387,33 @@ export class Chain<Input, Output> extends Cancelable<Input, Output> {
             childs[current].start(arg);
         }
 
+        const handleChildDone = (rslt: any) => {
+            current++;
+            if (current >= childs.length) {
+                next.done(rslt);
+            } else if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                startChild(rslt);
+            }
+        };
+        const handleChildError = (e: any) => {
+            next.error(e);
+        };
+        const handleChildCancel = () => {
+            if (next.cancelationPending()) {
+                next.cancel();
+            } else {
+                next.error(new Error("Step " + current + " canceled by itself ?"));
+            }
+        };
+
         // Install listener once
         for(const child of childs)
         {
-            child.then((rslt:any) => {
-                current++;
-                if (current >= childs.length) {
-                    next.done(rslt);
-                } else {
-                    if (next.cancelationPending()) {
-                        next.cancel();
-                    } else {
-                        startChild(rslt);
-                    }
-                }
-            });
-
-            child.onError((e:any) => {
-                next.error(e);
-            });
-
-            child.onCancel(() => {
-                if (next.cancelationPending()) {
-                    next.cancel();
-                } else {
-                    next.error(new Error("Step " + current + " canceled by itself ?"));
-                }
-            });
+            child.then(handleChildDone);
+            child.onError(handleChildError);
+            child.onCancel(handleChildCancel);
         }
 
 
@@ -654,4 +651,3 @@ export function dynValue<T, I>(o: DynValueProvider<T,I>, arg : I)
     return o;
 
 }
-

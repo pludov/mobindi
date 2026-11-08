@@ -1,12 +1,7 @@
 import React from 'react';
-import CancellationToken from 'cancellationtoken';
 import Log from '../../shared/Log';
-import '../../AstrometryView.css';
-import AstrometrySettingsView from '../../AstrometrySettingsView';
+import '../BaseView.css';
 import * as Store from '../../Store';
-import * as IndiManagerStore from '../../IndiManagerStore';
-import * as BackendRequest from "../../BackendRequest";
-import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import { PolarAlignStatus } from '@bo/BackOfficeStatus';
 import InitialConfirm from "./InitialConfirm";
 import Progress from "./Progress";

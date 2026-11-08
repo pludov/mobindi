@@ -169,9 +169,9 @@ std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
 
 	std::vector<int> vectorToGroup(groupSize.size());
 	int groupId = 0;
-	for(int i = 0; i < groupSize.size(); ++i)
+	for(unsigned int i = 0; i < groupSize.size(); ++i)
 	{
-		if (finalVector[i] == i) {
+		if (finalVector[i] == (int)i) {
 			vectorToGroup[i] = groupId;
             rslt.push_back(std::make_shared<std::vector<int>>());
 			rslt[groupId]->reserve(2 * groupSize[i]);
@@ -180,9 +180,9 @@ std::vector<shared_ptr<std::vector<int>>> CGroupComputer::result() {
 	}
 
 	// FIXME: on est au pire en n² ici
-	for(int i = 0; i < groupSize.size(); ++i)
+	for(unsigned int i = 0; i < groupSize.size(); ++i)
 	{
-		if (finalVector[i] != i) {
+		if (finalVector[i] != (int)i) {
 			vectorToGroup[i] = vectorToGroup[findActualGroup(i)];
 		}
 	}

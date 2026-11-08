@@ -1,4 +1,4 @@
-import React, { Component, PureComponent, ReactNode} from 'react';
+import React, { ReactNode} from 'react';
 import Log from './shared/Log';
 import FloatWindow from './FloatWindow';
 import ReactResizeDetector from 'react-resize-detector';

@@ -76,7 +76,7 @@ class UnmappedFocuserGraph extends React.PureComponent<FocuserGraphProps> {
                 data: [] as Array<{x:number, y:number}>
             }
             for(var o of Object.keys(propDef)) {
-                if ((o == "prop" || o == "color")) continue;
+                if ((o === "prop" || o === "color")) continue;
                 data[o] = propDef[o];
             }
         
@@ -250,9 +250,6 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
     static focusBtonHelp = Help.key("Start auto-focus", "Start a sequence of focus image, scanning a range of focuser positions, then use the best one found (best FHWM)");
     static stopBtonHelp = Help.key("Stop auto-focus", "Abort the current running auto-focus");
 
-    constructor(props: Props) {
-        super(props);
-    }
 
     start = async ()=>{
         return await BackendRequest.RootInvoker("focuser")("focus")(
@@ -290,7 +287,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
                         {this.props.status === 'error' ? this.props.error : this.props.status}
                     </ScrollableText>
                     <div className="PhdGraph_Item FocuserGraph">
-                        <div className="PhdGraph_Container">
+                        <div className="PhdGraph_Container e2e-ignore">
                             <FocuserGraph focuser={this.props.focuser}/>
                         </div>
                     </div>
@@ -328,7 +325,7 @@ class UnmappedFocuserView extends React.PureComponent<Props> {
 
     static mapStateToProps=()=> {
 
-        return (store: Store.Content, ownProps: Props) => {
+        return (store: Store.Content, ownProps: InputProps) => {
             let imagingSetup = ownProps.imagingSetupIdAccessor.fromStore(store);
 
             const imagingSetupConfig = ImagingSetupStore.getImagingSetup(store, imagingSetup);

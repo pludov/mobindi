@@ -35,7 +35,7 @@ import { BackofficeStatus } from "./shared/BackOfficeStatus";
 import * as RequestHandler from "./RequestHandler";
 
 import Sleep from "./Sleep";
-import { createTask } from "./Task.js";
+import { createTask, Task } from "./Task.js";
 import CancellationToken from "cancellationtoken";
 import ClientRequest from "./ClientRequest";
 import FilterWheel from "./FilterWheel";
@@ -44,6 +44,7 @@ import Notification from "./Notification";
 import Log from './Log';
 
 import * as Metrics from "./Metrics";
+import SystemDeviceManager from "./SystemDeviceManager";
 
 const logger = Log.logger(__filename);
 
@@ -52,6 +53,14 @@ const serverId = uuid.v4();
 var appStateManager = new JsonProxy<BackofficeStatus>();
 var appState = appStateManager.getTarget();
 let apiRoot: RequestHandler.APIImplementor;
+
+function parseRequestId(id: any) : string|null {
+    if ((typeof id !== "string")&&(typeof id !== "number")) {
+        logger.warn("Invalid request id", {id});
+        return null;
+    }
+    return `${id}`;
+}
 
 
 function initWss(server: http.Server) {
@@ -86,9 +95,8 @@ function initWss(server: http.Server) {
     wss.on('connection', (ws:WebSocket)=>{
         const clientUid = "#" + (clientId++);
         let client : Client;
-
         ws.on('message', function incoming(messageData:WebSocket.Data) {
-            logger.debug('received websocket message', {clientUid, messageData});
+            logger.trace('received websocket message', {clientUid, messageData});
 
             let message: any;
             try {
@@ -108,18 +116,36 @@ function initWss(server: http.Server) {
                 }
                 return;
             }
+            if (message.type === "srvProbe") {
+                client.onProbeReceived(message);
+                return;
+            }
+            if (message.type === "interrupt") {
+                const id = parseRequestId(message.id);
+                if (id === null) {
+                    ws.terminate();
+                    return;
+                }
+                client.cancelRequested(id);
+                return;
+            }
+
             if (message.type === "api") {
-                var id = message.id;
-                if (id === undefined) id = null;
+                const id = parseRequestId(message.id);
+                if (id === null) {
+                    ws.terminate();
+                    return;
+                }
 
                 const globalUid = client.uid + ':' + id;
 
                 logger.debug('API request', {clientUid, message, globalUid});
-
-                const request = new ClientRequest(globalUid, client);
+                const request = client.newRequest(id);
 
                 createTask<any>(undefined, async (task)=> {
-                    let _app, _func:string;
+                    request.task = task;
+
+                    let _app:string, _func:string;
                     _app = "N/A";
                     _func = "N/A";
                     try {
@@ -127,18 +153,24 @@ function initWss(server: http.Server) {
                         if (_app === undefined || ! Object.prototype.hasOwnProperty.call(apiRoot, _app)) {
                             throw new Error("Invalid _app: " + _app);
                         }
+                        request.app = _app;
+
                         const appImpl:RequestHandler.APIAppImplementor<any> = (apiRoot as any)[_app];
 
                         _func = message.details._func;
                         if (_func === undefined || !Object.prototype.hasOwnProperty.call(appImpl, _func)) {
                             throw new Error("Invalid _func: " + _app + "." + _func);
                         }
+                        request.func = _func;
 
                         logger.info('API request', {clientUid, globalUid, _app, _func});
                         const funcImpl = appImpl[_func];
                         let ret;
                         try {
-                            ret = await funcImpl(task.cancellation, message.details.payload);
+                            ret = await funcImpl(task.cancellation, message.details.payload, {
+                                stream: request.stream,
+                                setInterruptible: request.setInterruptible,
+                            });
                         } finally {
                             // Wait here to avoid sending inconsistent state
                             // (let all setimmediate settle down)
@@ -150,7 +182,7 @@ function initWss(server: http.Server) {
                     } catch(e) {
                         if (e instanceof CancellationToken.CancellationError) {
                             logger.info('API request canceled', {clientUid, globalUid, _app, _func});
-                            request.onCancel();
+                            request.onCanceled();
                         } else {
                             logger.warn('API request failed', {clientUid, globalUid, _app, _func}, e);
                             request.onError(e);
@@ -276,6 +308,9 @@ function init() {
 
     app.set('port', appState.uiConfig.directPort);
     server.listen({port: appState.uiConfig.directPort}, ()=> {
+
+        context.systemDeviceManager = new SystemDeviceManager();
+
         context.notification = new Notification(app, appStateManager, context as AppContext, serverId);
 
         context.imagingSetupManager = new ImagingSetupManager(app, appStateManager, context as AppContext);
@@ -300,6 +335,7 @@ function init() {
 
         context.astrometry = new Astrometry(app, appStateManager, context as AppContext);
 
+        context.systemDeviceManager!.run();
 
         apiRoot = {
             notification: context.notification.getAPI(),
@@ -313,6 +349,7 @@ function init() {
             imageProcessor: context.imageProcessor.getAPI(),
             phd: context.phd.getAPI(),
             imagingSetupManager: context.imagingSetupManager.getAPI(),
+            systemDeviceManager: context.systemDeviceManager.getAPI(),
         };
         
         initWss(server);

@@ -3,7 +3,6 @@ import Log from './shared/Log';
 import * as Store from "./Store";
 import * as Help from "./Help";
 import * as BackendRequest from "./BackendRequest";
-import { atPath } from './shared/JsonPath';
 import CancellationToken from 'cancellationtoken';
 import * as GeolocStore from "./GeolocStore";
 import * as Utils from './Utils';
@@ -12,11 +11,10 @@ const logger = Log.logger(__filename);
 
 type InputProps = {
     // name of the device (indi id)
-    activePath: string;
+    currentDevice: null|string;
 }
 
 type MappedProps = {
-    currentDevice: null|string;
     state: "NotFound"|"Busy"|"Available";
 
     // coords in INDI
@@ -50,7 +48,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
     }
 
     render() {
-        var title, enabled = false;
+        var title;
         if (this.props.state === "NotFound") {
             return null;
         }
@@ -58,7 +56,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
         switch(this.props.state) {
             case 'Busy':
                 title='Switching...';
-                enabled = false;
+                break;
             default:
                 title = 'Connect';
                 good = this.props.acquired
@@ -66,7 +64,6 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
                             && goodDelta(this.props.latitude, this.props.LAT, 0.01)         // ~1 km
                             && goodDelta(this.props.longitude, this.props.LONG, 0.01, 360)  // ~1 km at equator
                             && goodDelta(this.props.altitude, this.props.ELEV, 10)          // 10 meters
-                enabled = false;
         }
         title = "\u{1F4CD}"
         return <input type="button"
@@ -116,30 +113,26 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
     static mapStateToProps(store: Store.Content, ownProps: InputProps):MappedProps {
         const geoloc = GeolocStore.currentGeoloc(store);
-        var currentDevice = atPath(store, ownProps.activePath);
+        const currentDevice = ownProps.currentDevice;
         if (currentDevice === null || currentDevice === undefined) {
             return {
                 ...geoloc,
-                currentDevice: null,
                 state: "NotFound"
             }
         }
 
 
-        var prop;
         try {
             const vec = store.backend.indiManager!.deviceTree[currentDevice].GEOGRAPHIC_COORD;
             if (vec === undefined) {
                 return {
                     ...geoloc,
-                    currentDevice: null,
                     state: "NotFound"
                 }
             }
-            if (vec.$state == "Busy") {
+            if (vec.$state === "Busy") {
                 return {
                     ...geoloc,
-                    currentDevice,
                     state: "Busy"
                 }
             }
@@ -159,14 +152,12 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
             }
             return {
                 ...geoloc,
-                currentDevice,
                 state : "Available",
                 ...pos
             }
         } catch(e) {
             return {
                 ...geoloc,
-                currentDevice,
                 state: "NotFound",
             }
         }

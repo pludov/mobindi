@@ -12,10 +12,9 @@ interface IMapStateToProps<TOwnProps, State, TStateProps> {
 }
 
 export function Connect<Class, TOwnProps, State, TStateProps >(
-            ctor : (new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>))&IMapStateToProps<TOwnProps,State, TStateProps>
+            ctor : (new (props:TOwnProps & TStateProps)=>Class & React.PureComponent<TOwnProps & TStateProps,State>)&IMapStateToProps<TOwnProps,State, TStateProps>
         )
             : new (props:TOwnProps)=>(React.PureComponent<TOwnProps,State>)
 {
     return reduxConnect(ctor.mapStateToProps, null, null, {forwardRef:true} as any)(ctor as any) as any;
 }
-

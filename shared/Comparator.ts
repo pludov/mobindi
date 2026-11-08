@@ -25,7 +25,7 @@ export class Comparator<Item> {
     static ordering<Item>()
     {
         return new Comparator<Item>((a, b)=>
-            a == b ? 0:
+            a === b ? 0:
                 a > b ? 1 : -1
         );
     }

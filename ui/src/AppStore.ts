@@ -1,8 +1,6 @@
 import Log from './shared/Log';
-import { BackofficeStatus } from '@bo/BackOfficeStatus';
 import * as Store from "./Store";
 import * as Actions from "./Actions";
-import * as JsonProxy from './shared/JsonProxy';
 import { BackendStatus } from './BackendStore';
 
 const logger = Log.logger(__filename);
@@ -27,7 +25,7 @@ const SwitchToApp: Actions.Handler<{ value: string }>
     = (state, action) => {
         logger.debug('SwitchToApp', {action});
         var appid = action.value;
-        if (state.currentApp == appid) return state;
+        if (state.currentApp === appid) return state;
         return {
             ...state,
             currentApp: appid
@@ -68,7 +66,7 @@ function adjustChooseValidApp(state:Store.Content) {
             var app = state.backend.apps[key];
             if (bestApp == null
                 || (bestApp.position > app.position)
-                || (bestApp.position == app.position && bestKey! < key)) {
+                || (bestApp.position === app.position && bestKey! < key)) {
                 bestApp = app;
                 bestKey = key;
             }

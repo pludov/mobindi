@@ -97,14 +97,12 @@ export class SequenceParamClassifier {
     extractJcsIdForParameters=(e: SequenceStepParameters) : string=>
     {
         const result: SequenceStepParameters = {};
-        let failed = false;
         const scan=(map : RecursiveMap, pid: number)=>{
             const singleMap = map.size === 1;
             const key = this.exposureParamsOrdered[pid];
             const value = e[key];
 
             if (!map.has(value)) {
-                failed = true;
                 return;
             }
 

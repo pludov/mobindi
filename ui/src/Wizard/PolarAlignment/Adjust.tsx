@@ -1,14 +1,13 @@
 import React from 'react';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
 import * as DegreeDistanceDisplay from '../../utils/DegreeDistanceDisplay';
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings, PolarAlignStatus } from '@bo/BackOfficeStatus';
 import StatusLabel from '../../Sequence/StatusLabel';
 import ImageControl from '../ImageControl';
-import ScopeJoystick from '../../ScopeJoystick';
 import PolarAlignCalibrationAmount from './PolarAlignCalibrationAmount';
 import PolarAlignCalibrationScrewRatio from './PolarAlignCalibrationScrewRatio';
 import PolarAlignCalibrationScrewValue from './PolarAlignCalibrationScrewValue';

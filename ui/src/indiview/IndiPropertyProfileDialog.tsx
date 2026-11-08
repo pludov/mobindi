@@ -6,7 +6,7 @@ import CancellationToken from 'cancellationtoken';
 import * as Store from "../Store";
 import * as Help from '../Help';
 import * as BackendRequest from "../BackendRequest";
-import { IndiProfilePropertyConfiguration, IndiProfilesConfiguration, ProfilePropertyAssociation } from '@bo/BackOfficeStatus';
+import { IndiProfilesConfiguration, ProfilePropertyAssociation } from '@bo/BackOfficeStatus';
 import "./IndiManagerView.css";
 import { get3D } from '../shared/Obj';
 import { defaultMemoize } from 'reselect';
@@ -42,9 +42,6 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
     private static forgetBtonHelp = Help.key("Remove from profile", "Forget the value in this profile");
     private static addBtonHelp = Help.key("Add to profile", "Record the current value in this profile");
 
-    constructor(props:Props) {
-        super(props);
-    }
 
     lockProperty = async (profileUid: string)=>{
         await BackendRequest.RootInvoker("indi")("addToProfile")(
@@ -118,7 +115,7 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
                         Expected value: {
                             p.profile_value === undefined ?
                                 <i>not set</i> :
-                                <span style={{color: p.mismatch ? "red" : "green"}}>{p.profile_value}</span>
+                                <span style={{color: p.apply ? (p.mismatch ? "red" : "green") : "grey"}}>{p.profile_value}</span>
                             }
                         <br/>
 
@@ -184,6 +181,9 @@ class IndiPropertyProfileDialog extends React.PureComponent<Props> {
 
                 ret.profiles.push(profileItem);
             }
+
+            // Make sure the most precise profile is at the end (in sync with logic everywhere else)
+            ret.profiles.reverse();
 
             return ret;
         });

@@ -1,0 +1,19 @@
+input.TrackButton {
+    width: 3ch;
+}
+
+input.TrackButton.idle {
+    background-color: red;
+    color: white;
+    
+}
+
+input.TrackButton.tracking {
+    background-color: green;
+    color: white;
+}
+
+input.TrackButton:disabled {
+    filter: unset;
+    color: #303030;
+}

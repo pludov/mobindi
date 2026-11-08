@@ -24,9 +24,6 @@ type Props = InputProps & MappedProps;
 
 export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
     fitsViewer = React.createRef<FitsViewer>();
-    constructor(props:Props) {
-        super(props);
-    }
 
     saveViewSettings=(e:FitsViewerFullState)=>{
         Actions.dispatch<FitsViewerStore.FitsViewerActions>()("setViewerState", {

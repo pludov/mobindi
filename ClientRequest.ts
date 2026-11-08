@@ -5,19 +5,25 @@ import Client from "./Client";
 const logger = Log.logger(__filename);
 
 export default class ClientRequest {
-    private promise: Task<any>|undefined;
-    cancelRequested: boolean;
     uid: string;
     client: Client|undefined;
     finalStatus: any;
 
+    app: string;
+    func: string;
+
+    cancelRequested: boolean = false;
+    interruptible: boolean = false;
+    cancelReason: any;
+    task?: Task<any>;
+
     constructor(uid:string, fromClient:Client) {
-        this.promise = undefined;
         this.cancelRequested = false;
+        this.app = "???";
+        this.func = "???";
         this.uid = uid;
 
         this.client = fromClient;
-        this.client.attachRequest(this);
         // What was sent when promise terminated
         this.finalStatus = {
             type: 'requestEnd',
@@ -27,12 +33,16 @@ export default class ClientRequest {
         };
     }
 
-    private logContext(): object {
-        return {uid: this.uid, clientUid: this.client?.uid};
-    }
-
     // Dettach request from client
+    // This prevent further communication attempts
     dettach() {
+        if (this.client === undefined) {
+            return;
+        }
+
+        if (this.client.requests.get(this.uid) === this) {
+            this.client.requests.delete(this.uid);
+        }
         this.client = undefined;
     }
 
@@ -43,14 +53,13 @@ export default class ClientRequest {
         this.client.reply(content);
     }
 
-    onError(err:any) {
+    readonly onError=(err:any)=>{
         if (err == undefined) {
             err = null;
         } else {
             err = err.stack || '' + err;
         }
         logger.warn('Request error', this.logContext(), err);
-        this.promise = undefined;
         this.finalStatus = {
             type: 'requestEnd',
             uid: this.uid,
@@ -61,11 +70,21 @@ export default class ClientRequest {
         this.dettach();
     }
 
-    success (rslt:any) {
+    readonly stream = async (payload: any) => {
+        if (this.client === undefined) {
+            return;
+        }
+        await this.client.stream({
+            type: 'requestStream',
+            uid: this.uid,
+            payload
+        });
+    }
+
+    readonly success= (rslt:any)=>{
         if (rslt == undefined) rslt = null;
         logger.info('Request success', this.logContext());
-        logger.debug('Request result', {...this.logContext, rslt});
-        this.promise = undefined;
+        logger.debug('Request result', {...this.logContext(), rslt});
         this.finalStatus = {
             type: 'requestEnd',
             uid: this.uid,
@@ -76,9 +95,8 @@ export default class ClientRequest {
         this.dettach();
     }
 
-    onCancel() {
+    onCanceled() {
         logger.info('Request canceled', this.logContext());
-        this.promise = undefined;
         this.finalStatus = {
             type: 'requestEnd',
             uid: this.uid,
@@ -87,4 +105,47 @@ export default class ClientRequest {
         this.dispatch(this.finalStatus);
         this.dettach();
     }
+
+    logContext() {
+        return {
+            globalUid: this.uid,
+            app: this.app,
+            func: this.func,
+        }
+    }
+
+    cancelIfRequested() {
+        if (!this.cancelRequested) {
+            return;
+        }
+        if (!this.interruptible) {
+            return;
+        }
+        logger.warn('Requesting cancellation of api call', this.logContext());
+        this.task?.cancel(this.cancelReason);
+    }
+
+    setInterruptible=(interruptible: boolean)=>{
+        if (this.interruptible === interruptible) {
+            return;
+        }
+
+        logger.debug('Request interruptible changed', {...this.logContext(), interruptible});
+        this.interruptible = interruptible;
+
+        this.cancelIfRequested();
+    }
+
+    requestCancellation(reason: any) {
+        if (this.cancelRequested) {
+            logger.debug('Multiple request cancellation ignored', {...this.logContext(), reason});
+            return;
+        }
+        logger.info('Request cancellation asked', {...this.logContext(), reason});
+        this.cancelRequested = true;
+        this.cancelReason = reason;
+
+        this.cancelIfRequested();
+    }
+
 }

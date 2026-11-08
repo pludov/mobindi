@@ -1,15 +1,10 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
-import '../AstrometryView.css';
-import AstrometrySettingsView from '../AstrometrySettingsView';
 import * as Store from '../Store';
-import * as IndiManagerStore from '../IndiManagerStore';
 import * as BackendRequest from "../BackendRequest";
-import { AstrometryWizards } from '@bo/BackOfficeAPI';
 import "./BaseView.css";
 
 type InputProps = {
-    showSettings : ()=>(void);
 }
 
 type MappedProps = {

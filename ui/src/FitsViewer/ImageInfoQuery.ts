@@ -1,7 +1,7 @@
 import Log from '../shared/Log';
 import $ from 'jquery';
 import './FitsViewer.css'
-import { ImageSize } from './Types';
+import { ImageDetails } from './Types';
 
 const logger = Log.logger(__filename);
 
@@ -9,13 +9,13 @@ const logger = Log.logger(__filename);
 class ImageInfoQuery {
     path: string;
     ajax: JQueryXHR|null = null;
-    listeners: Array<{id: Object, cb: (w: ImageSize|null)=>void}> = [];
+    listeners: Array<{id: Object, cb: (w: ImageDetails|null)=>void}> = [];
 
     constructor(path: string) {
         this.path = path;
     }
 
-    register(id: Object, cb: (w: ImageSize|null)=>void) {
+    register(id: Object, cb: (w: ImageDetails|null)=>void) {
         return new Promise((res, rej)=> {
             this.listeners.push({
                 id,
@@ -41,7 +41,7 @@ class ImageInfoQuery {
         }
     }
 
-    broadcast(rslt: ImageSize|null) {
+    broadcast(rslt: ImageDetails|null) {
         for(const target of [...this.listeners]) {
             target.cb(rslt);
         }

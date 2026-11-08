@@ -1,10 +1,10 @@
 import React from 'react';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from "../../Store";
 import * as AstrometryStore from "../../AstrometryStore";
 import * as AccessPath from '../../shared/AccessPath';
 import * as BackendAccessor from "../../utils/BackendAccessor";
-import { PolarAlignSettings, PolarAlignStatus, PolarAlignPositionMessage, PolarAlignAxisSettings } from '@bo/BackOfficeStatus';
+import { PolarAlignSettings } from '@bo/BackOfficeStatus';
 import * as Help from "../../Help";
 import Text from '../..//primitives/Text';
 

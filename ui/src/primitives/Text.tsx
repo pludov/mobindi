@@ -8,7 +8,7 @@ type Props = {
     helpKey?: Help.Key;
 }
 
-const MappedText = Store.Connect<BaseText.default<string|undefined|null>, BaseText.InputProps<string|undefined|null>, {}, {}>(BaseText.default);
+const MappedText = Store.Connect<BaseText.default<string|undefined|null>, BaseText.InputProps<string|undefined|null>, {}, BaseText.MappedProps<string|undefined|null>>(BaseText.default);
 
 class Text extends React.PureComponent<Props> {
     render() {

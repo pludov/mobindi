@@ -12,8 +12,8 @@ It will typically run on a Raspberry PI or equivalent, using the Indi drivers, a
 It provides a fully responsive user interface to control and monitor various aspects of a astrophotograpy session.
 
 Currently the following features are supported:
-  * Autostart phd2 and indiserver
   * Interface to indi drivers (display connected, connect/disconnect devices, configure, ...)
+  * Control and monitor the telescope mount (incl. polar alignment)
   * Take and display single shot and loop exposure for Indi cameras
   * Complex astrophoto sequence execution incl. dithering, filter change, pause/resume, monitoring, ...   
   * Efficient image visualisation (incl zoom, levels) even over low quality wifi 
@@ -30,22 +30,28 @@ The recommended browsers are Firefox and Chrome.
 Clickable area are big enough to keep the use easy.
 
 Only events are sent between server to UI (unlike VNC which transfer bitmaps), so the UI will stay responsive even over relatively slow link.
-(A wifi hotspot should works at 20/30 meters in a field)
+(A wifi hotspot will easily works at 20/30 meters in a field)
 
 The UI can also be displayed on a dedicated LCD display, using a browser in kiosk mode.
 
-This software is still in beta stage; if it proves useful, lots of features will be added, to cover most aspects of a deep sky astrophoto setup. (alignment, image sequences, astrometry, manual/auto focus, ...)
+I now consider this software robust enough to use it for my own astrophotography sessions, in the field, from a mobile phone.
+This includes polar alignment, astrometry, image sequences, manual/auto focus, ...
 
 Remark: this is a light solution for astrophotography on raspberry pi and the likes, designed to be used for driving a mobile setup - not a full observatory solution. You can check ekos/kstar for this purpose. 
 
 ## What's new
 
-### Next release
+### Release 2.0.0 (Dec 2026)
   * Improved image display quality & speed using tiling and INDI's shared memory blobs
+  * Telescope control view:
+
+![Telescope control view](docs/scope-control.png?raw=true "Telescope control view")
   * Reworked PHD screen, including live display of frame, lock position and easier controls
   * Auto adjustment of focuser according to temp & filters
-  * Audio alerts to wake up the user when some sequence parameters thresolds are crossed
-  * Metrics endpoint for monitoring using Prometheus.
+  * Audio alerts to wake up the user when some sequence parameters thresolds are crossed (background, fwhm, etc.)
+  * Metrics endpoint for monitoring using Grafana + Prometheus or victoria metrics:
+
+![Example Grafana dashboard](docs/grafana-example.png?raw=true "Example Grafana dashboard")
   * Improved sequence editor allowing to iterate various values of a parameter (like filters ...)
   * Histogram inspection available from image viewer
   * Sequence usability improvment, including per image stats (fwhm, background adu level, ...)

@@ -7,9 +7,10 @@ import { IndiProfilesConfiguration } from '@bo/BackOfficeStatus';
 import * as Help from '../Help';
 import * as BackendRequest from "../BackendRequest";
 import Modal from '../Modal';
-import IndiProfileNewDialog from './IndiProfileNewDialog';
+import IndiProfileNewDialog, { UnmappedIndiProfileNewDialog } from './IndiProfileNewDialog';
 import CancellationToken from 'cancellationtoken';
 import IndiProfileEditDialog from './IndiProfileEditDialog';
+import "./IndiProfileDialog.css";
 
 type InputProps = {
 }
@@ -35,9 +36,13 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
     private static confirmDropBtonHelp = Help.key("Delete", "Delete the profile");
     private static editProfileBtonHelp = Help.key("Edit", "Edit the profile");
 
+    private static moveProfileUpBtonHelp = Help.key("Move Up", "Move the profile up in the list.\n When multiple profiles disagree, the last one in the list has precedence.");
+    private static moveProfileDownBtonHelp = Help.key("Move Down", "Move the profile down in the list.\n When multiple profiles disagree, the last one in the list has precedence.");
+    private static newProfileBtonHelp = Help.key("New profile", "Create a new empty profile");
+
     private dropProfileConfirmDialog = React.createRef<Modal>();
     private newProfileDialogModal = React.createRef<Modal>();
-    private newProfileDialog = React.createRef<IndiProfileNewDialog>();
+    private newProfileDialog = React.createRef<UnmappedIndiProfileNewDialog>();
     private editProfileDialog = React.createRef<Modal>();
 
     constructor(props:Props) {
@@ -58,6 +63,16 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
         console.log('Going to edit', uid);
         this.setState({editProfile: uid},
             ()=>this.editProfileDialog.current!.open());
+    }
+
+    moveProfile = async (uid: string, direction: number)=>{
+        console.log('Going to move', uid, direction);
+        await BackendRequest.RootInvoker("indi")("moveProfile")(
+            CancellationToken.CONTINUE,
+            {
+                uid,
+                direction
+            });
     }
 
     confirmDropProfile = (t: string)=> {
@@ -91,12 +106,26 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
                 <>
                     <div>Select active profile(s):</div>
                     <ul>
-                        {profiles.map((profile)=>
-                            <li key={profile}>
+                        {profiles.map((profile, index)=>
+                            <li key={profile} className="profile_list_item">
                                 <input type='checkbox'
                                     checked={this.props.indiManagerProfiles.byUid[profile]?.active}
                                     onChange={()=>this.switchProfile(profile)}/>
-                                {this.props.indiManagerProfiles.byUid[profile]?.name || profile}
+                                <span className="profile_list_title"> 
+                                    {this.props.indiManagerProfiles.byUid[profile]?.name || profile}
+                                </span>
+                                <input className="GlyphBton"
+                                    type="button" value="▲"
+                                    onClick={()=>this.moveProfile(profile, -1)}
+                                    disabled={index===0}
+                                    {...IndiProfileDialog.moveProfileUpBtonHelp.dom()}
+                                    />
+                                <input className="GlyphBton"
+                                    type="button" value="▼"
+                                    onClick={()=>this.moveProfile(profile, 1)}
+                                    disabled={index===profiles.length-1}
+                                    {...IndiProfileDialog.moveProfileDownBtonHelp.dom()}
+                                    />
                                 <input className="GlyphBton"
                                     type='button' value='✏️'
                                     onClick={()=>this.editProfile(profile)}
@@ -151,8 +180,8 @@ class IndiProfileDialog extends React.PureComponent<Props, State> {
                     close={()=>this.newProfileDialogModal.current!.close()}/>
 
             </Modal>
-            <input className="GlyphBton" {...IndiProfileDialog.dropProfileBtonHelp.dom()}
-                                type='button' value='⭐New profile' onClick={this.onNewProfileClick}/>
+            <input className="GlyphBton" {...IndiProfileDialog.newProfileBtonHelp.dom()}
+                                type='button' value='⭐️New profile' onClick={this.onNewProfileClick}/>
             </>
         );
     }

@@ -314,7 +314,7 @@ function applyEquatorialAberration(meanPosition: RADECDEG, JD: number, direction
     let pz = Math.sin(meanDec);
 
 
-    if (direction == 1) {
+    if (direction === 1) {
         [px, py, pz] = shiftUnitVector([px, py, pz], [X, Y, Z]);
     } else {
         // The simple approach to use -[x,y,z] gives a max error of ~0.0005078771283073923"
@@ -360,7 +360,8 @@ export {
 };
 
 // Default export for convenience
-export default {
+const aberration = {
     getEquatorialAberration,
     cancelEquatorialAberration,
 };
+export default aberration;

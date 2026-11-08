@@ -6,7 +6,6 @@ import * as React from 'react';
 import chartjs from "chart.js";
 import * as ReactChartJS from "react-chartjs-2";
 import * as ChartJSZoomPlugin from "./utils/ChartJSZoomPlugin";
-import moment from 'moment';
 
 import Log from './shared/Log';
 import * as Obj from './shared/Obj';
@@ -228,6 +227,8 @@ class PhdGraph extends React.PureComponent<Props, State> {
         const props = [
             {prop: 'RADistance', label: 'RA', color:'#ff0000'},
             {prop:'DECDistance', label: 'DEC', color:'#0000ff'},
+            {prop: 'SNR', label: 'SNR', color: '#2ecc71', yAxisID: 'snr', fill: false},
+            {prop: 'secondarySNR', label: 'Sec SNR', color: '#9b59b6', yAxisID: 'snr', fill: false},
             {prop: 'settling', color: '#808080',
                     yAxisID: 'settling',
                     backgroundColor: 'rgba(60,100,1,0.5)',
@@ -249,7 +250,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
                 stepped: false,
                 label: 'cal',
                 flipFlop: true
-            }
+            },
 
             ];
 
@@ -315,7 +316,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
                 data: []
             }
             for(var o of Object.keys(propDef)) {
-                if ((o == "prop" || o == "color")) continue;
+                if ((o === "prop" || o === "color")) continue;
                 data[o] = propDef[o];
             }
 
@@ -379,6 +380,18 @@ class PhdGraph extends React.PureComponent<Props, State> {
                         min: 0,
                         max: 1.0
                     }
+                },
+                {
+                    id: 'snr',
+                    type: 'linear',
+                    position: 'right',
+                    gridLines: {
+                        display: false
+                    },
+                    ticks: {
+                        beginAtZero: true,
+                        min: 0,
+                    }
                 }
                 ],
                 xAxes: [{
@@ -440,7 +453,7 @@ class PhdGraph extends React.PureComponent<Props, State> {
 
         const currentZoom = this.getCurrentZoom();
         return (<div className="PhdGraph_Item">
-                    <div className="PhdGraph_Container">
+                    <div className="PhdGraph_Container e2e-ignore">
                         <ReactChartJS.Line  data={chartData} options={chartOptions} plugins={ChartJSZoomPlugin.plugins()}/>
                     </div>
                     <div className="PhdControlBlock">

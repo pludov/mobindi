@@ -7,7 +7,7 @@
 
 static std::string createTempDir(const std::string & baseName)
 {
-    char * tmpdir = getenv("TMPDIR");
+    const char * tmpdir = getenv("TMPDIR");
     if (tmpdir == nullptr) {
         tmpdir = "/tmp";
     }

@@ -372,7 +372,7 @@ void LookupTable::init(int imin, int imed, int imax)
 		this->med = imed;
 		this->split = imin;
 		this->shift1 = 0; // unused
-		this->data1 == 0;
+		this->data1 = 0;
 		this->shift2 = 16;
 		this->data2 = (uint8_t*)malloc(1);
 		this->data2[0] = 0;

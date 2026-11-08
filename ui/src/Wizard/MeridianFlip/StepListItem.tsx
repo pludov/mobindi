@@ -1,9 +1,8 @@
 import React from 'react';
 import Collapsible from 'react-collapsible';
-import Log from '../../shared/Log';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from '../../Store';
-import { MeridianFlipStatus, MeridianFlipStep, MeridianFlipStepBase, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import { MeridianFlipStep } from '@bo/BackOfficeStatus';
 import "../PolarAlignment/PolarAlignment.css";
 import StepDetails from './StepDetails';
 
@@ -11,7 +10,7 @@ type InputProps = {
     id: string;
 };
 
-type MappedProps = Pick<MeridianFlipStep, "status"|"error"|"title"> & {
+type MappedProps = Partial<Pick<MeridianFlipStep, "status"|"error"|"title">> & {
     opened?: boolean;
 };
 
@@ -49,7 +48,7 @@ class StepListItem extends React.PureComponent<Props, State> {
     }
 
     static getDerivedStateFromProps(newProps:Props, state:State) {
-        if (newProps.opened != state.prevOpened) {
+        if (newProps.opened !== state.prevOpened) {
 
             if (state.explicitOpenStatus !== undefined) {
                 return {
@@ -71,7 +70,7 @@ class StepListItem extends React.PureComponent<Props, State> {
                 <div className="MeridianFlipStepItemFirstRow">
                     <div className="MeridianFlipStepTitle">
                         <span className="MeridianFlipStepStatus">
-                            {statusDesc[this.props.status]}
+                            {this.props.status !== undefined ? statusDesc[this.props.status] : null}
                         </span>
                         <span className="MeridianFlipStepTitle">
                             {this.props.title}
@@ -99,14 +98,14 @@ class StepListItem extends React.PureComponent<Props, State> {
         </>
     }
 
-    static mapStateToProps(store: Store.Content, props: InputProps) {
+    static mapStateToProps(store: Store.Content, props: InputProps): MappedProps {
         const wizard = store.backend.astrometry?.runningWizard?.meridianFlip;
         const opened = wizard?.activeStep === props.id;
         const steps = wizard?.steps.byuuid||{};
         if (!Object.prototype.hasOwnProperty.call(steps, props.id)) {
             return {};
         }
-        const {id, status, error, title} = steps[props.id];
+        const {status, error, title} = steps[props.id];
         return {status, error, title, opened};
     }
 }

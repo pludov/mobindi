@@ -1,8 +1,6 @@
 import * as React from 'react';
 
-import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import CancellationToken from 'cancellationtoken';
-import Log from './shared/Log';
 import * as FocuserDelta from './shared/FocuserDelta';
 import * as Utils from './Utils';
 import * as BackendRequest from "./BackendRequest";
@@ -10,8 +8,6 @@ import * as Store from "./Store";
 
 import './FocuserDeltaView.css'
 import * as ImagingSetupStore from './ImagingSetupStore';
-
-const logger = Log.logger(__filename);
 
 type InputProps = {
     imagingSetup: string | null;

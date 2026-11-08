@@ -1,7 +1,5 @@
 import * as React from 'react';
-import * as Store from './Store';
 import './NotificationContainer.css';
-import Notification from './Notification';
 
 type Props = {
     list: string[];

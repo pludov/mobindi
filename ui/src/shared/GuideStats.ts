@@ -19,7 +19,7 @@ export function computeGuideStats(steps:Array<PhdGuideStep>):PhdGuideStats
                 vals.push(step[key] as number);
             }
         }
-        if (vals.length == keys.length) {
+        if (vals.length === keys.length) {
             vals.push(Math.sqrt(vals.reduce((acc, v)=>(acc+v*v), 0)));
             for(let i = 0; i <vals.length; ++i) {
                 allVals[i].push(vals[i]);
@@ -43,7 +43,7 @@ export function computeGuideStats(steps:Array<PhdGuideStep>):PhdGuideStats
 
     function calcPeak(val:number, div:number)
     {
-        if (div == 0) {
+        if (div === 0) {
             return null;
         }
         return val;

@@ -211,7 +211,7 @@ class ScreenMouseMoveListener {
         // Start a timer
         this.cancelMenuTimer();
         var activeTouches = Object.keys(this.touches);
-        if (activeTouches.length == 1) {
+        if (activeTouches.length === 1) {
             const touch  = this.touches[activeTouches[0]];
             const where = {x: touch.x, y: touch.y};
             this.menuTimerStart = new Date().getTime();
@@ -330,18 +330,13 @@ class ScreenMouseMoveListener {
                 this.pushAction({zoom: {cx: cx - offset.left, cy: cy - offset.top, z: after.d / before.d}});
             }
 
-            if (before.x != after.x || before.y != after.y) {
-                var dx = after.x - before.x;
-                var dy = after.y - before.y;
-            }
-
-        } else if (activeTouches.length == 1 && Object.prototype.hasOwnProperty.call(newTouches, activeTouches[0])) {
-            var uid = activeTouches[0];
+        } else if (activeTouches.length === 1 && Object.prototype.hasOwnProperty.call(newTouches, activeTouches[0])) {
+            const uid = activeTouches[0];
             var oldPos = this.touches[uid];
             var newPos = newTouches[uid];
             // It's a drag
-            var dx = newPos.x - oldPos.x;
-            var dy = newPos.y - oldPos.y;
+            const dx = newPos.x - oldPos.x;
+            const dy = newPos.y - oldPos.y;
 
             this.pushAction({drag: {dx, dy}});
 
@@ -358,7 +353,7 @@ class ScreenMouseMoveListener {
     }
 
     readonly mousedown=(e:JQuery.MouseDownEvent<HTMLDivElement>)=>{
-        if (e.which == 1) {
+        if (e.which === 1) {
             this.mouseIsDown = true;
             this.setMouseDragged(false);
             this.mouseDragPos = {x: e.originalEvent!.pageX, y: e.originalEvent!.pageY};
@@ -389,7 +384,7 @@ class ScreenMouseMoveListener {
     }
 
     private readonly mouseup=(e:JQuery.MouseUpEvent<HTMLDivElement>)=>{
-        if (e.which == 1) {
+        if (e.which === 1) {
             this.mouseIsDown = false;
             e.preventDefault()
 
@@ -399,7 +394,7 @@ class ScreenMouseMoveListener {
     }
 
     private readonly setMouseDragged=(to:boolean)=>{
-        if (this.mouseDragged == to) return;
+        if (this.mouseDragged === to) return;
         this.mouseDragged = to;
         this.child.css('pointer', to ? 'hand' : 'inherit');
     }

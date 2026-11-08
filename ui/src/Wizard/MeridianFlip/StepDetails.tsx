@@ -1,16 +1,14 @@
 import React from 'react';
-import Collapsible from 'react-collapsible';
-import Log from '../../shared/Log';
-import '../../AstrometryView.css';
+import '../BaseView.css';
 import * as Store from '../../Store';
-import { MeridianFlipStatus, MeridianFlipStep, MeridianFlipStepBase, PolarAlignStatus } from '@bo/BackOfficeStatus';
+import { MeridianFlipStep } from '@bo/BackOfficeStatus';
 import "../PolarAlignment/PolarAlignment.css";
 
 type InputProps = {
     id: string;
 };
 
-type MappedProps = MeridianFlipStep;
+type MappedProps = Partial<MeridianFlipStep>;
 
 type Props = InputProps & MappedProps;
 

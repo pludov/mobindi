@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import FitsViewer, { FitsViewerContext } from './FitsViewer';
 
 interface FitsChildToken {
@@ -25,7 +25,7 @@ class FitsViewerPositionedItem extends React.PureComponent<Props> {
     }
 
     componentDidUpdate(prevProps: Props) {
-        if (prevProps?.viewerContext != this.props.viewerContext) {
+        if (prevProps?.viewerContext !== this.props.viewerContext) {
             // Kill the previous token
             if (this.token) {
                 this.token.free();
@@ -38,7 +38,7 @@ class FitsViewerPositionedItem extends React.PureComponent<Props> {
                     this.token.setPosition(this.props.x, this.props.y);
                 }
             }
-        } else if (prevProps?.x != this.props.x || prevProps?.y != this.props.y) {
+        } else if (prevProps?.x !== this.props.x || prevProps?.y !== this.props.y) {
             if (this.token) {
                 this.token.setPosition(this.props.x, this.props.y);
             }

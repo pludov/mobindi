@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 
 export type Props = {
     onFinishMove: ()=>(void);
@@ -8,9 +8,6 @@ export type Props = {
 }
 
 export default class LevelBar extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
-    }
     
     private readonly sendUpdate=(v:React.ChangeEvent<HTMLInputElement>)=>{
         this.props.onChange(this.props.property, v.target.valueAsNumber);

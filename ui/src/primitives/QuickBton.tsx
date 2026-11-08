@@ -1,6 +1,5 @@
 import * as React from 'react';
 import * as Help from '../Help';
-import * as Store from '../Store';
 import "./QuickBton.css";
 
 type Props = {

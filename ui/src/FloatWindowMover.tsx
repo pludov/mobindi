@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import FloatContainer, {FloatContainerContext} from './FloatContainer';
 import $ from 'jquery';
 import MouseMoveListener from './MouseMoveListener';

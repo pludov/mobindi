@@ -2,7 +2,7 @@ import Log from '../shared/Log';
 import * as Obj from '../shared/Obj';
 import './FitsViewer.css'
 import { EventEmitter } from 'events';
-import { getBestFitForSize, growToBinBoundary, intersect, pointMax, pointMin, rectInclude } from './ImageUtils';
+import { growToBinBoundary, intersect, pointMax, pointMin, rectInclude } from './ImageUtils';
 import ImageInfoQuery from './ImageInfoQuery';
 import { ImageDetails, ImageSize, Levels, Rectangle, SubFrame } from './Types';
 
@@ -342,7 +342,7 @@ export class ImageLoader {
             bin = 0;
         }
 
-        let quality = bin == 0 ? 92 : 85;
+        let quality = bin === 0 ? 92 : 85;
         if (this.param.path.startsWith("stream:")) {
             // Streaming get lower quality for faster transfert
             quality -= 5;

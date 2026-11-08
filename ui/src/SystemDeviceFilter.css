@@ -1,0 +1,24 @@
+div.systemDeviceFilterView {
+    margin-left: 1em;
+    max-width: 45vw;
+    border: 1px solid #808080;
+    background: #151515;
+}
+.systemDeviceFilterView ul {
+    margin-top: 0.1em;
+    margin-bottom: 0.1em;
+    padding-left: 1.2em;
+    width: 100%;
+}
+
+.systemDeviceFilterViewLogic{
+    margin-top: 0.3em;
+    min-width: 20vw;
+}
+
+
+.systemDeviceFilterTitle {
+    display: inline-block;
+    height: 2em;
+    vertical-align: sub;
+}

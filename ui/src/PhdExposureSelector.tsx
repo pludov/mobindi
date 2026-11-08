@@ -1,4 +1,4 @@
-import * as React from 'react';
+
 import { connect } from 'react-redux';
 import * as Store from './Store';
 import * as Help from './Help';
@@ -31,8 +31,8 @@ function getId(x:number|null) {
     return "" + x;
 }
 
-function availablesGenerator(i: SelectorProps):Array<number|null> {
-    return i.availables || [];
+function availablesGenerator(i: PromiseSelector.Props<number|null>):Array<number|null> {
+    return (i as SelectorProps).availables || [];
 }
 
 async function setValue(d:string) {
@@ -56,6 +56,6 @@ const PhdExposureSelector = connect((store: Store.Content, ownProps: InputProps)
         setValue,
         helpKey: phdExposureSelectorHelp,
     }
-})(PromiseSelector.default) as new (props:InputProps)=>(React.PureComponent<InputProps>);
+})(PromiseSelector.default<number|null>);
 
 export default PhdExposureSelector;

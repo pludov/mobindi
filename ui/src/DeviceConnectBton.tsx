@@ -49,6 +49,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
             case 'Busy':
                 className="DeviceConnectBtonBusy BusyInfiniteMove";
                 enabled = false;
+                break;
             default:
                 className="DeviceConnectBtonOther";
                 enabled = false;
@@ -86,11 +87,10 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
         }
 
 
-        var prop;
         try {
             const vec = store.backend.indiManager!.deviceTree[currentDevice].CONNECTION;
 
-            if (vec.$state == "Busy") {
+            if (vec.$state === "Busy") {
                 return {
                     state: "Busy"
                 }
@@ -98,7 +98,7 @@ class UnmappedDeviceConnectBton extends React.PureComponent<Props, State> {
 
             const prop = vec.childs.CONNECT;
             return {
-                state : prop.$_ == "On" ? "On" : "Off",
+                state : prop.$_ === "On" ? "On" : "Off",
             }
         } catch(e) {
             return {

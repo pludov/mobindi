@@ -45,7 +45,6 @@ static FrameContext nextEntryFrame;
 
 static FrameContext indiFrame;
 
-static uint64_t blobsize = 0;
 
 class MyClient : public INDI::BaseClient
 {

@@ -65,7 +65,7 @@ export function getFocusDelta(param : FocusDeltaParameters): FocusDelta
     }
 
     const fromCur = refFocus.position + delta - curFocus.position;
-    const fromCurWeight = focusStepTolerance >= 1 ? Math.abs(fromCur) / focusStepTolerance : fromCur == 0 ? 0 : 1;
+    const fromCurWeight = focusStepTolerance >= 1 ? Math.abs(fromCur) / focusStepTolerance : fromCur === 0 ? 0 : 1;
     return {
         fromRef: delta,
         fromCur,

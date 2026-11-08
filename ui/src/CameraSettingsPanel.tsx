@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { defaultMemoize } from 'reselect'
 
-import Log from './shared/Log';
 import * as Store from "./Store";
 import * as CameraStore from "./CameraStore";
 import CameraSettingsView from './CameraSettingsView';
@@ -11,8 +10,6 @@ import DeviceSettingsBton from './DeviceSettingsBton';
 import './CameraView.css'
 import * as ImagingSetupStore from './ImagingSetupStore';
 import CameraViewDevicePanel from './CameraViewDevicePanel';
-
-const logger = Log.logger(__filename);
 
 type InputProps = {
     imagingSetup: string | null;
@@ -26,9 +23,6 @@ type Props = InputProps & MappedProps;
 
 class CameraSettingsPanel extends React.PureComponent<Props> {
 
-    constructor(props: Props) {
-        super(props);
-    }
 
     private readonly cameraSettingsAccessor = defaultMemoize(CameraStore.cameraDeviceSettingsAccessor);
 

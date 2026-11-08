@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React from 'react';
 import ContextMenuContext, {OpenTrigger} from './ContextMenuContext';
 import { ContextMenuEntry } from './FitsViewer';
 
@@ -11,18 +11,18 @@ type Props = {
  */
 export default class ContextMenuDisplayer extends React.PureComponent<Props> {
     render() {
-        return <ContextMenuContext.opened.Consumer>
+        return <ContextMenuContext.Opened.Consumer>
             {
                 trigger=> (trigger === null
                     ? null
                     :
-                        <ContextMenuContext.entries.Consumer>
+                        <ContextMenuContext.Entries.Consumer>
                             {
                                 entries => this.props.children(trigger, entries)
                             }
-                        </ContextMenuContext.entries.Consumer>
+                        </ContextMenuContext.Entries.Consumer>
                 )
             }
-        </ContextMenuContext.opened.Consumer>
+        </ContextMenuContext.Opened.Consumer>
     }
 }

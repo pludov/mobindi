@@ -17,7 +17,6 @@ export type Content = {
 
 
 let geolocWorker : undefined | Promise<GeolocationPosition> = undefined;
-let geoloc: GeolocationPosition|undefined = undefined;
 
 function getGeolocWorker() {
     if (!geolocWorker) {
@@ -26,7 +25,7 @@ function getGeolocWorker() {
             navigator.geolocation.getCurrentPosition(
                 (position)=>{
                     logger.info('got geoloc', {position});
-                    geoloc = position;
+
                     Actions.dispatch<GeolocActions>()("updateGeoloc", {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
@@ -56,9 +55,9 @@ export function currentGeoloc(state: Store.Content):GeolocStoreContent {
 
 const updateGeoloc=(state: Store.Content, payload: {latitude:number|null, longitude: number|null, altitude: number|null})=>{
     if (state.geoloc.acquired
-        && state.geoloc.altitude == payload.altitude
-        && state.geoloc.longitude == payload.longitude
-        && state.geoloc.latitude == payload.latitude)
+        && state.geoloc.altitude === payload.altitude
+        && state.geoloc.longitude === payload.longitude
+        && state.geoloc.latitude === payload.latitude)
     {
         return state;
     }

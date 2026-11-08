@@ -128,6 +128,9 @@ export default class IndiServerStarter {
 
         let env:{[id:string]:string|undefined} = {};
         let args = ['indiserver', '-v', '-f', fifopath];
+        if (process.env.MOBINDI_INDI_PORT) {
+            args.push('-p', process.env.MOBINDI_INDI_PORT, '-u', '/tmp/indiserver-' + process.env.MOBINDI_INDI_PORT);
+        }
         if (this.currentConfiguration.path != null) {
             env.PATH = this.currentConfiguration.path + ":" + process.env['PATH'];
         }
@@ -416,7 +419,8 @@ export default class IndiServerStarter {
                 let needPidCheck = true;
                 do {
                     if (needPidCheck || this.indiServerTrouble) {
-                        const serverPids = await SystemPromise.PidOf(task.cancellation, 'indiserver');
+                        // With a dedicated port (tests), another indiserver running on the host is not ours
+                        const serverPids = (firstCheck && process.env.MOBINDI_INDI_PORT) ? [] : await SystemPromise.PidOf(task.cancellation, 'indiserver');
                         if (serverPids.length > 0) {
                             if (firstCheck) {
                                 logger.warn('Existing indiserver process found. Assuming it already has the right configuration.', {serverPids});

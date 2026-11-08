@@ -23,6 +23,7 @@ import { SequenceActivityWatchdog } from './SequenceActivityWatchdog';
 import { SequenceStatisticWatcher } from './SequenceStatisticWatcher';
 import { SequenceParamClassifier } from './shared/SequenceParamClassifier';
 import { AstrometryResult, ProcessorAstrometryConstraints, ProcessorAstrometryRequest } from './shared/ProcessorTypes';
+import ImageProcessor from './ImageProcessor';
 
 const logger = Log.logger(__filename);
 
@@ -231,6 +232,47 @@ export default class SequenceManager
             images: [],
             imageStats: {},
         });
+        this.currentStatus.sequences.list.push(key);
+        return key;
+    }
+
+    copySequence = async (ct: CancellationToken, message:{sequenceUid: string})=>{
+        const sourceKey = message.sequenceUid;
+
+        if (!hasKey(this.currentStatus.sequences.byuuid, sourceKey)) {
+            throw new Error("source sequence not found");
+        }
+        const source = this.currentStatus.sequences.byuuid[sourceKey];
+
+        const model: Partial<Sequence>= {
+            imagingSetup: source.imagingSetup,
+
+            root: deepCopy(source.root),
+            fwhmMonitoring: deepCopy(source.fwhmMonitoring),
+            backgroundMonitoring: deepCopy(source.backgroundMonitoring),
+            activityMonitoring: deepCopy(source.activityMonitoring),
+        };
+
+
+        const key = uuidv4();
+        const firstSeq = uuidv4();
+        this.currentStatus.sequences.byuuid[key] = this.completeSequence({
+            status: 'idle',
+            title: 'New sequence',
+            progress: null,
+            imagingSetup: null,
+            errorMessage: null,
+
+            root: {
+                type: 'FRAME_LIGHT'
+            },
+
+            images: [],
+            imageStats: {},
+            ...model
+        });
+
+
         this.currentStatus.sequences.list.push(key);
         return key;
     }
@@ -547,7 +589,7 @@ export default class SequenceManager
                 },
             });
 
-            const channelBlacks = histogram.map(ch=>this.imageProcessor.getHistgramAduLevel(ch, 0.2));
+            const channelBlacks = histogram.map(ch=>ImageProcessor.getHistogramAduLevelMean(ch, 0.10, 0.30));
 
             target.backgroundLevel = channelBlacks.length ? channelBlacks.reduce((a, c)=>a+c, 0) / (1024 * channelBlacks.length) : undefined;
 
@@ -1127,6 +1169,7 @@ export default class SequenceManager
             stopSequence: this.stopSequence,
             resetSequence: this.resetSequence,
             dropSequence: this.dropSequence,
+            copySequence: this.copySequence,
             resetStatMonitoringLearning: this.resetStatMonitoringLearning,
             resetStatMonitoringCurrent: this.resetStatMonitoringCurrent,
         }

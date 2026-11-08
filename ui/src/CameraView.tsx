@@ -10,7 +10,6 @@ import { ShootResult } from '@bo/BackOfficeAPI';
 
 import './CameraView.css'
 import { StreamDetails } from '@bo/BackOfficeStatus';
-import EditableImagingSetupSelector from './EditableImagingSetupSelector';
 import * as ImagingSetupStore from './ImagingSetupStore';
 import * as CameraStore from './CameraStore';
 import CameraSettingsPanel from './CameraSettingsPanel';
@@ -99,7 +98,7 @@ class CameraView extends React.PureComponent<Props, State> {
         logger.debug('crop result', {rslt});
     };
 
-    loadImage = (path: string)=>{
+    loadImage = (path: string|undefined)=>{
         this.setState({loadedImage: path});
     }
 

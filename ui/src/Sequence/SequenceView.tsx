@@ -1,10 +1,9 @@
-import React, { Component, PureComponent} from 'react';
+import React, { PureComponent} from 'react';
 
 import * as BackOfficeStatus from '@bo/BackOfficeStatus';
 import { defaultMemoize } from 'reselect';
 import * as Actions from '../Actions';
 import * as Store from '../Store';
-import * as Help from '../Help';
 import * as AccessPath from '../shared/AccessPath';
 
 import * as SequenceStore from '../SequenceStore';
@@ -14,7 +13,6 @@ import SequenceEditDialog from './SequenceEditDialog';
 
 import './SequenceView.css';
 import { has } from '../shared/JsonProxy';
-import * as BackOfficeAPI from '@bo/BackOfficeAPI';
 import SequenceControler from './SequenceControler';
 import SequenceSelector from './SequenceSelector';
 import ImageDetail from "./ImageDetail";
@@ -56,7 +54,7 @@ const fieldList:Array<FieldDefinition & {id:string}> = [
         minimumWidth: '3em',
         grow: 1,
         render: (o:BackOfficeStatus.ImageStatus&BackOfficeStatus.ImageStats&AdditionalImageStatus)=>
-            (o.path.indexOf('/') != -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
+            (o.path.indexOf('/') !== -1 ? o.path.substring(o.path.lastIndexOf('/')+1) : o.path)
     },
     {
         id: 'astrometry',

@@ -7,16 +7,13 @@ import IndiDriverConfig from './IndiDriverConfig';
 import "./DeviceSettingsBton.css";
 
 type Props = {
-    deviceId: string;
+    deviceId: string|null;
 }
 
 // Display a connect/disconnect button for a device
 export default class DeviceSettingsBton extends React.PureComponent<Props> {
     static help = Help.key("INDI device settings", "Setup advanced Mobindi behavior regarding the INDI device (auto-connect, ...)");
     private modal = React.createRef<Modal>();
-    constructor(props:Props) {
-        super(props);
-    }
 
     private config = ()=> {
         this.modal.current!.open();

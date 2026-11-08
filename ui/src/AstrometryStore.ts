@@ -3,7 +3,7 @@ import { defaultMemoize } from 'reselect';
 
 import * as BackendRequest from "./BackendRequest";
 import CancellationToken from 'cancellationtoken';
-import { BackendAccessorImpl, RecursiveBackendAccessor } from './utils/BackendAccessor';
+import { BackendAccessorImpl } from './utils/BackendAccessor';
 import { AstrometrySettings } from '@bo/BackOfficeStatus';
 import * as AccessPath from './shared/AccessPath';
 

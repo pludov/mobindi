@@ -1,0 +1,24 @@
+li.profile_list_item {
+    /* Horizontal flex box for profile items*/
+    display: flex;
+    /* center Align content vertically */
+    align-items: center;
+    background-color: #252025;
+    margin: 0.1em;
+    padding: 0.1em;
+}
+
+/* Alternative background color */
+li.profile_list_item:nth-child(2n) {
+    background-color: #202520;
+
+}
+
+.profile_list_title {
+    flex-grow: 100;
+    margin-left: 0.2em;
+    /* Ellipsis ... */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+

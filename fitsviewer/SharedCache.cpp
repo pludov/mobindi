@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <iostream>
+#include <algorithm>
 #include "ChildProcess.h"
 #include "SharedCache.h"
 #include "SharedCacheServer.h"
@@ -227,8 +228,10 @@ namespace SharedCache {
 		switch(unit) {
 			case 'G':
 				maxSize *= 1024;
+				[[fallthrough]];
 			case 'M':
 				maxSize *= 1024;
+				[[fallthrough]];
 			case 'K':
 				maxSize *= 1024;
 		}
@@ -387,7 +390,7 @@ namespace SharedCache {
 	{
 		memset(&addr, 0, sizeof(addr));
 		addr.sun_family = AF_UNIX;
-		strncpy(addr.sun_path + 1, basePath.c_str(), sizeof(addr.sun_path)-1);
+		memcpy(addr.sun_path + 1, basePath.c_str(), std::min(basePath.size(), sizeof(addr.sun_path) - 1));
 		len = offsetof(struct sockaddr_un, sun_path) + basePath.size() + 1;
 	}
 
@@ -417,7 +420,7 @@ namespace SharedCache {
 
 			try {
 				system(fitsServerExe, args);
-			} catch(SharedCache::WorkerError e) {
+			} catch(SharedCache::WorkerError & e) {
 				// Ignore errors here since we'll retry anyway
 			}
 

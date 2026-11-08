@@ -7,7 +7,7 @@ import ArrayReselect from './ArrayReselect';
 
 it('is ok', () => {
 
-    const arraySelector = ArrayReselect.createArraySelector<any,void,any>((a:[number])=>a.map((i)=>i*2));
+    const arraySelector = ArrayReselect.createArraySelector<[any, any?], any>((a:[number])=>a.map((i)=>i*2));
 
     const allOne = [1,1,1];
     const r1 = arraySelector(allOne, undefined);

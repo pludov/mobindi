@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import Log from './shared/Log';
 import * as FilterWheelStore from "./FilterWheelStore";
 import * as Store from "./Store";
 import DeviceConnectBton from './DeviceConnectBton';
@@ -10,8 +9,6 @@ import './CameraView.css'
 import * as ImagingSetupStore from './ImagingSetupStore';
 import CameraViewDevicePanel from './CameraViewDevicePanel';
 import FilterSelector from './FilterSelector';
-
-const logger = Log.logger(__filename);
 
 type InputProps = {
     imagingSetup: string | null;
@@ -25,9 +22,6 @@ type Props = InputProps & MappedProps;
 
 class FilterWheelSettingsPanel extends React.PureComponent<Props> {
 
-    constructor(props: Props) {
-        super(props);
-    }
 
     render() {
         return (this.props.device !== null ?

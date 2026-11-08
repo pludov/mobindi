@@ -1,8 +1,7 @@
 import * as React from 'react';
 import * as Store from './Store';
-import * as Utils from './Utils';
 import * as IndiUtils from './IndiUtils';
-import { IndiDevice, IndiVector } from '@bo/BackOfficeStatus';
+import { IndiVector } from '@bo/BackOfficeStatus';
 
 type InputProps = {
     overridePredicate?: ((store: Store.Content, props: InputProps)=>(boolean|undefined));
@@ -19,9 +18,6 @@ type Props = InputProps & MappedProps;
 
 /* Render the child depending on the availability of an Indi Setting */
 class StatePropCond extends React.PureComponent<Props> {
-    constructor(props: Props) {
-        super(props);
-    }
 
     render()
     {
@@ -49,7 +45,7 @@ class StatePropCond extends React.PureComponent<Props> {
             result = (desc !== undefined);
         }
         return ({
-            active: result == true
+            active: result === true
         });
     }
 }

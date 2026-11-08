@@ -39,7 +39,6 @@ let notifier: WorkerNotifier;
 
 let notificationAllowed: boolean = false;
 let boCnx: BackendStatusValue;
-let boCnxError: string|undefined;
 let boStatus: {notification: BackofficeStatus["notification"]} | undefined;
 
 
@@ -49,8 +48,7 @@ class WorkerNotifier extends Notifier {
     protected onStatusChanged(backendStatus: BackendStatusValue, backendError?: string) {
         logger.debug('worker got new status',  {backendStatus, backendError});
         boCnx = backendStatus;
-        boCnxError = backendError;
-        if (backendStatus != BackendStatus.Connected || backendError != null) {
+        if (backendStatus !== BackendStatus.Connected || backendError != null) {
             boStatus = undefined;
         }
         emitNotifications();
@@ -59,7 +57,6 @@ class WorkerNotifier extends Notifier {
     protected handleNotifications(n: {batch: any[]}|{data: any}) {
         logger.debug('worker notified');
         boCnx = BackendStatus.Connected;
-        boCnxError = undefined;
 
         if (has(n, "data")) {
             boStatus = (n as any).data;
@@ -75,18 +72,6 @@ class WorkerNotifier extends Notifier {
 let shownNotifications: {[id:string]:true|number} = {};
 let visibleNotifications: {[id:string]:Notification} = {};
 
-function exposedNotification(uuid: string)
-{
-    notifier.sendRequest({
-        _app: 'notification',
-        _func: 'exposedNotification',
-        payload: {
-            uuid
-        }
-    }, "api");
-
-}
-
 function buildNotificationsFromBackend() {
     if (boStatus === undefined) {
         return [];
@@ -100,7 +85,6 @@ function buildNotificationsFromBackend() {
     const result: Array<{title: string}> = [];
     for(const uuid of boStatus.notification.list) {
         if (has(shownNotifications, uuid)) {
-            const v = shownNotifications[uuid] ;
             // if ((v !== true) && v + 30000 < now) {
             //     shownNotifications[uuid] = now;
             //     if (boStatus.notification.byuuid[uuid].type === "oneshot") {
@@ -138,7 +122,7 @@ function buildNotificationsFromBackend() {
 
 
 let disconnectTime: undefined|number;
-let disconnectTimer: NodeJS.Timer|undefined;
+let disconnectTimer: ReturnType<typeof setInterval>|undefined;
 let disconnectedNotification: Notification|undefined;
 
 function emitNotifications() {
@@ -211,7 +195,7 @@ try {
             }
 
             const transStatus=(prev: ClientStatus, cur: ClientStatus)=>{
-                if ((prev.alive && prev.visible) != (cur.alive && cur.visible)) {
+                if ((prev.alive && prev.visible) !== (cur.alive && cur.visible)) {
                     visibleClientCount += (cur.alive && cur.visible) ? 1 : -1;
                     logger.debug('Visible client count ', {visibleClientCount});
                 }
@@ -280,6 +264,5 @@ try {
 } catch(e) {
     logger.error('error from worker', e);
 }
-
 
 

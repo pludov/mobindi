@@ -1,0 +1,33 @@
+
+.AstrometryWelcomePage {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+input.AstrometryWizardSelectButton {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    padding-left: 2em;
+    padding-right: 2em;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    min-width: calc(50% - 4em);
+    white-space: nowrap;
+}
+
+.AstrometryWizardSelectTitle {
+    text-overflow: ellipsis;
+    font-size: 1.5em;
+    text-align: center;
+    overflow: hidden;
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    margin-top: 0.05em;
+    margin-bottom: 0.1em;
+    white-space: nowrap;
+    width: calc(100% - 1em);
+}
+

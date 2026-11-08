@@ -1,8 +1,6 @@
 import * as React from 'react';
 
-import * as Utils from '../Utils';
 import * as Store from '../Store';
-import * as BackendRequest from '../BackendRequest';
 import { atPath } from '../shared/JsonPath';
 import FitsViewerWithAstrometry from '../FitsViewerWithAstrometry';
 

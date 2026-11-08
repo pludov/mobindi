@@ -7,19 +7,17 @@ const logger = Log.logger(__filename);
 type Control = {
     id: string;
     title: string;
-    run: ()=>Promise<any>;
+    disabled?: boolean;
+    run: ()=>any;
 }
 
-type NumberStored = {
-    setValue?: undefined;
-    active?: undefined;
-    activeNumber: number|null;
-    setNumber:(d:number)=>Promise<any>;
-}
-
-type StringStored = {
-    active: string|null;
-    setValue:(d:string)=>Promise<any>;
+// Either (activeNumber, setNumber) or (active, setValue) must be provided.
+// Kept as a plain object (not a union) so that react-redux's connect typing can infer it.
+type Stored = {
+    activeNumber?: number|null;
+    setNumber?: (d:number)=>any;
+    active?: string|null;
+    setValue?: (d:any)=>any;
 }
 
 type ValueOverride = {
@@ -27,19 +25,21 @@ type ValueOverride = {
     title: string;
 }
 
-export type Props<TYPE> = (NumberStored | StringStored) & {
+export type Props<TYPE> = Stored & {
     nullAlwaysPossible?: boolean;
     placeholder?: string;
-    availablesGenerator?: (props: Props<TYPE>)=>Array<TYPE>;
-    getId?: (o: TYPE, props: Props<TYPE>)=>string;
-    getTitle?: (o: TYPE, props: Props<TYPE>)=>string;
+    // method syntax: callers declare these with their own, narrower props type
+    availablesGenerator?(props: Props<TYPE>): Array<TYPE>;
+    getId?(o: TYPE, props: Props<TYPE>): string;
+    getTitle?(o: TYPE, props: Props<TYPE>): string;
+    getEnabled?(o: TYPE, props: Props<TYPE>): boolean;
     controls?: Array<Control>;
     focusRef?: React.RefObject<HTMLSelectElement>;
     helpKey?: Help.Key;
     valueOverride?: ValueOverride;
     className?: string;
 };
-type State<TYPE> = {
+type State = {
     forcedValue: string|null;
     runningPromise: Promise<any>|undefined;
 };
@@ -49,7 +49,7 @@ type State<TYPE> = {
  * 
  * Supported values: numbers, strings, booleans, null
  */
-export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYPE>, State<TYPE>> {
+export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYPE>, State> {
     static defaultProps = {
         getTitle: (e:any)=>'' + e,
         getId: (e:any)=>e,
@@ -67,25 +67,25 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
     }
 
     getActiveString() {
-        const numberStored = (this.props as NumberStored);
+        const numberStored = this.props;
         if (numberStored.activeNumber !== undefined) {
             if (numberStored.activeNumber === null) {
                 return null;
             }
             return "" + numberStored.activeNumber;
         }
-        return (this.props as StringStored).active;
+        return this.props.active;
     }
 
     setValueString() {
-        const numberStored = (this.props as NumberStored);
+        const numberStored = this.props;
         if (numberStored.setNumber !== undefined) {
             const setNumber = numberStored.setNumber;
             return async (d:string)=> {
                 return await setNumber(parseFloat(d));
             }
         }
-        return (this.props as StringStored).setValue;
+        return this.props.setValue;
     }
 
     render() {
@@ -107,7 +107,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             disabled = false;
         } else {
             let active = this.getActiveString();
-            if (active == undefined) active = null;
+            if ((active === null || active === undefined)) active = null;
             if (this.state.forcedValue !== null) {
                 active = this.state.forcedValue;
                 logger.debug('Using forced value', {active});
@@ -136,14 +136,15 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         }
         for(const v of availables) {
             const id = JSON.stringify(this.props.getId!(v, this.props));
-            options.push(<option value={id} key={id}>{this.props.getTitle!(v, this.props)}</option>);
+            let option_disabled = this.props.getEnabled ? !this.props.getEnabled(v, this.props) : false;
+            options.push(<option disabled={option_disabled} value={id} key={id}>{this.props.getTitle!(v, this.props)}</option>);
             disabled = false;
         }
 
         if (this.props.controls) {
             for(const v of this.props.controls) {
                 var id = "ctrl:" + JSON.stringify(v.id);
-                options.push(<option value={id} key={id}>{v.title}</option>);
+                options.push(<option value={id} key={id} disabled={!!v.disabled}>{v.title}</option>);
                 disabled = false;
             }
         }
@@ -169,7 +170,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
             var id = JSON.parse(value.substring(5));
             if (this.props.controls) {
                 for(const v of this.props.controls) {
-                    if (v.id == id) {
+                    if (v.id === id) {
                         logger.debug('select entry', {id});
                         this.selectEntry(null, v.run);
                     }
@@ -196,7 +197,7 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
 
     // FIXME: ici on veut des task
     // Est-ce qu'on peut garder un promise + un CT ?
-    async selectEntry(d:string|null, generator:(d:string|null)=>Promise<any>) {
+    async selectEntry(d:string|null, generator:((d:any)=>any)|undefined) {
         if (generator === undefined) return;
 
         if (this.state.runningPromise) {
@@ -219,4 +220,3 @@ export default class PromiseSelector<TYPE> extends React.PureComponent<Props<TYP
         }
     }
 }
-

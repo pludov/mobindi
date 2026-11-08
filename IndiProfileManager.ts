@@ -3,7 +3,7 @@
  */
 import Log from './Log';
 import { ExpressApplication, AppContext } from "./ModuleBase";
-import { IndiManagerStatus, BackofficeStatus, IndiProfileConfiguration, ProfilePropertyAssociation } from './shared/BackOfficeStatus';
+import { IndiManagerStatus, BackofficeStatus, IndiProfileConfiguration, ProfilePropertyAssociation, IndiProfileExclusionGroupConfig } from './shared/BackOfficeStatus';
 import JsonProxy, { NoWildcard, TriggeredWildcard } from './shared/JsonProxy';
 import CancellationToken from 'cancellationtoken';
 import * as RequestHandler from "./RequestHandler";
@@ -12,6 +12,7 @@ import { IdGenerator } from './IdGenerator';
 
 import { add3D, delete3D, getOwnProp, getOrCreateOwnProp, get3D, set3D, count3D } from './shared/Obj';
 import Timeout from './Timeout';
+import { canonicalize } from 'json-canonicalize';
 
 const logger = Log.logger(__filename);
 
@@ -52,6 +53,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
 
     notificationId: string|undefined;
 
+    perProfileDeviceListener : Map<string, {jsonCrit: string, cancel: ()=>void}> = new Map();
+
     constructor(app: ExpressApplication, appStateManager:JsonProxy<BackofficeStatus>, context: AppContext) {
         this.app = app;
         this.appStateManager = appStateManager;
@@ -66,6 +69,9 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             ['indiManager', 'configuration', 'profiles'],
             this.fullRefreshProfileStatus, true);
 
+        this.appStateManager.addSynchronizer(
+            ['indiManager', 'configuration', 'profiles', 'byUid', null, 'systemDeviceIdentifier'],
+            this.registerSystemDeviceWatches, true);
 
         this.appStateManager.addSynchronizer(
             [   'indiManager',
@@ -77,6 +83,67 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
                 '$_'
             ],
             this.verifyPropertyWildcard, false, true);
+    }
+
+    private readonly switchProfileFromDevice=(profileUid: string, deviceIsPresent: boolean)=>{
+        const profile = this.getProfile(profileUid);
+        if (profile === null) {
+            logger.warn("Profile not found during device activation", {profileUid, deviceIsPresent});
+            return;
+        }
+        if (profile.systemDeviceLogic === null) {
+            logger.warn("Profile has no device logic during device activation", {profileUid, deviceIsPresent});
+            return;
+        }
+
+        const targetState = profile.systemDeviceLogic ? deviceIsPresent : !deviceIsPresent;
+
+        if (profile.active === targetState) {
+            logger.info("Status of profile is already aligned with system device", {profileUid, name: profile.name, active: profile.active, targetState, deviceIsPresent});
+            return;
+        }
+
+        logger.warn("Switching profile status according to system device", {profileUid, name: profile.name, targetState, deviceIsPresent, systemDeviceIdentifier: profile.systemDeviceIdentifier});
+
+        profile.active = targetState;
+        this.applyExclusionAfterProfileSwitch(profile);
+
+        this.context.notification.info(`Indi profile ${profile.name} ${targetState ? "enabled": "disabled"} ${deviceIsPresent ? "since control device is connected": "because control device is not found"}`);
+    }
+
+    private readonly registerSystemDeviceWatches= ()=>{
+        for(const [k,prof] of Object.entries(this.indiManager.configuration.profiles.byUid)) {
+            let listener = this.perProfileDeviceListener.get(k);
+            if ((!prof.systemDeviceIdentifier) || (prof.systemDeviceLogic === null)) {
+                if (listener) {
+                    listener.cancel();
+                    this.perProfileDeviceListener.delete(k);
+                }
+            } else {
+                const jsonCrit = canonicalize(prof.systemDeviceIdentifier);
+                if (!listener) {
+                    listener = {
+                        jsonCrit: "",
+                        cancel: ()=>{},
+                    };
+                    this.perProfileDeviceListener.set(k, listener);
+                }
+
+                if (jsonCrit !== listener.jsonCrit) {
+                    listener.cancel();
+                    listener.jsonCrit = jsonCrit;
+                    listener.cancel = this.context.systemDeviceManager.presenceWatch(JSON.parse(jsonCrit) as any, (present)=> {
+                        this.switchProfileFromDevice(k, present)
+                    });
+                }
+            }
+        }
+        for(const [k, listener] of Array.from(Object.entries(this.perProfileDeviceListener))) {
+            if (!Object.prototype.hasOwnProperty.call(this.indiManager.configuration.profiles.byUid, k)) {
+                listener.cancel();
+                this.perProfileDeviceListener.delete(k);
+            }
+        }
     }
 
     private readonly fullRefreshProfileStatus = () => {
@@ -274,29 +341,150 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             uid,
             name: "New profile",
             active: false,
+            systemDeviceIdentifier: null,
+            systemDeviceLogic: null,
             ...payload,
+            exclusionGroup: null,
             keys: {},
         };
+        return uid;
     };
+
+    readonly moveProfile = async (ct: CancellationToken, payload: {uid: string, direction: number}) => {
+        const profile = this.getProfile(payload.uid);
+        if (!profile) {
+            throw new Error("Profile not found");
+        }
+
+        let currentPos = this.indiManager.configuration.profiles.list.indexOf(payload.uid);
+        if (currentPos === -1) {
+            throw new Error("Internal error: Profile not found in list");
+        }
+
+        if (payload.direction > 0) {
+            // Swap with currentPos + 1
+            if (currentPos + 1 < this.indiManager.configuration.profiles.list.length) {
+                const otherUid = this.indiManager.configuration.profiles.list[currentPos + 1];
+                this.indiManager.configuration.profiles.list[currentPos] = otherUid;
+                this.indiManager.configuration.profiles.list[currentPos + 1] = payload.uid;
+            }
+        } else if (payload.direction < 0) {
+            // Swap with currentPos - 1
+            if (currentPos - 1 >= 0) {
+                const otherUid = this.indiManager.configuration.profiles.list[currentPos - 1];
+                this.indiManager.configuration.profiles.list[currentPos] = otherUid;
+                this.indiManager.configuration.profiles.list[currentPos - 1] = payload.uid;
+            }
+        }
+    }
+
+    getProfile = (uid: string) : IndiProfileConfiguration|null => {
+        if (Object.prototype.hasOwnProperty.call(this.indiManager.configuration.profiles.byUid, uid)) {
+            return this.indiManager.configuration.profiles.byUid[uid];
+        }
+        return null;
+    }
+
+    getExclusionGroupProfiles = (exclusionGroupId: string|null): Set<string> => {
+        let ret = new Set<string>;
+        for(const [k, v] of Object.entries(this.indiManager.configuration.profiles.byUid)) {
+            if (v.exclusionGroup === exclusionGroupId) {
+                ret.add(k);
+            }
+        }
+        return ret;
+    }
+
+    drainUselessExclusionGroup= (exclusionGroupId: string|null) => {
+        if (exclusionGroupId === null) {
+            return;
+        }
+        let content = this.getExclusionGroupProfiles(exclusionGroupId);
+        if (content.size == 1) {
+            // Kill the orphaned group
+            let item = [...content][0];
+            this.indiManager.configuration.profiles.byUid[item].exclusionGroup = null;
+        }
+    }
 
     readonly deleteProfile = async (ct: CancellationToken, payload: { uid: string; }) => {
         const index = this.indiManager.configuration.profiles.list.indexOf(payload.uid);
         if (index >= 0) {
             this.indiManager.configuration.profiles.list.splice(index, 1);
+            let profileExclusionGroup = this.indiManager.configuration.profiles.byUid[payload.uid].exclusionGroup;
             delete this.indiManager.configuration.profiles.byUid[payload.uid];
+
+            this.drainUselessExclusionGroup(profileExclusionGroup);
         }
     };
 
+    readonly applyExclusionAfterProfileSwitch=(profile: IndiProfileConfiguration)=>{
+        // for exclusionGroup, switch off other profiles
+        if (profile.active && profile.exclusionGroup !== null) {
+            for(const other of this.getExclusionGroupProfiles(profile.exclusionGroup)) {
+                if (other !== profile.uid) {
+                    const otherProfile = this.getProfile(other);
+                    if (otherProfile && otherProfile.active) {
+                        otherProfile.active = false;
+                    }
+                }
+            }
+        }
+
+    }
+
     readonly updateProfile = async (ct: CancellationToken, payload: Partial<Omit<IndiProfileConfiguration, "keys">> & {uid:string}) => {
-        const profile = this.indiManager.configuration.profiles.byUid[payload.uid];
+        const profile = this.getProfile(payload.uid);
         if (!profile) {
             throw new Error("Profile not found");
         }
-        if (payload.active !== undefined) {
+        if (payload.active !== undefined && payload.active !== profile.active) {
             profile.active = payload.active;
+
+            this.applyExclusionAfterProfileSwitch(profile);
         }
         if (payload.name !== undefined) {
             profile.name = payload.name;
+        }
+        if (payload.systemDeviceIdentifier !== undefined) {
+            profile.systemDeviceIdentifier = payload.systemDeviceIdentifier;
+        }
+        if (payload.systemDeviceLogic !== undefined) {
+            profile.systemDeviceLogic = payload.systemDeviceLogic;
+        }
+    }
+
+    readonly allocateNewExclusionGroupId = ():string=> {
+        const exclusionGroupIdGenerator = new IdGenerator();
+        exclusionGroupIdGenerator.used(Object.values(this.indiManager.configuration.profiles.byUid).map(e=>e.exclusionGroup).filter(e=>e !== null).map(e=>e!));
+        return exclusionGroupIdGenerator.next();
+    }
+
+    readonly updateProfileExclusionGroup = async(ct: CancellationToken, payload: IndiProfileExclusionGroupConfig) => {
+        const profile = this.getProfile(payload.uid);
+        if (!profile) {
+            throw new Error("profile not found");
+        }
+
+        let newGroup = new Set<string>([payload.uid, ...payload.otherUids]);
+        const newGroupId = newGroup.size === 1 ? null : (profile.exclusionGroup || this.allocateNewExclusionGroupId());
+
+        const groupToCheck = new Set<string|null>();
+
+        groupToCheck.add(newGroupId);
+        for(const [k,v] of Object.entries(this.indiManager.configuration.profiles.byUid)) {
+            if (newGroup.has(k)) {
+                groupToCheck.add(v.exclusionGroup);
+                v.exclusionGroup = newGroupId;
+            } else if (v.exclusionGroup === newGroupId) {
+                // Remove from old group
+                v.exclusionGroup = null;
+            }
+        }
+
+        // Make sure no orphan group are left
+        for(const groupId of groupToCheck) {
+            this.drainUselessExclusionGroup(groupId);
         }
     }
 
@@ -512,6 +700,8 @@ export default class IndiProfileManager implements RequestHandler.APIAppProvider
             createProfile: this.createProfile,
             deleteProfile: this.deleteProfile,
             updateProfile: this.updateProfile,
+            updateProfileExclusionGroup: this.updateProfileExclusionGroup,
+            moveProfile: this.moveProfile,
             addToProfile: this.addToProfile,
             removeFromProfile: this.removeFromProfile,
             applyActiveProfiles: this.applyActiveProfiles,

@@ -1,0 +1,11 @@
+/* Mimic a button */
+.GroupProfileStatusIndicator {
+    font-weight: bold;
+    font-family: "MobindiGlyphBton", "sans-serif";
+    margin-right: 0.7em;
+    text-align: center;
+    min-width: 1.6em;
+    min-height: 1.6em;
+    border-radius: 0.2em;
+}
+

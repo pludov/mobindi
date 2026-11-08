@@ -76,7 +76,6 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, WriteableEntry
 	int status = 0;
 	int bitpix, naxis;
 	long naxes[2] = {1,1};
-	u_int16_t * data;
 
 	if (!fits_get_img_param(file.fptr, 2, &bitpix, &naxis, naxes, &status) )
 	{
@@ -145,7 +144,9 @@ void SharedCache::Messages::RawContent::readFits(FitsFile & file, WriteableEntry
 		switch(bitpix) {
 			case BYTE_IMG:
 				storage->setBitPix(8);
+				break;
 			case SHORT_IMG:
+				[[fallthrough]];
 			default:
 				storage->setBitPix(16);
 		}

@@ -1,4 +1,4 @@
-import React, { Component, PureComponent} from 'react';
+import React, { PureComponent} from 'react';
 import Log from '../shared/Log';
 import * as BackendRequest from "../BackendRequest";
 import CancellationToken from 'cancellationtoken';
@@ -40,7 +40,7 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
     }
 
     async _loadData() {
-        if (this.props.path === this.state.path && this.props.streamId == this.state.streamId) {
+        if (this.props.path === this.state.path && this.props.streamId === this.state.streamId) {
             return;
         }
         // Start a new loading.
@@ -52,8 +52,6 @@ export default class FWHMDisplayer extends PureComponent<Props, State> {
             value: null,
             loading: true
         });
-        const self = this;
-
         try {
             const e = await BackendRequest.ImageProcessor(
                 CancellationToken.CONTINUE,
