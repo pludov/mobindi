@@ -13,6 +13,7 @@ import "./IndiManagerView.css";
 import { defaultMemoize } from 'reselect';
 
 type InputProps = {
+    onEditConfiguration: ()=>void;
 }
 
 type Option = {
@@ -29,20 +30,31 @@ type Props = InputProps & MappedProps;
 
 class IndiDriverSelector extends React.Component<Props> {
     static help = Help.key("INDI driver selector", "Select which INDI device or driver to view details for.");
-
+    static editConfigurationHelp = Help.key("Edit INDI server configuration", "Configure automatic startup and manage configured INDI devices.");
 
     updateDriver = (e:React.ChangeEvent<HTMLSelectElement>)=> {
         const target = e.target.value;
+        if (target === this.editOptionValue()) {
+            e.currentTarget.value = this.props.current;
+            this.props.onEditConfiguration();
+            return;
+        }
         Actions.dispatch<IndiManagerStore.IndiManagerActions>()("switchToDevice", {dev: target});
+    }
+
+    private editOptionValue = () => {
+        return "__mobindi_edit_indi_configuration__";
     }
 
     render() {
         const deviceSelectorOptions = this.props.options.map((item) => <option key={item.value} value={item.value}>{item.title}</option>);
+        const editValue = this.editOptionValue();
         return (<select value={this.props.current}
             onChange={this.updateDriver}
             {...IndiDriverSelector.help.dom()}
             placeholder="Select device...">
             {deviceSelectorOptions}
+            <option value={editValue} {...IndiDriverSelector.editConfigurationHelp.dom()}>✏️ Edit...</option>
         </select>);
     }
 
@@ -58,6 +70,9 @@ class IndiDriverSelector extends React.Component<Props> {
             if (this.props.options[i] !== nextProps.options[i]) {
                 return true;
             }
+        }
+        if (this.props.onEditConfiguration !== nextProps.onEditConfiguration) {
+            return true;
         }
         return false;
     }
@@ -181,4 +196,3 @@ class IndiDriverSelector extends React.Component<Props> {
 }
 
 export default Store.Connect(IndiDriverSelector);
-

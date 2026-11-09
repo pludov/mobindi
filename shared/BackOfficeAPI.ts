@@ -59,6 +59,9 @@ export type IndiAPI = IndiProfileAPI & {
     connectDevice: (payload: {device: string})=>void;
     disconnectDevice: (payload: {device: string})=>void;
     restartDriver: (payload: {driver: string})=>void;
+    updateIndiServerAutorun: (payload: {autorun: boolean})=>void;
+    addIndiServerDevice: (payload: {id: string; driver: string})=>void;
+    removeIndiServerDevice: (payload: {id: string; confirmHiddenConfiguration?: boolean})=>void;
     updateDriverParam: (payload: UpdateIndiDriverParamRequest)=>void;
     updateVector: (payload: UpdateIndiVectorRequest)=>void;
 }

@@ -3,10 +3,12 @@
  */
 import React, { } from 'react';
 import Collapsible from 'react-collapsible';
+import * as Help from "../Help";
 import * as Store from "../Store";
 import * as Actions from "../Actions";
 import * as IndiManagerStore from "../IndiManagerStore";
 import { IndiManagerStatus } from '@bo/BackOfficeStatus';
+import Modal from '../Modal';
 import "./IndiManagerView.css";
 import "../Collapsible.css";
 import IndiDriverControlPanel from './IndiDriverControlPanel';
@@ -16,6 +18,7 @@ import IndiProfileActiveSelector from './IndiProfileActiveSelector';
 import IndiPropertyProfileStatus from './IndiPropertyProfileStatus';
 import IndiProfileGlobalStatus from './IndiProfileGlobalStatus';
 import IndiGroupProfileStatus from './IndiGroupProfileStatus';
+import IndiServerConfigurationEditor from './IndiServerConfigurationEditor';
 
 type InputProps = {
 }
@@ -27,12 +30,12 @@ type MappedProps = {
 
 type Props = InputProps & MappedProps;
 
-
 class IndiManagerView extends React.PureComponent<Props> {
-    constructor(props:Props) {
-        super(props);
+    private static configurationEditorCloseHelp = Help.key("Close", "Close the INDI server configuration editor.");
+    private configurationEditor = React.createRef<Modal>();
 
-        this.state = { value: ''};
+    openConfigurationEditor = () => {
+        this.configurationEditor.current!.open();
     }
 
     async setGroupState(dev: string, group: string, newState: boolean)
@@ -133,8 +136,15 @@ class IndiManagerView extends React.PureComponent<Props> {
                 </div>
 
                 <div className="IndiDriverSelector">
-                    <IndiDriverSelector/>
+                    <IndiDriverSelector onEditConfiguration={this.openConfigurationEditor}/>
                     <IndiDriverControlPanel/>
+                    <Modal
+                        ref={this.configurationEditor}
+                        title={<div className="Title">INDI server configuration</div>}
+                        closeHelpKey={IndiManagerView.configurationEditorCloseHelp}
+                    >
+                        <IndiServerConfigurationEditor/>
+                    </Modal>
                 </div>
 
                 <div className="IndiPropertyView">

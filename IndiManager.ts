@@ -67,6 +67,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             },
             // Maps indi drivers to group
             driverToGroup: {},
+            driverToName: {},
             availableScopes: [],
             availableFocusers: [],
             availableCameras: [],
@@ -192,6 +193,9 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
             connectDevice: this.connectDevice,
             disconnectDevice: this.disconnectDevice,
             restartDriver: this.restartDriver,
+            updateIndiServerAutorun: this.updateIndiServerAutorun,
+            addIndiServerDevice: this.addIndiServerDevice,
+            removeIndiServerDevice: this.removeIndiServerDevice,
             updateDriverParam: this.updateDriverParam,
             updateVector: this.updateVector,
             ...this.profileManager.getAPI()
@@ -228,6 +232,51 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
 
     applyActiveProfiles= (ct: CancellationToken, payload: {}) => {
         return this.profileManager.applyActiveProfiles(ct, payload);
+    }
+
+    updateIndiServerAutorun = async (ct: CancellationToken, payload: {autorun: boolean}) => {
+        if (typeof payload.autorun !== 'boolean') {
+            throw new TypeError('autorun must be a boolean');
+        }
+        this.currentStatus.configuration.indiServer.autorun = payload.autorun;
+        if (payload.autorun) {
+            this.indiServerStarter?.startLifeCycle();
+        }
+    }
+
+    addIndiServerDevice = async (ct: CancellationToken, payload: {id: string; driver: string}) => {
+        const id = payload.id.trim();
+        if (!id) {
+            throw new Error('Device ID cannot be empty');
+        }
+        if (id === '__proto__') {
+            throw new Error('This device ID cannot be used');
+        }
+        if (!has(this.currentStatus.driverToGroup, payload.driver)) {
+            throw new Error(`Unknown INDI driver: ${payload.driver}`);
+        }
+        const devices = this.currentStatus.configuration.indiServer.devices;
+        if (has(devices, id)) {
+            throw new Error(`An INDI device with ID "${id}" already exists`);
+        }
+        devices[id] = {
+            driver: payload.driver,
+            options: {},
+        };
+    }
+
+    removeIndiServerDevice = async (ct: CancellationToken, payload: {id: string; confirmHiddenConfiguration?: boolean}) => {
+        const devices = this.currentStatus.configuration.indiServer.devices;
+        if (!has(devices, payload.id)) {
+            throw new Error(`INDI device "${payload.id}" does not exist`);
+        }
+        const device = devices[payload.id];
+        const hasHiddenConfiguration = ['config', 'skeleton', 'prefix'].some((key) => has(device, key))
+            || Object.keys(device.options || {}).length > 0;
+        if (hasHiddenConfiguration && !payload.confirmHiddenConfiguration) {
+            throw new Error(`INDI device "${payload.id}" has additional configuration that must be confirmed before removal`);
+        }
+        delete devices[payload.id];
     }
 
     public async metrics():Promise<Array<Metrics.Definition>> {
@@ -451,6 +500,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         var pathList = this.currentStatus.configuration.driverPath.split(',');
 
         var driverToGroup : {[id:string]:string}= {};
+        var driverToName : {[id:string]:string}= {};
 
         pathList.forEach((path)=>{
             var content:string[] = [];
@@ -473,8 +523,12 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
                             for(var group of e.devGroup)
                             {
                                 for(var device of group.device) {
-                                    var driver = device.driver.$_;
+                                    var driver = device.driver.$_ || device.driver.$name;
+                                    if (!driver) {
+                                        continue;
+                                    }
                                     driverToGroup[driver] = group.$group;
+                                    driverToName[driver] = device.$label || device.$name || driver;
                                 }
                             }
                         } catch(err) {
@@ -492,6 +546,7 @@ export default class IndiManager implements RequestHandler.APIAppProvider<BackOf
         });
 
         this.currentStatus.driverToGroup = driverToGroup;
+        this.currentStatus.driverToName = driverToName;
     }
 
     private readonly connectionListener = new Set<(cnx:undefined|IndiConnection)=>(void)>();

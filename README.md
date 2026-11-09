@@ -62,6 +62,9 @@ PORT=8081
   * Inline help available for most actions, with easy access from mobile device:
 
 ![Inline Help](docs/inline_help.gif?raw=true "Inline help example")
+  * Indi configuration from the UI (no need to edit configuration files manually):
+
+![Indi configuration](docs/indi-setup.png?raw=true "Indi configuration")
   * Optional storage of fits-server data into ramdisk
   * Run under the .local domain with appropriate certificate (usefull for shared wifi network)
 

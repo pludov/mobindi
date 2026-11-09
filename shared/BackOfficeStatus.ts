@@ -311,6 +311,7 @@ export type IndiManagerStatus = {
         profiles : IndiProfilesConfiguration;
     };
     driverToGroup: {[driver: string]: string};
+    driverToName: {[driver: string]: string};
     deviceTree: {[deviceId:string]:IndiDevice};
     availableCameras: string[];
     availableScopes: string [];
