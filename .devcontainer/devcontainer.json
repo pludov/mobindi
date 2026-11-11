@@ -9,7 +9,7 @@
   "remoteUser": "root",
   "containerUser": "root",
   "updateRemoteUserUID": false,
-
+  "appPort": [3000],
   "customizations": {
     "vscode": {
     }
@@ -20,9 +20,6 @@
     "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached,readonly",
     /* Map ssh config */
     "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached,readonly"
-  ],
-
-  /* Forward port 3000 and 8080 for the web server */
-  "forwardPorts": [3000, 8080]
+  ]
 
 }
