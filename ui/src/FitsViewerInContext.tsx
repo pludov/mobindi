@@ -34,6 +34,7 @@ export class UnmappedFitsViewerInContext extends React.PureComponent<Props> {
 
     render() {
         return <FitsViewer ref={this.fitsViewer}
+                            persistencePrefix={"FitsViewer-" + this.props.contextKey}
                             path={this.props.path}
                             directPort={this.props.directPort}
                             streamId={this.props.streamId}

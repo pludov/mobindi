@@ -3,6 +3,7 @@ import $ from 'jquery';
 import Log from '../shared/Log';
 import * as Obj from '../shared/Obj';
 import * as Help from '../Help';
+import * as GenericUiStore from '../GenericUiStore';
 import './FitsViewer.css'
 import ContextMenu from './ContextMenu';
 import LevelBar from './LevelBar';
@@ -44,6 +45,7 @@ export type ContextMenuEvent = {
 
 export type Props = {
     path: string|null;
+    persistencePrefix: string;
     streamId: string|null;
     streamSerial: string|null;
     subframe?: SubFrame|null;
@@ -135,22 +137,42 @@ class FitsViewer extends React.PureComponent<Props, State> {
 
     constructor(props: Props) {
         super(props);
-        this.state = {
-            histogramView: null,
-            fwhm: false,
-            histogramWindow: false,
-        };
+        this.state = GenericUiStore.initComponentState(
+            `${this.props.persistencePrefix || '#'}.Self`,
+            (e) => {
+                if (e) {
+                    return e;
+                }
+                
+                return ({
+                    histogramView: null,
+                    fwhm: false,
+                    histogramWindow: false,
+                })
+            }
+        );
         this.instanceContext = {
             declareChild: this.createMarkerToken
         };
-        // FIXME: persist state : histogram is visible
     }
 
     static readonly ViewContext = React.createContext<FitsViewerContext>({declareChild:()=>undefined});
 
-    componentDidUpdate(prevProps: Props) {
+    componentDidUpdate(prevProps: Props, prevState: State) {
         this.imageDisplay.setFullState(this.props.path, this.props.streamId, this.props.streamSerial, this.props.subframe||null, this.props.directPort, this.getViewSettingsCopy(), this.props.streamDetails || undefined);
         this.fireAutoCropCb();
+        
+        if (!Obj.deepEqual(prevState, this.state)) {
+            GenericUiStore.updateComponentState(
+                this.persistenceKey('Self'),
+                this.state
+            );
+        }
+
+    }
+
+    persistenceKey(suffix: string) {
+        return `${this.props.persistencePrefix || '#'}.${suffix}`;
     }
 
     componentDidMount() {
@@ -226,8 +248,12 @@ class FitsViewer extends React.PureComponent<Props, State> {
         } else {
             this.setState({histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
         }
+        GenericUiStore.updateComponentState(
+            this.persistenceKey('Self'),
+            this.state
+        );
     }
-
+    
     static readonly closeHistogramHelp = Help.key('Close histogram', "Close the histogram view");
     static readonly lowHelp= Help.key('Low level', "Define the low bound for the image rendering curve (relative to histogram, 50% is the mean value)");
     static readonly mediumHelp= Help.key('Median level', "Define the medium value for the image rendering curve (relative to histogram, 50% is the mean value)");
@@ -378,7 +404,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
                             }
                         </ContextMenuDisplayer>
 
-                        <FloatContainer>
+                        <FloatContainer persistencePrefix={this.persistenceKey('FitsViewer')}>
                             {this.state.histogramWindow
                                 ?
                                     <FloatWindow key="histogram">
