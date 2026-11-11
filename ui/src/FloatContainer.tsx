@@ -158,7 +158,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
     }
 
     private static refreshPerChild<T>(items:{[id:string]: T}, childs: FloatWindow[], builder: (child: FloatWindow, id:string)=>T) {
-        const done = {};
+        const done: {[id:string]: boolean} = {};
         for(const child of childs) {
             const wid = (child as any).key;
             done[wid] = true;

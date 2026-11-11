@@ -11,12 +11,12 @@ type State = {
 
 export default class FloatWindowMover extends React.PureComponent<Props, State> {
     private divRef: React.RefObject<HTMLDivElement> = React.createRef();
-    private moveListener: MouseMoveListener;
-    context: FloatContainerContext;
+    private moveListener?: MouseMoveListener;
+    context: FloatContainerContext|undefined;
     touches = {};
+
     constructor(props:Props) {
         super(props);
-        this.state = {cpt: 0};
     }
 
 
@@ -26,10 +26,10 @@ export default class FloatWindowMover extends React.PureComponent<Props, State> 
             closeContextMenu:()=>{},
             zoom:()=>{},
             drag:(dx, dy)=>{
-                this.context.deltaMove(dx, dy)
+                this.context?.deltaMove(dx, dy)
             },
             endDrag:()=> {
-                this.context.deltaMoveEnd();
+                this.context?.deltaMoveEnd();
             }
         });
     }

@@ -167,13 +167,14 @@ export default class Histogram extends React.PureComponent<Props, State> {
     }
 
     onCanvasResize=(canvas_x:number, canvas_y:number)=>{
-        this.setState({canvas_x, canvas_y});
+        this.setState({canvas_x: canvas_x, canvas_y: canvas_y});
     }
 
     render() {
         const channels:Array<PreRenderedHistogram> = (this.state.value || []).map((data)=>renderHistogramData(data, this.state.canvas_y));
         const xscale = this.state.canvas_x / 255;
-        return <div className="HistogramDetail plop">
+        return <div className="HistogramDetail">
+            <div className="HistogramDetailInner">
             <ReactResizeDetector handleWidth handleHeight onResize={this.onCanvasResize} />
             <Stage width={this.state.canvas_x} height={this.state.canvas_y} opacity={1}>
                 <Layer>
@@ -214,6 +215,7 @@ export default class Histogram extends React.PureComponent<Props, State> {
                     )}
                 </Layer>
             </Stage>
+            </div>
         </div>;
     }
 };
