@@ -1,6 +1,7 @@
 import React from 'react';
 import CancellationToken from 'cancellationtoken';
 import Log from '../shared/Log';
+import * as Help from '../Help';
 import * as BackendRequest from "../BackendRequest";
 
 import { Stage, Layer, Shape } from 'react-konva';
@@ -10,6 +11,7 @@ import { ProcessorHistogramResult, ProcessorHistogramChannel } from '@bo/Process
 import ReactResizeDetector from 'react-resize-detector';
 
 import "./Histogram.css"
+import ContextMenuItem from './ContextMenuItem';
 
 const logger = Log.logger(__filename);
 

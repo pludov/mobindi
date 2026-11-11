@@ -55,7 +55,6 @@ export type Props = {
 };
 
 export type State = {
-    contextmenu: {x:number, y:number}|null;
     histogramView: null|LevelId;
     histogramWindow: boolean;
     fwhm: boolean;
@@ -131,12 +130,12 @@ class FitsViewer extends React.PureComponent<Props, State> {
     imageDisplay: ImageDisplay;
     $el: JQuery<HTMLDivElement>;
     el: React.RefObject<HTMLDivElement> = React.createRef();
+    private contextMenu: React.RefObject<ContextMenuContext> = React.createRef();
     private readonly instanceContext: FitsViewerContext;
 
     constructor(props: Props) {
         super(props);
         this.state = {
-            contextmenu: null,
             histogramView: null,
             fwhm: false,
             histogramWindow: false,
@@ -200,13 +199,13 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     openContextMenu(x:number, y:number) {
-        this.setState({contextmenu:{x, y}});
+        const contextMenu = this.contextMenu.current;
+        contextMenu?.open({x, y});
     }
 
-    closeContextMenu(x:number, y:number) {
-        if (this.state.contextmenu !== null) {
-            this.setState({contextmenu:null});
-        }
+    closeContextMenu() {
+        const contextMenu = this.contextMenu.current;
+        contextMenu?.close();
     }
 
     onViewSettingsChange(state:FullState)
@@ -215,18 +214,21 @@ class FitsViewer extends React.PureComponent<Props, State> {
     }
 
     private readonly displaySetting=(which: LevelId|"fwhm"|"histogram"|"crosshair"|null)=>{
+        console.log('Displaying setting for', which);
+        this.closeContextMenu();
         if (which === "histogram") {
-            this.setState({contextmenu: null, histogramWindow: !this.state.histogramWindow});
+            this.setState({histogramWindow: !this.state.histogramWindow});
         } else if (which === 'fwhm') {
-            this.setState({contextmenu: null, histogramView: null, fwhm: true});
+            this.setState({histogramView: null, fwhm: true});
         } else if (which === 'crosshair') {
             this.switchCrosshair();
-            this.setState({contextmenu: null});
+            this.setState({});
         } else {
-            this.setState({contextmenu: null, histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
+            this.setState({histogramView: (this.state.histogramView === which ? null : which), fwhm: false});
         }
     }
 
+    static readonly closeHistogramHelp = Help.key('Close histogram', "Close the histogram view");
     static readonly lowHelp= Help.key('Low level', "Define the low bound for the image rendering curve (relative to histogram, 50% is the mean value)");
     static readonly mediumHelp= Help.key('Median level', "Define the medium value for the image rendering curve (relative to histogram, 50% is the mean value)");
     static readonly highHelp= Help.key('High level', "Define the high bound for the image rendering curve (relative to histogram, 50% is the mean value)");
@@ -261,7 +263,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
         return propValue as FullState;
     }
 
-    updateHisto = (which: string, v:number)=>{
+    updateHisto = (which: "low"|"high"|"medium", v:number)=>{
         var newViewSettings = this.getViewSettingsCopy();
         newViewSettings.levels[which] = v;
 
@@ -305,10 +307,6 @@ class FitsViewer extends React.PureComponent<Props, State> {
         if (this.imageDisplay !== undefined) {
             this.imageDisplay.onResize();
         }
-    }
-
-    closeMenu = ()=> {
-        this.setState({contextmenu: null});
     }
 
     declareChild=()=>{
@@ -361,7 +359,7 @@ class FitsViewer extends React.PureComponent<Props, State> {
 
         return(
             <FitsViewer.ViewContext.Provider value={this.instanceContext}>
-                <ContextMenuContext open={this.state.contextmenu} close={this.closeMenu}>
+                <ContextMenuContext ref={this.contextMenu} >
                     <div className='FitsViewOverlayContainer'>
                         <div className='FitsView' ref={this.el}>
                             <ReactResizeDetector handleWidth handleHeight onResize={this.onResize} />
@@ -383,13 +381,21 @@ class FitsViewer extends React.PureComponent<Props, State> {
                         <FloatContainer>
                             {this.state.histogramWindow
                                 ?
-                                    <FloatWindow key="fits_view_overlay">
+                                    <FloatWindow key="histogram">
                                         <FloatWindowMover>
                                             <Histogram
                                                 path={this.props.path}
                                                 streamId={this.props.streamId}
                                                 streamSerial={this.props.streamSerial}
                                                 />
+                                            <ContextMenuItem
+                                                title='Hide'
+                                                helpKey={FitsViewer.closeHistogramHelp}
+                                                uid='Histogram/zzzz'
+                                                cb={this.showHistogram}
+                                                positional={false}
+                                                />
+
                                         </FloatWindowMover>
                                     </FloatWindow>
                                 :

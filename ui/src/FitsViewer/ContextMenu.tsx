@@ -30,13 +30,13 @@ export default class ContextMenu extends PureComponent<Props> {
                 px: (item.parentNode! as HTMLDivElement).clientWidth,
                 py: (item.parentNode! as HTMLDivElement).clientHeight,
             }
-            if (this.props.x + sze.cx > sze.px) {
+            if (parseFloat(item.style.left) + sze.cx > sze.px) {
                 // Update the css: move left
-                item.style.left = (parseFloat(item.style.left!) - (this.props.x + sze.cx - sze.px)) + "px";
+                item.style.left = (parseFloat(item.style.left!) - (parseFloat(item.style.left!) + sze.cx - sze.px)) + "px";
             }
-            if (this.props.y + sze.cy > sze.py) {
+            if (parseFloat(item.style.top) + sze.cy > sze.py) {
                 // Update the css: move up
-                item.style.top = (parseFloat(item.style.top!) - (this.props.y + sze.cy - sze.py)) + "px";
+                item.style.top = (parseFloat(item.style.top!) - (parseFloat(item.style.top!) + sze.cy - sze.py)) + "px";
             }
             logger.debug('rendered sze', {sze});
         }
@@ -54,7 +54,8 @@ export default class ContextMenu extends PureComponent<Props> {
         const css:CSSProperties = {
             left: this.props.x,
             top: this.props.y,
-            position: 'absolute'
+            position: 'absolute',
+            pointerEvents: "auto"
         }
         return(
             <div className="ImageContextMenu" style={css} ref={this.itemRef}>

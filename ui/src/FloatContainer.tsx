@@ -3,6 +3,10 @@ import Log from './shared/Log';
 import FloatWindow from './FloatWindow';
 import ReactResizeDetector from 'react-resize-detector';
 import { has } from './Utils';
+import ContextMenuContext, { OpenTrigger } from './FitsViewer/ContextMenuContext';
+import ContextMenuDisplayer from './FitsViewer/ContextMenuDisplayer';
+import ContextMenu from './FitsViewer/ContextMenu';
+import { ContextMenuEntry } from './FitsViewer/FitsViewer';
 
 const logger = Log.logger(__filename);
 
@@ -11,9 +15,6 @@ type Props = {
 }
 
 type State = {
-    pos: {
-        [id:string]: Position
-    }
 }
 
 type Position = {
@@ -42,6 +43,9 @@ export type FloatContainerContext = {
     openContextMenu: (cx: number, dy:number)=>void;
     closeContextMenu: ()=>void;
 
+    register :() => void;
+    unregister: () => void;
+
 }
 
 function fit(x:number, size: number, max?:number) {
@@ -56,24 +60,29 @@ function fit(x:number, size: number, max?:number) {
 
 export default class FloatContainer extends React.PureComponent<Props, State> {
     private childRefs: {[id:string]: React.RefObject<HTMLDivElement>} = {};
+    private childContextMenus: {[id:string]: React.RefObject<ContextMenuContext>} = {};
     private childResizeHandlers : {[id:string]: (w:number, h:number)=>void} = {};
     private childSizes: {[id: string]: Size|undefined} = {};
     private childContext: {[id: string]: FloatContainerContext} = {};
 
     private childPrefs: {[id: string]: Pref } = {};
     private parentSize = {width: 0, height: 0};
+    private childKnownCount: {[id: string]: number} = {};
 
     public static Context = React.createContext<FloatContainerContext>({
         deltaMove: ()=>{}, 
         deltaMoveEnd:()=>{}, 
         openContextMenu: (cx: number, dy:number)=>{},
         closeContextMenu: ()=>{},
+        register: ()=>{},
+        unregister: ()=>{}
     });
 
     constructor(props:Props) {
         super(props);
         this.state = {
-            pos: {}
+            contextMenuOpenFor: undefined,
+            contextMenuOpenedLocation: undefined
         };
     }
 
@@ -124,14 +133,13 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         }
     }
 
-    openContextMenu=(id:string, cx:number, cy:number)=>{
-        // Implement context menu opening logic here
+    getChildPos(id: string) {
+        const item = this.childRefs[id]?.current;
+        if (item) {
+            return {x: item.offsetLeft, y: item.offsetTop};
+        }
+        return undefined;
     }
-
-    closeContextMenu=(id:string)=>{
-        // Implement context menu closing logic here
-    }
-
 
     moveChild=(id:string, dx: number, dy: number)=> {
         this.prefOp(id, (pref, item)=>{
@@ -192,16 +200,53 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         }
     }
 
+    openContextMenu=(id:string, cx:number, cy:number)=>{
+        
+        let p = this.getChildPos(id);
+        // Convert to container's location
+        if (!p) {
+            console.warn('No position found for', id);
+            return;
+        }
+
+        this.childContextMenus[id]?.current?.open?.({x: p.x + cx, y: p.y + cy});
+    }
+
+    closeContextMenu=(id:string)=>{
+        this.childContextMenus[id]?.current?.close?.();
+    }
+
+    registerChild = (id: string) => {
+        this.childKnownCount[id] = (this.childKnownCount[id] || 0) + 1;
+    }
+
+    unregisterChild = (id: string) => {
+        if (this.childKnownCount[id]) {
+            this.childKnownCount[id]--;
+            if (this.childKnownCount[id] === 0) {
+                delete this.childKnownCount[id];
+                delete this.childPrefs[id];
+                delete this.childRefs[id];
+                delete this.childResizeHandlers[id];
+                delete this.childContext[id];
+                delete this.childContextMenus[id];
+            }
+        }
+    }
+
     render() {
         const windows = FloatContainer.getFloatingWindows(this.props.children);
 
         FloatContainer.refreshPerChild(this.childRefs, windows, React.createRef);
+        FloatContainer.refreshPerChild(this.childContextMenus, windows, React.createRef);
         FloatContainer.refreshPerChild(this.childResizeHandlers, windows, (child, key)=>(w, h)=>this.onChildResize(key, w, h));
         FloatContainer.refreshPerChild(this.childContext, windows, (child,key)=> ({
             deltaMove: (dx, dy)=>this.moveChild(key, dx, dy),
             deltaMoveEnd: ()=>this.commitChild(key),
             openContextMenu: (cx, cy)=>this.openContextMenu(key, cx, cy),
             closeContextMenu: ()=>this.closeContextMenu(key),
+            register: () => this.registerChild(key),
+            unregister: () => this.unregisterChild(key),
         }));
 
         return (<div style={{
@@ -213,20 +258,35 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
             height: "100%"
         }}>
             <ReactResizeDetector handleWidth handleHeight onResize={this.onParentResize} />
+                <ContextMenuContext>
+                    {windows.map(w=> {
+                        const wid = (w as any).key;
+                        
+                        // FIXME: prevent displaying until size has been received
+                        return (
+                            <ContextMenuContext key={wid} ref={this.childContextMenus[wid]}>
+                                <FloatContainer.Context.Provider value={this.childContext[wid]} key={wid}>
+                                    <div style={{pointerEvents: "auto", display: "inline-block", position: "absolute"}} ref={this.childRefs[wid]}>
+                                        {w}
+                                    </div>
+                                </FloatContainer.Context.Provider>
+                                
+                                <ContextMenuDisplayer>
+                                    {
+                                        (trigger: OpenTrigger, entries: ContextMenuEntry[]) =>
+                                            <ContextMenu
+                                                    contextMenu={entries}
+                                                    x={trigger.x} y={trigger.y}
+                                                    xlateCoords={()=>null}
+                                                    displaySetting={()=>{}}
+                                            />
+                                    }
+                                </ContextMenuDisplayer>
 
-            {windows.map(w=> {
-                const wid = (w as any).key;
-                
-                // FIXME: prevent displaying until size has been received
-                return (
-                    <FloatContainer.Context.Provider value={this.childContext[wid]} key={wid}>
-                        <div style={{pointerEvents: "auto", display: "inline-block", position: "absolute"}} ref={this.childRefs[wid]}>
-                            {w}
-                        </div>
-                    </FloatContainer.Context.Provider>
-                )
-            })}
-
+                            </ContextMenuContext>
+                        )
+                    })}
+                </ContextMenuContext>
             </div>);
     }
 

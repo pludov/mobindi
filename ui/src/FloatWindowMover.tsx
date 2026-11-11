@@ -36,6 +36,7 @@ export default class FloatWindowMover extends React.PureComponent<Props, State> 
                 this.context?.deltaMoveEnd();
             }
         });
+        this.context?.register();
     }
 
     componentWillUnmount() {
@@ -43,6 +44,7 @@ export default class FloatWindowMover extends React.PureComponent<Props, State> 
             this.moveListener.dispose();
             // this.moveListener = undefined;
         }
+        this.context?.unregister();
     }
 
     render() {

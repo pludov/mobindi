@@ -2,8 +2,8 @@ import React from 'react';
 
 export type Props = {
     onFinishMove: ()=>(void);
-    onChange: (which:string, n:number)=>(void);
-    property: string;
+    onChange: (which:"low"|"medium"|"high", n:number)=>(void);
+    property: "low"|"medium"|"high";
     value: number;
 }
 
