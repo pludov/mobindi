@@ -22,8 +22,12 @@ export default class FloatWindowMover extends React.PureComponent<Props, State> 
 
     componentDidMount() {
         this.moveListener = new MouseMoveListener($(this.divRef.current!), {
-            openContextMenu:()=>{},
-            closeContextMenu:()=>{},
+            openContextMenu:(cx: number, cy:number)=>{
+                this.context?.openContextMenu(cx, cy);
+            },
+            closeContextMenu:()=>{
+                this.context?.closeContextMenu();
+            },
             zoom:()=>{},
             drag:(dx, dy)=>{
                 this.context?.deltaMove(dx, dy)

@@ -38,6 +38,10 @@ type Pref = {
 export type FloatContainerContext = {
     deltaMove:(dx:number, dy:number)=>void;
     deltaMoveEnd: ()=>void;
+
+    openContextMenu: (cx: number, dy:number)=>void;
+    closeContextMenu: ()=>void;
+
 }
 
 function fit(x:number, size: number, max?:number) {
@@ -59,7 +63,12 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
     private childPrefs: {[id: string]: Pref } = {};
     private parentSize = {width: 0, height: 0};
 
-    public static Context = React.createContext<FloatContainerContext>({deltaMove: ()=>{}, deltaMoveEnd:()=>{}});
+    public static Context = React.createContext<FloatContainerContext>({
+        deltaMove: ()=>{}, 
+        deltaMoveEnd:()=>{}, 
+        openContextMenu: (cx: number, dy:number)=>{},
+        closeContextMenu: ()=>{},
+    });
 
     constructor(props:Props) {
         super(props);
@@ -114,6 +123,15 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
             }
         }
     }
+
+    openContextMenu=(id:string, cx:number, cy:number)=>{
+        // Implement context menu opening logic here
+    }
+
+    closeContextMenu=(id:string)=>{
+        // Implement context menu closing logic here
+    }
+
 
     moveChild=(id:string, dx: number, dy: number)=> {
         this.prefOp(id, (pref, item)=>{
@@ -182,6 +200,8 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
         FloatContainer.refreshPerChild(this.childContext, windows, (child,key)=> ({
             deltaMove: (dx, dy)=>this.moveChild(key, dx, dy),
             deltaMoveEnd: ()=>this.commitChild(key),
+            openContextMenu: (cx, cy)=>this.openContextMenu(key, cx, cy),
+            closeContextMenu: ()=>this.closeContextMenu(key),
         }));
 
         return (<div style={{
