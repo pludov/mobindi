@@ -7,11 +7,12 @@ import ContextMenuContext, { OpenTrigger } from './FitsViewer/ContextMenuContext
 import ContextMenuDisplayer from './FitsViewer/ContextMenuDisplayer';
 import ContextMenu from './FitsViewer/ContextMenu';
 import { ContextMenuEntry } from './FitsViewer/FitsViewer';
+import * as GenericUiStore from './GenericUiStore';
 
 const logger = Log.logger(__filename);
 
 type Props = {
-
+    persistencePrefix?: string;
 }
 
 type State = {
@@ -68,6 +69,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
     private childPrefs: {[id: string]: Pref } = {};
     private parentSize = {width: 0, height: 0};
     private childKnownCount: {[id: string]: number} = {};
+    private childRestoreFrames: {[id: string]: number} = {};
 
     public static Context = React.createContext<FloatContainerContext>({
         deltaMove: ()=>{}, 
@@ -96,7 +98,13 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
     }
 
     componentDidMount() {
-        // relayout();
+    }
+
+    componentWillUnmount() {
+        for (const id of Object.keys(this.childRestoreFrames)) {
+            window.cancelAnimationFrame(this.childRestoreFrames[id]);
+        }
+        this.childRestoreFrames = {};
     }
 
     componentWillReceiveProps() {
@@ -115,7 +123,7 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
 
     prefOp=(id:string, op: (pref:Pref, item: HTMLDivElement)=>void)=>{
         const item = this.childRefs[id]?.current;
-         
+
         if (item) {
             if (!has(this.childPrefs, id)) {
                 this.childPrefs[id] = {};
@@ -169,6 +177,20 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
             pref.dragx = undefined;
             pref.dragy = undefined;
         });
+
+        if (has(this.childPrefs, id)) {
+            let p = this.childPrefs[id];
+            if (p.x !== undefined && p.y !== undefined) {
+                console.log('Commiting float position for id:', id, 'to', p);
+                GenericUiStore.updateComponentState<Position>(
+                    this.props.persistencePrefix ? `${this.props.persistencePrefix}.${id}` : id,
+                    {
+                        x: p.x,
+                        y: p.y
+                    }
+                );
+            }
+        }
     }
 
     static getFloatingWindows(children?: ReactNode) {
@@ -218,14 +240,37 @@ export default class FloatContainer extends React.PureComponent<Props, State> {
 
     registerChild = (id: string) => {
         this.childKnownCount[id] = (this.childKnownCount[id] || 0) + 1;
+        if (this.childKnownCount[id] === 1) {
+            let newPos = GenericUiStore.initComponentState<Position|undefined>(
+                this.props.persistencePrefix ? `${this.props.persistencePrefix}.${id}` : id,
+                e=>e
+            );
+
+            if (!this.childPrefs[id]) {
+                this.childPrefs[id] = {};
+            }
+
+            if (newPos) {
+                this.childPrefs[id].x = newPos.x;
+                this.childPrefs[id].y = newPos.y;
+            }
+
+            this.childRestoreFrames[id] = window.requestAnimationFrame(() => {
+                delete this.childRestoreFrames[id];
+                this.prefOp(id, ()=>{});
+            });
+        }
     }
 
     unregisterChild = (id: string) => {
         if (this.childKnownCount[id]) {
             this.childKnownCount[id]--;
             if (this.childKnownCount[id] === 0) {
+                if (has(this.childRestoreFrames, id)) {
+                    window.cancelAnimationFrame(this.childRestoreFrames[id]);
+                    delete this.childRestoreFrames[id];
+                }
                 delete this.childKnownCount[id];
-                delete this.childPrefs[id];
                 delete this.childRefs[id];
                 delete this.childResizeHandlers[id];
                 delete this.childContext[id];
