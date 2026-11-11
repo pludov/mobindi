@@ -179,7 +179,10 @@ export class ImageDisplay {
     static allowHttpFallback() {
         const env = process.env.NODE_ENV;
         if (env === 'development' && document.location.protocol === 'http:') {
-            return true;
+            const remoteContainers = process.env.REMOTE_CONTAINERS;
+            if (!remoteContainers) {
+                return true;
+            }
         }
         return false;
     }
@@ -237,7 +240,7 @@ export class ImageDisplay {
         }
         
         // Create a new loader from the most recent available
-        const newLoader = new ImageLoader(loaderParam, this.getCgiUrl());
+        const newLoader = new ImageLoader(loaderParam, ImageDisplay.getCgiUrl());
         this.root.appendChild(newLoader.root);
     
 
@@ -350,7 +353,7 @@ export class ImageDisplay {
         this.closeContextMenuCb();
     }
 
-    private getCgiUrl() {
+    public static getCgiUrl() {
         let cgiUrl;
         if (ImageDisplay.allowHttpFallback()) {
             cgiUrl = "http://" + document.location.hostname + ":" + ImageDisplay.directPort + (document.location.pathname.replace(/\/[^/]+/, '') || '/');

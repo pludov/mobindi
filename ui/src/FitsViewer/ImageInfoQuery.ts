@@ -2,6 +2,7 @@ import Log from '../shared/Log';
 import $ from 'jquery';
 import './FitsViewer.css'
 import { ImageDetails } from './Types';
+import { ImageDisplay } from './ImageDisplay';
 
 const logger = Log.logger(__filename);
 
@@ -49,7 +50,7 @@ class ImageInfoQuery {
 
     start() {
         this.ajax = $.ajax({
-            url: 'fitsviewer/fitsviewer.cgi?size=true&' + this.path,
+            url: ImageDisplay.getCgiUrl() + '?size=true&' + this.path,
             dataType: 'json',
             error: (e)=>{
                 if (this.ajax !== null) {
